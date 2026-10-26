@@ -136,7 +136,7 @@ async fn render_start_forwards_job_events_and_produces_iso() {
 
 #[test]
 fn menu_save_background_writes_a_png_for_the_render() {
-    const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3QCwAAAABJRU5ErkJggg==";
+    const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgFlIAAABpAD4z6GE4AAAAAElFTkSuQmCC";
     let project_id = format!("test-project-{}", std::process::id());
     let data_url = format!("data:image/png;base64,{ONE_PIXEL_PNG}");
     let path = menu_save_background(project_id.clone(), "menu-test".into(), data_url)
@@ -153,23 +153,29 @@ fn menu_save_background_writes_a_png_for_the_render() {
 
 #[test]
 fn read_image_data_url_resolves_project_relative_assets() {
-    const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3QCwAAAABJRU5ErkJggg==";
+    const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgFlIAAABpAD4z6GE4AAAAAElFTkSuQmCC";
     let fixture = fixture_path();
-    let background = fixture
-        .parent()
-        .expect("fixtures/projects")
-        .join("assets/background.png");
-    if !background.exists() {
-        std::fs::create_dir_all(background.parent().expect("assets")).expect("assets dir");
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(ONE_PIXEL_PNG)
-            .expect("png");
-        std::fs::write(&background, bytes).expect("background.png");
-    }
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let project_dir = std::env::temp_dir().join(format!(
+        "dvdforge-read-image-{}-{unique}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(project_dir.join("assets")).expect("assets dir");
+    std::fs::copy(&fixture, project_dir.join("minimal.json")).expect("fixture copy");
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(ONE_PIXEL_PNG)
+        .expect("png");
+    std::fs::write(project_dir.join("assets/background.png"), bytes).expect("background.png");
+
     let _context = CONTEXT_LOCK.lock().expect("context lock");
-    let _ = project_open(fixture.display().to_string()).expect("fixture");
+    let project_path = project_dir.join("minimal.json");
+    let _ = project_open(project_path.display().to_string()).expect("fixture");
     let url = read_image_data_url("assets/background.png".into()).expect("data url");
     assert!(url.starts_with("data:image/png;base64,"));
+    let _ = std::fs::remove_dir_all(&project_dir);
 }
 
 #[test]
