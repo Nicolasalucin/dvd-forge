@@ -1,3 +1,4 @@
+use base64::Engine;
 use dvdforge_desktop::commands::{
     burn_list_devices, menu_save_background, plan_calculate, project_new, project_open,
     project_save, read_image_data_url,
@@ -152,8 +153,21 @@ fn menu_save_background_writes_a_png_for_the_render() {
 
 #[test]
 fn read_image_data_url_resolves_project_relative_assets() {
+    const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3QCwAAAABJRU5ErkJggg==";
+    let fixture = fixture_path();
+    let background = fixture
+        .parent()
+        .expect("fixtures/projects")
+        .join("assets/background.png");
+    if !background.exists() {
+        std::fs::create_dir_all(background.parent().expect("assets")).expect("assets dir");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(ONE_PIXEL_PNG)
+            .expect("png");
+        std::fs::write(&background, bytes).expect("background.png");
+    }
     let _context = CONTEXT_LOCK.lock().expect("context lock");
-    let _ = project_open(fixture_path().display().to_string()).expect("fixture");
+    let _ = project_open(fixture.display().to_string()).expect("fixture");
     let url = read_image_data_url("assets/background.png".into()).expect("data url");
     assert!(url.starts_with("data:image/png;base64,"));
 }
