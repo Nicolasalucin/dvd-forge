@@ -27,7 +27,7 @@ edition = "2021"
 rust-version = "1.96"
 license = "GPL-3.0-or-later"
 authors = ["DVD Forge contributors"]
-repository = "https://github.com/dvdforge/dvdforge"
+repository = "https://github.com/Nicolasalucin/dvd-forge"
 
 [workspace.dependencies]
 anyhow = "1"
