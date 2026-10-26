@@ -70,7 +70,7 @@
         <div class="flex items-center justify-between gap-2">
           <span class="min-w-0 truncate text-[11px] font-semibold text-slate-200">{job.projectName}</span>
           <span class={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] ${statusClass(job.status)}`}>
-            {statusLabel(job.status)}
+            {t(statusLabel(job.status))}
           </span>
         </div>
         <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[9px] text-slate-500">

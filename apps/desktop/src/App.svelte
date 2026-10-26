@@ -41,7 +41,7 @@
   async function openProject() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Proyecto de DVD Forge", extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
     });
     if (typeof picked !== "string") return;
     try {

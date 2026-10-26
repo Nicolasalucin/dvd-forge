@@ -23,7 +23,7 @@
 
   function remove(episode: Episode_Serialize, event: MouseEvent) {
     event.stopPropagation();
-    if (!window.confirm(`¿Eliminar el episodio «${episode.title}» del proyecto?`)) return;
+    if (!window.confirm(t("¿Eliminar el episodio «{episode}» del proyecto?", { episode: episode.title }))) return;
     projectStore.removeEpisode(episode.id);
   }
 

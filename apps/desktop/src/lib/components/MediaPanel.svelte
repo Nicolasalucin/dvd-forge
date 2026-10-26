@@ -66,14 +66,14 @@
       multiple: true,
       filters: [
         {
-          name: "Vídeo, audio e imagen",
+          name: t("Vídeo, audio e imagen"),
           extensions: [
             "mp4", "mkv", "mov", "avi", "webm", "mpg", "mpeg",
             "mp3", "wav", "flac", "ogg", "ac3",
             "png", "jpg", "jpeg", "webp",
           ],
         },
-        { name: "Todos los archivos", extensions: ["*"] },
+        { name: t("Todos los archivos"), extensions: ["*"] },
       ],
     });
     if (!selected) return;
@@ -414,7 +414,7 @@
       <p class="px-1 text-[11px] leading-5 text-slate-500">
         {selectedButton
           ? t("Aplica un estilo a «{name}».", { name: selectedButton.name })
-          : "Selecciona un botón o crea uno nuevo con el estilo elegido."}
+          : t("Selecciona un botón o crea uno nuevo con el estilo elegido.")}
       </p>
       <div class="mt-3 space-y-2">
         {#each styles as style}

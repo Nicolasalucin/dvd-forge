@@ -206,7 +206,7 @@
 
   function removeEpisode() {
     if (!episode) return;
-    if (!window.confirm(`¿Eliminar el episodio «${episode.title}»?`)) return;
+    if (!window.confirm(t("¿Eliminar el episodio «{episode}»?", { episode: episode.title }))) return;
     projectStore.removeEpisode(episode.id);
   }
 
@@ -304,7 +304,7 @@
                 <button
                   type="button"
                   onclick={() => projectStore.updateButton(button.id, { styleKind: style.kind })}
-                  class={`rounded-lg border px-1 py-1.5 text-[10px] font-medium transition ${
+                  class={`whitespace-nowrap rounded-lg border px-1 py-1.5 text-[10px] font-medium transition ${
                     button.styleKind === style.kind
                       ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-200"
                       : "border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:text-slate-200"

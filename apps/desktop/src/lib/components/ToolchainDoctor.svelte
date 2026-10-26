@@ -58,7 +58,7 @@
                 : "border-rose-500/30 bg-rose-500/10 text-rose-200"
             }`}
           >
-            {report.ok ? "Toolchain completa" : "Faltan herramientas obligatorias"}
+            {report.ok ? t("Toolchain completa") : t("Faltan herramientas obligatorias")}
           </span>
           <span class="font-mono text-[10px] text-slate-500">{report.platform}</span>
         </div>

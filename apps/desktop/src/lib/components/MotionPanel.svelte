@@ -145,7 +145,7 @@
                 {/if}
               </div>
               <span class="rounded-full bg-slate-950/80 px-2 py-1 text-[10px] text-slate-200 backdrop-blur">
-                {selectedButton?.name ?? "Selecciona un botón para ver su vista previa animada"}
+                {selectedButton?.name ?? t("Selecciona un botón para ver su vista previa animada")}
               </span>
             </div>
           {:else}

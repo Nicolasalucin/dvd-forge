@@ -112,7 +112,7 @@
   async function chooseExistingIso() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Imagen ISO", extensions: ["iso"] }],
+      filters: [{ name: t("Imagen ISO"), extensions: ["iso"] }],
     });
     if (typeof picked === "string") existingIso = picked;
   }

@@ -64,14 +64,14 @@
     if (!menu) return;
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Imagen de fondo", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      filters: [{ name: t("Imagen de fondo"), extensions: ["png", "jpg", "jpeg", "webp"] }],
     });
     if (typeof picked !== "string") return;
     busy = true;
     localError = null;
     try {
       const assetId = await projectStore.addImageAssetFromPath(picked);
-      if (!assetId) throw new Error(projectStore.error ?? "No se pudo importar la imagen.");
+      if (!assetId) throw new Error(projectStore.error ?? t("No se pudo importar la imagen."));
       projectStore.setMenuBackground(assetId);
       notice = t("Fondo actualizado.");
     } catch (cause) {
@@ -85,7 +85,7 @@
     if (!menu) return;
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Música", extensions: ["mp3", "wav", "flac", "ogg", "ac3"] }],
+      filters: [{ name: t("Música"), extensions: ["mp3", "wav", "flac", "ogg", "ac3"] }],
     });
     if (typeof picked !== "string") return;
     busy = true;

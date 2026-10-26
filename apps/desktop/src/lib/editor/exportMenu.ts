@@ -7,6 +7,7 @@ import type {
   SubpicturePalette,
 } from "../api/bindings";
 import { buttonStyleLayout } from "./buttonLayout";
+import { t } from "../i18n/index.svelte";
 import { hexToRgb, hexToRgba } from "../utils/color";
 
 export interface PixelRect {
@@ -68,7 +69,7 @@ export async function exportMenu(
   background.width = width;
   background.height = height;
   const context = background.getContext("2d");
-  if (!context) throw new Error("No se pudo crear el contexto 2D del fondo.");
+  if (!context) throw new Error(t("No se pudo crear el contexto 2D del fondo."));
 
   context.fillStyle = backgroundColor;
   context.fillRect(0, 0, width, height);
@@ -166,7 +167,7 @@ export async function exportMotionMenu(
   background.width = width;
   background.height = height;
   const backgroundContext = background.getContext("2d");
-  if (!backgroundContext) throw new Error("No se pudo crear el contexto 2D del fondo.");
+  if (!backgroundContext) throw new Error(t("No se pudo crear el contexto 2D del fondo."));
   backgroundContext.fillStyle = backgroundColor;
   backgroundContext.fillRect(0, 0, width, height);
   if (backgroundImageUrl) {
@@ -189,7 +190,7 @@ export async function exportMotionMenu(
   labels.width = width;
   labels.height = height;
   const labelsContext = labels.getContext("2d");
-  if (!labelsContext) throw new Error("No se pudo crear el contexto 2D de las etiquetas.");
+  if (!labelsContext) throw new Error(t("No se pudo crear el contexto 2D de las etiquetas."));
 
   const thumbnailImages = new Map<string, HTMLImageElement>();
   for (const assetId of new Set(
@@ -514,7 +515,7 @@ function renderMask(
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("No se pudo crear el contexto 2D de la subimagen.");
+  if (!context) throw new Error(t("No se pudo crear el contexto 2D de la subimagen."));
 
   const highlightColor = paletteHex(palette, 1);
   const selectColor = paletteHex(palette, 2);
@@ -599,7 +600,7 @@ function paletteHex(palette: SubpicturePalette, index: 0 | 1 | 2 | 3): string {
 
 function assertStrictPalette(canvas: HTMLCanvasElement) {
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("No se pudo validar la paleta de la subimagen.");
+  if (!context) throw new Error(t("No se pudo validar la paleta de la subimagen."));
   const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
   const colors = new Set<number>();
   for (let index = 0; index < data.length; index += 4) {
@@ -676,7 +677,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("No se pudo cargar la imagen de fondo."));
+    image.onerror = () => reject(new Error(t("No se pudo cargar la imagen de fondo.")));
     image.src = url;
   });
 }
@@ -685,7 +686,7 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
-      else reject(new Error("No se pudo exportar el PNG."));
+      else reject(new Error(t("No se pudo exportar el PNG.")));
     }, "image/png");
   });
 }

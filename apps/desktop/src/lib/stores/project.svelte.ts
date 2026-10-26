@@ -662,7 +662,7 @@ class ProjectStore {
       chapters: [
         {
           id: crypto.randomUUID(),
-          title: "Inicio",
+          title: t("Inicio"),
           atFrame: 0,
           thumbnail: null,
         },
@@ -671,7 +671,7 @@ class ProjectStore {
         sourceStream: stream.index,
         sourcePath: null,
         language: stream.language ?? "und",
-        label: `Pista ${index + 1}`,
+        label: t("Pista {number}", { number: index + 1 }),
         gainDb: 0,
         ac3Kbps: 192,
         delayMs: 0,
@@ -803,7 +803,7 @@ class ProjectStore {
         sourceStream,
         sourcePath: null,
         language: stream?.language ?? "und",
-        label: `Pista ${episode.audio.length + 1}`,
+        label: t("Pista {number}", { number: episode.audio.length + 1 }),
         gainDb: 0,
         ac3Kbps: 192,
         delayMs: 0,
@@ -942,7 +942,7 @@ class ProjectStore {
       ...episode.chapters,
       {
         id: crypto.randomUUID(),
-        title: `Capítulo ${episode.chapters.length + 1}`,
+        title: t("Capítulo {number}", { number: episode.chapters.length + 1 }),
         atFrame,
         thumbnail: null,
       },
@@ -971,7 +971,7 @@ class ProjectStore {
     }
     episode.chapters = offsets.map((offset, index) => ({
       id: crypto.randomUUID(),
-      title: index === 0 ? "Inicio" : `Capítulo ${index + 1}`,
+      title: index === 0 ? t("Inicio") : t("Capítulo {number}", { number: index + 1 }),
       atFrame: Math.round((offset / 1000) * this.frameRate),
       thumbnail: null,
     }));
@@ -1147,7 +1147,7 @@ class ProjectStore {
     const action: MenuButton_Serialize["action"] = episode
       ? { kind: "playEpisode", episode: episode.id }
       : { kind: "playAll" };
-    const name = episode?.title ?? "Reproducir todo";
+    const name = episode?.title ?? t("Reproducir todo");
     const buttonWidth = styleKind === "thumbnailCard" ? 240 : 200;
     const buttonHeight = styleKind === "thumbnailCard" ? 150 : 64;
     const gap = 16;
@@ -1345,7 +1345,7 @@ class ProjectStore {
           ),
           "playBadge",
           { kind: "playAll" },
-          "Reproducir todo",
+          t("Reproducir todo"),
         ),
       );
       const top = marginY + playHeight + gap;

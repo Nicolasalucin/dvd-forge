@@ -87,7 +87,7 @@
     if (!episode) return;
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Subtítulos", extensions: ["srt", "ass", "ssa", "vtt"] }],
+      filters: [{ name: t("Subtítulos"), extensions: ["srt", "ass", "ssa", "vtt"] }],
     });
     if (typeof picked !== "string") return;
     const name = basename(picked);

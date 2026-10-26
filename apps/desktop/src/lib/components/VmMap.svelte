@@ -116,7 +116,7 @@
         id: "firstPlay",
         kind: "firstPlay",
         title: t("INICIO"),
-        subtitle: projectStore.assetFor(current.firstPlay.asset)?.displayName ?? "Intro",
+        subtitle: projectStore.assetFor(current.firstPlay.asset)?.displayName ?? t("Intro"),
         x: 10,
         y: 32,
         width: 120,
@@ -188,7 +188,7 @@
           const from = episodeNode(current.episodes[index - 1].id);
           const to = episodeNode(current.episodes[index].id);
           if (from && to) {
-            edges.push({ id: `seq-${index}`, from, to, label: "siguiente", dashed: false });
+            edges.push({ id: `seq-${index}`, from, to, label: t("siguiente"), dashed: false });
           }
         }
       }
@@ -202,7 +202,7 @@
           id: "first-target",
           from: "firstPlay",
           to: target,
-          label: current.firstPlay.skippable ? "omitir" : "retorno",
+          label: current.firstPlay.skippable ? t("omitir") : t("retorno"),
           dashed: true,
         });
       }
@@ -240,7 +240,7 @@
                 id: `${source}-all-${episode.id}`,
                 from: source,
                 to: target,
-                label: "reproducir todo",
+                label: t("reproducir todo"),
                 dashed: true,
               });
             }
@@ -254,7 +254,7 @@
           id: `${source}-post`,
           from: source,
           to: `menu-${rootMenu.id}`,
-          label: "al terminar: volver",
+          label: t("al terminar: volver"),
           dashed: true,
         });
       }

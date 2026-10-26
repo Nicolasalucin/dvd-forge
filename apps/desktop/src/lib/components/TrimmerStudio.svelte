@@ -409,7 +409,7 @@
             </video>
           {:else}
             <div class="p-6 text-center text-xs text-slate-500">
-              {preparing ? "Preparando vista previa…" : "Sin vista previa disponible"}
+              {preparing ? t("Preparando vista previa…") : t("Sin vista previa disponible")}
             </div>
           {/if}
           {#if playbackSupport?.supported}

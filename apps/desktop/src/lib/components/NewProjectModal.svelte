@@ -56,7 +56,7 @@
     return [{ key: "25", label: "25 fps", rate: FPS_25 }];
   }
 
-  let name = $state("Mi DVD");
+  let name = $state(t("Mi DVD"));
   let mode = $state<AuthoringMode>("dvdVideo");
   let standard = $state<TvStandard>("ntsc");
   let aspect = $state<AspectRatio>("fourThree");
@@ -91,7 +91,7 @@
     localError = null;
     try {
       await projectStore.newProject(
-        name.trim() || "Mi DVD",
+        name.trim() || t("Mi DVD"),
         mode === "avchd" ? avchdStandard : standard,
         mode === "avchd" ? avchdAspect : aspect,
         mode,
@@ -109,7 +109,7 @@
   async function openProject() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: "Proyecto de DVD Forge", extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
     });
     if (typeof picked !== "string") return;
     busy = true;
