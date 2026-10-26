@@ -289,7 +289,7 @@
           disabled={busy}
           class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
         >
-          {busy ? "Creando…" : "Crear proyecto"}
+          {busy ? t("Creando…") : t("Crear proyecto")}
         </button>
       </div>
     </footer>

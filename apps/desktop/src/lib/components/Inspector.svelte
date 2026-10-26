@@ -865,7 +865,7 @@
               />
             </label>
             <p class="mt-1 truncate font-mono text-[9px] text-slate-600" title={episode.thumbnailPath ?? ""}>
-              {episode.thumbnailPath ? basename(episode.thumbnailPath) : "sin captura"}
+              {episode.thumbnailPath ? basename(episode.thumbnailPath) : t("sin captura")}
             </p>
           </div>
 

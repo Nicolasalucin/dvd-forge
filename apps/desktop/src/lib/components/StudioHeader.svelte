@@ -331,7 +331,7 @@
       <button
         type="button"
         onclick={toggleFullscreen}
-        title={fullscreen ? "Salir de pantalla completa (F11)" : "Pantalla completa (F11)"}
+        title={fullscreen ? t("Salir de pantalla completa (F11)") : t("Pantalla completa (F11)")}
         class="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-800 text-sm text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
       >
         {fullscreen ? "⤡" : "⛶"}

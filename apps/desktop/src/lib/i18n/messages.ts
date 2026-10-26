@@ -157,6 +157,8 @@ export const es: Dictionary = {
   "Crea un menú para configurar su bucle, fundidos y botones de vídeo en DVD o HD.": "Crea un menú para configurar su bucle, fundidos y botones de vídeo en DVD o HD.",
   "Crea un proyecto DVD-Video o Blu-ray/AVCHD para probar la navegación interactiva.": "Crea un proyecto DVD-Video o Blu-ray/AVCHD para probar la navegación interactiva.",
   "Crea un proyecto DVD-Video para ver el flujo de la máquina virtual.": "Crea un proyecto DVD-Video para ver el flujo de la máquina virtual.",
+  "Creando…": "Creando…",
+  "Crear proyecto": "Crear proyecto",
   "Cristal": "Cristal",
   "Crop and fill (legacy)": "Crop and fill (legacy)",
   "Cuadrícula 2×2": "Cuadrícula 2×2",
@@ -196,6 +198,7 @@ export const es: Dictionary = {
   "Edición": "Edición",
   "El First Play referencia un asset inexistente; no se reserva espacio para la intro.": "El First Play referencia un asset inexistente; no se reserva espacio para la intro.",
   "El ISO está listo, pero no hay una unidad seleccionada para grabarlo.": "El ISO está listo, pero no hay una unidad seleccionada para grabarlo.",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "El ISO se escribirá aquí con el nombre del proyecto.",
   "El bitrate calculado {bitrate} kbps supera el máximo de {max} kbps para {capacity}; el disco quedará por debajo del objetivo de llenado.": "El bitrate calculado {bitrate} kbps supera el máximo de {max} kbps para {capacity}; el disco quedará por debajo del objetivo de llenado.",
   "El bitrate calculado {bitrate} kbps supera el máximo {max} kbps; el disco quedará por debajo del objetivo de llenado.": "El bitrate calculado {bitrate} kbps supera el máximo {max} kbps; el disco quedará por debajo del objetivo de llenado.",
   "El botón se solapa o no respeta la separación mínima de 4 px.": "El botón se solapa o no respeta la separación mínima de 4 px.",
@@ -468,6 +471,8 @@ export const es: Dictionary = {
   "Oscurecer": "Oscurecer",
   "PAL": "PAL",
   "PAL · 720×576": "PAL · 720×576",
+  "Pantalla completa (F11)": "Pantalla completa (F11)",
+  "Pantalla completa del vídeo": "Pantalla completa del vídeo",
   "Perfil": "Perfil",
   "Peso": "Peso",
   "Pista de audio": "Pista de audio",
@@ -483,6 +488,7 @@ export const es: Dictionary = {
   "Playback + chapters": "Playback + chapters",
   "Playback button": "Playback button",
   "Posición": "Posición",
+  "Preparando carpeta predeterminada…": "Preparando carpeta predeterminada…",
   "Preparando reproducción…": "Preparando reproducción…",
   "Preparando vista previa…": "Preparando vista previa…",
   "Presupuesto": "Presupuesto",
@@ -547,6 +553,7 @@ export const es: Dictionary = {
   "Salida": "Salida",
   "Salida (ms)": "Salida (ms)",
   "Salir de pantalla completa": "Salir de pantalla completa",
+  "Salir de pantalla completa (F11)": "Salir de pantalla completa (F11)",
   "Salud": "Salud",
   "Se activó Half-D1 automáticamente: duración {duration} ms y bitrate calculado {bitrate} kbps.": "Se activó Half-D1 automáticamente: duración {duration} ms y bitrate calculado {bitrate} kbps.",
   "Se generará un archivo": "Se generará un archivo",
@@ -702,6 +709,7 @@ export const es: Dictionary = {
   "siguiente": "siguiente",
   "sin acción": "sin acción",
   "sin calcular": "sin calcular",
+  "sin captura": "sin captura",
   "sin detalle de WebKit": "sin detalle de WebKit",
   "sin fotograma": "sin fotograma",
   "sin menús": "sin menús",
@@ -1385,7 +1393,15 @@ export const en: Dictionary = {
   "omitir": "skip",
   "retorno": "return",
   "Pista {number}": "Track {number}",
-  "Capítulo {number}": "Chapter {number}"
+  "Capítulo {number}": "Chapter {number}",
+  "sin captura": "no capture",
+  "Creando…": "Creating…",
+  "Crear proyecto": "Create project",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "The ISO will be written here using the project name.",
+  "Preparando carpeta predeterminada…": "Preparing default folder…",
+  "Salir de pantalla completa (F11)": "Exit fullscreen (F11)",
+  "Pantalla completa (F11)": "Fullscreen (F11)",
+  "Pantalla completa del vídeo": "Video fullscreen"
 };
 
 export const pt: Dictionary = {
@@ -2045,7 +2061,15 @@ export const pt: Dictionary = {
   "omitir": "ignorar",
   "retorno": "retorno",
   "Pista {number}": "Faixa {number}",
-  "Capítulo {number}": "Capítulo {number}"
+  "Capítulo {number}": "Capítulo {number}",
+  "sin captura": "sem captura",
+  "Creando…": "Criando…",
+  "Crear proyecto": "Criar projeto",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "O ISO será gravado aqui com o nome do projeto.",
+  "Preparando carpeta predeterminada…": "Preparando pasta padrão…",
+  "Salir de pantalla completa (F11)": "Sair da tela cheia (F11)",
+  "Pantalla completa (F11)": "Tela cheia (F11)",
+  "Pantalla completa del vídeo": "Tela cheia do vídeo"
 };
 
 export const fr: Dictionary = {
@@ -2773,7 +2797,15 @@ export const fr: Dictionary = {
   "omitir": "ignorer",
   "retorno": "retour",
   "Pista {number}": "Piste {number}",
-  "Capítulo {number}": "Chapitre {number}"
+  "Capítulo {number}": "Chapitre {number}",
+  "sin captura": "aucune capture",
+  "Creando…": "Création…",
+  "Crear proyecto": "Créer le projet",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "L’ISO sera écrit ici avec le nom du projet.",
+  "Preparando carpeta predeterminada…": "Préparation du dossier par défaut…",
+  "Salir de pantalla completa (F11)": "Quitter le plein écran (F11)",
+  "Pantalla completa (F11)": "Plein écran (F11)",
+  "Pantalla completa del vídeo": "Plein écran de la vidéo"
 };
 
 export const de: Dictionary = {
@@ -3500,7 +3532,15 @@ export const de: Dictionary = {
   "omitir": "überspringen",
   "retorno": "Rücksprung",
   "Pista {number}": "Spur {number}",
-  "Capítulo {number}": "Kapitel {number}"
+  "Capítulo {number}": "Kapitel {number}",
+  "sin captura": "keine Aufnahme",
+  "Creando…": "Wird erstellt…",
+  "Crear proyecto": "Projekt erstellen",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "Das ISO wird hier mit dem Projektnamen geschrieben.",
+  "Preparando carpeta predeterminada…": "Standardordner wird vorbereitet…",
+  "Salir de pantalla completa (F11)": "Vollbild verlassen (F11)",
+  "Pantalla completa (F11)": "Vollbild (F11)",
+  "Pantalla completa del vídeo": "Vollbild des Videos"
 };
 
 export const it: Dictionary = {
@@ -4227,7 +4267,15 @@ export const it: Dictionary = {
   "omitir": "salta",
   "retorno": "ritorno",
   "Pista {number}": "Traccia {number}",
-  "Capítulo {number}": "Capitolo {number}"
+  "Capítulo {number}": "Capitolo {number}",
+  "sin captura": "nessuna cattura",
+  "Creando…": "Creazione…",
+  "Crear proyecto": "Crea progetto",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "L’ISO verrà scritto qui con il nome del progetto.",
+  "Preparando carpeta predeterminada…": "Preparazione della cartella predefinita…",
+  "Salir de pantalla completa (F11)": "Esci da schermo intero (F11)",
+  "Pantalla completa (F11)": "Schermo intero (F11)",
+  "Pantalla completa del vídeo": "Schermo intero del video"
 };
 
 export const ja: Dictionary = {
@@ -4954,6 +5002,14 @@ export const ja: Dictionary = {
   "omitir": "スキップ",
   "retorno": "戻る",
   "Pista {number}": "トラック {number}",
-  "Capítulo {number}": "チャプター {number}"
+  "Capítulo {number}": "チャプター {number}",
+  "sin captura": "キャプチャなし",
+  "Creando…": "作成中…",
+  "Crear proyecto": "プロジェクトを作成",
+  "El ISO se escribirá aquí con el nombre del proyecto.": "ISO はプロジェクト名でここに書き込まれます。",
+  "Preparando carpeta predeterminada…": "既定のフォルダを準備中…",
+  "Salir de pantalla completa (F11)": "全画面表示を終了 (F11)",
+  "Pantalla completa (F11)": "全画面表示 (F11)",
+  "Pantalla completa del vídeo": "動画の全画面表示"
 };
 

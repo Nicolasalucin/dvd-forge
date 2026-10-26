@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from "../i18n/index.svelte";
   import { Channel } from "@tauri-apps/api/core";
-  import { homeDir, join } from "@tauri-apps/api/path";
+  import { videoDir } from "@tauri-apps/api/path";
   import { open } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import {
@@ -86,9 +86,9 @@
   async function prepareDefaults() {
     if (!outputDir) {
       try {
-        outputDir = await join(await homeDir(), "Vídeos");
+        outputDir = await videoDir();
       } catch {
-        outputDir = "Vídeos";
+        outputDir = "";
       }
     }
     defaultsReady = true;
@@ -359,8 +359,8 @@
               />
               <p class="mt-1 text-[10px] text-slate-500">
                 {defaultsReady
-                  ? "El ISO se escribirá aquí con el nombre del proyecto."
-                  : "Preparando carpeta predeterminada…"}
+                  ? t("El ISO se escribirá aquí con el nombre del proyecto.")
+                  : t("Preparando carpeta predeterminada…")}
               </p>
             </div>
           {/if}

@@ -438,7 +438,7 @@
                 type="button"
                 onclick={toggleVideoFullscreen}
                 disabled={!videoSrc}
-                title={videoFullscreen ? "Salir de pantalla completa" : "Pantalla completa del vídeo"}
+                title={videoFullscreen ? t("Salir de pantalla completa") : t("Pantalla completa del vídeo")}
                 class="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-slate-700 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
               >
                 {videoFullscreen ? "⤡" : "⛶"}
