@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.1.0",
+  "id": "00000000-0000-4000-8000-000000000300",
+  "name": "BD-25 Nested HDMV Menu Demo",
+  "createdAt": "2026-10-23T00:00:00Z",
+  "modifiedAt": "2026-10-23T00:00:00Z",
+  "disc": {
+    "mode": "avchd",
+    "standard": "ntsc",
+    "aspect": "sixteenNine",
+    "capacity": "bd25",
+    "volumeLabel": "BD25_NESTED_DEMO",
+    "video": {
+      "kind": "avchd",
+      "resolution": "720p",
+      "frameRate": {
+        "num": 24000,
+        "den": 1001
+      },
+      "level": "level41",
+      "blurayCompat": true,
+      "vbvMaxrateKbps": 24000,
+      "vbvBufsizeKbps": 35000,
+      "keyintFrames": 24,
+      "slices": 4
+    },
+    "audio": {
+      "ac3Kbps": 192,
+      "channels": 2,
+      "sampleRate": 48000
+    },
+    "layerBreakMode": "otp",
+    "regionMask": 0
+  },
+  "assets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "displayName": "episode-01.mp4",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/episode-01.mp4",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 14162182,
+      "kind": "video",
+      "probe": {
+        "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+        "durationMs": 20000,
+        "sizeBytes": 14162182,
+        "bitrateBps": 5664873,
+        "video": {
+          "index": 0,
+          "codec": "h264",
+          "width": 1280,
+          "height": 720,
+          "frameRate": {
+            "num": 30000,
+            "den": 1001
+          },
+          "sampleAspectRatio": "1:1",
+          "displayAspectRatio": "16:9",
+          "pixFmt": "yuv420p",
+          "fieldOrder": "progressive",
+          "bitDepth": 8
+        },
+        "audio": [
+          {
+            "index": 1,
+            "codec": "aac",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 192000,
+            "language": null
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000210",
+      "displayName": "background.png",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/background.png",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 500000,
+      "kind": "image",
+      "probe": {
+        "formatName": "png",
+        "durationMs": null,
+        "sizeBytes": 500000,
+        "bitrateBps": null,
+        "video": null,
+        "audio": [],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "displayName": "episode-02.mp4",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/episode-02.mp4",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 740552,
+      "kind": "video",
+      "probe": {
+        "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+        "durationMs": 15000,
+        "sizeBytes": 740552,
+        "bitrateBps": 394961,
+        "video": {
+          "index": 0,
+          "codec": "h264",
+          "width": 1280,
+          "height": 720,
+          "frameRate": {
+            "num": 30000,
+            "den": 1001
+          },
+          "sampleAspectRatio": "1:1",
+          "displayAspectRatio": "16:9",
+          "pixFmt": "yuv420p",
+          "fieldOrder": "progressive",
+          "bitDepth": 8
+        },
+        "audio": [
+          {
+            "index": 1,
+            "codec": "aac",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 192000,
+            "language": null
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000330",
+      "displayName": "menu-music.wav",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/menu-music.wav",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 5760078,
+      "kind": "audio",
+      "probe": {
+        "formatName": "wav",
+        "durationMs": 30000,
+        "sizeBytes": 5760078,
+        "bitrateBps": 1536020,
+        "video": null,
+        "audio": [
+          {
+            "index": 0,
+            "codec": "pcm_s16le",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 1536000,
+            "language": null
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    }
+  ],
+  "firstPlay": null,
+  "menus": [
+    {
+      "id": "00000000-0000-4000-8000-000000000201",
+      "name": "Menú principal",
+      "role": "root",
+      "placement": {
+        "kind": "vmgm"
+      },
+      "canvas": {
+        "width": 1280,
+        "height": 720,
+        "tvStandard": "ntsc",
+        "aspect": "sixteenNine",
+        "safeMarginPx": 48,
+        "gridPx": 8
+      },
+      "background": {
+        "kind": "videoLoop",
+        "asset": "00000000-0000-4000-8000-000000000103",
+        "inFrame": 0,
+        "outFrame": 0,
+        "loopForever": true,
+        "muteSource": true
+      },
+      "audio": {
+        "asset": "00000000-0000-4000-8000-000000000330",
+        "gainDb": -6.0,
+        "fadeInMs": 500,
+        "fadeOutMs": 500,
+        "loopAudio": true
+      },
+      "items": [],
+      "buttons": [
+        {
+          "id": "00000000-0000-4000-8000-000000000321",
+          "name": "Episodios",
+          "rect": {
+            "x": 120,
+            "y": 300,
+            "w": 420,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "gotoMenu",
+            "menu": "00000000-0000-4000-8000-000000000320"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "classicFrame",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000322",
+          "name": "Reproducir todo",
+          "rect": {
+            "x": 680,
+            "y": 300,
+            "w": 420,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "playAll"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "classicFrame",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        }
+      ],
+      "subpicture": {
+        "palette": {
+          "colors": [
+            {
+              "rgb": [
+                0,
+                0,
+                0
+              ],
+              "alpha": 0
+            },
+            {
+              "rgb": [
+                255,
+                255,
+                255
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                255,
+                220,
+                0
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                0,
+                120,
+                255
+              ],
+              "alpha": 15
+            }
+          ]
+        },
+        "force": true,
+        "autoOutline": false,
+        "highlightOpacity": 15,
+        "selectOpacity": 15
+      },
+      "timing": {
+        "durationMs": 30000,
+        "loopPlayback": true
+      },
+      "scaleMode": "cover",
+      "dimPercent": 20,
+      "blurPx": 4,
+      "motionConfig": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000320",
+      "name": "Menú de episodios",
+      "role": "episodeSelect",
+      "placement": {
+        "kind": "vmgm"
+      },
+      "canvas": {
+        "width": 1280,
+        "height": 720,
+        "tvStandard": "ntsc",
+        "aspect": "sixteenNine",
+        "safeMarginPx": 48,
+        "gridPx": 8
+      },
+      "background": {
+        "kind": "static",
+        "asset": "00000000-0000-4000-8000-000000000210"
+      },
+      "audio": null,
+      "items": [],
+      "buttons": [
+        {
+          "id": "00000000-0000-4000-8000-000000000323",
+          "name": "Episodio 01",
+          "rect": {
+            "x": 60,
+            "y": 300,
+            "w": 270,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "playEpisode",
+            "episode": "00000000-0000-4000-8000-000000000104"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "thumbnailCard",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000324",
+          "name": "Episodio 02",
+          "rect": {
+            "x": 350,
+            "y": 300,
+            "w": 270,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "playEpisode",
+            "episode": "00000000-0000-4000-8000-000000000107"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "thumbnailCard",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000325",
+          "name": "Capítulo 2",
+          "rect": {
+            "x": 640,
+            "y": 300,
+            "w": 270,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "jumpTitleChapter",
+            "episode": "00000000-0000-4000-8000-000000000104",
+            "chapter": 1
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "classicFrame",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000326",
+          "name": "Volver",
+          "rect": {
+            "x": 930,
+            "y": 300,
+            "w": 270,
+            "h": 120
+          },
+          "z": 0,
+          "action": {
+            "kind": "gotoMenu",
+            "menu": "00000000-0000-4000-8000-000000000201"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "styleKind": "classicFrame",
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textColor": "#FFFFFF",
+          "shadowColor": "#000000",
+          "fillColor": "#0F172A",
+          "shapeMask": "roundedRect",
+          "motionPreview": null
+        }
+      ],
+      "subpicture": {
+        "palette": {
+          "colors": [
+            {
+              "rgb": [
+                0,
+                0,
+                0
+              ],
+              "alpha": 0
+            },
+            {
+              "rgb": [
+                255,
+                255,
+                255
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                255,
+                220,
+                0
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                0,
+                120,
+                255
+              ],
+              "alpha": 15
+            }
+          ]
+        },
+        "force": true,
+        "autoOutline": false,
+        "highlightOpacity": 15,
+        "selectOpacity": 15
+      },
+      "timing": {
+        "durationMs": 30000,
+        "loopPlayback": true
+      },
+      "scaleMode": "cover",
+      "dimPercent": 20,
+      "blurPx": 4,
+      "motionConfig": null
+    }
+  ],
+  "rootMenu": "00000000-0000-4000-8000-000000000201",
+  "episodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000104",
+      "number": 1,
+      "title": "Episode 01",
+      "video": "00000000-0000-4000-8000-000000000102",
+      "trim": null,
+      "chapters": [
+        {
+          "id": "00000000-0000-4000-8000-000000000105",
+          "title": "Chapter 01",
+          "atFrame": 0,
+          "thumbnail": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000106",
+          "title": "Chapter 02",
+          "atFrame": 300,
+          "thumbnail": null
+        }
+      ],
+      "audio": [
+        {
+          "sourceStream": 1,
+          "language": "spa",
+          "label": "Español",
+          "gainDb": 0.0,
+          "ac3Kbps": 192,
+          "default": true
+        }
+      ],
+      "subtitles": [],
+      "postAction": "nextEpisode",
+      "encodeOverride": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000107",
+      "number": 2,
+      "title": "Episode 02",
+      "video": "00000000-0000-4000-8000-000000000103",
+      "trim": null,
+      "chapters": [
+        {
+          "id": "00000000-0000-4000-8000-000000000108",
+          "title": "Chapter 01",
+          "atFrame": 0,
+          "thumbnail": null
+        }
+      ],
+      "audio": [
+        {
+          "sourceStream": 1,
+          "language": "spa",
+          "label": "Español",
+          "gainDb": 0.0,
+          "ac3Kbps": 192,
+          "default": true
+        }
+      ],
+      "subtitles": [],
+      "postAction": "stop",
+      "encodeOverride": null
+    }
+  ],
+  "playAll": {
+    "enabled": true,
+    "order": [
+      "00000000-0000-4000-8000-000000000104"
+    ],
+    "modeGprm": 1
+  },
+  "budget": {
+    "targetFillPpm": 990000,
+    "headerMarginPpm": 30000,
+    "muxOverheadPpm": 50000,
+    "navOverheadPpm": 0,
+    "fixedReserveBytes": 0,
+    "minVideoKbps": 1000,
+    "maxVideoKbps": 38000,
+    "defaultAc3Kbps": 192
+  },
+  "burn": {
+    "device": null,
+    "speedX": null,
+    "verify": true,
+    "eject": true,
+    "closeSession": true
+  }
+}

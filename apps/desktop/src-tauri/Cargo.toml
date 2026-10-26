@@ -1,0 +1,46 @@
+[package]
+name = "dvdforge-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+default-run = "dvdforge-desktop"
+
+[lib]
+name = "dvdforge_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "dvdforge-desktop"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-bindings"
+path = "src/bin/export_bindings.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+base64.workspace = true
+chrono.workspace = true
+dvdforge-burn = { path = "../../../crates/dvdforge-burn" }
+dvdforge-domain = { path = "../../../crates/dvdforge-domain" }
+dvdforge-jobs = { path = "../../../crates/dvdforge-jobs" }
+dvdforge-media = { path = "../../../crates/dvdforge-media" }
+dvdforge-plan = { path = "../../../crates/dvdforge-plan" }
+dvdforge-project = { path = "../../../crates/dvdforge-project" }
+dvdforge-render = { path = "../../../crates/dvdforge-render" }
+dvdforge-store = { path = "../../../crates/dvdforge-store" }
+dvdforge-toolchain = { path = "../../../crates/dvdforge-toolchain" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+specta.workspace = true
+specta-typescript = "=0.0.13"
+tauri = { version = "2.11.6", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
+tokio.workspace = true
+uuid.workspace = true

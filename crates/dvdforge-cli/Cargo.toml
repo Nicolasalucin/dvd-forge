@@ -1,0 +1,23 @@
+[package]
+name = "dvdforge-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "dvdforge-cli"
+path = "src/main.rs"
+
+[dependencies]
+dvdforge-burn = { path = "../dvdforge-burn" }
+dvdforge-domain = { path = "../dvdforge-domain" }
+dvdforge-jobs = { path = "../dvdforge-jobs" }
+dvdforge-media = { path = "../dvdforge-media" }
+dvdforge-plan = { path = "../dvdforge-plan" }
+dvdforge-project = { path = "../dvdforge-project" }
+dvdforge-render = { path = "../dvdforge-render" }
+dvdforge-toolchain = { path = "../dvdforge-toolchain" }
+serde_json.workspace = true
+tokio.workspace = true

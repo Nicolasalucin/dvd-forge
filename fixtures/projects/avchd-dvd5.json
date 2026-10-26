@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.1.0",
+  "id": "00000000-0000-4000-8000-000000000101",
+  "name": "AVCHD DVD5 Demo",
+  "createdAt": "2026-10-23T00:00:00Z",
+  "modifiedAt": "2026-10-23T00:00:00Z",
+  "disc": {
+    "mode": "avchd",
+    "standard": "ntsc",
+    "aspect": "sixteenNine",
+    "capacity": "dvd5",
+    "volumeLabel": "AVCHD_DVD5",
+    "video": {
+      "kind": "avchd",
+      "resolution": "720p",
+      "frameRate": {
+        "num": 24000,
+        "den": 1001
+      },
+      "level": "level41",
+      "blurayCompat": true,
+      "vbvMaxrateKbps": 24000,
+      "vbvBufsizeKbps": 24000,
+      "keyintFrames": 24,
+      "slices": 4
+    },
+    "audio": {
+      "ac3Kbps": 192,
+      "channels": 2,
+      "sampleRate": 48000
+    },
+    "layerBreakMode": "otp",
+    "regionMask": 0
+  },
+  "assets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "displayName": "episode-01.mp4",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/episode-01.mp4",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 14162182,
+      "kind": "video",
+      "probe": {
+        "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+        "durationMs": 20000,
+        "sizeBytes": 14162182,
+        "bitrateBps": 5664873,
+        "video": {
+          "index": 0,
+          "codec": "h264",
+          "width": 1280,
+          "height": 720,
+          "frameRate": {
+            "num": 30000,
+            "den": 1001
+          },
+          "sampleAspectRatio": "1:1",
+          "displayAspectRatio": "16:9",
+          "pixFmt": "yuv420p",
+          "fieldOrder": "progressive",
+          "bitDepth": 8
+        },
+        "audio": [
+          {
+            "index": 1,
+            "codec": "aac",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 192000,
+            "language": null
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "displayName": "episode-02.mp4",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/episode-02.mp4",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 740552,
+      "kind": "video",
+      "probe": {
+        "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+        "durationMs": 15000,
+        "sizeBytes": 740552,
+        "bitrateBps": 394961,
+        "video": {
+          "index": 0,
+          "codec": "h264",
+          "width": 1280,
+          "height": 720,
+          "frameRate": {
+            "num": 30000,
+            "den": 1001
+          },
+          "sampleAspectRatio": "1:1",
+          "displayAspectRatio": "16:9",
+          "pixFmt": "yuv420p",
+          "fieldOrder": "progressive",
+          "bitDepth": 8
+        },
+        "audio": [
+          {
+            "index": 1,
+            "codec": "aac",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 192000,
+            "language": null
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    }
+  ],
+  "firstPlay": null,
+  "menus": [],
+  "rootMenu": "00000000-0000-4000-8000-000000000199",
+  "episodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000104",
+      "number": 1,
+      "title": "Episode 01",
+      "video": "00000000-0000-4000-8000-000000000102",
+      "trim": null,
+      "chapters": [
+        {
+          "id": "00000000-0000-4000-8000-000000000105",
+          "title": "Chapter 01",
+          "atFrame": 0,
+          "thumbnail": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000106",
+          "title": "Chapter 02",
+          "atFrame": 300,
+          "thumbnail": null
+        }
+      ],
+      "audio": [
+        {
+          "sourceStream": 1,
+          "language": "spa",
+          "label": "Español",
+          "gainDb": 0.0,
+          "ac3Kbps": 192,
+          "default": true
+        }
+      ],
+      "subtitles": [],
+      "postAction": "nextEpisode",
+      "encodeOverride": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000107",
+      "number": 2,
+      "title": "Episode 02",
+      "video": "00000000-0000-4000-8000-000000000103",
+      "trim": null,
+      "chapters": [
+        {
+          "id": "00000000-0000-4000-8000-000000000108",
+          "title": "Chapter 01",
+          "atFrame": 0,
+          "thumbnail": null
+        }
+      ],
+      "audio": [
+        {
+          "sourceStream": 1,
+          "language": "spa",
+          "label": "Español",
+          "gainDb": 0.0,
+          "ac3Kbps": 192,
+          "default": true
+        }
+      ],
+      "subtitles": [],
+      "postAction": "stop",
+      "encodeOverride": null
+    }
+  ],
+  "playAll": {
+    "enabled": false,
+    "order": [],
+    "modeGprm": 1
+  },
+  "budget": {
+    "targetFillPpm": 990000,
+    "headerMarginPpm": 30000,
+    "muxOverheadPpm": 50000,
+    "navOverheadPpm": 0,
+    "fixedReserveBytes": 0,
+    "minVideoKbps": 1000,
+    "maxVideoKbps": 16000,
+    "defaultAc3Kbps": 192
+  },
+  "burn": {
+    "device": null,
+    "speedX": null,
+    "verify": true,
+    "eject": true,
+    "closeSession": true
+  }
+}

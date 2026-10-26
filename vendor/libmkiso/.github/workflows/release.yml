@@ -1,0 +1,134 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+
+  release-check:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-validation
+          workspaces: |
+            . -> target
+            fuzz -> target
+      - name: Check tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import tomllib
+          with open("Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["package"]["version"]
+          tag = os.environ["RELEASE_TAG"]
+          if tag != f"v{version}":
+              raise SystemExit(f"Tag {tag!r} must match package version v{version}")
+          PY
+      - name: Build and verify crate package
+        run: cargo package --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: target/package/libmkiso-*.crate
+          if-no-files-found: error
+
+  release-binaries:
+    needs: release-check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            executable: mkiso
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            executable: mkiso.exe
+          - os: macos-15
+            target: aarch64-apple-darwin
+            executable: mkiso
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - name: Build CLI
+        env:
+          MKISO_BUILD_TAG: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --features cli,progress --target "$TARGET" --locked
+      - name: Verify embedded release tag
+        env:
+          TARGET: ${{ matrix.target }}
+          EXECUTABLE: ${{ matrix.executable }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          actual=$("target/$TARGET/release/$EXECUTABLE" --version)
+          test "$actual" = "mkiso $RELEASE_TAG"
+      - name: Test release CLI
+        env:
+          MKISO_BUILD_TAG: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+        run: cargo test --release --features cli,progress --target "$TARGET" --locked --test cli
+      - name: Package binary and license texts
+        env:
+          TARGET: ${{ matrix.target }}
+          EXECUTABLE: ${{ matrix.executable }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          directory="mkiso-${RELEASE_TAG}-${TARGET}"
+          mkdir -p "dist/$directory/licenses"
+          cp "target/$TARGET/release/$EXECUTABLE" "dist/$directory/"
+          cp README.md "dist/$directory/"
+          cp LICENSE "dist/$directory/licenses/"
+          tar -czf "dist/$directory.tar.gz" -C dist "$directory"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  github-release:
+    needs: [release-check, release-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: Publish GitHub Release with package, binaries, and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          sha256sum ./*.crate ./*.tar.gz > SHA256SUMS
+          flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" --verify-tag --generate-notes \
+            "${flags[@]}" ./*.crate ./*.tar.gz SHA256SUMS

@@ -1,0 +1,37 @@
+version: '3'
+tasks:
+  build:
+    cmds: ["cargo build --features cli,progress --release --locked"]
+  run:
+    cmds: ["cargo run --features cli,progress --locked -- {{.CLI_ARGS}}"]
+  check:
+    cmds:
+      - cargo fmt -- --check
+      - cargo clippy --all-targets --all-features --locked -- -D warnings
+      - cargo test --all-features --locked
+      - cargo test --features cli --locked
+      - cargo test --no-default-features --locked
+
+  fuzz:seed:
+    desc: Generate complete optical images and writer recipes for honggfuzz
+    cmds:
+      - cargo run --manifest-path fuzz/Cargo.toml --locked --bin seed-images -- fuzz/corpus
+  fuzz:check:
+    desc: Check and smoke-test all fuzz harnesses
+    cmds:
+      - cargo fmt --manifest-path fuzz/Cargo.toml -- --check
+      - cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --locked -- -D warnings
+      - cargo test --manifest-path fuzz/Cargo.toml --locked
+  fuzz:
+    desc: Run honggfuzz (task fuzz -- iso9660|udf|bridge|roundtrip|iso_roundtrip|udf_roundtrip|media)
+    dir: fuzz
+    env:
+      CARGO_TARGET_DIR: '{{.ROOT_DIR}}/target/honggfuzz-gcc'
+      HFUZZ_WORKSPACE: '{{.ROOT_DIR}}/target/hfuzz_workspace'
+      HFUZZ_INPUT: '{{.ROOT_DIR}}/fuzz/corpus/{{.CLI_ARGS}}'
+      HFUZZ_BUILD_ARGS: '--locked'
+      RUSTC_WRAPPER: ''
+      CARGO_INCREMENTAL: '0'
+      CC: 'gcc'
+    cmds:
+      - NIX_HARDENING_ENABLE= CC=gcc RUSTC_WRAPPER= CARGO_INCREMENTAL=0 cargo hfuzz run {{.CLI_ARGS}}

@@ -1,0 +1,30 @@
+[package]
+name = "dvdforge-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+dvdforge-avchd = { path = "../dvdforge-avchd" }
+dvdforge-domain = { path = "../dvdforge-domain" }
+dvdforge-dvd = { path = "../dvdforge-dvd" }
+dvdforge-hdmv = { path = "../dvdforge-hdmv" }
+dvdforge-iso = { path = "../dvdforge-iso" }
+dvdforge-jobs = { path = "../dvdforge-jobs" }
+dvdforge-media = { path = "../dvdforge-media" }
+dvdforge-menu = { path = "../dvdforge-menu" }
+dvdforge-plan = { path = "../dvdforge-plan" }
+dvdforge-store = { path = "../dvdforge-store" }
+hex.workspace = true
+image.workspace = true
+sha2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+dvdforge-project = { path = "../dvdforge-project" }

@@ -1,0 +1,8 @@
+/target/
+/dist/
+/.direnv/
+/.envrc
+__pycache__/
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/hfuzz_workspace/

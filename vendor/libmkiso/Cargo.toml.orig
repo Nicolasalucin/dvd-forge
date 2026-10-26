@@ -1,0 +1,65 @@
+[package]
+name = "libmkiso"
+version = "0.1.5"
+edition = "2024"
+rust-version = "1.96"
+license = "MIT"
+repository = "https://github.com/CaddyGlow/mkiso-rs"
+readme = "README.md"
+description = "ISO9660, Joliet and UDF readers with deterministic optical image writers"
+exclude = ["FILESYSTEM*_PLAN.md"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+toml = { version = "0.9", optional = true }
+clap = { version = "4.5", features = ["derive"], optional = true }
+ctrlc = { version = "3.5", optional = true }
+libc = { version = "0.2", optional = true }
+time = { version = "0.3", features = ["parsing", "formatting"], optional = true }
+indicatif = { version = "0.18", optional = true }
+thiserror = "2"
+anyhow = { version = "1.0", optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
+tempfile = { version = "3.23", optional = true }
+
+[features]
+cli = ["native-writer", "dep:serde", "dep:serde_json", "dep:toml", "dep:clap", "dep:ctrlc", "dep:libc", "dep:time"]
+progress = ["cli", "dep:indicatif"]
+default = ["native-writer"]
+native-writer = ["dep:anyhow", "dep:sha2", "dep:hex", "dep:tempfile"]
+
+[dev-dependencies]
+tempfile = "3.23"
+
+[[example]]
+name = "firmware_images"
+required-features = ["native-writer"]
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace]
+resolver = "3"
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[[bin]]
+name = "mkiso"
+path = "src/bin/mkiso/main.rs"
+required-features = ["cli"]
+
+[[test]]
+name = "cli"
+required-features = ["cli"]
+
+[[test]]
+name = "media_planning"
+required-features = ["cli"]
+
+[[test]]
+name = "media_optical"
+required-features = ["cli"]

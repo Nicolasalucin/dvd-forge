@@ -1,0 +1,15 @@
+[package]
+name = "dvdforge-dvd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+dvdforge-domain = { path = "../dvdforge-domain" }
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+dvdforge-project = { path = "../dvdforge-project" }

@@ -1,0 +1,369 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-000000000001",
+  "name": "Minimal DVD",
+  "createdAt": "2026-10-23T00:00:00Z",
+  "modifiedAt": "2026-10-23T00:00:00Z",
+  "appVersion": "0.1.0",
+  "disc": {
+    "mode": "dvdVideo",
+    "standard": "ntsc",
+    "aspect": "fourThree",
+    "capacity": "dvd5",
+    "volumeLabel": "DVD_FORGE_MINIMAL",
+    "video": {
+      "kind": "dvd",
+      "profile": "auto",
+      "autoHalfD1AfterMs": 9000000,
+      "maxVideoKbps": 9800,
+      "minVideoKbps": 2500,
+      "gopFrames": 12,
+      "bFrames": 2,
+      "twoPass": true,
+      "trellis": true
+    },
+    "audio": {
+      "ac3Kbps": 192,
+      "channels": 2,
+      "sampleRate": 48000
+    },
+    "layerBreakMode": "otp",
+    "regionMask": 0
+  },
+  "assets": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "displayName": "episode-01.mp4",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/episode-01.mp4",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 120000000,
+      "kind": "video",
+      "probe": {
+        "formatName": "mov,mp4,m4a,3gp,3g2,mj2",
+        "durationMs": 7200000,
+        "sizeBytes": 120000000,
+        "bitrateBps": 8000000,
+        "video": {
+          "index": 0,
+          "codec": "h264",
+          "width": 1920,
+          "height": 1080,
+          "frameRate": {
+            "num": 30000,
+            "den": 1001
+          },
+          "sampleAspectRatio": "1:1",
+          "displayAspectRatio": "16:9",
+          "pixFmt": "yuv420p",
+          "fieldOrder": "progressive",
+          "bitDepth": 8
+        },
+        "audio": [
+          {
+            "index": 1,
+            "codec": "aac",
+            "channels": 2,
+            "sampleRate": 48000,
+            "bitrateBps": 192000,
+            "language": "spa"
+          }
+        ],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "displayName": "background.png",
+      "source": {
+        "kind": "project"
+      },
+      "relativePath": "assets/background.png",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 500000,
+      "kind": "image",
+      "probe": {
+        "formatName": "png",
+        "durationMs": null,
+        "sizeBytes": 500000,
+        "bitrateBps": null,
+        "video": null,
+        "audio": [],
+        "subtitleStreams": 0
+      },
+      "proxy": null,
+      "importedAt": "2026-10-23T00:00:00Z"
+    }
+  ],
+  "firstPlay": null,
+  "menus": [
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "name": "Menú principal",
+      "role": "root",
+      "placement": {
+        "kind": "vmgm"
+      },
+      "canvas": {
+        "width": 720,
+        "height": 480,
+        "tvStandard": "ntsc",
+        "aspect": "fourThree",
+        "safeMarginPx": 36,
+        "gridPx": 8
+      },
+      "background": {
+        "kind": "static",
+        "asset": "00000000-0000-4000-8000-000000000007"
+      },
+      "audio": null,
+      "items": [],
+      "buttons": [
+        {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "name": "Reproducir todo",
+          "rect": {
+            "x": 60.0,
+            "y": 132.0,
+            "w": 180.0,
+            "h": 72.0
+          },
+          "z": 0,
+          "action": {
+            "kind": "playAll"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "shapeMask": "rectangle",
+          "motionPreview": null
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "name": "Episodios",
+          "rect": {
+            "x": 300.0,
+            "y": 132.0,
+            "w": 180.0,
+            "h": 72.0
+          },
+          "z": 0,
+          "action": {
+            "kind": "gotoMenu",
+            "menu": "00000000-0000-4000-8000-000000000009"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "shapeMask": "rectangle",
+          "motionPreview": null
+        }
+      ],
+      "subpicture": {
+        "palette": {
+          "colors": [
+            {
+              "rgb": [
+                0,
+                0,
+                0
+              ],
+              "alpha": 0
+            },
+            {
+              "rgb": [
+                255,
+                255,
+                255
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                255,
+                220,
+                0
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                0,
+                120,
+                255
+              ],
+              "alpha": 15
+            }
+          ]
+        },
+        "force": true,
+        "autoOutline": false,
+        "highlightOpacity": 15,
+        "selectOpacity": 15
+      },
+      "timing": {
+        "durationMs": 30000,
+        "loopPlayback": true
+      },
+      "motionConfig": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000009",
+      "name": "Menú de episodios",
+      "role": "episodeSelect",
+      "placement": {
+        "kind": "vtsm",
+        "titleset": 1
+      },
+      "canvas": {
+        "width": 720,
+        "height": 480,
+        "tvStandard": "ntsc",
+        "aspect": "fourThree",
+        "safeMarginPx": 36,
+        "gridPx": 8
+      },
+      "background": {
+        "kind": "static",
+        "asset": "00000000-0000-4000-8000-000000000007"
+      },
+      "audio": null,
+      "items": [],
+      "buttons": [
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "name": "Episodio 01",
+          "rect": {
+            "x": 60.0,
+            "y": 132.0,
+            "w": 180.0,
+            "h": 72.0
+          },
+          "z": 0,
+          "action": {
+            "kind": "playEpisode",
+            "episode": "00000000-0000-4000-8000-000000000004"
+          },
+          "thumbnail": null,
+          "label": null,
+          "navOverride": {},
+          "enabled": true,
+          "shapeMask": "rectangle",
+          "motionPreview": null
+        }
+      ],
+      "subpicture": {
+        "palette": {
+          "colors": [
+            {
+              "rgb": [
+                0,
+                0,
+                0
+              ],
+              "alpha": 0
+            },
+            {
+              "rgb": [
+                255,
+                255,
+                255
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                255,
+                220,
+                0
+              ],
+              "alpha": 15
+            },
+            {
+              "rgb": [
+                0,
+                120,
+                255
+              ],
+              "alpha": 15
+            }
+          ]
+        },
+        "force": true,
+        "autoOutline": false,
+        "highlightOpacity": 15,
+        "selectOpacity": 15
+      },
+      "timing": {
+        "durationMs": 30000,
+        "loopPlayback": true
+      },
+      "motionConfig": null
+    }
+  ],
+  "rootMenu": "00000000-0000-4000-8000-000000000003",
+  "episodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "number": 1,
+      "title": "Episode 01",
+      "video": "00000000-0000-4000-8000-000000000002",
+      "trim": null,
+      "chapters": [
+        {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "title": "Chapter 01",
+          "atFrame": 0,
+          "thumbnail": null
+        }
+      ],
+      "audio": [
+        {
+          "sourceStream": 1,
+          "language": "spa",
+          "label": "Español",
+          "gainDb": 0.0,
+          "ac3Kbps": 192,
+          "default": true,
+          "sourcePath": null,
+          "delayMs": 0,
+          "format": "ac3Stereo"
+        }
+      ],
+      "subtitles": [],
+      "postAction": "returnToMenu",
+      "encodeOverride": null,
+      "encodingPriority": "medium"
+    }
+  ],
+  "playAll": {
+    "enabled": true,
+    "order": [
+      "00000000-0000-4000-8000-000000000004"
+    ],
+    "modeGprm": 1
+  },
+  "budget": {
+    "targetFillPpm": 990000,
+    "headerMarginPpm": 30000,
+    "muxOverheadPpm": 25000,
+    "navOverheadPpm": 10000,
+    "fixedReserveBytes": 0,
+    "minVideoKbps": 2500,
+    "maxVideoKbps": 9800,
+    "defaultAc3Kbps": 192
+  },
+  "burn": {
+    "device": null,
+    "speedX": null,
+    "verify": true,
+    "eject": true,
+    "closeSession": true
+  }
+}

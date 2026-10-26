@@ -1,0 +1,635 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dvdforge.local/schemas/project.schema.json",
+  "title": "DVD Forge Project",
+  "description": "Versioned project document consumed by dvdforge-cli and the Tauri backend.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "createdAt",
+    "modifiedAt",
+    "appVersion",
+    "disc",
+    "assets",
+    "menus",
+    "rootMenu",
+    "episodes",
+    "playAll",
+    "budget",
+    "burn"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "modifiedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "appVersion": {
+      "type": "string"
+    },
+    "disc": {
+      "$ref": "#/$defs/discConfig"
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mediaAsset"
+      }
+    },
+    "firstPlay": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/firstPlay"
+        }
+      ]
+    },
+    "menus": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/menu"
+      }
+    },
+    "rootMenu": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "episodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/episode"
+      }
+    },
+    "playAll": {
+      "$ref": "#/$defs/playAll"
+    },
+    "budget": {
+      "$ref": "#/$defs/budget"
+    },
+    "burn": {
+      "$ref": "#/$defs/burn"
+    }
+  },
+  "$defs": {
+    "logicalRect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "h": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "tvStandard", "aspect", "safeMarginPx", "gridPx"],
+      "properties": {
+        "width": { "enum": [720] },
+        "height": { "enum": [480, 576] },
+        "tvStandard": { "enum": ["ntsc", "pal"] },
+        "aspect": { "enum": ["fourThree", "sixteenNine"] },
+        "safeMarginPx": { "type": "integer", "minimum": 0 },
+        "gridPx": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "discConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "standard", "aspect", "capacity", "volumeLabel", "video", "audio"],
+      "properties": {
+        "mode": { "enum": ["dvdVideo", "avchd"] },
+        "standard": { "enum": ["ntsc", "pal"] },
+        "aspect": { "enum": ["fourThree", "sixteenNine"] },
+        "capacity": { "enum": ["dvd5", "dvd9", "bd25", "bd50"] },
+        "volumeLabel": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "regionMask": { "type": "integer", "minimum": 0, "maximum": 63 },
+        "layerBreakMode": { "enum": ["ptp", "otp"] },
+        "video": {
+          "oneOf": [
+            { "$ref": "#/$defs/dvdVideoConfig" },
+            { "$ref": "#/$defs/avchdVideoConfig" }
+          ]
+        },
+        "audio": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ac3Kbps", "channels", "sampleRate"],
+          "properties": {
+            "ac3Kbps": { "enum": [192, 224, 256, 320, 384, 448] },
+            "channels": { "enum": [1, 2, 6] },
+            "sampleRate": { "const": 48000 }
+          }
+        }
+      }
+    },
+    "dvdVideoConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "profile",
+        "autoHalfD1AfterMs",
+        "maxVideoKbps",
+        "minVideoKbps",
+        "gopFrames",
+        "bFrames",
+        "twoPass"
+      ],
+      "properties": {
+        "kind": { "const": "dvd" },
+        "profile": { "enum": ["d1", "halfD1", "auto"] },
+        "autoHalfD1AfterMs": { "type": "integer", "minimum": 0 },
+        "maxVideoKbps": { "type": "integer", "minimum": 1, "maximum": 9800 },
+        "minVideoKbps": { "type": "integer", "minimum": 1 },
+        "gopFrames": { "type": "integer", "minimum": 1 },
+        "bFrames": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "twoPass": { "type": "boolean" },
+        "trellis": { "type": "boolean" }
+      }
+    },
+    "avchdVideoConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "resolution",
+        "frameRate",
+        "level",
+        "blurayCompat",
+        "vbvMaxrateKbps",
+        "vbvBufsizeKbps",
+        "keyintFrames",
+        "slices"
+      ],
+      "properties": {
+        "kind": { "const": "avchd" },
+        "resolution": { "enum": ["1080p", "1080i", "720p", "480i", "576i"] },
+        "frameRate": { "$ref": "#/$defs/frameRate" },
+        "level": { "enum": ["level41", "level42"] },
+        "blurayCompat": { "type": "boolean" },
+        "vbvMaxrateKbps": { "type": "integer", "minimum": 1 },
+        "vbvBufsizeKbps": { "type": "integer", "minimum": 1 },
+        "keyintFrames": { "type": "integer", "minimum": 1 },
+        "slices": { "type": "integer", "minimum": 1, "maximum": 4 }
+      }
+    },
+    "frameRate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["num", "den"],
+      "properties": {
+        "num": { "type": "integer", "minimum": 1 },
+        "den": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mediaAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "displayName",
+        "source",
+        "sha256",
+        "bytes",
+        "kind",
+        "probe",
+        "importedAt"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "displayName": { "type": "string" },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "project" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "absolutePath"],
+              "properties": {
+                "kind": { "const": "external" },
+                "absolutePath": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "relativePath": { "type": ["string", "null"] },
+        "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "kind": { "enum": ["video", "audio", "image", "subtitle"] },
+        "probe": { "$ref": "#/$defs/mediaProbe" },
+        "proxy": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "width", "height"],
+              "properties": {
+                "path": { "type": "string" },
+                "width": { "type": "integer", "minimum": 1 },
+                "height": { "type": "integer", "minimum": 1 }
+              }
+            }
+          ]
+        },
+        "importedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "mediaProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatName", "audio", "subtitleStreams"],
+      "properties": {
+        "formatName": { "type": "string" },
+        "durationMs": { "type": ["integer", "null"], "minimum": 0 },
+        "sizeBytes": { "type": ["integer", "null"], "minimum": 0 },
+        "bitrateBps": { "type": ["integer", "null"], "minimum": 0 },
+        "video": { "type": ["object", "null"] },
+        "audio": { "type": "array", "items": { "type": "object" } },
+        "subtitleStreams": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "menu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "role",
+        "placement",
+        "canvas",
+        "background",
+        "items",
+        "buttons",
+        "subpicture",
+        "timing"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "enum": ["root", "episodeSelect", "chapterSelect", "submenu"] },
+        "placement": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "vmgm" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "titleset"],
+              "properties": {
+                "kind": { "const": "vtsm" },
+                "titleset": { "type": "integer", "minimum": 1, "maximum": 99 }
+              }
+            }
+          ]
+        },
+        "canvas": { "$ref": "#/$defs/canvas" },
+        "background": { "$ref": "#/$defs/menuBackground" },
+        "scaleMode": { "enum": ["cover", "contain", "stretch"] },
+        "dimPercent": { "type": "integer", "minimum": 0, "maximum": 80 },
+        "blurPx": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "motionConfig": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "durationMs": { "type": "integer", "minimum": 1 },
+                "loopEnabled": { "type": "boolean" },
+                "fadeInMs": { "type": "integer", "minimum": 0 },
+                "fadeOutMs": { "type": "integer", "minimum": 0 },
+                "audioVolume": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          ]
+        },
+        "audio": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["asset"],
+              "properties": {
+                "asset": { "type": "string", "format": "uuid" },
+                "gainDb": { "type": "number" },
+                "fadeInMs": { "type": "integer", "minimum": 0 },
+                "fadeOutMs": { "type": "integer", "minimum": 0 },
+                "loopAudio": { "type": "boolean" }
+              }
+            }
+          ]
+        },
+        "items": { "type": "array", "items": { "type": "object" } },
+        "buttons": {
+          "type": "array",
+          "maxItems": 36,
+          "items": { "$ref": "#/$defs/menuButton" }
+        },
+        "subpicture": { "$ref": "#/$defs/subpicture" },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["durationMs", "loopPlayback"],
+          "properties": {
+            "durationMs": { "type": "integer", "minimum": 1 },
+            "loopPlayback": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "menuBackground": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "asset"],
+          "properties": {
+            "kind": { "const": "static" },
+            "asset": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "asset"],
+          "properties": {
+            "kind": { "const": "videoLoop" },
+            "asset": { "type": "string", "format": "uuid" },
+            "inFrame": { "type": "integer", "minimum": 0 },
+            "outFrame": { "type": "integer", "minimum": 0 },
+            "loopForever": { "type": "boolean" },
+            "muteSource": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "menuButton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "rect", "action"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string", "minLength": 1 },
+        "rect": { "$ref": "#/$defs/logicalRect" },
+        "z": { "type": "integer" },
+        "action": { "$ref": "#/$defs/buttonAction" },
+        "thumbnail": { "type": ["object", "null"] },
+        "label": { "type": ["object", "null"] },
+        "styleKind": {
+          "enum": ["textOnly", "hotspot", "thumbnailCard", "glassPill", "classicFrame", "playBadge"]
+        },
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "integer", "minimum": 8, "maximum": 96 },
+        "fontWeight": { "enum": ["normal", "bold"] },
+        "textColor": { "type": "string" },
+        "shadowColor": { "type": "string" },
+        "fillColor": { "type": "string" },
+        "shapeMask": { "enum": ["rectangle", "roundedRect", "circle", "star"] },
+        "motionPreview": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sourceStartMs": { "type": "integer", "minimum": 0 },
+                "loopDurationMs": { "type": "integer", "minimum": 1 }
+              }
+            }
+          ]
+        },
+        "navOverride": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "up": { "type": ["string", "null"], "format": "uuid" },
+            "down": { "type": ["string", "null"], "format": "uuid" },
+            "left": { "type": ["string", "null"], "format": "uuid" },
+            "right": { "type": ["string", "null"], "format": "uuid" }
+          }
+        },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "buttonAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "const": "playAll" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "episode"],
+          "properties": {
+            "kind": { "const": "playEpisode" },
+            "episode": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "menu"],
+          "properties": {
+            "kind": { "const": "gotoMenu" },
+            "menu": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "const": "playFirstPlay" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "episode", "chapter"],
+          "properties": {
+            "kind": { "const": "jumpTitleChapter" },
+            "episode": { "type": "string", "format": "uuid" },
+            "chapter": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "track"],
+          "properties": {
+            "kind": { "const": "setAudioTrack" },
+            "track": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "enum": ["resume", "noop"] } }
+        }
+      ]
+    },
+    "subpicture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["palette"],
+      "properties": {
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["colors"],
+          "properties": {
+            "colors": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rgb", "alpha"],
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+                  },
+                  "alpha": { "type": "integer", "minimum": 0, "maximum": 15 }
+                }
+              }
+            }
+          }
+        },
+        "force": { "type": "boolean" },
+        "autoOutline": { "type": "boolean" },
+        "highlightOpacity": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "selectOpacity": { "type": "integer", "minimum": 0, "maximum": 15 }
+      }
+    },
+    "episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "number", "title", "video", "chapters", "audio", "subtitles", "postAction"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "number": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "video": { "type": "string", "format": "uuid" },
+        "trim": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["start", "end"],
+              "properties": {
+                "start": { "type": "integer", "minimum": 0 },
+                "end": { "type": "integer", "minimum": 1 }
+              }
+            }
+          ]
+        },
+        "trimStartMs": { "type": ["integer", "null"], "minimum": 0 },
+        "trimEndMs": { "type": ["integer", "null"], "minimum": 0 },
+        "scaleMode": { "enum": ["letterbox", "cropFill", "stretch", "contain", "cover"] },
+        "thumbnailTimeMs": { "type": ["integer", "null"], "minimum": 0 },
+        "thumbnailPath": { "type": ["string", "null"] },
+        "chapters": { "type": "array", "items": { "type": "object" } },
+        "audio": { "type": "array", "items": { "type": "object" } },
+        "subtitles": { "type": "array", "items": { "type": "object" } },
+        "encodingPriority": { "enum": ["low", "medium", "high"] },
+        "postAction": { "enum": ["returnToMenu", "nextEpisode", "stop"] },
+        "encodeOverride": { "type": ["object", "null"] }
+      }
+    },
+    "firstPlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset", "targetMenu"],
+      "properties": {
+        "asset": { "type": "string", "format": "uuid" },
+        "trim": { "type": ["object", "null"] },
+        "audio": { "type": ["object", "null"] },
+        "targetMenu": { "type": "string", "format": "uuid" },
+        "skippable": { "type": "boolean" },
+        "encodeOverride": { "type": ["object", "null"] }
+      }
+    },
+    "playAll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "order", "modeGprm"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "order": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" }
+        },
+        "modeGprm": { "type": "integer", "minimum": 0, "maximum": 15 }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetFillPpm",
+        "headerMarginPpm",
+        "muxOverheadPpm",
+        "navOverheadPpm",
+        "fixedReserveBytes",
+        "minVideoKbps",
+        "maxVideoKbps",
+        "defaultAc3Kbps"
+      ],
+      "properties": {
+        "targetFillPpm": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "headerMarginPpm": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "muxOverheadPpm": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "navOverheadPpm": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "fixedReserveBytes": { "type": "integer", "minimum": 0 },
+        "minVideoKbps": { "type": "integer", "minimum": 1 },
+        "maxVideoKbps": { "type": "integer", "minimum": 1, "maximum": 9800 },
+        "defaultAc3Kbps": { "enum": [192, 224, 256, 320, 384, 448] }
+      }
+    },
+    "burn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verify", "eject", "closeSession"],
+      "properties": {
+        "device": { "type": ["string", "null"] },
+        "speedX": { "type": ["integer", "null"], "minimum": 1 },
+        "verify": { "type": "boolean" },
+        "eject": { "type": "boolean" },
+        "closeSession": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "tools": [
+    {
+      "id": "ffmpeg",
+      "binary": "ffmpeg",
+      "minimumVersion": "7.0",
+      "source": "system"
+    },
+    {
+      "id": "ffprobe",
+      "binary": "ffprobe",
+      "minimumVersion": "7.0",
+      "source": "system"
+    },
+    {
+      "id": "dvdauthor",
+      "binary": "dvdauthor",
+      "minimumVersion": "0.7.2",
+      "source": "system"
+    },
+    {
+      "id": "spumux",
+      "binary": "spumux",
+      "minimumVersion": "0.7.2",
+      "source": "system"
+    },
+    {
+      "id": "xorriso",
+      "binary": "xorriso",
+      "minimumVersion": "1.5.0",
+      "source": "system"
+    },
+    {
+      "id": "growisofs",
+      "binary": "growisofs",
+      "minimumVersion": "7.1",
+      "source": "system"
+    },
+    {
+      "id": "genisoimage",
+      "binary": "genisoimage",
+      "minimumVersion": null,
+      "source": "system",
+      "notes": "Fallback de xorriso para -dvd-video en CachyOS."
+    },
+    {
+      "id": "eject",
+      "binary": "eject",
+      "minimumVersion": null,
+      "source": "system",
+      "notes": "Expulsión del medio tras grabación/verificación."
+    },
+    {
+      "id": "dvd+rw-mediainfo",
+      "binary": "dvd+rw-mediainfo",
+      "minimumVersion": null,
+      "source": "system"
+    },
+    {
+      "id": "tsMuxeR",
+      "binary": "tsMuxeR",
+      "minimumVersion": "2.6.16",
+      "source": "system",
+      "candidates": [
+        "/usr/local/bin/tsMuxeR",
+        "toolchains/tsMuxeR"
+      ],
+      "notes": "Puede devolver un exit code distinto de cero; se valida por el banner 'tsMuxeR version'."
+    }
+  ]
+}
