@@ -118,8 +118,10 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}
             target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}
-            target/${{ matrix.target }}/release/bundle/**/*
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*
+            target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            target/${{ matrix.target }}/release/bundle/deb/*.deb
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
 
   windows:
     name: Windows ${{ matrix.arch }}
@@ -188,8 +190,10 @@ jobs:
           path: |
             target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}.exe
             target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}.exe
-            target/${{ matrix.target }}/release/bundle/**/*
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*
+            target/${{ matrix.target }}/release/bundle/msi/*.msi
+            target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
 
   release:
     name: Publish GitHub release
@@ -201,10 +205,25 @@ jobs:
         with:
           path: artifacts
 
+      - name: Collect release files
+        shell: bash
+        run: |
+          mkdir -p release
+          find artifacts -type f \( \
+            -name 'dvdforge-cli-*' -o \
+            -name 'dvdforge-desktop-*' -o \
+            -name '*.AppImage' -o \
+            -name '*.deb' -o \
+            -name '*.msi' -o \
+            -name '*-setup.exe' \
+          \) -exec cp -v {} release/ \;
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
+          ls -lh release
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: release/*
           generate_release_notes: true
           draft: false
           prerelease: false
