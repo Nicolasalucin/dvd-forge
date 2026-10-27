@@ -972,7 +972,9 @@ async fn render_avchd_project(
         let movie_object = read_bdmv_file(&bdmv_root.join("MovieObject.bdmv"))?;
         let base_object = movie_object_count(&movie_object)
             .map_err(|error| RenderError::Menu(error.to_string()))?;
-        let root = root_menu.expect("has_menus implies a root menu");
+        let root = root_menu.ok_or_else(|| {
+            RenderError::Menu("no hay un menú raíz con botones para autorar".to_string())
+        })?;
         let mut menu_list: Vec<&dvdforge_domain::Menu> = vec![root];
         for menu in &project.menus {
             if menu.id != root.id && !menu.buttons.is_empty() {
@@ -1754,16 +1756,18 @@ async fn render_menus(
                     .buttons
                     .iter()
                     .find(|button| button.id == *id)
-                    .expect("normalized button exists");
-                CompiledButton {
+                    .ok_or_else(|| {
+                        RenderError::Menu(format!("botón normalizado inexistente: {id}"))
+                    })?;
+                Ok(CompiledButton {
                     id: *id,
                     name: button.name.clone(),
                     rect: *rect,
                     style_kind: button.style_kind,
                     shape_mask: button.shape_mask,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, RenderError>>()?;
         let motion_buttons = build_motion_buttons(project, project_dir, menu, &rects, &menu_dir)?;
         let navigation = menu.navigation(None);
         if navigation.has_errors() {
@@ -1842,7 +1846,11 @@ async fn render_menus(
         let animated = (menu.motion_config.is_some() || video_background)
             && (video_background || !motion_buttons.is_empty());
         if animated {
-            let labels_overlay = labels_overlay.expect("checked above");
+            let labels_overlay = labels_overlay.ok_or_else(|| {
+                RenderError::Menu(
+                    "no se pudo generar la capa de etiquetas del menú animado".to_string(),
+                )
+            })?;
             let (motion_background, background_is_video) = match &menu.background {
                 MenuBackground::VideoLoop { asset, .. } => {
                     let background_asset = project.asset(*asset).ok_or_else(|| {
@@ -2397,13 +2405,15 @@ async fn attach_hdmv_menu(
     std::fs::create_dir_all(work_dir)?;
 
     let needed = pes_transport_packet_count(ig_packets);
-    let sets = (((needed / 30) + 2).max(2)).min(u16::MAX as usize) as u16;
+    let sets = u16::try_from(((needed / 30) + 2).max(2)).unwrap_or(u16::MAX);
     // A finite clip loops through the MovieObject. Keeping it long enough
     // leaves the remote responsive without relying on decoder-specific still
     // input handling.
     let duration_secs = 60.0;
     let dummy_path = work_dir.join("menu-pgs.sup");
-    std::fs::write(&dummy_path, dummy_pgs(spec.width, spec.height, sets))?;
+    let dummy_pgs = dummy_pgs(spec.width, spec.height, sets)
+        .map_err(|error| RenderError::Menu(error.to_string()))?;
+    std::fs::write(&dummy_path, dummy_pgs)?;
 
     let video_path = work_dir.join("menu.h264");
     encode_menu_video(&video_path, spec, duration_secs).await?;

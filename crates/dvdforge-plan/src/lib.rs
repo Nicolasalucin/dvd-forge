@@ -316,13 +316,13 @@ pub fn calculate_bitrate_plan(
     let fallback = if !feasible {
         if requested_profile == DvdProfile::D1 && raw_video_kbps < D1_MIN_KBPS as u64 {
             Some(PlanFallback::SwitchToHalfD1 {
-                estimated_kbps: raw_video_kbps.min(u32::MAX as u64) as u32,
+                estimated_kbps: u32::try_from(raw_video_kbps).unwrap_or(u32::MAX),
             })
         } else if overflow {
             let divisor = vob_budget.max(1);
             let suggested_discs = estimated_total.div_ceil(divisor).max(2);
             Some(PlanFallback::SplitAcrossDiscs {
-                suggested_discs: suggested_discs.min(u8::MAX as u64) as u8,
+                suggested_discs: u8::try_from(suggested_discs).unwrap_or(u8::MAX),
             })
         } else {
             Some(PlanFallback::SplitAcrossDiscs { suggested_discs: 2 })
@@ -537,7 +537,9 @@ fn calculate_avchd_plan(
         ));
     }
     let fallback = overflow.then(|| PlanFallback::SplitAcrossDiscs {
-        suggested_discs: (estimated_total.div_ceil(target_bytes.max(1)) as u8).max(2),
+        suggested_discs: u8::try_from(estimated_total.div_ceil(target_bytes.max(1)))
+            .unwrap_or(u8::MAX)
+            .max(2),
     });
 
     Ok(BitratePlan {

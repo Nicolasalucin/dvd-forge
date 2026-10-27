@@ -1,7 +1,7 @@
 //! ISO/UDF image creation and DVD-Video validation.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::process::Command;
@@ -29,6 +29,8 @@ pub enum IsoError {
     EmptyIso,
     #[error("no se pudo autorar el UDF del BDMV: {0}")]
     BdmvAuthoring(String),
+    #[error("no se pudo crear el ISO con xorriso ({xorriso}) ni con el fallback ({fallback})")]
+    BuildersFailed { xorriso: String, fallback: String },
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +40,108 @@ pub struct IsoReport {
     pub has_video_ts_ifo: bool,
     pub has_vts_01_ifo: bool,
     pub listing: String,
+}
+
+static TEMP_ISO_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Temporary sibling of the final ISO. Writing next to the target keeps the
+/// final rename atomic (same filesystem), and Drop removes the partial image
+/// when xorriso, validation or cancellation fails.
+struct TempIso {
+    path: PathBuf,
+    published: bool,
+}
+
+impl TempIso {
+    fn new(target: &Path) -> Self {
+        let parent = target
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let name = target
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("disc.iso");
+        let unique = format!(
+            ".{name}.{}.{}.part",
+            std::process::id(),
+            TEMP_ISO_COUNTER.fetch_add(1, Ordering::Relaxed)
+        );
+        Self {
+            path: parent.join(unique),
+            published: false,
+        }
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    fn publish(mut self, target: &Path) -> Result<(), IsoError> {
+        // `rename` replaces an existing target atomically on Unix (rename(2))
+        // and on Windows (MoveFileEx with MOVEFILE_REPLACE_EXISTING). The
+        // temporary image is complete and validated at this point.
+        std::fs::rename(&self.path, target)?;
+        self.published = true;
+        Ok(())
+    }
+}
+
+impl Drop for TempIso {
+    fn drop(&mut self) {
+        if !self.published {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+fn normalize_listing_entry(value: &str) -> String {
+    let value = value.replace('\\', "/");
+    let value = value.trim_matches(|character| character == '\'' || character == '"');
+    let value = value.trim_start_matches("./").trim_start_matches('/');
+    value.trim_end_matches('/').to_string()
+}
+
+fn listing_has_entry(listing: &str, expected: &str) -> bool {
+    let expected = normalize_listing_entry(expected);
+    listing.lines().any(|line| {
+        line.split_whitespace().any(|entry| {
+            let entry = normalize_listing_entry(entry);
+            entry == expected || entry.ends_with(&format!("/{expected}"))
+        })
+    })
+}
+
+/// Runs one mkisofs-compatible image builder. `prefix` is empty for
+/// genisoimage/mkisofs and `["-as", "mkisofs"]` for xorriso.
+async fn run_iso_builder(
+    binary: &Path,
+    prefix: &[&str],
+    source_dir: &Path,
+    output: &Path,
+    label: &str,
+) -> Result<(), IsoError> {
+    let mut command = Command::new(binary);
+    command.args(prefix);
+    let result = command
+        .arg("-dvd-video")
+        .arg("-udf")
+        .arg("-V")
+        .arg(label)
+        .arg("-o")
+        .arg(output)
+        .arg(source_dir)
+        .kill_on_drop(true)
+        .output()
+        .await?;
+    if result.status.success() {
+        Ok(())
+    } else {
+        Err(IsoError::XorrisoFailed {
+            code: result.status.code().unwrap_or(-1),
+            stderr: String::from_utf8_lossy(&result.stderr).trim().to_string(),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +170,10 @@ impl Xorriso {
     }
 
     /// Builds a DVD-Video ISO with the approved xorriso profile.
+    ///
+    /// The image is written to a temporary sibling and renamed over the final
+    /// path only after xorriso can list `VIDEO_TS.IFO` and `VTS_01_0.IFO`.
+    /// A failed render therefore never destroys the previous ISO.
     pub async fn build_dvd_iso(
         &self,
         source_dir: &Path,
@@ -79,57 +187,39 @@ impl Xorriso {
         if !video_ts.is_dir() {
             return Err(IsoError::MissingSource(video_ts.display().to_string()));
         }
-        if let Some(parent) = iso_path.parent() {
+        if let Some(parent) = iso_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
             std::fs::create_dir_all(parent)?;
         }
-        if iso_path.exists() {
-            std::fs::remove_file(iso_path)?;
+
+        let temp = TempIso::new(iso_path);
+        // CachyOS ships xorriso without mkisofs' `-dvd-video` option. Do not
+        // parse its (localised) stderr: retry with genisoimage/mkisofs on any
+        // failure and report both errors if the fallback also fails.
+        if let Err(xorriso_error) = run_iso_builder(
+            &self.binary,
+            &["-as", "mkisofs"],
+            source_dir,
+            temp.path(),
+            label,
+        )
+        .await
+        {
+            let _ = std::fs::remove_file(temp.path());
+            run_iso_builder(&self.fallback_binary, &[], source_dir, temp.path(), label)
+                .await
+                .map_err(|fallback_error| IsoError::BuildersFailed {
+                    xorriso: xorriso_error.to_string(),
+                    fallback: fallback_error.to_string(),
+                })?;
         }
 
-        let result = Command::new(&self.binary)
-            .arg("-as")
-            .arg("mkisofs")
-            .arg("-dvd-video")
-            .arg("-udf")
-            .arg("-V")
-            .arg(label)
-            .arg("-o")
-            .arg(iso_path)
-            .arg(source_dir)
-            .kill_on_drop(true)
-            .output()
-            .await?;
-        if !result.status.success() {
-            let code = result.status.code().unwrap_or(-1);
-            let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
-            if stderr.contains("Unsupported option '-dvd-video'") {
-                let fallback = Command::new(&self.fallback_binary)
-                    .arg("-dvd-video")
-                    .arg("-udf")
-                    .arg("-V")
-                    .arg(label)
-                    .arg("-o")
-                    .arg(iso_path)
-                    .arg(source_dir)
-                    .kill_on_drop(true)
-                    .output()
-                    .await?;
-                if !fallback.status.success() {
-                    let fallback_code = fallback.status.code().unwrap_or(-1);
-                    let fallback_stderr =
-                        String::from_utf8_lossy(&fallback.stderr).trim().to_string();
-                    return Err(IsoError::XorrisoFailed {
-                        code: fallback_code,
-                        stderr: format!(
-                            "xorriso no soporta -dvd-video y el fallback falló: {fallback_stderr}"
-                        ),
-                    });
-                }
-            } else {
-                return Err(IsoError::XorrisoFailed { code, stderr });
-            }
-        }
-        self.validate_dvd_iso(iso_path).await
+        let mut report = self.validate_dvd_iso(temp.path()).await?;
+        temp.publish(iso_path)?;
+        report.iso_path = iso_path.to_path_buf();
+        Ok(report)
     }
 
     pub async fn validate_dvd_iso(&self, iso_path: &Path) -> Result<IsoReport, IsoError> {
@@ -155,8 +245,8 @@ impl Xorriso {
             return Err(IsoError::XorrisoFailed { code, stderr });
         }
         let listing = String::from_utf8_lossy(&result.stdout).into_owned();
-        let has_video_ts_ifo = listing.contains(VIDEO_TS_IFO);
-        let has_vts_01_ifo = listing.contains(VTS_01_IFO);
+        let has_video_ts_ifo = listing_has_entry(&listing, VIDEO_TS_IFO);
+        let has_vts_01_ifo = listing_has_entry(&listing, VTS_01_IFO);
         if !has_video_ts_ifo {
             return Err(IsoError::MissingIsoEntry(VIDEO_TS_IFO.to_string()));
         }
@@ -302,6 +392,88 @@ mod tests {
         assert_eq!(sectors_for_bytes(1), 1);
         assert_eq!(sectors_for_bytes(2_048), 1);
         assert_eq!(sectors_for_bytes(2_049), 2);
+    }
+
+    fn test_root(name: &str) -> PathBuf {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "dvdforge-iso-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn part_files(root: &Path) -> Vec<PathBuf> {
+        std::fs::read_dir(root)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.ends_with(".part"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn listing_detects_paths_with_quotes_and_prefixes() {
+        let listing = "-r-xr-xr-x 1 0 0 2048 Mar  1 2024 VIDEO_TS/VIDEO_TS.IFO\n\
+                       -r-xr-xr-x 1 0 0 2048 Mar  1 2024 VIDEO_TS/VTS_01_0.IFO";
+        assert!(listing_has_entry(listing, VIDEO_TS_IFO));
+        assert!(listing_has_entry("'/VIDEO_TS/VIDEO_TS.IFO'", VIDEO_TS_IFO));
+        assert!(listing_has_entry("./VIDEO_TS\\VIDEO_TS.IFO", VIDEO_TS_IFO));
+        assert!(!listing_has_entry("VIDEO_TS/VIDEO_TS.BUP", VIDEO_TS_IFO));
+    }
+
+    #[test]
+    fn temp_iso_drop_preserves_the_previous_image() {
+        let root = test_root("drop");
+        let target = root.join("disc.iso");
+        std::fs::write(&target, b"previous").unwrap();
+        {
+            let temp = TempIso::new(&target);
+            std::fs::write(temp.path(), b"partial").unwrap();
+            assert!(temp.path().is_file());
+        }
+        assert_eq!(std::fs::read(&target).unwrap(), b"previous");
+        assert!(part_files(&root).is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn temp_iso_publish_replaces_the_previous_image() {
+        let root = test_root("publish");
+        let target = root.join("disc.iso");
+        std::fs::write(&target, b"previous").unwrap();
+        let temp = TempIso::new(&target);
+        std::fs::write(temp.path(), b"fresh").unwrap();
+        temp.publish(&target).unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"fresh");
+        assert!(part_files(&root).is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn failed_build_preserves_the_previous_image() {
+        let root = test_root("failed");
+        let source = root.join("source");
+        std::fs::create_dir_all(source.join("VIDEO_TS")).unwrap();
+        std::fs::write(source.join("VIDEO_TS/VIDEO_TS.IFO"), b"if").unwrap();
+        let target = root.join("disc.iso");
+        std::fs::write(&target, b"previous").unwrap();
+        let xorriso = Xorriso {
+            binary: root.join("missing-xorriso"),
+            fallback_binary: root.join("missing-genisoimage"),
+        };
+        let result = xorriso.build_dvd_iso(&source, &target, "TEST").await;
+        assert!(matches!(result, Err(IsoError::BuildersFailed { .. })));
+        assert_eq!(std::fs::read(&target).unwrap(), b"previous");
+        assert!(part_files(&root).is_empty());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[tokio::test]

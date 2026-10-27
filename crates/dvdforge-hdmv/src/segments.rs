@@ -25,11 +25,11 @@ impl Segment {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        let length = self.payload.len().min(0xFFFF);
-        let mut out = Vec::with_capacity(3 + length);
+        let length = u16::try_from(self.payload.len()).unwrap_or(u16::MAX);
+        let mut out = Vec::with_capacity(3 + usize::from(length));
         out.push(self.kind);
-        out.extend_from_slice(&(length as u16).to_be_bytes());
-        out.extend_from_slice(&self.payload[..length]);
+        out.extend_from_slice(&length.to_be_bytes());
+        out.extend_from_slice(&self.payload[..usize::from(length)]);
         out
     }
 }
@@ -121,7 +121,9 @@ pub fn object_definition_segment(
     version: u8,
     rle: &[u8],
 ) -> Segment {
-    let data_len = 4u32.saturating_add(rle.len() as u32);
+    let data_len = u32::try_from(rle.len())
+        .unwrap_or(u32::MAX)
+        .saturating_add(4);
     let mut payload = Vec::with_capacity(11 + rle.len());
     payload.extend_from_slice(&object_id.to_be_bytes());
     payload.push(version);
@@ -138,8 +140,9 @@ pub fn interactive_composition_segment(composition: &InteractiveComposition) -> 
     // stream_model = 1 (non-streaming); ui_model = 0.
     interactive.push(0x80);
     push_u24(&mut interactive, composition.user_timeout_duration);
-    interactive.push(composition.pages.len().min(255) as u8);
-    for page in &composition.pages {
+    let page_count = u8::try_from(composition.pages.len()).unwrap_or(u8::MAX);
+    interactive.push(page_count);
+    for page in composition.pages.iter().take(usize::from(page_count)) {
         push_page(&mut interactive, page);
     }
 
@@ -174,9 +177,9 @@ fn push_page(out: &mut Vec<u8>, page: &PageDefinition) {
     // one BOG allows only a single cursor move before the navigation refs are
     // resolved from the wrong button. Independent BOGs also match how HDMV
     // authoring tools lay out non-overlapping buttons.
-    let button_count = page.buttons.len().min(255);
-    out.push(button_count as u8);
-    for button in page.buttons.iter().take(255) {
+    let button_count = u8::try_from(page.buttons.len()).unwrap_or(u8::MAX);
+    out.push(button_count);
+    for button in page.buttons.iter().take(usize::from(button_count)) {
         out.extend_from_slice(&button.id.to_be_bytes());
         out.push(1);
         push_button(out, button);
@@ -207,8 +210,9 @@ fn push_effect_sequence(
     }
     push_u24(out, 0); // infinite/still duration
     out.push(palette_id);
-    out.push(objects.len().min(255) as u8);
-    for object in objects {
+    let object_count = u8::try_from(objects.len()).unwrap_or(u8::MAX);
+    out.push(object_count);
+    for object in objects.iter().take(usize::from(object_count)) {
         out.extend_from_slice(&object.object_id.to_be_bytes());
         out.push(object.window_id);
         out.push(0); // crop flag + reserved
@@ -236,8 +240,9 @@ fn push_button(out: &mut Vec<u8>, button: &ButtonDefinition) {
     out.push(0xFF); // activated sound id
     out.extend_from_slice(&button.activated_object.to_be_bytes());
     out.extend_from_slice(&button.activated_object.to_be_bytes());
-    out.extend_from_slice(&(button.commands.len().min(0xFFFF) as u16).to_be_bytes());
-    for command in button.commands.iter().take(0xFFFF) {
+    let command_count = u16::try_from(button.commands.len()).unwrap_or(u16::MAX);
+    out.extend_from_slice(&command_count.to_be_bytes());
+    for command in button.commands.iter().take(usize::from(command_count)) {
         out.extend_from_slice(&command.to_bytes());
     }
 }

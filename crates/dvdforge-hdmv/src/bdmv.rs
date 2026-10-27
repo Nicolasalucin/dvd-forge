@@ -46,6 +46,10 @@ pub enum BdmvError {
     InvalidIndex(&'static str),
     #[error("el flujo IG no cabe en los huecos PGS reservados ({needed} > {available})")]
     NotEnoughPgsSlots { needed: usize, available: usize },
+    #[error(
+        "el segmento PGS {kind:#04x} ocupa {length} bytes y no cabe en el campo de longitud de 16 bits"
+    )]
+    PgsSegmentTooLarge { kind: u8, length: usize },
 }
 
 /// Supplies the number of transport packets needed by a set of PES packets.
@@ -595,7 +599,7 @@ pub fn set_index_menu_object(index: &[u8], object: u16) -> Result<Vec<u8>, BdmvE
 /// Builds a raw PGS stream used only to reserve transport slots. Each display
 /// set is a full-screen solid object; the payload is discarded after the IG
 /// packets replace the reserved slots.
-pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Vec<u8> {
+pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Result<Vec<u8>, BdmvError> {
     let mut output = Vec::new();
     let width = width.max(2);
     let height = height.max(2);
@@ -614,7 +618,7 @@ pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Vec<u8> {
                 if index == 0 { 0 } else { 255 },
             ]);
         }
-        push_pgs_segment(&mut output, 0x14, pts, &palette);
+        push_pgs_segment(&mut output, 0x14, pts, &palette)?;
 
         let mut window = Vec::with_capacity(10);
         window.push(1); // one window
@@ -623,7 +627,7 @@ pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Vec<u8> {
         window.extend_from_slice(&0u16.to_be_bytes());
         window.extend_from_slice(&width.to_be_bytes());
         window.extend_from_slice(&height.to_be_bytes());
-        push_pgs_segment(&mut output, 0x17, pts, &window);
+        push_pgs_segment(&mut output, 0x17, pts, &window)?;
 
         let mut presentation = Vec::with_capacity(25);
         presentation.extend_from_slice(&width.to_be_bytes());
@@ -639,7 +643,7 @@ pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Vec<u8> {
         presentation.push(0); // no crop, not forced
         presentation.extend_from_slice(&0u16.to_be_bytes());
         presentation.extend_from_slice(&0u16.to_be_bytes());
-        push_pgs_segment(&mut output, 0x16, pts, &presentation);
+        push_pgs_segment(&mut output, 0x16, pts, &presentation)?;
 
         let mut rle = Vec::with_capacity(height as usize * 6);
         for _ in 0..height {
@@ -658,19 +662,29 @@ pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Vec<u8> {
         object.extend_from_slice(&width.to_be_bytes());
         object.extend_from_slice(&height.to_be_bytes());
         object.extend_from_slice(&rle);
-        push_pgs_segment(&mut output, 0x15, pts, &object);
-        push_pgs_segment(&mut output, 0x80, pts, &[]);
+        push_pgs_segment(&mut output, 0x15, pts, &object)?;
+        push_pgs_segment(&mut output, 0x80, pts, &[])?;
     }
-    output
+    Ok(output)
 }
 
-fn push_pgs_segment(output: &mut Vec<u8>, kind: u8, pts: u32, payload: &[u8]) {
+fn push_pgs_segment(
+    output: &mut Vec<u8>,
+    kind: u8,
+    pts: u32,
+    payload: &[u8],
+) -> Result<(), BdmvError> {
+    let length = u16::try_from(payload.len()).map_err(|_| BdmvError::PgsSegmentTooLarge {
+        kind,
+        length: payload.len(),
+    })?;
     output.extend_from_slice(b"PG");
     output.extend_from_slice(&pts.to_be_bytes());
     output.extend_from_slice(&pts.to_be_bytes());
     output.push(kind);
-    output.extend_from_slice(&(payload.len() as u16).to_be_bytes());
+    output.extend_from_slice(&length.to_be_bytes());
     output.extend_from_slice(payload);
+    Ok(())
 }
 
 fn read_u16(bytes: &[u8], offset: usize) -> Option<u16> {
@@ -961,7 +975,7 @@ mod tests {
 
     #[test]
     fn dummy_pgs_contains_full_display_sets() {
-        let bytes = dummy_pgs(320, 180, 2);
+        let bytes = dummy_pgs(320, 180, 2).expect("dummy pgs");
         assert!(bytes.starts_with(b"PG"));
         let mut offset = 0;
         let mut segments = 0;
