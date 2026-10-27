@@ -25,6 +25,7 @@
   let notice = $state<string | null>(null);
   let playbackSupport = $state<PlaybackSupport_Serialize | null>(null);
   let prepareToken = 0;
+  let seekFrame: number | null = null;
 
   const episode = $derived(projectStore.selectedEpisode);
   const sourcePath = $derived(episode ? projectStore.episodeSourcePath(episode) : null);
@@ -87,10 +88,25 @@
   });
 
   $effect(() => {
-    if (videoEl && previewPath) {
-      videoEl.currentTime = startMs / 1000;
-      currentTimeMs = startMs;
-    }
+    const video = videoEl;
+    const path = previewPath;
+    const target = startMs;
+    if (!video || !path) return;
+    // Dragging the in-point updates startMs on every pointermove. Coalesce the
+    // seeks to one per animation frame instead of hammering the decoder.
+    if (seekFrame !== null) cancelAnimationFrame(seekFrame);
+    seekFrame = requestAnimationFrame(() => {
+      seekFrame = null;
+      if (!videoEl || !previewPath) return;
+      videoEl.currentTime = target / 1000;
+      currentTimeMs = target;
+    });
+    return () => {
+      if (seekFrame !== null) {
+        cancelAnimationFrame(seekFrame);
+        seekFrame = null;
+      }
+    };
   });
 
   function onLoadedMetadata() {

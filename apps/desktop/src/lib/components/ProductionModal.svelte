@@ -35,6 +35,14 @@
     project?.disc.capacity === "bd25" || project?.disc.capacity === "bd50",
   );
   const speedOptions = $derived(isBluRay ? [1, 2, 4, 6, 8] : [2, 4, 8, 16]);
+  const effectiveDevice = $derived(
+    devices.some((device) => device.id === selectedDevice)
+      ? selectedDevice
+      : (devices[0]?.id ?? ""),
+  );
+  const effectiveSpeed = $derived(
+    speedOptions.includes(speed) ? speed : (speedOptions[0] ?? 4),
+  );
   const busy = $derived(projectStore.rendering || projectStore.burning);
   const renderPercent = $derived(Math.min(100, Math.max(0, projectStore.renderPercent)));
   const burnPercent = $derived(
@@ -71,16 +79,6 @@
 
   onMount(() => {
     void prepareDefaults();
-  });
-
-  $effect(() => {
-    if (!devices.some((device) => device.id === selectedDevice) && devices.length > 0) {
-      selectedDevice = devices[0].id;
-    }
-  });
-
-  $effect(() => {
-    if (!speedOptions.includes(speed)) speed = speedOptions[0];
   });
 
   async function prepareDefaults() {
@@ -170,7 +168,7 @@
           projectStore.renderSummary = t("Generación cancelada antes de grabar.");
           return;
         }
-        if (!selectedDevice) {
+        if (!effectiveDevice) {
           localError = t("El ISO está listo, pero no hay una unidad seleccionada para grabarlo.");
           return;
         }
@@ -196,7 +194,7 @@
       localError = t("Elige un archivo ISO.");
       return;
     }
-    if (!selectedDevice) {
+    if (!effectiveDevice) {
       localError = t("No se detectó ninguna unidad grabable. Conecta una unidad y pulsa «Actualizar».");
       return;
     }
@@ -208,7 +206,7 @@
     channel.onmessage = (event) => projectStore.applyBurnProgress(event);
     try {
       const report = await unwrap(
-        commands.burnStart(isoPath, selectedDevice, speed, verify, eject, channel),
+        commands.burnStart(isoPath, effectiveDevice, effectiveSpeed, verify, eject, channel),
       );
       projectStore.burnReport = report;
       projectStore.lastIso = isoPath;
@@ -390,7 +388,7 @@
               {#if projectStore.rendering}
                 {projectStore.renderStage || t("Generando…")}
               {:else if projectStore.burning}
-                {t("Grabando en")} {selectedDevice || t("la unidad")} · {formatBytes(projectStore.burnProgress?.writtenBytes ?? 0)} {t("de")} {formatBytes(projectStore.burnProgress?.totalBytes ?? 0)}
+                {t("Grabando en")} {effectiveDevice || t("la unidad")} · {formatBytes(projectStore.burnProgress?.writtenBytes ?? 0)} {t("de")} {formatBytes(projectStore.burnProgress?.totalBytes ?? 0)}
               {:else if projectStore.renderSummary}
                 {projectStore.renderSummary}
               {:else}
@@ -454,7 +452,8 @@
               {:else}
                 <select
                   class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
-                  bind:value={selectedDevice}
+                  value={effectiveDevice}
+                  onchange={(event) => (selectedDevice = event.currentTarget.value)}
                   disabled={busy}
                 >
                   {#each devices as device}
@@ -471,7 +470,8 @@
                 <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
                 <select
                   class="w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
-                  bind:value={speed}
+                  value={effectiveSpeed}
+                  onchange={(event) => (speed = Number(event.currentTarget.value))}
                   disabled={busy}
                 >
                   {#each speedOptions as option}

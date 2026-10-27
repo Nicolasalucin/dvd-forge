@@ -66,25 +66,29 @@
   let localError = $state<string | null>(null);
 
   const fpsOptions = $derived(fpsOptionsFor(resolution));
+  // The selected fps is derived from the available combinations. Keeping the
+  // stale `fpsKey` in a state effect forced an extra render on every
+  // resolution change.
+  const effectiveFpsKey = $derived(
+    fpsOptions.some((option) => option.key === fpsKey)
+      ? fpsKey
+      : (fpsOptions[0]?.key ?? "23.976"),
+  );
   const selectedFps = $derived(
-    fpsOptions.find((option) => option.key === fpsKey)?.rate ?? FPS_23_976,
+    fpsOptions.find((option) => option.key === effectiveFpsKey)?.rate ?? FPS_23_976,
   );
   const avchdStandard = $derived<TvStandard>(
     resolution === "480i"
       ? "ntsc"
-      : resolution === "576i" || fpsKey === "25" || fpsKey === "50"
+      : resolution === "576i" ||
+          effectiveFpsKey === "25" ||
+          effectiveFpsKey === "50"
         ? "pal"
         : "ntsc",
   );
   const avchdAspect = $derived<AspectRatio>(
     resolution === "480i" || resolution === "576i" ? aspect : "sixteenNine",
   );
-
-  $effect(() => {
-    if (!fpsOptions.some((option) => option.key === fpsKey)) {
-      fpsKey = fpsOptions[0]?.key ?? "23.976";
-    }
-  });
 
   async function createProject() {
     busy = true;
@@ -249,7 +253,8 @@
               <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
               <select
                 class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] text-white outline-none focus:border-cyan-500/60"
-                bind:value={fpsKey}
+                value={effectiveFpsKey}
+                onchange={(event) => (fpsKey = event.currentTarget.value)}
                 disabled={busy}
               >
                 {#each fpsOptions as option}

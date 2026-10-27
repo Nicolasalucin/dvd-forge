@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "../i18n/index.svelte";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import {
     commands,
     type Episode_Serialize,
@@ -37,6 +37,7 @@
   let pendingPlay = false;
   let advanceGuard = false;
   let graphToken = 0;
+  let graphTimer: ReturnType<typeof setTimeout> | null = null;
   let activationTimer: ReturnType<typeof setTimeout> | null = null;
   let videoEl: HTMLVideoElement | undefined = $state();
   let tvStageDvd: HTMLDivElement | undefined = $state();
@@ -73,22 +74,47 @@
     (graph?.warnings ?? []).filter((warning) => warning.severity !== "info"),
   );
 
-  $effect(() => {
-    const activeProject = project;
-    if (!activeProject || activeProject.disc.mode === "avchd") {
-      currentMenuId = null;
-      focusId = null;
-      return;
-    }
-    const candidate =
-      currentMenuId && activeProject.menus.some((menu) => menu.id === currentMenuId)
-        ? currentMenuId
-        : (activeProject.rootMenu || activeProject.menus[0]?.id || null);
-    if (candidate !== currentMenuId) currentMenuId = candidate;
+  // Only serialise the fields that affect menu.navigation(). Reading the whole
+  // project inside a synchronous effect made it rerun for every unrelated edit
+  // and reset the focus on each pass.
+  const graphSignature = $derived.by(() => {
+    const menu = currentMenu;
+    if (!menu) return "";
+    return JSON.stringify({
+      id: menu.id,
+      canvas: menu.canvas,
+      buttons: menu.buttons.map((button) => ({
+        id: button.id,
+        rect: button.rect,
+        enabled: button.enabled,
+        navOverride: button.navOverride,
+        action: button.action,
+      })),
+    });
   });
 
   $effect(() => {
-    void loadGraph();
+    const signature = graphSignature;
+    if (graphTimer) {
+      clearTimeout(graphTimer);
+      graphTimer = null;
+    }
+    if (!signature) {
+      graphToken += 1;
+      graph = null;
+      graphError = null;
+      focusId = null;
+      return;
+    }
+    graphTimer = setTimeout(() => {
+      graphTimer = null;
+      void loadGraph();
+    }, 120);
+  });
+
+  onDestroy(() => {
+    if (graphTimer) clearTimeout(graphTimer);
+    if (activationTimer) clearTimeout(activationTimer);
   });
 
   onMount(() => {
@@ -154,21 +180,33 @@
   async function loadGraph() {
     const menu = currentMenu;
     const token = ++graphToken;
-    graph = null;
     graphError = null;
     if (!menu) {
+      graph = null;
       focusId = null;
       return;
     }
+    const previousFocus = graph?.menuId === menu.id ? focusId : null;
     try {
       const result = await commands.menuNavigation(menu, null);
       if (token !== graphToken) return;
       graph = result;
-      focusId = result.defaultFocus ?? result.nodes[0]?.button ?? null;
+      focusId =
+        previousFocus && result.nodes.some((node) => node.button === previousFocus)
+          ? previousFocus
+          : (result.defaultFocus ?? result.nodes[0]?.button ?? null);
       activation = "highlight";
     } catch (cause) {
       if (token === graphToken) graphError = messageOf(cause);
     }
+  }
+
+  function refreshGraph() {
+    if (graphTimer) {
+      clearTimeout(graphTimer);
+      graphTimer = null;
+    }
+    void loadGraph();
   }
 
   function keyDirection(key: string): NavDirection | null {
@@ -647,7 +685,7 @@
       </button>
       <button
         type="button"
-        onclick={() => void loadGraph()}
+        onclick={refreshGraph}
         class="rounded-md border border-slate-800 px-2 py-1 text-[10px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
       >
         {t("Refrescar grafo")}

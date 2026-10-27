@@ -46,6 +46,9 @@
   let wrapper: HTMLDivElement | undefined = $state();
   let container: HTMLDivElement | undefined = $state();
   let ready = $state(false);
+  // Bumped when the Konva stage is created or destroyed so the layer effects
+  // run again even though `stage` itself is a plain (non-reactive) handle.
+  let stageRevision = $state(0);
   let stage: Konva.Stage | null = null;
   let backgroundLayer: Konva.Layer | null = null;
   let navigationLayer: Konva.Layer | null = null;
@@ -58,31 +61,37 @@
     observer.observe(wrapper);
     return () => {
       observer.disconnect();
-      destroyStage();
+      destroyStage(false);
     };
   });
 
+  // Lifecycle: only depends on whether a menu exists, not on its contents.
   $effect(() => {
-    if (!menu) {
-      destroyStage();
+    const activeMenu = menu;
+    if (!ready || !container || !activeMenu) {
+      if (!activeMenu) destroyStage();
       return;
     }
-    if (!ready || !container) return;
-    if (!stage) {
-      stage = new Konva.Stage({
-        container,
-        width: menu.canvas.width,
-        height: menu.canvas.height,
-      });
-      backgroundLayer = new Konva.Layer({ listening: false });
-      navigationLayer = new Konva.Layer({ listening: false });
-      buttonsLayer = new ButtonsLayer();
-      stage.add(backgroundLayer);
-      stage.add(navigationLayer);
-      stage.add(buttonsLayer.layer);
-    }
-    if (!backgroundLayer || !navigationLayer || !buttonsLayer) return;
+    if (stage) return;
+    stage = new Konva.Stage({
+      container,
+      width: activeMenu.canvas.width,
+      height: activeMenu.canvas.height,
+    });
+    backgroundLayer = new Konva.Layer({ listening: false });
+    navigationLayer = new Konva.Layer({ listening: false });
+    buttonsLayer = new ButtonsLayer();
+    stage.add(backgroundLayer);
+    stage.add(navigationLayer);
+    stage.add(buttonsLayer.layer);
+    stageRevision += 1;
+  });
 
+  // Background: expensive blur/dim/scale composition. It must not rerun when
+  // the simulator only moves the focus between buttons.
+  $effect(() => {
+    stageRevision;
+    if (!stage || !backgroundLayer || !menu) return;
     drawBackground(
       backgroundLayer,
       menu,
@@ -90,16 +99,30 @@
       backgroundUrl,
       showSafeAreas,
     );
-    if (showNavigation) {
-      if (navigationGraph) {
-        drawNavigationGraph(navigationLayer, navigationGraph, focusButtonId ?? selectedButtonId);
-      } else {
-        drawNavigation(navigationLayer, menu);
-      }
-    } else {
+  });
+
+  $effect(() => {
+    stageRevision;
+    if (!stage || !navigationLayer || !menu) return;
+    if (!showNavigation) {
       navigationLayer.destroyChildren();
       navigationLayer.batchDraw();
+      return;
     }
+    if (navigationGraph) {
+      drawNavigationGraph(
+        navigationLayer,
+        navigationGraph,
+        focusButtonId ?? selectedButtonId,
+      );
+    } else {
+      drawNavigation(navigationLayer, menu);
+    }
+  });
+
+  $effect(() => {
+    stageRevision;
+    if (!stage || !buttonsLayer || !menu) return;
     buttonsLayer.sync(menu, {
       selectedId: selectedButtonId,
       focusId: focusButtonId,
@@ -112,6 +135,15 @@
         onActivate,
       },
     });
+  });
+
+  $effect(() => {
+    stageRevision;
+    if (!stage || !menu) return;
+    // Track the native canvas size explicitly: a different menu may use
+    // another resolution while reusing the same stage.
+    void menu.canvas.width;
+    void menu.canvas.height;
     resize();
   });
 
@@ -133,12 +165,14 @@
     stage.batchDraw();
   }
 
-  function destroyStage(): void {
-    stage?.destroy();
+  function destroyStage(notify = true): void {
+    if (!stage) return;
+    stage.destroy();
     stage = null;
     backgroundLayer = null;
     navigationLayer = null;
     buttonsLayer = null;
+    if (notify) stageRevision += 1;
   }
 </script>
 
