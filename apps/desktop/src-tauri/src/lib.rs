@@ -93,6 +93,10 @@ pub fn run() {
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
+            use tauri::Manager;
+            if let Ok(cache) = app.path().app_cache_dir() {
+                commands::media::set_cache_root(cache);
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

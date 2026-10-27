@@ -1,4 +1,3 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PlaybackSupport_Serialize } from "./api/bindings";
 import { unwrap } from "./api/client";
 
@@ -6,15 +5,12 @@ let cached: Promise<PlaybackSupport_Serialize> | null = null;
 
 /**
  * WebKitGTK no reproduce `<video>` desde `asset://`; el backend expone el
- * archivo por HTTP local con Range. Si el comando falla se mantiene el asset
- * protocol como fallback para otras plataformas.
+ * archivo por HTTP local con soporte de `Range`. Si el servidor no está
+ * disponible, se devuelve el error para que la vista muestre un aviso en vez
+ * de intentar un esquema que el webview no puede reproducir.
  */
 export async function previewUrlFor(path: string): Promise<string> {
-  try {
-    return await unwrap(commands.mediaPreviewUrl(path));
-  } catch {
-    return convertFileSrc(path);
-  }
+  return await unwrap(commands.mediaPreviewUrl(path));
 }
 
 /**

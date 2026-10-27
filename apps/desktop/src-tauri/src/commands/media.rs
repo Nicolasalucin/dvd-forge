@@ -2,18 +2,25 @@ use base64::Engine;
 use dvdforge_domain::MediaProbe;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 use tokio::process::Command;
 
 /// Elementos de GStreamer que WebKitGTK necesita para montar un `<video>`.
 /// En macOS/Windows WebKit usa AVFoundation/Media Foundation y no requiere
 /// esta comprobación.
 const LINUX_PLAYBACK_ELEMENTS: [&str; 2] = ["autoaudiosink", "autovideosink"];
+
+const MAX_PREVIEW_CONNECTIONS: usize = 16;
+const MAX_PREVIEW_HEADER_BYTES: usize = 8 * 1024;
+const MAX_PREVIEW_TOKENS: usize = 64;
+const PREVIEW_TOKEN_TTL: Duration = Duration::from_secs(6 * 60 * 60);
+const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -25,12 +32,77 @@ pub struct PlaybackSupport {
     pub install_hint: Option<String>,
 }
 
+struct PreviewEntry {
+    path: PathBuf,
+    created: Instant,
+}
+
 struct MediaServer {
     base_url: String,
-    files: Arc<Mutex<HashMap<String, PathBuf>>>,
+    files: Arc<Mutex<HashMap<String, PreviewEntry>>>,
+}
+
+struct ConnectionGuard {
+    active: Arc<AtomicUsize>,
+}
+
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        self.active.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 static MEDIA_SERVER: OnceLock<MediaServer> = OnceLock::new();
+static CACHE_ROOT: OnceLock<PathBuf> = OnceLock::new();
+static PREVIEW_LOCKS: OnceLock<tokio::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> =
+    OnceLock::new();
+
+/// Called from Tauri setup with the per-user application cache directory.
+pub fn set_cache_root(root: PathBuf) {
+    let _ = create_private_dir(&root);
+    let _ = CACHE_ROOT.set(root);
+}
+
+fn cache_root() -> PathBuf {
+    CACHE_ROOT.get().cloned().unwrap_or_else(default_cache_root)
+}
+
+fn default_cache_root() -> PathBuf {
+    #[cfg(target_os = "linux")]
+    if let Some(cache) = std::env::var_os("XDG_CACHE_HOME") {
+        return PathBuf::from(cache).join("dvdforge");
+    }
+    #[cfg(target_os = "linux")]
+    if let Some(home) = std::env::var_os("HOME") {
+        return PathBuf::from(home).join(".cache/dvdforge");
+    }
+    #[cfg(target_os = "windows")]
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        return PathBuf::from(local).join("dvdforge").join("cache");
+    }
+    #[cfg(target_os = "macos")]
+    if let Some(home) = std::env::var_os("HOME") {
+        return PathBuf::from(home)
+            .join("Library")
+            .join("Caches")
+            .join("dvdforge");
+    }
+    std::env::temp_dir().join(format!("dvdforge-cache-{}", std::process::id()))
+}
+
+fn cache_dir(name: &str) -> PathBuf {
+    cache_root().join(name)
+}
+
+fn create_private_dir(path: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700));
+    }
+    Ok(())
+}
 
 fn media_server() -> Result<&'static MediaServer, String> {
     if let Some(server) = MEDIA_SERVER.get() {
@@ -44,6 +116,7 @@ fn media_server() -> Result<&'static MediaServer, String> {
         .port();
     let files = Arc::new(Mutex::new(HashMap::new()));
     let registry = Arc::clone(&files);
+    let active = Arc::new(AtomicUsize::new(0));
     std::thread::Builder::new()
         .name("dvdforge-media-server".to_string())
         .spawn(move || {
@@ -51,12 +124,29 @@ fn media_server() -> Result<&'static MediaServer, String> {
                 let Ok(stream) = stream else {
                     continue;
                 };
+                if active.fetch_add(1, Ordering::SeqCst) >= MAX_PREVIEW_CONNECTIONS {
+                    active.fetch_sub(1, Ordering::SeqCst);
+                    let mut stream = stream;
+                    let _ = write_http_status(
+                        &mut stream,
+                        "503 Service Unavailable",
+                        "Demasiadas conexiones",
+                    );
+                    continue;
+                }
                 let registry = Arc::clone(&registry);
-                let _ = std::thread::Builder::new()
+                let worker_active = Arc::clone(&active);
+                let spawn = std::thread::Builder::new()
                     .name("dvdforge-media-http".to_string())
                     .spawn(move || {
+                        let _guard = ConnectionGuard {
+                            active: worker_active,
+                        };
                         let _ = serve_media_request(stream, &registry);
                     });
+                if spawn.is_err() {
+                    active.fetch_sub(1, Ordering::SeqCst);
+                }
             }
         })
         .map_err(|error| format!("No se pudo iniciar el servidor de vista previa: {error}"))?;
@@ -82,37 +172,95 @@ pub fn media_preview_url(video_path: String) -> Result<String, String> {
             path.display()
         ));
     }
+    if mime_for_path(&path) == "application/octet-stream" {
+        return Err("El archivo no es un vídeo compatible con la vista previa.".to_string());
+    }
     let server = media_server()?;
     let token = uuid::Uuid::new_v4().simple().to_string();
-    server
-        .files
-        .lock()
-        .map_err(|_| "No se pudo registrar la vista previa.".to_string())?
-        .insert(token.clone(), path);
+    {
+        let mut files = server
+            .files
+            .lock()
+            .map_err(|_| "No se pudo registrar la vista previa.".to_string())?;
+        files.retain(|_, entry| entry.created.elapsed() < PREVIEW_TOKEN_TTL);
+        if files.len() >= MAX_PREVIEW_TOKENS {
+            if let Some(oldest) = files
+                .iter()
+                .min_by_key(|(_, entry)| entry.created)
+                .map(|(token, _)| token.clone())
+            {
+                files.remove(&oldest);
+            }
+        }
+        files.insert(
+            token.clone(),
+            PreviewEntry {
+                path,
+                created: Instant::now(),
+            },
+        );
+    }
     Ok(format!("{}/{}", server.base_url, token))
+}
+
+fn read_request_head(
+    stream: &mut TcpStream,
+    reader: &mut BufReader<TcpStream>,
+) -> std::io::Result<Option<String>> {
+    let mut head = Vec::new();
+    let mut chunk = [0u8; 1024];
+    loop {
+        let read = reader.read(&mut chunk)?;
+        if read == 0 {
+            break;
+        }
+        head.extend_from_slice(&chunk[..read]);
+        let complete = head.windows(4).any(|window| window == b"\r\n\r\n")
+            || head.windows(2).any(|window| window == b"\n\n");
+        if complete {
+            break;
+        }
+        if head.len() > MAX_PREVIEW_HEADER_BYTES {
+            let _ = write_http_status(
+                stream,
+                "431 Request Header Fields Too Large",
+                "Cabecera demasiado grande",
+            );
+            return Ok(None);
+        }
+    }
+    if head.is_empty() {
+        return Ok(None);
+    }
+    if head.len() > MAX_PREVIEW_HEADER_BYTES {
+        let _ = write_http_status(
+            stream,
+            "431 Request Header Fields Too Large",
+            "Cabecera demasiado grande",
+        );
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8_lossy(&head).into_owned()))
 }
 
 fn serve_media_request(
     mut stream: TcpStream,
-    registry: &Arc<Mutex<HashMap<String, PathBuf>>>,
+    registry: &Arc<Mutex<HashMap<String, PreviewEntry>>>,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(std::time::Duration::from_secs(10)))?;
     stream.set_write_timeout(Some(std::time::Duration::from_secs(30)))?;
     let mut reader = BufReader::new(stream.try_clone()?);
-    let mut request_line = String::new();
-    if reader.read_line(&mut request_line)? == 0 {
+    let Some(head) = read_request_head(&mut stream, &mut reader)? else {
         return Ok(());
-    }
+    };
+    let mut lines = head.lines();
+    let request_line = lines.next().unwrap_or_default();
     let mut parts = request_line.split_whitespace();
     let method = parts.next().unwrap_or_default();
     let target = parts.next().unwrap_or_default();
     let mut range_header = None;
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line)? == 0 {
-            break;
-        }
-        if line == "\r\n" || line == "\n" {
+    for line in lines {
+        if line.is_empty() {
             break;
         }
         if let Some((name, value)) = line.split_once(':') {
@@ -129,7 +277,14 @@ fn serve_media_request(
     let path = registry
         .lock()
         .ok()
-        .and_then(|files| files.get(token).cloned());
+        .and_then(|mut files| match files.get(token) {
+            Some(entry) if entry.created.elapsed() < PREVIEW_TOKEN_TTL => Some(entry.path.clone()),
+            Some(_) => {
+                files.remove(token);
+                None
+            }
+            None => None,
+        });
     let Some(path) = path else {
         return write_http_status(&mut stream, "404 Not Found", "Vista previa no encontrada");
     };
@@ -154,7 +309,7 @@ fn serve_media_request(
         end.saturating_sub(start).saturating_add(1)
     };
     let mut headers = format!(
-        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {length}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n",
+        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {length}\r\nAccept-Ranges: bytes\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nCache-Control: no-store\r\nConnection: close\r\n",
         if partial {
             "206 Partial Content"
         } else {
@@ -233,6 +388,8 @@ fn mime_for_path(path: &Path) -> &'static str {
         "mov" => "video/quicktime",
         "ogv" | "ogg" => "video/ogg",
         "avi" => "video/x-msvideo",
+        "ts" | "m2ts" => "video/mp2t",
+        "mpg" | "mpeg" => "video/mpeg",
         _ => "application/octet-stream",
     }
 }
@@ -351,15 +508,7 @@ pub async fn media_extract_frame(
             input.display()
         ));
     }
-    let output = match output_png {
-        Some(path) => PathBuf::from(path),
-        None => {
-            frame_cache_dir().join(format!("{}-{}.png", path_fingerprint(&input), timestamp_ms))
-        }
-    };
-    if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
+    let output = frame_output_path(output_png.as_deref(), &input, timestamp_ms)?;
     let seconds = format!("{:.3}", timestamp_ms as f64 / 1000.0);
     let args = build_frame_args(&input, &output, &seconds);
     let output_result = Command::new(ffmpeg_binary())
@@ -379,6 +528,55 @@ pub async fn media_extract_frame(
         return Err("FFmpeg terminó sin generar la imagen solicitada.".to_string());
     }
     Ok(output.display().to_string())
+}
+
+fn frame_output_path(
+    requested: Option<&str>,
+    input: &Path,
+    timestamp_ms: u64,
+) -> Result<PathBuf, String> {
+    let cache = frame_cache_dir();
+    create_private_dir(&cache)
+        .map_err(|error| format!("No se pudo crear la caché de fotogramas: {error}"))?;
+    let Some(requested) = requested else {
+        return Ok(cache.join(format!("{}-{}.png", path_fingerprint(input), timestamp_ms)));
+    };
+    let candidate = PathBuf::from(requested);
+    let is_png = candidate
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("png"));
+    if !is_png {
+        return Err("La captura debe ser un archivo PNG.".to_string());
+    }
+    let file_name = candidate
+        .file_name()
+        .ok_or_else(|| "La ruta de la captura no es válida.".to_string())?;
+    let parent = candidate
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .canonicalize()
+        .map_err(|_| "La carpeta de destino de la captura no existe.".to_string())?;
+    let cache = cache
+        .canonicalize()
+        .map_err(|error| format!("No se pudo resolver la caché de fotogramas: {error}"))?;
+    if !parent.starts_with(&cache) {
+        return Err(
+            "Las capturas solo pueden guardarse en la caché de fotogramas de DVD Forge."
+                .to_string(),
+        );
+    }
+    let output = parent.join(file_name);
+    // Remove regular files and symlinks without following them: FFmpeg must
+    // create a new file inside the cache, never overwrite a link target.
+    if let Ok(metadata) = output.symlink_metadata() {
+        if metadata.is_dir() {
+            return Err("La ruta de la captura apunta a una carpeta.".to_string());
+        }
+        std::fs::remove_file(&output).map_err(|error| error.to_string())?;
+    }
+    Ok(output)
 }
 
 /// Devuelve un fichero reproducible por `<video>` en WebKitGTK. Los MP4/WebM
@@ -416,10 +614,14 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
         return Ok(input.display().to_string());
     }
 
+    let fingerprint = path_fingerprint(&input);
+    let key_lock = preview_lock(&fingerprint).await;
+    let _single_flight = key_lock.lock().await;
+
     let preview_dir = preview_cache_dir();
-    std::fs::create_dir_all(&preview_dir)
+    create_private_dir(&preview_dir)
         .map_err(|error| format!("No se pudo crear la caché de vista previa: {error}"))?;
-    let preview = preview_dir.join(format!("{}.mp4", path_fingerprint(&input)));
+    let preview = preview_dir.join(format!("{fingerprint}.mp4"));
     if preview.is_file() && std::fs::metadata(&preview).is_ok_and(|meta| meta.len() > 0) {
         return Ok(preview.display().to_string());
     }
@@ -446,24 +648,64 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
     Ok(preview.display().to_string())
 }
 
+/// Serialises proxy generation per source fingerprint so two panels requesting
+/// the same episode do not run FFmpeg twice.
+async fn preview_lock(key: &str) -> Arc<tokio::sync::Mutex<()>> {
+    let map = PREVIEW_LOCKS.get_or_init(|| tokio::sync::Mutex::new(HashMap::new()));
+    let mut guard = map.lock().await;
+    if guard.len() > 128 {
+        guard.retain(|_, lock| Arc::strong_count(lock) > 1);
+    }
+    Arc::clone(
+        guard
+            .entry(key.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
+    )
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn read_image_data_url(path: String) -> Result<String, String> {
     let resolved = resolve_media_path(&path)?;
+    if !resolved.is_file() {
+        return Err(format!(
+            "La imagen no existe o no es accesible: {}",
+            resolved.display()
+        ));
+    }
+    let metadata = std::fs::metadata(&resolved).map_err(|error| error.to_string())?;
+    if metadata.len() > MAX_IMAGE_BYTES {
+        return Err(format!(
+            "La imagen supera el límite de {} MB para la vista previa.",
+            MAX_IMAGE_BYTES / (1024 * 1024)
+        ));
+    }
     let bytes = std::fs::read(&resolved).map_err(|error| error.to_string())?;
-    let mime = if path.to_ascii_lowercase().ends_with(".jpg")
-        || path.to_ascii_lowercase().ends_with(".jpeg")
-    {
-        "image/jpeg"
-    } else if path.to_ascii_lowercase().ends_with(".webp") {
-        "image/webp"
-    } else {
-        "image/png"
+    let Some(mime) = image_mime(&bytes) else {
+        return Err(
+            "El archivo no es una imagen compatible (PNG, JPEG, WebP, GIF o BMP).".to_string(),
+        );
     };
     Ok(format!(
         "data:{mime};base64,{}",
         base64::engine::general_purpose::STANDARD.encode(bytes)
     ))
+}
+
+fn image_mime(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("image/png")
+    } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some("image/jpeg")
+    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("image/gif")
+    } else if bytes.starts_with(b"BM") {
+        Some("image/bmp")
+    } else {
+        None
+    }
 }
 
 fn build_frame_args(input: &Path, output: &Path, seconds: &str) -> Vec<String> {
@@ -596,11 +838,11 @@ fn path_fingerprint(path: &Path) -> String {
 }
 
 fn frame_cache_dir() -> PathBuf {
-    std::env::temp_dir().join("dvdforge-frames")
+    cache_dir("frames")
 }
 
 fn preview_cache_dir() -> PathBuf {
-    std::env::temp_dir().join("dvdforge-preview")
+    cache_dir("preview")
 }
 
 #[cfg(test)]
