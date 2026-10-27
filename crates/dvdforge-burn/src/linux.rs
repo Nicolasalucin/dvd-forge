@@ -40,6 +40,19 @@ impl LinuxBurner {
     pub fn new() -> Self {
         Self::default()
     }
+
+    async fn ensure_detected_device(&self, requested: &DeviceId) -> Result<(), BurnError> {
+        let devices = self.list_devices().await?;
+        let requested = crate::canonical_device_path(requested.as_str());
+        let detected = devices.iter().map(|device| device.id.as_str().to_string());
+        if crate::device_matches_allowlist(&requested, detected, crate::canonical_device_path) {
+            Ok(())
+        } else {
+            Err(BurnError::InvalidRequest(format!(
+                "la unidad {requested} no es un dispositivo óptico detectado"
+            )))
+        }
+    }
 }
 
 #[async_trait]
@@ -91,6 +104,7 @@ impl DiscBurner for LinuxBurner {
             ));
         }
         let iso_size = std::fs::metadata(&request.iso_path).map_err(map_io)?.len();
+        self.ensure_detected_device(&request.device).await?;
         let media = self.probe_media(&request.device).await?;
         validate_burn_guards(&request, &media, iso_size)?;
         let started = Instant::now();
@@ -110,7 +124,7 @@ impl DiscBurner for LinuxBurner {
             .await
         {
             Ok(()) => {}
-            Err(BurnError::ProcessFailed { .. } | BurnError::ToolMissing(_)) => {
+            Err(BurnError::ToolMissing(_)) => {
                 let xorriso_args = build_xorriso_args(&request);
                 self.run_burn_command(
                     &self.xorriso,

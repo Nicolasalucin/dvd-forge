@@ -75,7 +75,11 @@
           .catch(() => undefined);
       })
       .then((fn) => {
-        unlisten = fn;
+        if (active) {
+          unlisten = fn;
+        } else {
+          fn();
+        }
       })
       .catch(() => undefined);
     return () => {

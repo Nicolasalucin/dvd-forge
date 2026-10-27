@@ -8,7 +8,13 @@
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+/// Protocols allowed for local media inputs passed to FFmpeg/FFprobe. Keeping
+/// the list explicit blocks `http`, `concat`, `subfile` and similar protocols
+/// that a crafted playlist or IPC path could otherwise trigger.
+pub const MEDIA_PROTOCOL_WHITELIST: &str = "file,pipe";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -292,6 +298,71 @@ pub fn find_binary_in_dirs(
     None
 }
 
+/// Environment variable used to override the path of a tool, e.g. `ffmpeg`
+/// maps to `DVD_FORGE_FFMPEG` and `dvd+rw-mediainfo` to
+/// `DVD_FORGE_DVD_RW_MEDIAINFO`.
+pub fn binary_env_var(name: &str) -> String {
+    let suffix: String = name
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("DVD_FORGE_{suffix}")
+}
+
+/// Resolves a tool binary for runtime use.
+///
+/// The lookup order is: explicit `DVD_FORGE_<NAME>` override, packaged
+/// `resources/toolchains/<platform>` directories, system prefixes and finally
+/// `PATH`. When nothing is found the bare name is returned so the operating
+/// system can still resolve it at spawn time.
+pub fn resolve_binary(name: &str) -> PathBuf {
+    if let Some(value) = env::var_os(binary_env_var(name)) {
+        let candidate = PathBuf::from(value);
+        if is_executable(&candidate) {
+            return candidate;
+        }
+    }
+    let platform = env::consts::OS;
+    if let Some(found) = find_binary_in_dirs(&[name], platform, &default_search_directories()) {
+        return found;
+    }
+    PathBuf::from(name)
+}
+
+/// Runs a command with a hard deadline. The child is killed and reaped when
+/// the timeout elapses so a hung tool cannot block the caller forever.
+pub fn output_with_timeout(
+    command: &mut Command,
+    timeout: Duration,
+) -> std::io::Result<std::process::Output> {
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let started = Instant::now();
+    loop {
+        if child.try_wait()?.is_some() {
+            return child.wait_with_output();
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("el comando superó el límite de {timeout:?}"),
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
 /// Detects every tool in `ToolId::ALL`, filtered by platform.
 pub fn detect_toolchain() -> ToolchainReport {
     let platform = env::consts::OS;
@@ -321,7 +392,10 @@ fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> Tool
         };
     };
 
-    let output = Command::new(&path).args(spec.version_args).output();
+    let output = output_with_timeout(
+        Command::new(&path).args(spec.version_args),
+        Duration::from_secs(5),
+    );
     match output {
         Ok(output) => {
             let mut combined = String::from_utf8_lossy(&output.stdout).into_owned();
@@ -609,5 +683,51 @@ mod tests {
         }]);
         assert!(!report.ok);
         assert_eq!(report.missing_required, vec![ToolId::Ffmpeg]);
+    }
+
+    #[test]
+    fn binary_override_env_var_normalizes_names() {
+        assert_eq!(binary_env_var("ffmpeg"), "DVD_FORGE_FFMPEG");
+        assert_eq!(
+            binary_env_var("dvd+rw-mediainfo"),
+            "DVD_FORGE_DVD_RW_MEDIAINFO"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_binary_honors_the_explicit_override() {
+        let directory = temp_dir("override");
+        let binary = directory.join("custom-tool");
+        std::fs::write(&binary, b"#!/bin/sh\nexit 0\n").expect("write");
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let key = binary_env_var("dvdforge-custom-tool");
+        env::set_var(&key, &binary);
+        let resolved = resolve_binary("dvdforge-custom-tool");
+        env::remove_var(&key);
+        let _ = std::fs::remove_dir_all(&directory);
+        assert_eq!(resolved, binary);
+    }
+
+    #[test]
+    fn resolve_binary_falls_back_to_the_bare_name() {
+        assert_eq!(
+            resolve_binary("dvdforge-tool-that-does-not-exist"),
+            PathBuf::from("dvdforge-tool-that-does-not-exist")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_with_timeout_kills_hung_commands() {
+        let started = std::time::Instant::now();
+        let error = output_with_timeout(
+            Command::new("sh").args(["-c", "sleep 5"]),
+            Duration::from_millis(100),
+        )
+        .expect_err("timeout");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(started.elapsed() < Duration::from_secs(3));
     }
 }

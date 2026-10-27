@@ -43,6 +43,19 @@ impl MacOsBurner {
     pub fn new() -> Self {
         Self::default()
     }
+
+    async fn ensure_detected_device(&self, requested: &DeviceId) -> Result<(), BurnError> {
+        let devices = self.list_devices().await?;
+        let requested = normalize_macos_device_id(requested.as_str());
+        let detected = devices.iter().map(|device| device.id.as_str().to_string());
+        if crate::device_matches_allowlist(&requested, detected, normalize_macos_device_id) {
+            Ok(())
+        } else {
+            Err(BurnError::InvalidRequest(format!(
+                "la unidad {requested} no es un dispositivo óptico detectado"
+            )))
+        }
+    }
 }
 
 #[async_trait]
@@ -140,6 +153,7 @@ impl DiscBurner for MacOsBurner {
             ));
         }
         let iso_size = std::fs::metadata(&request.iso_path).map_err(map_io)?.len();
+        self.ensure_detected_device(&request.device).await?;
         let media = self.probe_media(&request.device).await?;
         validate_media_budget(&media, iso_size, request.speed_x)?;
         let selector = self.resolve_selector(&request.device).await;

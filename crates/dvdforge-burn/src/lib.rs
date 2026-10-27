@@ -22,7 +22,7 @@ pub use windows::WindowsBurner;
 pub use windows::{
     imapi_media_kind, imapi_media_status, imapi_media_writable, imapi_sectors_to_bytes,
     normalize_drive_id, raw_volume_path, sectors_per_second_to_speed_x,
-    speed_x_to_sectors_per_second, stream_progress, validate_imapi_capacity, StreamProgressTracker,
+    speed_x_to_sectors_per_second, stream_progress, StreamProgressTracker,
 };
 
 use serde::{Deserialize, Serialize};
@@ -75,6 +75,30 @@ pub fn validate_media_budget(
         }
     }
     Ok(())
+}
+
+/// Resolves a device node to its canonical path when it exists, falling back to
+/// the trimmed input. Used to compare the requested device with the backend's
+/// detected optical-drive allowlist.
+pub fn canonical_device_path(device: &str) -> String {
+    std::fs::canonicalize(device)
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| device.trim().to_string())
+}
+
+/// Checks a requested device against the optical drives reported by a backend.
+/// Both sides go through the same normalization so `/dev/sr0` and
+/// `/dev/disk/by-id/...` (or `D` and `D:`) compare equal when they point at the
+/// same drive.
+pub fn device_matches_allowlist(
+    requested: &str,
+    detected: impl IntoIterator<Item = String>,
+    normalize: impl Fn(&str) -> String,
+) -> bool {
+    let requested = normalize(requested);
+    detected
+        .into_iter()
+        .any(|device| normalize(&device) == requested)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -393,4 +417,40 @@ pub enum BurnError {
     Json(#[from] serde_json::Error),
     #[error("error COM/IMAPI2: {0}")]
     Imapi(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allowlist_compares_normalized_devices() {
+        let detected = vec!["/dev/sr0".to_string(), "D:".to_string()];
+        assert!(device_matches_allowlist(
+            " /dev/sr0 ",
+            detected.clone(),
+            |value| value.trim().to_string()
+        ));
+        assert!(!device_matches_allowlist("/dev/sr1", detected, |value| {
+            value.trim().to_string()
+        }));
+        assert!(device_matches_allowlist(
+            "rdisk3",
+            vec!["disk3".to_string()],
+            normalize_macos_device_id
+        ));
+        assert!(device_matches_allowlist(
+            "d",
+            vec!["D:".to_string()],
+            |value| normalize_drive_id(value).unwrap_or_default()
+        ));
+    }
+
+    #[test]
+    fn canonical_device_path_keeps_missing_paths_trimmed() {
+        assert_eq!(
+            canonical_device_path("  /dev/dvdforge-does-not-exist  "),
+            "/dev/dvdforge-does-not-exist"
+        );
+    }
 }

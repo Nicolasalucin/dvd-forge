@@ -8,6 +8,7 @@ authors.workspace = true
 
 [dependencies]
 dvdforge-domain = { path = "../dvdforge-domain" }
+dvdforge-toolchain = { path = "../dvdforge-toolchain" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

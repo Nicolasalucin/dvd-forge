@@ -4,6 +4,7 @@
 
 use crate::opcodes::HdmvCommand;
 use crate::palette::Palette;
+use thiserror::Error;
 
 pub const SEGMENT_PDS: u8 = 0x14;
 pub const SEGMENT_ODS: u8 = 0x15;
@@ -12,6 +13,16 @@ pub const SEGMENT_ICS: u8 = 0x18;
 pub const SEGMENT_END: u8 = 0x80;
 
 pub const NO_BUTTON: u16 = 0xFFFF;
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum SegmentError {
+    #[error(
+        "el payload del segmento {kind:#04x} ocupa {length} bytes y no cabe en el campo de 16 bits"
+    )]
+    PayloadTooLarge { kind: u8, length: usize },
+    #[error("el campo {field} no admite {value} elementos")]
+    FieldOverflow { field: &'static str, value: usize },
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Segment {
@@ -24,13 +35,17 @@ impl Segment {
         Self { kind, payload }
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        let length = u16::try_from(self.payload.len()).unwrap_or(u16::MAX);
+    pub fn encode(&self) -> Result<Vec<u8>, SegmentError> {
+        let length =
+            u16::try_from(self.payload.len()).map_err(|_| SegmentError::PayloadTooLarge {
+                kind: self.kind,
+                length: self.payload.len(),
+            })?;
         let mut out = Vec::with_capacity(3 + usize::from(length));
         out.push(self.kind);
         out.extend_from_slice(&length.to_be_bytes());
-        out.extend_from_slice(&self.payload[..usize::from(length)]);
-        out
+        out.extend_from_slice(&self.payload);
+        Ok(out)
     }
 }
 
@@ -135,15 +150,21 @@ pub fn object_definition_segment(
     Segment::new(SEGMENT_ODS, payload)
 }
 
-pub fn interactive_composition_segment(composition: &InteractiveComposition) -> Segment {
+pub fn interactive_composition_segment(
+    composition: &InteractiveComposition,
+) -> Result<Segment, SegmentError> {
     let mut interactive = Vec::new();
     // stream_model = 1 (non-streaming); ui_model = 0.
     interactive.push(0x80);
     push_u24(&mut interactive, composition.user_timeout_duration);
-    let page_count = u8::try_from(composition.pages.len()).unwrap_or(u8::MAX);
+    let page_count =
+        u8::try_from(composition.pages.len()).map_err(|_| SegmentError::FieldOverflow {
+            field: "pages",
+            value: composition.pages.len(),
+        })?;
     interactive.push(page_count);
-    for page in composition.pages.iter().take(usize::from(page_count)) {
-        push_page(&mut interactive, page);
+    for page in &composition.pages {
+        push_page(&mut interactive, page)?;
     }
 
     let mut payload = Vec::new();
@@ -153,21 +174,26 @@ pub fn interactive_composition_segment(composition: &InteractiveComposition) -> 
     payload.extend_from_slice(&composition.composition_number.to_be_bytes());
     payload.push((composition.composition_state & 0x03) << 6);
     payload.push(0xC0); // sequence descriptor: first + last
-    push_u24(&mut payload, interactive.len() as u32);
+    let interactive_len =
+        u32::try_from(interactive.len()).map_err(|_| SegmentError::FieldOverflow {
+            field: "interactive_length",
+            value: interactive.len(),
+        })?;
+    push_u24(&mut payload, interactive_len);
     payload.extend_from_slice(&interactive);
-    Segment::new(SEGMENT_ICS, payload)
+    Ok(Segment::new(SEGMENT_ICS, payload))
 }
 
 pub fn end_of_display_set_segment() -> Segment {
     Segment::new(SEGMENT_END, Vec::new())
 }
 
-fn push_page(out: &mut Vec<u8>, page: &PageDefinition) {
+fn push_page(out: &mut Vec<u8>, page: &PageDefinition) -> Result<(), SegmentError> {
     out.push(page.id);
     out.push(page.version);
     out.extend_from_slice(&[0u8; 8]); // user-operation mask: everything allowed
-    push_effect_sequence(out, page.window, &page.in_objects, 1, page.palette_id);
-    push_effect_sequence(out, page.window, &[], 0, page.palette_id);
+    push_effect_sequence(out, page.window, &page.in_objects, 1, page.palette_id)?;
+    push_effect_sequence(out, page.window, &[], 0, page.palette_id)?;
     out.push(0); // animation frame rate code
     out.extend_from_slice(&page.default_selected_button.to_be_bytes());
     out.extend_from_slice(&page.default_activated_button.to_be_bytes());
@@ -177,13 +203,18 @@ fn push_page(out: &mut Vec<u8>, page: &PageDefinition) {
     // one BOG allows only a single cursor move before the navigation refs are
     // resolved from the wrong button. Independent BOGs also match how HDMV
     // authoring tools lay out non-overlapping buttons.
-    let button_count = u8::try_from(page.buttons.len()).unwrap_or(u8::MAX);
+    let button_count =
+        u8::try_from(page.buttons.len()).map_err(|_| SegmentError::FieldOverflow {
+            field: "buttons",
+            value: page.buttons.len(),
+        })?;
     out.push(button_count);
-    for button in page.buttons.iter().take(usize::from(button_count)) {
+    for button in &page.buttons {
         out.extend_from_slice(&button.id.to_be_bytes());
         out.push(1);
-        push_button(out, button);
+        push_button(out, button)?;
     }
+    Ok(())
 }
 
 fn push_effect_sequence(
@@ -192,11 +223,11 @@ fn push_effect_sequence(
     objects: &[CompositionObject],
     effect_count: u8,
     palette_id: u8,
-) {
+) -> Result<(), SegmentError> {
     if objects.is_empty() {
         out.push(0);
         out.push(0);
-        return;
+        return Ok(());
     }
     out.push(1);
     out.push(window.id);
@@ -206,22 +237,26 @@ fn push_effect_sequence(
     out.extend_from_slice(&window.height.to_be_bytes());
     out.push(effect_count);
     if effect_count == 0 {
-        return;
+        return Ok(());
     }
     push_u24(out, 0); // infinite/still duration
     out.push(palette_id);
-    let object_count = u8::try_from(objects.len()).unwrap_or(u8::MAX);
+    let object_count = u8::try_from(objects.len()).map_err(|_| SegmentError::FieldOverflow {
+        field: "objects",
+        value: objects.len(),
+    })?;
     out.push(object_count);
-    for object in objects.iter().take(usize::from(object_count)) {
+    for object in objects {
         out.extend_from_slice(&object.object_id.to_be_bytes());
         out.push(object.window_id);
         out.push(0); // crop flag + reserved
         out.extend_from_slice(&object.x.to_be_bytes());
         out.extend_from_slice(&object.y.to_be_bytes());
     }
+    Ok(())
 }
 
-fn push_button(out: &mut Vec<u8>, button: &ButtonDefinition) {
+fn push_button(out: &mut Vec<u8>, button: &ButtonDefinition) -> Result<(), SegmentError> {
     out.extend_from_slice(&button.id.to_be_bytes());
     out.extend_from_slice(&button.id.to_be_bytes()); // numeric select value
     out.push(0); // auto-action flag + reserved
@@ -240,11 +275,16 @@ fn push_button(out: &mut Vec<u8>, button: &ButtonDefinition) {
     out.push(0xFF); // activated sound id
     out.extend_from_slice(&button.activated_object.to_be_bytes());
     out.extend_from_slice(&button.activated_object.to_be_bytes());
-    let command_count = u16::try_from(button.commands.len()).unwrap_or(u16::MAX);
+    let command_count =
+        u16::try_from(button.commands.len()).map_err(|_| SegmentError::FieldOverflow {
+            field: "commands",
+            value: button.commands.len(),
+        })?;
     out.extend_from_slice(&command_count.to_be_bytes());
-    for command in button.commands.iter().take(usize::from(command_count)) {
+    for command in &button.commands {
         out.extend_from_slice(&command.to_bytes());
     }
+    Ok(())
 }
 
 fn push_u24(out: &mut Vec<u8>, value: u32) {
@@ -264,10 +304,25 @@ mod tests {
     #[test]
     fn segment_headers_are_big_endian_and_end_is_empty() {
         let segment = Segment::new(SEGMENT_PDS, vec![1, 2, 3]);
-        assert_eq!(segment.encode(), vec![SEGMENT_PDS, 0, 3, 1, 2, 3]);
         assert_eq!(
-            end_of_display_set_segment().encode(),
+            segment.encode().expect("encode"),
+            vec![SEGMENT_PDS, 0, 3, 1, 2, 3]
+        );
+        assert_eq!(
+            end_of_display_set_segment().encode().expect("encode"),
             vec![SEGMENT_END, 0, 0]
+        );
+    }
+
+    #[test]
+    fn oversized_segment_payload_is_rejected() {
+        let segment = Segment::new(SEGMENT_PDS, vec![0; 0x1_0000]);
+        assert_eq!(
+            segment.encode().expect_err("payload"),
+            SegmentError::PayloadTooLarge {
+                kind: SEGMENT_PDS,
+                length: 0x1_0000,
+            }
         );
     }
 
@@ -333,7 +388,7 @@ mod tests {
                 },
             }],
         };
-        let segment = interactive_composition_segment(&composition);
+        let segment = interactive_composition_segment(&composition).expect("ics");
         assert_eq!(segment.kind, SEGMENT_ICS);
         assert_eq!(&segment.payload[..4], &[5, 0, 2, 208]);
         assert_eq!(segment.payload[4] >> 4, 1);
@@ -401,7 +456,9 @@ mod tests {
             user_timeout_duration: 0,
             pages: vec![page, second],
         };
-        let payload = interactive_composition_segment(&composition).payload;
+        let payload = interactive_composition_segment(&composition)
+            .expect("ics")
+            .payload;
         // page count follows stream_model (1) + timeout (3).
         assert_eq!(payload[16], 2);
     }
@@ -413,5 +470,117 @@ mod tests {
         assert_eq!(&segment.payload[0..2], &[0, 7]);
         assert_eq!(&segment.payload[4..7], &[0, 0, 6]);
         assert_eq!(&segment.payload[7..11], &[0, 2, 0, 3]);
+    }
+
+    fn composition_with_page(page: PageDefinition) -> InteractiveComposition {
+        InteractiveComposition {
+            video_width: 1280,
+            video_height: 720,
+            frame_rate_code: 1,
+            composition_number: 0,
+            composition_state: 2,
+            user_timeout_duration: 0,
+            pages: vec![page],
+        }
+    }
+
+    fn page() -> PageDefinition {
+        PageDefinition {
+            id: 0,
+            version: 0,
+            default_selected_button: 1,
+            default_activated_button: NO_BUTTON,
+            palette_id: 0,
+            buttons: Vec::new(),
+            in_objects: Vec::new(),
+            window: Window {
+                id: 0,
+                x: 0,
+                y: 0,
+                width: 1280,
+                height: 720,
+            },
+        }
+    }
+
+    fn button() -> ButtonDefinition {
+        ButtonDefinition {
+            id: 1,
+            x: 0,
+            y: 0,
+            up: None,
+            down: None,
+            left: None,
+            right: None,
+            normal_object: 1,
+            selected_object: 1,
+            activated_object: 1,
+            commands: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn rejects_page_count_overflow() {
+        let mut composition = composition_with_page(page());
+        composition.pages = vec![page(); 256];
+        assert_eq!(
+            interactive_composition_segment(&composition).expect_err("pages"),
+            SegmentError::FieldOverflow {
+                field: "pages",
+                value: 256,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_button_and_object_count_overflow() {
+        let mut page_with_buttons = page();
+        page_with_buttons.buttons = vec![button(); 256];
+        let error = interactive_composition_segment(&composition_with_page(page_with_buttons))
+            .expect_err("buttons");
+        assert_eq!(
+            error,
+            SegmentError::FieldOverflow {
+                field: "buttons",
+                value: 256,
+            }
+        );
+
+        let mut page_with_objects = page();
+        page_with_objects.in_objects = vec![
+            CompositionObject {
+                object_id: 1,
+                window_id: 0,
+                x: 0,
+                y: 0,
+            };
+            256
+        ];
+        let error = interactive_composition_segment(&composition_with_page(page_with_objects))
+            .expect_err("objects");
+        assert_eq!(
+            error,
+            SegmentError::FieldOverflow {
+                field: "objects",
+                value: 256,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_command_count_overflow() {
+        let mut overflowing = button();
+        overflowing.commands = vec![jump_title(1); 0x1_0000];
+        let mut page_with_button = page();
+        page_with_button.buttons = vec![overflowing];
+        let error = interactive_composition_segment(&composition_with_page(page_with_button))
+            .expect_err("commands");
+        assert_eq!(
+            error,
+            SegmentError::FieldOverflow {
+                field: "commands",
+                value: 0x1_0000,
+            }
+        );
     }
 }

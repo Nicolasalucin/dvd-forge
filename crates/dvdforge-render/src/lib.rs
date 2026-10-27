@@ -17,10 +17,11 @@ use dvdforge_dvd::{
     RenderedMenu, VideoEncodeConfig,
 };
 use dvdforge_hdmv::{
-    append_menu_movie_object, compile_ig_m2ts, compile_ig_pes, compile_ig_pes_packets, dummy_pgs,
-    frame_rate_code, inject_ig_into_menu_m2ts, jump_object, jump_title, movie_object_count,
-    patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count, set_audio_stream, set_gpr,
-    set_index_menu_object, HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu, RgbaBitmap,
+    append_menu_movie_object, compile_ig_m2ts, compile_ig_pes, compile_ig_pes_packets,
+    dummy_pgs_for_slots, frame_rate_code, inject_ig_into_menu_m2ts, jump_object, jump_title,
+    movie_object_count, patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count,
+    set_audio_stream, set_gpr, set_index_menu_object, HdmvButton, HdmvButtonState, HdmvCommand,
+    HdmvMenu, RgbaBitmap,
 };
 use dvdforge_iso::{BdmvIsoBuilder, Xorriso};
 use dvdforge_jobs::{ArtifactKind, JobEventKind, JobStage};
@@ -31,6 +32,7 @@ use dvdforge_menu::{
 };
 use dvdforge_plan::{calculate_bitrate_plan, BitratePlan};
 use dvdforge_store::{ArtifactKey, Store};
+use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -38,10 +40,11 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::process::Command;
 use tokio::sync::mpsc;
+use tokio::time::timeout;
 
 pub const CRATE_NAME: &str = "dvdforge-render";
 pub type EventSink = mpsc::Sender<JobEventKind>;
@@ -49,6 +52,19 @@ pub type EventSink = mpsc::Sender<JobEventKind>;
 /// tsMuxeR/BDAV timelines start at 600 seconds. Menu IG packets are aligned to
 /// that origin so the interactive composition is valid on a real playlist.
 pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
+
+/// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
+/// or subtitle extraction). Encoding jobs have their own progress timeouts.
+const AUX_FFMPEG_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+/// Adds a local file input with an explicit protocol whitelist.
+fn push_file_input(command: &mut Command, path: &Path) {
+    command
+        .arg("-protocol_whitelist")
+        .arg(MEDIA_PROTOCOL_WHITELIST)
+        .arg("-i")
+        .arg(path);
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -1356,9 +1372,12 @@ async fn mux_episode_subtitles(
                 context
                     .output_dir
                     .join(format!("{}.s{}.source.srt", context.stem, index + 1));
-            let result = tokio::process::Command::new(context.ffmpeg)
+            let mut command = tokio::process::Command::new(context.ffmpeg);
+            command
                 .arg("-hide_banner")
                 .arg("-y")
+                .arg("-protocol_whitelist")
+                .arg(MEDIA_PROTOCOL_WHITELIST)
                 .arg("-i")
                 .arg(&video)
                 .arg("-map")
@@ -1366,9 +1385,12 @@ async fn mux_episode_subtitles(
                 .arg("-c:s")
                 .arg("srt")
                 .arg(&extracted)
-                .kill_on_drop(true)
-                .output()
+                .kill_on_drop(true);
+            let result = timeout(AUX_FFMPEG_TIMEOUT, command.output())
                 .await
+                .map_err(|_| {
+                    RenderError::Encode("FFmpeg agotó el tiempo al extraer subtítulos".to_string())
+                })?
                 .map_err(|error| RenderError::Encode(error.to_string()))?;
             if !result.status.success() {
                 return Err(RenderError::Menu(format!(
@@ -2128,32 +2150,37 @@ async fn encode_menu_audio(
             fade_out_ms as f64 / 1000.0
         ));
     }
-    let mut command = tokio::process::Command::new("ffmpeg");
+    let mut command = tokio::process::Command::new(resolve_binary("ffmpeg"));
     command.kill_on_drop(true);
     command.arg("-hide_banner").arg("-y");
     let loop_audio = audio.loop_audio || motion.map(|config| config.loop_enabled).unwrap_or(false);
     if loop_audio {
         command.arg("-stream_loop").arg("-1");
     }
-    command.arg("-i").arg(input).arg("-t").arg(&duration);
+    push_file_input(&mut command, input);
+    command.arg("-t").arg(&duration);
     if !filters.is_empty() {
         command.arg("-af").arg(filters.join(","));
     }
-    let result = command
-        .arg("-c:a")
-        .arg("ac3")
-        .arg("-b:a")
-        .arg("192k")
-        .arg("-ar")
-        .arg("48000")
-        .arg("-ac")
-        .arg("2")
-        .arg("-f")
-        .arg("ac3")
-        .arg(output)
-        .output()
-        .await
-        .map_err(|error| RenderError::Encode(error.to_string()))?;
+    let result = timeout(
+        AUX_FFMPEG_TIMEOUT,
+        command
+            .arg("-c:a")
+            .arg("ac3")
+            .arg("-b:a")
+            .arg("192k")
+            .arg("-ar")
+            .arg("48000")
+            .arg("-ac")
+            .arg("2")
+            .arg("-f")
+            .arg("ac3")
+            .arg(output)
+            .output(),
+    )
+    .await
+    .map_err(|_| RenderError::Encode("FFmpeg agotó el tiempo del audio de menú".to_string()))?
+    .map_err(|error| RenderError::Encode(error.to_string()))?;
     if result.status.success() {
         Ok(())
     } else {
@@ -2405,13 +2432,12 @@ async fn attach_hdmv_menu(
     std::fs::create_dir_all(work_dir)?;
 
     let needed = pes_transport_packet_count(ig_packets);
-    let sets = u16::try_from(((needed / 30) + 2).max(2)).unwrap_or(u16::MAX);
     // A finite clip loops through the MovieObject. Keeping it long enough
     // leaves the remote responsive without relying on decoder-specific still
     // input handling.
     let duration_secs = 60.0;
     let dummy_path = work_dir.join("menu-pgs.sup");
-    let dummy_pgs = dummy_pgs(spec.width, spec.height, sets)
+    let dummy_pgs = dummy_pgs_for_slots(spec.width, spec.height, needed)
         .map_err(|error| RenderError::Menu(error.to_string()))?;
     std::fs::write(&dummy_path, dummy_pgs)?;
 
@@ -2532,7 +2558,7 @@ async fn encode_menu_video(
     let x264_params = format!(
         "profile=high:keyint={keyint}:min-keyint={keyint}:scenecut=0:open-gop=0:bluray-compat=1"
     );
-    let mut command = Command::new("ffmpeg");
+    let mut command = Command::new(resolve_binary("ffmpeg"));
     command.args(["-hide_banner", "-loglevel", "error", "-y"]);
     match &spec.video {
         MenuClipVideo::Black => {
@@ -2540,7 +2566,8 @@ async fn encode_menu_video(
             command.args(["-f", "lavfi", "-i", &filter]);
         }
         MenuClipVideo::Image(image) => {
-            command.args(["-loop", "1", "-i"]).arg(image);
+            command.args(["-loop", "1"]);
+            push_file_input(&mut command, image);
         }
         MenuClipVideo::Video {
             path: source,
@@ -2552,7 +2579,7 @@ async fn encode_menu_video(
             if *in_ms > 0 {
                 command.args(["-ss", &format!("{:.3}", *in_ms as f64 / 1000.0)]);
             }
-            command.arg("-i").arg(source);
+            push_file_input(&mut command, source);
         }
     }
     if spec.overlays.is_empty() {
@@ -2580,7 +2607,7 @@ async fn encode_menu_video(
                     &format!("{:.3}", overlay.source_start_ms as f64 / 1000.0),
                 ]);
             }
-            command.arg("-i").arg(&overlay.path);
+            push_file_input(&mut command, &overlay.path);
             filter_graph.push(format!(
                 "[{input}:v]scale={}:{}:force_original_aspect_ratio=decrease,                 pad={}:{}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS[ov{index}]",
                 overlay.width, overlay.height, overlay.width, overlay.height
@@ -2622,14 +2649,14 @@ async fn encode_hd_menu_audio(
     spec: &MenuClipSpec,
     duration_secs: f64,
 ) -> Result<(), RenderError> {
-    let mut command = Command::new("ffmpeg");
+    let mut command = Command::new(resolve_binary("ffmpeg"));
     command.args(["-hide_banner", "-loglevel", "error", "-y"]);
     let mut filters = Vec::new();
     if let Some(audio) = &spec.audio {
         if audio.loop_audio {
             command.args(["-stream_loop", "-1"]);
         }
-        command.arg("-i").arg(&audio.path);
+        push_file_input(&mut command, &audio.path);
         command.args(["-t", &format!("{duration_secs:.3}")]);
         if audio.gain_db != 0.0 {
             filters.push(format!("volume={}dB", audio.gain_db));
@@ -2686,7 +2713,13 @@ async fn run_menu_ffmpeg(
     label: &str,
 ) -> Result<(), RenderError> {
     command.kill_on_drop(true);
-    let output = command.output().await?;
+    let output = timeout(AUX_FFMPEG_TIMEOUT, command.output())
+        .await
+        .map_err(|_| {
+            RenderError::Encode(format!(
+                "FFmpeg agotó el tiempo al generar el {label} del menú HDMV"
+            ))
+        })??;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(RenderError::Encode(format!(

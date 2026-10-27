@@ -1,10 +1,10 @@
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn tools_doctor() -> dvdforge_toolchain::ToolchainReport {
     dvdforge_toolchain::detect_toolchain()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn open_folder(path: String) -> Result<(), String> {
     let requested = std::path::PathBuf::from(&path);

@@ -1,13 +1,16 @@
 use base64::Engine;
 use dvdforge_domain::{ButtonId, Menu, NavigationGraph};
+use std::io::Write;
 use std::path::PathBuf;
 
-/// Directorio temporal donde el editor deja la composición rasterizada de un
-/// menú (fondo + textos + miniaturas) para que el render la use.
+/// Maximum accepted base64 payload for a rasterized menu composition. 64 MB is
+/// far above a 4K PNG but keeps a hostile IPC call from exhausting memory.
+const MAX_COMPOSITION_BASE64: usize = 64 * 1024 * 1024;
+
+/// Directorio de caché privada donde el editor deja la composición rasterizada
+/// de un menú (fondo + textos + miniaturas) para que el render la use.
 pub fn composited_background_dir(project_id: &str) -> PathBuf {
-    std::env::temp_dir()
-        .join("dvdforge-ui-layers")
-        .join(sanitize_component(project_id))
+    crate::commands::media::cache_dir("menu-compositions").join(sanitize_component(project_id))
 }
 
 /// Recalcula la matriz de navegación real del menú en Rust para que el
@@ -22,7 +25,7 @@ pub fn menu_navigation(menu: Menu, focus: Option<String>) -> NavigationGraph {
     menu.navigation(focus)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn menu_save_background(
     project_id: String,
@@ -38,7 +41,7 @@ pub fn menu_save_background(
 
 /// Guarda la capa transparente con textos, sombras e iconos que se superpone
 /// a los vídeos de los botones en un menú animado.
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn menu_save_labels(
     project_id: String,
@@ -60,6 +63,9 @@ fn save_composition_png(
     let (_, encoded) = data_url
         .split_once(',')
         .ok_or_else(|| "La imagen no es una data URL válida.".to_string())?;
+    if encoded.len() > MAX_COMPOSITION_BASE64 {
+        return Err("La composición del menú supera el límite de 64 MB.".to_string());
+    }
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(encoded)
         .map_err(|error| format!("PNG base64 inválido: {error}"))?;
@@ -67,9 +73,24 @@ fn save_composition_png(
         return Err("La composición del menú no es un PNG válido.".to_string());
     }
     let directory = composited_background_dir(project_id);
-    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    crate::commands::media::create_private_dir(&directory)
+        .map_err(|error| format!("No se pudo crear la caché de composiciones: {error}"))?;
     let path = directory.join(file_name);
-    std::fs::write(&path, bytes).map_err(|error| error.to_string())?;
+    // Remove regular files and symlinks without following them, then create the
+    // final file exclusively so a link cannot redirect the write.
+    if let Ok(metadata) = std::fs::symlink_metadata(&path) {
+        if metadata.is_dir() {
+            return Err("La ruta de la composición apunta a una carpeta.".to_string());
+        }
+        std::fs::remove_file(&path).map_err(|error| error.to_string())?;
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|error| format!("No se pudo crear la composición del menú: {error}"))?;
+    file.write_all(&bytes)
+        .map_err(|error| format!("No se pudo escribir la composición del menú: {error}"))?;
     Ok(path.display().to_string())
 }
 
@@ -108,5 +129,17 @@ mod tests {
         let menu: Menu = serde_json::from_value(menu_value).expect("menu with empty IDs");
         let graph = menu_navigation(menu, None);
         assert!(!graph.nodes.is_empty());
+    }
+
+    #[test]
+    fn composition_cache_rejects_invalid_data_urls_and_non_png_payloads() {
+        let error = save_composition_png("project", "menu.png", "not-a-data-url")
+            .expect_err("invalid data URL");
+        assert!(error.contains("data URL"));
+
+        let error =
+            save_composition_png("project", "menu.png", "data:image/png;base64,bm90LWEtcG5n")
+                .expect_err("non-PNG payload");
+        assert!(error.contains("PNG"));
     }
 }

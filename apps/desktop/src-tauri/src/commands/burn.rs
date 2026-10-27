@@ -3,7 +3,6 @@ use dvdforge_burn::{
     OpticalDevice,
 };
 use dvdforge_domain::JobId;
-use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use tauri::ipc::Channel;
 use tokio::sync::mpsc;
@@ -83,6 +82,21 @@ pub async fn burn_start(
     eject: bool,
     channel: Channel<BurnProgress>,
 ) -> Result<BurnReport, String> {
+    let iso = std::fs::canonicalize(&iso_path)
+        .map_err(|_| format!("El ISO no existe o no es accesible: {iso_path}"))?;
+    if !iso.is_file() {
+        return Err(format!(
+            "El ISO no es un archivo regular: {}",
+            iso.display()
+        ));
+    }
+    if !iso
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
+    {
+        return Err("El archivo seleccionado no tiene extensión .iso.".to_string());
+    }
     let job_id = JobId::new();
     let cancel = CancellationToken::new();
     // Check and insert under the same lock so concurrent burn_start calls
@@ -105,13 +119,13 @@ pub async fn burn_start(
     };
     let (sender, mut receiver) = mpsc::channel(64);
     let burner = platform_burner();
-    let label = PathBuf::from(&iso_path)
+    let label = iso
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("DVD_FORGE")
         .to_string();
     let request = BurnRequest {
-        iso_path: PathBuf::from(iso_path),
+        iso_path: iso,
         device: DeviceId::new(device),
         speed_x: Some(speed),
         verify,

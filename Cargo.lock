@@ -730,6 +730,7 @@ name = "dvdforge-avchd"
 version = "0.1.0"
 dependencies = [
  "dvdforge-domain",
+ "dvdforge-toolchain",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -812,6 +813,7 @@ version = "0.1.0"
 dependencies = [
  "dvdforge-domain",
  "dvdforge-project",
+ "dvdforge-toolchain",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -847,6 +849,7 @@ name = "dvdforge-media"
 version = "0.1.0"
 dependencies = [
  "dvdforge-domain",
+ "dvdforge-toolchain",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -899,6 +902,7 @@ dependencies = [
  "dvdforge-plan",
  "dvdforge-project",
  "dvdforge-store",
+ "dvdforge-toolchain",
  "hex",
  "image",
  "serde",

@@ -336,12 +336,9 @@ impl BdmvIsoBuilder {
         if let Some(parent) = iso_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        if iso_path.exists() {
-            std::fs::remove_file(iso_path)?;
-        }
-
+        let temp = TempIso::new(iso_path);
+        let target = temp.path().to_path_buf();
         let source = source_dir.to_path_buf();
-        let target = iso_path.to_path_buf();
         let label = label.to_string();
         let revision = self.udf_revision;
         tokio::task::spawn_blocking(move || {
@@ -371,10 +368,11 @@ impl BdmvIsoBuilder {
         .await
         .map_err(|error| IsoError::BdmvAuthoring(format!("tarea UDF abortada: {error}")))??;
 
-        let metadata = std::fs::metadata(iso_path)?;
+        let metadata = std::fs::metadata(temp.path())?;
         if metadata.len() == 0 {
             return Err(IsoError::EmptyIso);
         }
+        temp.publish(iso_path)?;
         Ok(BdmvIsoReport {
             iso_path: iso_path.to_path_buf(),
             size_bytes: metadata.len(),

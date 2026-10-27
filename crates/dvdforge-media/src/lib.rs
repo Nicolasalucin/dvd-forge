@@ -5,13 +5,18 @@
 //! file name; everything comes from FFprobe JSON.
 
 use dvdforge_domain::{AudioStreamInfo, FrameRate, MediaProbe, VideoStreamInfo};
+use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::process::Command;
+use tokio::time::{timeout, Duration};
 
 pub const CRATE_NAME: &str = "dvdforge-media";
+/// Upper bound for a local probe. A hung or malformed file must not keep an
+/// IPC command alive forever.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Error)]
 pub enum MediaError {
@@ -19,6 +24,10 @@ pub enum MediaError {
     Io(#[from] std::io::Error),
     #[error("ffprobe falló con código {code}: {stderr}")]
     FfprobeFailed { code: i32, stderr: String },
+    #[error("ffprobe superó el tiempo límite")]
+    Timeout,
+    #[error("la ruta no es un archivo regular: {0}")]
+    NotAFile(String),
     #[error("salida JSON de ffprobe inválida: {0}")]
     Json(#[from] serde_json::Error),
     #[error("el stream de video {0} no tiene framerate válido")]
@@ -36,7 +45,7 @@ pub struct Ffprobe {
 impl Default for Ffprobe {
     fn default() -> Self {
         Self {
-            binary: PathBuf::from("ffprobe"),
+            binary: resolve_binary("ffprobe"),
         }
     }
 }
@@ -49,17 +58,27 @@ impl Ffprobe {
     }
 
     pub async fn probe(&self, path: impl AsRef<Path>) -> Result<MediaProbe, MediaError> {
-        let output = Command::new(&self.binary)
-            .kill_on_drop(true)
-            .arg("-v")
-            .arg("error")
-            .arg("-print_format")
-            .arg("json")
-            .arg("-show_format")
-            .arg("-show_streams")
-            .arg(path.as_ref())
-            .output()
-            .await?;
+        let path = path.as_ref();
+        if !path.is_file() {
+            return Err(MediaError::NotAFile(path.display().to_string()));
+        }
+        let output = timeout(
+            PROBE_TIMEOUT,
+            Command::new(&self.binary)
+                .kill_on_drop(true)
+                .arg("-v")
+                .arg("error")
+                .arg("-protocol_whitelist")
+                .arg(MEDIA_PROTOCOL_WHITELIST)
+                .arg("-print_format")
+                .arg("json")
+                .arg("-show_format")
+                .arg("-show_streams")
+                .arg(path)
+                .output(),
+        )
+        .await
+        .map_err(|_| MediaError::Timeout)??;
 
         if !output.status.success() {
             let code = output.status.code().unwrap_or(-1);

@@ -111,36 +111,6 @@ pub fn imapi_media_writable(value: i32, kind: DiscMediaKind) -> bool {
         && value & IMAPI_UNSUPPORTED_MEDIA_STATE == 0
 }
 
-pub fn validate_imapi_capacity(
-    iso_size: u64,
-    total_sectors: i32,
-    free_sectors: i32,
-) -> Result<(), BurnError> {
-    if iso_size == 0 {
-        return Err(BurnError::InvalidRequest("el ISO está vacío".to_string()));
-    }
-    let total = imapi_sectors_to_bytes(total_sectors);
-    if total == 0 {
-        return Err(BurnError::InvalidRequest(
-            "IMAPI2 no reportó capacidad de medio".to_string(),
-        ));
-    }
-    if iso_size > total {
-        return Err(BurnError::InvalidRequest(format!(
-            "el ISO ({} bytes) supera la capacidad IMAPI2 ({} bytes)",
-            iso_size, total
-        )));
-    }
-    let free = imapi_sectors_to_bytes(free_sectors);
-    if free > 0 && iso_size > free {
-        return Err(BurnError::InvalidRequest(format!(
-            "el ISO ({} bytes) supera el espacio libre IMAPI2 ({} bytes)",
-            iso_size, free
-        )));
-    }
-    Ok(())
-}
-
 pub fn stream_progress(written_bytes: u64, total_bytes: u64, elapsed: Duration) -> BurnProgress {
     let written = written_bytes.min(total_bytes);
     let percent = if total_bytes == 0 {
@@ -348,7 +318,9 @@ mod platform {
                 return Ok((recorder, normalized));
             }
         }
-        Err(BurnError::NoDevices)
+        Err(BurnError::InvalidRequest(format!(
+            "la unidad {normalized} no es un dispositivo óptico detectado"
+        )))
     }
 
     fn format_for(recorder: &IDiscRecorder2) -> Result<IDiscFormat2Data, BurnError> {
@@ -526,11 +498,7 @@ mod platform {
         }
         let iso_size = std::fs::metadata(&request.iso_path).map_err(map_io)?.len();
         let media = com_probe_media(request.device.as_str())?;
-        validate_imapi_capacity(
-            iso_size,
-            media.capacity_bytes as i32 / 2048,
-            media.free_bytes as i32 / 2048,
-        )?;
+        crate::validate_media_budget(&media, iso_size, request.speed_x)?;
         if !media.writable {
             return Err(BurnError::UnsupportedMedia(
                 "IMAPI2 reporta el medio como no grabable".to_string(),
@@ -780,15 +748,6 @@ mod tests {
         assert!((sectors_per_second_to_speed_x(sectors) - 1.0).abs() < 0.01);
         assert_eq!(speed_x_to_sectors_per_second(0.0), 0);
         assert_eq!(sectors_per_second_to_speed_x(-1), 0.0);
-    }
-
-    #[test]
-    fn validates_imapi_capacity() {
-        assert!(validate_imapi_capacity(1_000_000, 2_297_888, 2_297_888).is_ok());
-        assert!(validate_imapi_capacity(5_000_000_000, 2_297_888, 2_297_888).is_err());
-        assert!(validate_imapi_capacity(0, 2_297_888, 0).is_err());
-        assert!(validate_imapi_capacity(1_000_000, 0, 0).is_err());
-        assert!(validate_imapi_capacity(2_000_000, 2_297_888, 100).is_err());
     }
 
     #[test]

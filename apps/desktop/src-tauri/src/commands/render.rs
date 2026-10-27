@@ -30,14 +30,16 @@ fn job_slot() -> &'static Mutex<Option<RenderJob>> {
 /// only after the worker has finished, so no orphaned FFmpeg/UDF task survives.
 struct RenderGuard {
     id: JobId,
+    cancel: Arc<AtomicBool>,
     abort: Option<AbortHandle>,
     armed: bool,
 }
 
 impl RenderGuard {
-    fn new(id: JobId) -> Self {
+    fn new(id: JobId, cancel: Arc<AtomicBool>) -> Self {
         Self {
             id,
+            cancel,
             abort: None,
             armed: true,
         }
@@ -55,6 +57,7 @@ impl RenderGuard {
 impl Drop for RenderGuard {
     fn drop(&mut self) {
         if self.armed {
+            self.cancel.store(true, Ordering::SeqCst);
             if let Some(abort) = &self.abort {
                 abort.abort();
             }
@@ -119,7 +122,7 @@ pub async fn render_start(
             abort: None,
         });
     }
-    let mut guard = RenderGuard::new(job_id);
+    let mut guard = RenderGuard::new(job_id, Arc::clone(&cancel));
     let started = Instant::now();
     let job_name = project.name.clone();
     let disc_kind = project.disc.capacity.label().to_string();

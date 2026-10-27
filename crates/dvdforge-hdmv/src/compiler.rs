@@ -2,7 +2,7 @@
 
 use crate::opcodes::HdmvCommand;
 use crate::palette::Palette;
-use crate::pes::pes_packet;
+use crate::pes::pes_packets_from_segments;
 use crate::rle::encode_rle;
 use crate::segments::{
     end_of_display_set_segment, interactive_composition_segment, palette_definition_segment,
@@ -100,6 +100,10 @@ pub enum HdmvError {
     },
     #[error("el objeto gráfico es demasiado grande")]
     ObjectTooLarge,
+    #[error("segmento HDMV inválido: {0}")]
+    Segment(String),
+    #[error("PES HDMV inválido: {0}")]
+    Pes(String),
 }
 
 /// Compiles a menu to the complete byte stream of IG segments.
@@ -232,7 +236,10 @@ pub fn compile_ig_segments(menu: &HdmvMenu) -> Result<Vec<Segment>, HdmvError> {
         }],
     };
     let mut segments = Vec::with_capacity(display_segments.len() + 2);
-    segments.push(interactive_composition_segment(&composition));
+    segments.push(
+        interactive_composition_segment(&composition)
+            .map_err(|error| HdmvError::Segment(error.to_string()))?,
+    );
     segments.extend(display_segments);
     segments.push(end_of_display_set_segment());
     Ok(segments)
@@ -256,11 +263,7 @@ pub fn compile_ig_pes(menu: &HdmvMenu, pts_90k: u64) -> Result<Vec<u8>, HdmvErro
 
 pub fn compile_ig_pes_packets(menu: &HdmvMenu, pts_90k: u64) -> Result<Vec<Vec<u8>>, HdmvError> {
     let segments = compile_ig_segments(menu)?;
-    let mut output = Vec::with_capacity(segments.len());
-    for segment in segments {
-        output.push(pes_packet(&segment.encode(), pts_90k));
-    }
-    Ok(output)
+    pes_packets_from_segments(&segments, pts_90k).map_err(|error| HdmvError::Pes(error.to_string()))
 }
 
 /// Builds a standalone 192-byte M2TS with PAT/PMT (stream type 0x91) and the
@@ -288,6 +291,11 @@ fn split_object_segments(
     rle: &[u8],
 ) -> Result<Vec<Segment>, HdmvError> {
     let total_data = 4usize.saturating_add(rle.len());
+    // The ODS object data length is a 24-bit field shared by every fragment.
+    // Reject oversized objects instead of silently truncating the length.
+    if total_data > 0xFF_FFFF {
+        return Err(HdmvError::ObjectTooLarge);
+    }
     // Keep each completed segment below the PES payload budget so a segment is
     // never split across PES packets.
     let first_capacity = 60_000usize.saturating_sub(11);
@@ -449,5 +457,14 @@ mod tests {
             .filter(|segment| segment.kind == SEGMENT_ODS)
             .count();
         assert!(ods > 1);
+    }
+
+    #[test]
+    fn rejects_objects_that_overflow_the_ods_length_field() {
+        let rle = vec![0u8; 0xFF_FFFC];
+        assert!(matches!(
+            split_object_segments(1, 4, 4, &rle),
+            Err(HdmvError::ObjectTooLarge)
+        ));
     }
 }

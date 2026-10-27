@@ -13,12 +13,15 @@ use dvdforge_domain::{
     AspectRatio, ButtonShapeMask, DvdProfile, FrameRange, FrameRate, MenuScaleMode, TvStandard,
     VideoScaleMode,
 };
+use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::sync::mpsc;
+use tokio::time::timeout;
 
 pub const CRATE_NAME: &str = "dvdforge-dvd";
 
@@ -27,6 +30,9 @@ pub const DVD_MAX_TOTAL_KBPS: u32 = 10_080;
 pub const DVD_VBV_BITS: u32 = 1_835_008;
 pub const DVD_MUX_OVERHEAD_PPM: u32 = 25_000;
 pub const HALF_D1_AFTER_MS: u64 = 9_000_000;
+/// A single FFmpeg stage may legitimately run for hours on slow hardware, but
+/// an unresponsive process must not block a render forever.
+pub const DVD_STAGE_TIMEOUT: Duration = Duration::from_secs(12 * 60 * 60);
 
 #[derive(Debug, Clone)]
 pub struct VideoEncodeConfig {
@@ -240,6 +246,8 @@ pub enum EncodeError {
         code: i32,
         stderr: String,
     },
+    #[error("FFmpeg excedió el tiempo máximo en {0}")]
+    Timeout(&'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -250,7 +258,7 @@ pub struct DvdEncoder {
 impl Default for DvdEncoder {
     fn default() -> Self {
         Self {
-            ffmpeg: PathBuf::from("ffmpeg"),
+            ffmpeg: resolve_binary("ffmpeg"),
         }
     }
 }
@@ -396,7 +404,20 @@ async fn run_stage(
         (None, Some(tokio::spawn(drain_stdout(stdout))))
     };
     let stderr_task = tokio::spawn(read_stderr(stderr));
-    let status = child.wait().await?;
+    let status = match timeout(DVD_STAGE_TIMEOUT, child.wait()).await {
+        Ok(status) => status?,
+        Err(_) => {
+            let _ = child.kill().await;
+            if let Some(task) = &progress_task {
+                task.abort();
+            }
+            if let Some(task) = &drain_task {
+                task.abort();
+            }
+            stderr_task.abort();
+            return Err(EncodeError::Timeout(stage));
+        }
+    };
     if let Some(task) = progress_task {
         let _ = task.await;
     }
@@ -494,6 +515,18 @@ setsar={sar},format=yuv420p"
     }
 }
 
+/// Appends a local file input with an explicit protocol whitelist so crafted
+/// playlists or IPC paths cannot make FFmpeg open `http`, `concat` or `subfile`
+/// resources.
+fn push_file_input(args: &mut Vec<String>, path: &Path) {
+    args.extend([
+        "-protocol_whitelist".to_string(),
+        MEDIA_PROTOCOL_WHITELIST.to_string(),
+        "-i".to_string(),
+        path.display().to_string(),
+    ]);
+}
+
 pub fn build_pass1_args(request: &EncodeRequest) -> Vec<String> {
     let mut args = input_args(request);
     args.extend(video_codec_args(&request.video));
@@ -582,17 +615,10 @@ pub fn build_audio_args(request: &EncodeRequest, index: usize) -> Vec<String> {
 }
 
 pub fn build_mux_args(request: &EncodeRequest) -> Vec<String> {
-    let mut args = vec![
-        "-hide_banner".to_string(),
-        "-y".to_string(),
-        "-i".to_string(),
-        request.video_m2v().display().to_string(),
-    ];
+    let mut args = vec!["-hide_banner".to_string(), "-y".to_string()];
+    push_file_input(&mut args, &request.video_m2v());
     for index in 0..request.audio_tracks.len() {
-        args.extend([
-            "-i".to_string(),
-            request.audio_ac3(index).display().to_string(),
-        ]);
+        push_file_input(&mut args, &request.audio_ac3(index));
     }
     args.extend(["-map".to_string(), "0:v:0".to_string()]);
     for index in 0..request.audio_tracks.len() {
@@ -631,11 +657,10 @@ pub fn build_menu_encode_args(request: &MenuEncodeRequest) -> Vec<String> {
         "1".to_string(),
         "-framerate".to_string(),
         format!("{}/{}", request.fps.num, request.fps.den),
-        "-i".to_string(),
-        request.background_png.display().to_string(),
     ];
+    push_file_input(&mut args, &request.background_png);
     if let Some(audio) = &request.audio_ac3 {
-        args.extend(["-i".to_string(), audio.display().to_string()]);
+        push_file_input(&mut args, audio);
     } else {
         args.extend([
             "-f".to_string(),
@@ -711,23 +736,18 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
             fps.clone(),
         ]);
     }
-    args.extend(["-i".to_string(), request.background.display().to_string()]);
+    push_file_input(&mut args, &request.background);
     for button in &request.buttons {
-        args.extend([
-            "-stream_loop".to_string(),
-            "-1".to_string(),
-            "-i".to_string(),
-            button.input.display().to_string(),
-        ]);
+        args.extend(["-stream_loop".to_string(), "-1".to_string()]);
+        push_file_input(&mut args, &button.input);
     }
     args.extend([
         "-loop".to_string(),
         "1".to_string(),
         "-framerate".to_string(),
         fps.clone(),
-        "-i".to_string(),
-        request.labels_overlay.display().to_string(),
     ]);
+    push_file_input(&mut args, &request.labels_overlay);
     for button in request
         .buttons
         .iter()
@@ -738,17 +758,14 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
             "1".to_string(),
             "-framerate".to_string(),
             fps.clone(),
-            "-i".to_string(),
-            button
-                .mask_png
-                .as_ref()
-                .expect("mask filtered above")
-                .display()
-                .to_string(),
         ]);
+        push_file_input(
+            &mut args,
+            button.mask_png.as_ref().expect("mask filtered above"),
+        );
     }
     if let Some(audio) = &request.audio_ac3 {
-        args.extend(["-i".to_string(), audio.display().to_string()]);
+        push_file_input(&mut args, audio);
     } else {
         args.extend([
             "-f".to_string(),
@@ -884,7 +901,7 @@ fn input_args(request: &EncodeRequest) -> Vec<String> {
             args.push("-ss".to_string());
             args.push(format_millis(start_ms));
         }
-        args.extend(["-i".to_string(), request.input.display().to_string()]);
+        push_file_input(&mut args, &request.input);
         let end_ms = request.trim_end_ms;
         let duration = end_ms
             .map(|end| end.saturating_sub(start_ms))
@@ -899,7 +916,7 @@ fn input_args(request: &EncodeRequest) -> Vec<String> {
         args.push("-ss".to_string());
         args.push(format_seconds(trim.start, request.fps));
     }
-    args.extend(["-i".to_string(), request.input.display().to_string()]);
+    push_file_input(&mut args, &request.input);
     if let Some(trim) = request.trim {
         args.push("-t".to_string());
         args.push(format_seconds(trim.duration(), request.fps));

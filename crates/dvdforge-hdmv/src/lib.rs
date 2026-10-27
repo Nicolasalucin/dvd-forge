@@ -15,9 +15,10 @@ pub mod rle;
 pub mod segments;
 
 pub use bdmv::{
-    append_menu_movie_object, dummy_pgs, inject_ig_into_menu_m2ts, movie_object_count,
-    packetize_pes, patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count,
-    set_index_menu_object, BdmvError, STILL_TIME_INFINITE,
+    append_menu_movie_object, dummy_pgs, dummy_pgs_for_slots, inject_ig_into_menu_m2ts,
+    movie_object_count, packetize_pes, patch_menu_clpi, patch_menu_mpls,
+    pes_transport_packet_count, pgs_transport_packet_count, set_index_menu_object, BdmvError,
+    STILL_TIME_INFINITE,
 };
 pub use compiler::{
     compile_ig_m2ts, compile_ig_pes, compile_ig_pes_packets, compile_ig_segments, frame_rate_code,
@@ -30,13 +31,13 @@ pub use opcodes::{
     OP_PLAY_PLAYLIST_PM, OP_SET_GPR, OP_SET_STREAM,
 };
 pub use palette::{Palette, PaletteEntry};
-pub use pes::{pes_packet, IG_PID, IG_STREAM_ID};
+pub use pes::{pes_packets_from_segments, PesError, IG_PID, IG_STREAM_ID};
 pub use rle::{decode_rle, encode_rle, RleError};
 pub use segments::{
     end_of_display_set_segment, interactive_composition_segment, object_definition_segment,
     palette_definition_segment, window_definition_segment, ButtonDefinition, CompositionObject,
-    InteractiveComposition, PageDefinition, Segment, Window, SEGMENT_END, SEGMENT_ICS, SEGMENT_ODS,
-    SEGMENT_PDS, SEGMENT_WDS,
+    InteractiveComposition, PageDefinition, Segment, SegmentError, Window, SEGMENT_END,
+    SEGMENT_ICS, SEGMENT_ODS, SEGMENT_PDS, SEGMENT_WDS,
 };
 
 pub const CRATE_NAME: &str = "dvdforge-hdmv";

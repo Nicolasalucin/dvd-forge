@@ -1,5 +1,6 @@
 use base64::Engine;
 use dvdforge_domain::MediaProbe;
+use dvdforge_toolchain::MEDIA_PROTOCOL_WHITELIST;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
@@ -18,9 +19,12 @@ const LINUX_PLAYBACK_ELEMENTS: [&str; 2] = ["autoaudiosink", "autovideosink"];
 
 const MAX_PREVIEW_CONNECTIONS: usize = 16;
 const MAX_PREVIEW_HEADER_BYTES: usize = 8 * 1024;
+const MAX_PREVIEW_HEADER_TIME: Duration = Duration::from_secs(10);
 const MAX_PREVIEW_TOKENS: usize = 64;
 const PREVIEW_TOKEN_TTL: Duration = Duration::from_secs(6 * 60 * 60);
 const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
+const FRAME_TIMEOUT: Duration = Duration::from_secs(30);
+const PREVIEW_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -90,11 +94,25 @@ fn default_cache_root() -> PathBuf {
     std::env::temp_dir().join(format!("dvdforge-cache-{}", std::process::id()))
 }
 
-fn cache_dir(name: &str) -> PathBuf {
+pub(crate) fn cache_dir(name: &str) -> PathBuf {
     cache_root().join(name)
 }
 
-fn create_private_dir(path: &Path) -> std::io::Result<()> {
+pub(crate) fn create_private_dir(path: &Path) -> std::io::Result<()> {
+    if let Ok(metadata) = std::fs::symlink_metadata(path) {
+        if metadata.file_type().is_symlink() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "la ruta de caché es un enlace simbólico",
+            ));
+        }
+        if !metadata.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotADirectory,
+                "la ruta de caché no es un directorio",
+            ));
+        }
+    }
     std::fs::create_dir_all(path)?;
     #[cfg(unix)]
     {
@@ -209,8 +227,30 @@ fn read_request_head(
 ) -> std::io::Result<Option<String>> {
     let mut head = Vec::new();
     let mut chunk = [0u8; 1024];
+    let started = Instant::now();
     loop {
-        let read = reader.read(&mut chunk)?;
+        let remaining = MAX_PREVIEW_HEADER_TIME.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            let _ = write_http_status(stream, "408 Request Timeout", "Tiempo de espera agotado");
+            return Ok(None);
+        }
+        reader
+            .get_ref()
+            .set_read_timeout(Some(remaining.min(Duration::from_secs(10))))?;
+        let read = match reader.read(&mut chunk) {
+            Ok(read) => read,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                let _ =
+                    write_http_status(stream, "408 Request Timeout", "Tiempo de espera agotado");
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
         if read == 0 {
             break;
         }
@@ -511,13 +551,25 @@ pub async fn media_extract_frame(
     let output = frame_output_path(output_png.as_deref(), &input, timestamp_ms)?;
     let seconds = format!("{:.3}", timestamp_ms as f64 / 1000.0);
     let args = build_frame_args(&input, &output, &seconds);
-    let output_result = Command::new(ffmpeg_binary())
-        .args(&args)
-        .stdin(Stdio::null())
-        .output()
-        .await
-        .map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?;
+    let output_result = match tokio::time::timeout(
+        FRAME_TIMEOUT,
+        Command::new(ffmpeg_binary())
+            .args(&args)
+            .stdin(Stdio::null())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    {
+        Ok(result) => result.map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?,
+        Err(_) => {
+            // FFmpeg may have written a partial PNG before the deadline.
+            let _ = std::fs::remove_file(&output);
+            return Err("FFmpeg agotó el tiempo al extraer el fotograma.".to_string());
+        }
+    };
     if !output_result.status.success() {
+        let _ = std::fs::remove_file(&output);
         let stderr = String::from_utf8_lossy(&output_result.stderr);
         return Err(format!(
             "FFmpeg no pudo extraer el fotograma: {}",
@@ -525,6 +577,7 @@ pub async fn media_extract_frame(
         ));
     }
     if !output.is_file() {
+        let _ = std::fs::remove_file(&output);
         return Err("FFmpeg terminó sin generar la imagen solicitada.".to_string());
     }
     Ok(output.display().to_string())
@@ -631,20 +684,36 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
     let partial = preview_partial_path(&preview);
     let _ = std::fs::remove_file(&partial);
     let args = build_preview_args(&input, &partial, &codec);
-    let result = Command::new(ffmpeg_binary())
-        .args(&args)
-        .stdin(Stdio::null())
-        .output()
-        .await
-        .map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?;
+    let result = tokio::time::timeout(
+        PREVIEW_TIMEOUT,
+        Command::new(ffmpeg_binary())
+            .args(&args)
+            .stdin(Stdio::null())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .map_err(|_| {
+        let _ = std::fs::remove_file(&partial);
+        "FFmpeg agotó el tiempo al preparar la vista previa.".to_string()
+    })?
+    .map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?;
     if !result.status.success() {
+        let _ = std::fs::remove_file(&partial);
         let stderr = String::from_utf8_lossy(&result.stderr);
         return Err(format!(
             "FFmpeg no pudo preparar la vista previa: {}",
             stderr.trim()
         ));
     }
-    std::fs::rename(&partial, &preview).map_err(|error| error.to_string())?;
+    if !partial.is_file() || std::fs::metadata(&partial).is_ok_and(|meta| meta.len() == 0) {
+        let _ = std::fs::remove_file(&partial);
+        return Err("FFmpeg terminó sin generar la vista previa.".to_string());
+    }
+    if let Err(error) = std::fs::rename(&partial, &preview) {
+        let _ = std::fs::remove_file(&partial);
+        return Err(error.to_string());
+    }
     Ok(preview.display().to_string())
 }
 
@@ -663,7 +732,7 @@ async fn preview_lock(key: &str) -> Arc<tokio::sync::Mutex<()>> {
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn read_image_data_url(path: String) -> Result<String, String> {
     let resolved = resolve_media_path(&path)?;
@@ -714,6 +783,8 @@ fn build_frame_args(input: &Path, output: &Path, seconds: &str) -> Vec<String> {
         "-y".to_string(),
         "-ss".to_string(),
         seconds.to_string(),
+        "-protocol_whitelist".to_string(),
+        MEDIA_PROTOCOL_WHITELIST.to_string(),
         "-i".to_string(),
         input.display().to_string(),
         "-frames:v".to_string(),
@@ -728,6 +799,8 @@ fn build_preview_args(input: &Path, output: &Path, codec: &str) -> Vec<String> {
     let mut args = vec![
         "-hide_banner".to_string(),
         "-y".to_string(),
+        "-protocol_whitelist".to_string(),
+        MEDIA_PROTOCOL_WHITELIST.to_string(),
         "-i".to_string(),
         input.display().to_string(),
         "-map".to_string(),
@@ -809,15 +882,7 @@ fn resolve_media_path(path: &str) -> Result<PathBuf, String> {
 }
 
 fn ffmpeg_binary() -> PathBuf {
-    if let Some(custom) = std::env::var_os("DVD_FORGE_FFMPEG") {
-        return PathBuf::from(custom);
-    }
-    dvdforge_toolchain::find_binary_in_dirs(
-        &["ffmpeg"],
-        std::env::consts::OS,
-        &dvdforge_toolchain::default_search_directories(),
-    )
-    .unwrap_or_else(|| PathBuf::from("ffmpeg"))
+    dvdforge_toolchain::resolve_binary("ffmpeg")
 }
 
 fn path_fingerprint(path: &Path) -> String {
@@ -861,6 +926,44 @@ mod tests {
         assert!(seek < input);
         assert_eq!(args[seek + 1], "12.345");
         assert!(args.windows(2).any(|pair| pair == ["-frames:v", "1"]));
+    }
+
+    #[test]
+    fn frame_and_preview_args_whitelist_local_protocols() {
+        let frame = build_frame_args(
+            Path::new("/tmp/episode.mkv"),
+            Path::new("/tmp/frame.png"),
+            "0.000",
+        );
+        assert!(frame
+            .windows(2)
+            .any(|pair| pair == ["-protocol_whitelist", MEDIA_PROTOCOL_WHITELIST]));
+        let preview =
+            build_preview_args(Path::new("/tmp/in.mkv"), Path::new("/tmp/out.mp4"), "h264");
+        assert!(preview
+            .windows(2)
+            .any(|pair| pair == ["-protocol_whitelist", MEDIA_PROTOCOL_WHITELIST]));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn private_cache_directories_reject_symlinks() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "dvdforge-cache-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|value| value.as_nanos())
+                .unwrap_or(0)
+        ));
+        let target = root.join("target");
+        std::fs::create_dir_all(&target).expect("target");
+        let link = root.join("link");
+        symlink(&target, &link).expect("symlink");
+        let error = create_private_dir(&link).expect_err("symlink");
+        assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

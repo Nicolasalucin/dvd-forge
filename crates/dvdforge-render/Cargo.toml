@@ -17,6 +17,7 @@ dvdforge-media = { path = "../dvdforge-media" }
 dvdforge-menu = { path = "../dvdforge-menu" }
 dvdforge-plan = { path = "../dvdforge-plan" }
 dvdforge-store = { path = "../dvdforge-store" }
+dvdforge-toolchain = { path = "../dvdforge-toolchain" }
 hex.workspace = true
 image.workspace = true
 sha2.workspace = true

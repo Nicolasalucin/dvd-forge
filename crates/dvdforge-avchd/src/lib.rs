@@ -7,6 +7,7 @@ use dvdforge_domain::{
     AspectRatio, AvchdResolution, AvchdVideoConfig, Diagnostic, DiscCapacity, FrameRange,
     FrameRate, VideoScaleMode,
 };
+use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use thiserror::Error;
@@ -28,6 +29,9 @@ pub const AVCHD_VIDEO_CODEC: &str = "h264";
 pub const AVCHD_AUDIO_CODEC: &str = "ac3";
 pub const AVCHD_X264_LEVEL: &str = "4.1";
 pub const AVCHD_MUX_TIMEOUT: Duration = Duration::from_secs(3_600);
+/// A single FFmpeg stage may legitimately run for hours on slow hardware, but
+/// an unresponsive process must not block a render forever.
+pub const AVCHD_STAGE_TIMEOUT: Duration = Duration::from_secs(12 * 60 * 60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionSpec {
@@ -228,7 +232,7 @@ pub struct AvchdEncoder {
 impl Default for AvchdEncoder {
     fn default() -> Self {
         Self {
-            ffmpeg: PathBuf::from("ffmpeg"),
+            ffmpeg: resolve_binary("ffmpeg"),
         }
     }
 }
@@ -261,6 +265,17 @@ impl AvchdEncoder {
     }
 }
 
+/// Appends a local file input with an explicit protocol whitelist so crafted
+/// playlists or IPC paths cannot make FFmpeg open remote resources.
+fn push_file_input(args: &mut Vec<String>, path: &Path) {
+    args.extend([
+        "-protocol_whitelist".to_string(),
+        MEDIA_PROTOCOL_WHITELIST.to_string(),
+        "-i".to_string(),
+        path.display().to_string(),
+    ]);
+}
+
 pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     let mut args = vec!["-hide_banner".to_string(), "-y".to_string()];
     if request.trim_start_ms.is_some() || request.trim_end_ms.is_some() {
@@ -274,7 +289,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         args.push("-ss".to_string());
         args.push(format_seconds(trim.start, request.fps));
     }
-    args.extend(["-i".to_string(), request.input.display().to_string()]);
+    push_file_input(&mut args, &request.input);
     if request.audio.is_none() {
         let channels = request
             .audio
@@ -481,7 +496,20 @@ async fn run_stage(
         (None, Some(tokio::spawn(drain_stdout(stdout))))
     };
     let stderr_task = tokio::spawn(read_stderr(stderr));
-    let status = child.wait().await?;
+    let status = match timeout(AVCHD_STAGE_TIMEOUT, child.wait()).await {
+        Ok(status) => status?,
+        Err(_) => {
+            let _ = child.kill().await;
+            if let Some(task) = &progress_task {
+                task.abort();
+            }
+            if let Some(task) = &drain_task {
+                task.abort();
+            }
+            stderr_task.abort();
+            return Err(AvchdError::Timeout);
+        }
+    };
     if let Some(task) = progress_task {
         let _ = task.await;
     }
@@ -580,21 +608,22 @@ pub async fn concat_mkv(
         })
         .collect::<String>();
     std::fs::write(&list_path, list)?;
-    let args = vec![
+    let mut args = vec![
         "-hide_banner".to_string(),
         "-y".to_string(),
         "-f".to_string(),
         "concat".to_string(),
         "-safe".to_string(),
         "0".to_string(),
-        "-i".to_string(),
-        list_path.display().to_string(),
+    ];
+    push_file_input(&mut args, &list_path);
+    args.extend([
         "-c".to_string(),
         "copy".to_string(),
         "-f".to_string(),
         "matroska".to_string(),
         output.display().to_string(),
-    ];
+    ]);
     run_stage(ffmpeg, &args, "matroska concat", None).await?;
     if !output.is_file() || output.metadata()?.len() == 0 {
         return Err(AvchdError::MissingOutput(output.display().to_string()));
