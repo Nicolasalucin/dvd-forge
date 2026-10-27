@@ -9,19 +9,62 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 use tokio::sync::mpsc;
+use tokio::task::AbortHandle;
 
 const PROGRESS_THROTTLE: Duration = Duration::from_millis(200);
 
-static RENDER_TASK: OnceLock<Mutex<Option<tokio::task::AbortHandle>>> = OnceLock::new();
-static RENDER_CANCEL_FLAG: OnceLock<Mutex<Option<Arc<AtomicBool>>>> = OnceLock::new();
-static RENDER_CANCELLED: AtomicBool = AtomicBool::new(false);
-
-fn task_slot() -> &'static Mutex<Option<tokio::task::AbortHandle>> {
-    RENDER_TASK.get_or_init(|| Mutex::new(None))
+struct RenderJob {
+    id: JobId,
+    cancel: Arc<AtomicBool>,
+    abort: Option<AbortHandle>,
 }
 
-fn flag_slot() -> &'static Mutex<Option<Arc<AtomicBool>>> {
-    RENDER_CANCEL_FLAG.get_or_init(|| Mutex::new(None))
+static RENDER_JOB: OnceLock<Mutex<Option<RenderJob>>> = OnceLock::new();
+
+fn job_slot() -> &'static Mutex<Option<RenderJob>> {
+    RENDER_JOB.get_or_init(|| Mutex::new(None))
+}
+
+/// Clears the shared render slot and aborts the worker when the command future
+/// is dropped (webview reload, channel error, panic...). The guard is disarmed
+/// only after the worker has finished, so no orphaned FFmpeg/UDF task survives.
+struct RenderGuard {
+    id: JobId,
+    abort: Option<AbortHandle>,
+    armed: bool,
+}
+
+impl RenderGuard {
+    fn new(id: JobId) -> Self {
+        Self {
+            id,
+            abort: None,
+            armed: true,
+        }
+    }
+
+    fn set_abort(&mut self, abort: AbortHandle) {
+        self.abort = Some(abort);
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for RenderGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            if let Some(abort) = &self.abort {
+                abort.abort();
+            }
+        }
+        if let Ok(mut slot) = job_slot().lock() {
+            if slot.as_ref().is_some_and(|job| job.id == self.id) {
+                *slot = None;
+            }
+        }
+    }
 }
 
 /// Cancela la generación activa. Los procesos FFmpeg/herramientas se crean con
@@ -30,25 +73,20 @@ fn flag_slot() -> &'static Mutex<Option<Arc<AtomicBool>>> {
 #[tauri::command]
 #[specta::specta]
 pub fn render_cancel() -> Result<(), String> {
-    if let Some(flag) = flag_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?
-        .as_ref()
-    {
-        flag.store(true, Ordering::SeqCst);
+    let abort = {
+        let mut slot = job_slot()
+            .lock()
+            .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?;
+        let job = slot
+            .as_mut()
+            .ok_or_else(|| "No hay una generación activa.".to_string())?;
+        job.cancel.store(true, Ordering::SeqCst);
+        job.abort.clone()
+    };
+    if let Some(abort) = abort {
+        abort.abort();
     }
-    let handle = task_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?
-        .take();
-    match handle {
-        Some(handle) => {
-            RENDER_CANCELLED.store(true, Ordering::SeqCst);
-            handle.abort();
-            Ok(())
-        }
-        None => Err("No hay una generación activa.".to_string()),
-    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -65,22 +103,27 @@ pub async fn render_start(
     let output = PathBuf::from(&output_dir);
     let composited_backgrounds =
         crate::commands::menu::composited_background_dir(&project.id.to_string());
-    if task_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?
-        .is_some()
-    {
-        return Err("Ya hay una generación en curso.".to_string());
-    }
-    RENDER_CANCELLED.store(false, Ordering::SeqCst);
     let cancel = Arc::new(AtomicBool::new(false));
-    *flag_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())? =
-        Some(cancel.clone());
+    // Check and insert under the same lock: two simultaneous render_start
+    // calls can no longer both pass the is_some() check.
+    {
+        let mut slot = job_slot()
+            .lock()
+            .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?;
+        if slot.is_some() {
+            return Err("Ya hay una generación en curso.".to_string());
+        }
+        *slot = Some(RenderJob {
+            id: job_id,
+            cancel: Arc::clone(&cancel),
+            abort: None,
+        });
+    }
+    let mut guard = RenderGuard::new(job_id);
     let started = Instant::now();
     let job_name = project.name.clone();
     let disc_kind = project.disc.capacity.label().to_string();
+    let cancel_flag = Arc::clone(&cancel);
     let (sender, mut receiver) = mpsc::channel(256);
     let task = tokio::spawn(async move {
         render_project_with_options(
@@ -97,10 +140,16 @@ pub async fn render_start(
         )
         .await
     });
-    *task_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())? =
-        Some(task.abort_handle());
+    let abort = task.abort_handle();
+    guard.set_abort(abort.clone());
+    {
+        let mut slot = job_slot()
+            .lock()
+            .map_err(|_| "No se pudo acceder al estado de la generación.".to_string())?;
+        if let Some(job) = slot.as_mut().filter(|job| job.id == job_id) {
+            job.abort = Some(abort);
+        }
+    }
 
     let mut seq = 0u64;
     let mut last_progress = Instant::now() - PROGRESS_THROTTLE;
@@ -116,22 +165,24 @@ pub async fn render_start(
         if !emit {
             continue;
         }
-        channel
-            .send(JobEvent {
-                job_id,
-                seq,
-                at: Utc::now().to_rfc3339(),
-                kind,
-            })
-            .map_err(|error| error.to_string())?;
+        // Do not use `?` here: returning early must still run the Drop guard so
+        // the worker is aborted and the shared slot is released.
+        if let Err(error) = channel.send(JobEvent {
+            job_id,
+            seq,
+            at: Utc::now().to_rfc3339(),
+            kind,
+        }) {
+            return Err(error.to_string());
+        }
         seq += 1;
     }
 
-    let _ = task_slot().lock().map(|mut slot| slot.take());
-    let _ = flag_slot().lock().map(|mut slot| slot.take());
-    let cancelled = RENDER_CANCELLED.swap(false, Ordering::SeqCst);
+    let result = task.await;
+    guard.disarm();
+    drop(guard);
     let elapsed_seconds = started.elapsed().as_secs_f64();
-    match task.await {
+    match result {
         Ok(Ok(outcome)) => {
             record_job(
                 job_id,
@@ -186,49 +237,48 @@ pub async fn render_start(
             });
             Err(error.to_string())
         }
+        Err(error) if error.is_cancelled() || cancel_flag.load(Ordering::SeqCst) => {
+            let message = "Generación cancelada por el usuario.".to_string();
+            record_job(
+                job_id,
+                &job_name,
+                &disc_kind,
+                None,
+                "cancelled",
+                &message,
+                elapsed_seconds,
+            );
+            let _ = channel.send(JobEvent {
+                job_id,
+                seq,
+                at: Utc::now().to_rfc3339(),
+                kind: JobEventKind::Cancelled { stage: None },
+            });
+            Err(message)
+        }
         Err(error) => {
-            if cancelled {
-                let message = "Generación cancelada por el usuario.".to_string();
-                record_job(
-                    job_id,
-                    &job_name,
-                    &disc_kind,
-                    None,
-                    "cancelled",
-                    &message,
-                    elapsed_seconds,
-                );
-                let _ = channel.send(JobEvent {
-                    job_id,
-                    seq,
-                    at: Utc::now().to_rfc3339(),
-                    kind: JobEventKind::Cancelled { stage: None },
-                });
-                Err(message)
-            } else {
-                let message = format!("la tarea de generación terminó inesperadamente: {error}");
-                record_job(
-                    job_id,
-                    &job_name,
-                    &disc_kind,
-                    None,
-                    "failed",
-                    &message,
-                    elapsed_seconds,
-                );
-                let _ = channel.send(JobEvent {
-                    job_id,
-                    seq,
-                    at: Utc::now().to_rfc3339(),
-                    kind: JobEventKind::Failed {
-                        code: "E_RENDER_JOIN".to_string(),
-                        message: message.clone(),
-                        stage: None,
-                        log_path: None,
-                    },
-                });
-                Err(message)
-            }
+            let message = format!("la tarea de generación terminó inesperadamente: {error}");
+            record_job(
+                job_id,
+                &job_name,
+                &disc_kind,
+                None,
+                "failed",
+                &message,
+                elapsed_seconds,
+            );
+            let _ = channel.send(JobEvent {
+                job_id,
+                seq,
+                at: Utc::now().to_rfc3339(),
+                kind: JobEventKind::Failed {
+                    code: "E_RENDER_JOIN".to_string(),
+                    message: message.clone(),
+                    stage: None,
+                    log_path: None,
+                },
+            });
+            Err(message)
         }
     }
 }

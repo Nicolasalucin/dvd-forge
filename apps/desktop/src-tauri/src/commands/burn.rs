@@ -2,31 +2,66 @@ use dvdforge_burn::{
     platform_burner, BurnProgress, BurnReport, BurnRequest, CancellationToken, DeviceId,
     OpticalDevice,
 };
+use dvdforge_domain::JobId;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use tauri::ipc::Channel;
 use tokio::sync::mpsc;
 
-static BURN_CANCEL: OnceLock<Mutex<Option<CancellationToken>>> = OnceLock::new();
+struct BurnJob {
+    id: JobId,
+    cancel: CancellationToken,
+}
 
-fn cancel_slot() -> &'static Mutex<Option<CancellationToken>> {
-    BURN_CANCEL.get_or_init(|| Mutex::new(None))
+static BURN_JOB: OnceLock<Mutex<Option<BurnJob>>> = OnceLock::new();
+
+fn job_slot() -> &'static Mutex<Option<BurnJob>> {
+    BURN_JOB.get_or_init(|| Mutex::new(None))
+}
+
+/// Clears the slot only when the burn task that owns it has stopped. If a
+/// newer job somehow replaced the slot, the id check leaves it untouched.
+struct BurnSlotGuard {
+    id: JobId,
+}
+
+impl Drop for BurnSlotGuard {
+    fn drop(&mut self) {
+        if let Ok(mut slot) = job_slot().lock() {
+            if slot.as_ref().is_some_and(|job| job.id == self.id) {
+                *slot = None;
+            }
+        }
+    }
+}
+
+/// Cooperative cancellation for the command future. Dropping the Tauri command
+/// (webview reload) must not abort the burn task abruptly: it asks the burner
+/// to stop and lets it kill its child process cleanly.
+struct BurnCancelOnDrop {
+    cancel: CancellationToken,
+    armed: bool,
+}
+
+impl Drop for BurnCancelOnDrop {
+    fn drop(&mut self) {
+        if self.armed {
+            self.cancel.cancel();
+        }
+    }
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn burn_cancel() -> Result<(), String> {
-    let token = cancel_slot()
+    let cancel = job_slot()
         .lock()
         .map_err(|_| "No se pudo acceder al estado de la grabación.".to_string())?
-        .take();
-    match token {
-        Some(token) => {
-            token.cancel();
-            Ok(())
-        }
-        None => Err("No hay una grabación activa.".to_string()),
-    }
+        .as_ref()
+        .map(|job| job.cancel.clone())
+        .ok_or_else(|| "No hay una grabación activa.".to_string())?;
+    cancel.cancel();
+    Ok(())
 }
 
 #[tauri::command]
@@ -48,18 +83,26 @@ pub async fn burn_start(
     eject: bool,
     channel: Channel<BurnProgress>,
 ) -> Result<BurnReport, String> {
-    if cancel_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la grabación.".to_string())?
-        .is_some()
-    {
-        return Err("Ya hay una grabación en curso.".to_string());
-    }
+    let job_id = JobId::new();
     let cancel = CancellationToken::new();
-    *cancel_slot()
-        .lock()
-        .map_err(|_| "No se pudo acceder al estado de la grabación.".to_string())? =
-        Some(cancel.clone());
+    // Check and insert under the same lock so concurrent burn_start calls
+    // cannot both start a burn.
+    {
+        let mut slot = job_slot()
+            .lock()
+            .map_err(|_| "No se pudo acceder al estado de la grabación.".to_string())?;
+        if slot.is_some() {
+            return Err("Ya hay una grabación en curso.".to_string());
+        }
+        *slot = Some(BurnJob {
+            id: job_id,
+            cancel: cancel.clone(),
+        });
+    }
+    let mut command_guard = BurnCancelOnDrop {
+        cancel: cancel.clone(),
+        armed: true,
+    };
     let (sender, mut receiver) = mpsc::channel(64);
     let burner = platform_burner();
     let label = PathBuf::from(&iso_path)
@@ -77,14 +120,23 @@ pub async fn burn_start(
         simulation: false,
         label,
     };
-    let task = tokio::spawn(async move { burner.burn(request, sender, cancel).await });
+    let task_cancel = cancel.clone();
+    let task = tokio::spawn(async move {
+        let _slot_guard = BurnSlotGuard { id: job_id };
+        burner.burn(request, sender, task_cancel).await
+    });
 
     while let Some(progress) = receiver.recv().await {
-        channel.send(progress).map_err(|error| error.to_string())?;
+        // Returning early drops command_guard, which requests cooperative
+        // cancellation; the worker keeps the slot until it has actually stopped.
+        if let Err(error) = channel.send(progress) {
+            return Err(error.to_string());
+        }
     }
 
-    let _ = cancel_slot().lock().map(|mut slot| slot.take());
-    match task.await {
+    let result = task.await;
+    command_guard.armed = false;
+    match result {
         Ok(result) => result.map_err(|error| error.to_string()),
         Err(error) => Err(format!("la tarea de grabación falló: {error}")),
     }
