@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n/index.svelte";
+  import { i18n, t } from "../i18n/index.svelte";
   import { localizeDiagnostic } from "../i18n/diagnostics";
   import type { EncodingPriority } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
@@ -128,7 +128,7 @@
       <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Calidad VBR")}</span>
       {#if plan}
         <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
-          {plan.videoKbps.toLocaleString()} kbps {t("promedio")}
+          {plan.videoKbps.toLocaleString(i18n.locale)} kbps {t("promedio")}
         </span>
         <span class={`rounded-full border px-2 py-0.5 text-[10px] ${plan.feasible ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
           {t(plan.feasible ? "Viable" : "No viable")}
@@ -266,7 +266,7 @@
               <span class="font-mono text-[9px] text-cyan-300">E{episode.number}</span>
               <span class="min-w-0 flex-1 truncate text-[10px] text-slate-300">{episode.title}</span>
               <span class="font-mono text-[9px] text-slate-500">
-                {planned ? `${planned.videoKbps.toLocaleString()} kbps` : t("sin plan")}
+                {planned ? `${planned.videoKbps.toLocaleString(i18n.locale)} kbps` : t("sin plan")}
               </span>
               <span class="font-mono text-[9px] text-slate-600">
                 {formatDuration(projectStore.episodeEffectiveDuration(episode))}

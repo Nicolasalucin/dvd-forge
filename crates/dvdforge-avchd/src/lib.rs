@@ -291,19 +291,11 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     }
     push_file_input(&mut args, &request.input);
     if request.audio.is_none() {
-        let channels = request
-            .audio
-            .as_ref()
-            .map(|audio| audio.channels)
-            .unwrap_or(2);
         args.extend([
             "-f".to_string(),
             "lavfi".to_string(),
             "-i".to_string(),
-            format!(
-                "anullsrc=r=48000:cl={}",
-                if channels == 6 { "5.1" } else { "stereo" }
-            ),
+            "anullsrc=r=48000:cl=stereo".to_string(),
         ]);
     }
     let duration_ms = if request.trim_end_ms.is_some() {
@@ -314,7 +306,16 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             .saturating_sub(start)
             .max(1)
     } else {
-        request.duration_ms.max(1)
+        let base = request.duration_ms.max(1);
+        match request.trim {
+            Some(trim) if request.fps.is_valid() => {
+                let trim_ms = ((trim.duration() as f64 * 1000.0) / request.fps.as_f64())
+                    .round()
+                    .max(1.0) as u64;
+                base.min(trim_ms).max(1)
+            }
+            _ => base,
+        }
     };
     args.extend(["-t".to_string(), format_millis(duration_ms)]);
 
@@ -600,10 +601,11 @@ pub async fn concat_mkv(
     let list = inputs
         .iter()
         .map(|path| {
+            let absolute = std::fs::canonicalize(path).unwrap_or_else(|_| path.clone());
             format!(
                 "file '{}'
 ",
-                path.to_string_lossy().replace('\'', "'\\''")
+                absolute.to_string_lossy().replace('\'', "'\\''")
             )
         })
         .collect::<String>();
@@ -625,6 +627,7 @@ pub async fn concat_mkv(
         output.display().to_string(),
     ]);
     run_stage(ffmpeg, &args, "matroska concat", None).await?;
+    let _ = std::fs::remove_file(&list_path);
     if !output.is_file() || output.metadata()?.len() == 0 {
         return Err(AvchdError::MissingOutput(output.display().to_string()));
     }
@@ -1041,6 +1044,19 @@ mod tests {
         assert!(seek < input);
         assert_eq!(args[seek + 1], "2.000");
         assert!(args.windows(2).any(|pair| pair == ["-t", "10.000"]));
+    }
+
+    #[test]
+    fn frame_range_limits_duration_when_ms_bounds_are_missing() {
+        let mut req = request();
+        req.duration_ms = 60_000;
+        req.fps = FrameRate::NTSC;
+        req.trim = Some(FrameRange {
+            start: 300,
+            end: 780,
+        });
+        let args = build_encode_args(&req);
+        assert!(args.windows(2).any(|pair| pair == ["-t", "16.016"]));
     }
 
     #[test]

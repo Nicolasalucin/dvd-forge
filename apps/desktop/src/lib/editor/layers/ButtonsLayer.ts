@@ -24,8 +24,26 @@ export interface ButtonSyncOptions {
   callbacks: ButtonCallbacks;
 }
 
+const THUMBNAIL_CACHE_LIMIT = 64;
 const thumbnailCache = new Map<string, HTMLImageElement>();
 type ShapeClipContext = Parameters<NonNullable<Konva.GroupConfig["clipFunc"]>>[0];
+
+function starPoints(width: number, height: number): number[] {
+  const points: number[] = [];
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const outer = Math.min(width, height) / 2;
+  const inner = outer * 0.45;
+  for (let point = 0; point < 10; point += 1) {
+    const angle = -Math.PI / 2 + (point * Math.PI) / 5;
+    const radius = point % 2 === 0 ? outer : inner;
+    points.push(
+      centerX + Math.cos(angle) * radius,
+      centerY + Math.sin(angle) * radius,
+    );
+  }
+  return points;
+}
 
 function shapeClipFunc(
   shape: MenuButton_Serialize["shapeMask"],
@@ -45,20 +63,23 @@ function shapeClipFunc(
       context.closePath();
       return;
     }
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const outer = Math.min(width, height) / 2;
-    const inner = outer * 0.45;
-    for (let point = 0; point < 10; point += 1) {
-      const angle = -Math.PI / 2 + (point * Math.PI) / 5;
-      const radius = point % 2 === 0 ? outer : inner;
-      const x = centerX + Math.cos(angle) * radius;
-      const y = centerY + Math.sin(angle) * radius;
-      if (point === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
+    const points = starPoints(width, height);
+    context.moveTo(points[0], points[1]);
+    for (let index = 2; index < points.length; index += 2) {
+      context.lineTo(points[index], points[index + 1]);
     }
     context.closePath();
   };
+}
+
+function cacheThumbnail(url: string, image: HTMLImageElement): void {
+  thumbnailCache.delete(url);
+  thumbnailCache.set(url, image);
+  while (thumbnailCache.size > THUMBNAIL_CACHE_LIMIT) {
+    const oldest = thumbnailCache.keys().next().value;
+    if (oldest === undefined) break;
+    thumbnailCache.delete(oldest);
+  }
 }
 
 function loadThumbnail(
@@ -67,14 +88,25 @@ function loadThumbnail(
 ): HTMLImageElement | null {
   const cached = thumbnailCache.get(url);
   if (cached) {
-    if (cached.complete && cached.naturalWidth > 0) return cached;
-    cached.addEventListener("load", () => onLoad(cached), { once: true });
-    return null;
+    if (cached.complete) {
+      if (cached.naturalWidth > 0) {
+        cacheThumbnail(url, cached);
+        return cached;
+      }
+      thumbnailCache.delete(url);
+    } else {
+      cached.addEventListener("load", () => onLoad(cached), { once: true });
+      cached.addEventListener("error", () => thumbnailCache.delete(url), {
+        once: true,
+      });
+      return null;
+    }
   }
   const image = new Image();
   image.addEventListener("load", () => onLoad(image), { once: true });
+  image.addEventListener("error", () => thumbnailCache.delete(url), { once: true });
   image.src = url;
-  thumbnailCache.set(url, image);
+  cacheThumbnail(url, image);
   return null;
 }
 
@@ -198,6 +230,7 @@ export class ButtonsLayer {
         addPreviewOverlay(
           group,
           button.styleKind,
+          button.shapeMask,
           width,
           height,
           options.previewState,
@@ -245,8 +278,8 @@ export class ButtonsLayer {
           const scaleY = group.scaleY();
           group.scaleX(1);
           group.scaleY(1);
-          const nextWidth = Math.max(8, Math.round(((width * scaleX) / 2) * 2));
-          const nextHeight = Math.max(8, Math.round(((height * scaleY) / 2) * 2));
+          const nextWidth = Math.max(8, Math.round((width * scaleX) / 2) * 2);
+          const nextHeight = Math.max(8, Math.round((height * scaleY) / 2) * 2);
           const x = snap(group.x(), menu.canvas.width, nextWidth);
           const y = snap(group.y(), menu.canvas.height, nextHeight);
           group.position({ x, y });
@@ -464,6 +497,7 @@ function thumbnailNode(
 function addPreviewOverlay(
   group: Konva.Group,
   styleKind: MenuButton_Serialize["styleKind"],
+  shapeMask: MenuButton_Serialize["shapeMask"],
   width: number,
   height: number,
   state: PreviewState,
@@ -499,30 +533,65 @@ function addPreviewOverlay(
   }
   if (state === "select") {
     group.add(
-      new Konva.Rect({
-        x: 0,
-        y: 0,
-        width,
-        height,
+      previewShape(shapeMask, styleKind, width, height, {
         fill: select,
         opacity: 0.55,
-        cornerRadius: Math.min(14, height / 4),
-        listening: false,
       }),
     );
   }
   group.add(
-    new Konva.Rect({
-      x: 0,
-      y: 0,
-      width,
-      height,
+    previewShape(shapeMask, styleKind, width, height, {
       stroke: highlight,
       strokeWidth: border,
-      cornerRadius: Math.min(14, height / 4),
-      listening: false,
     }),
   );
+}
+
+function previewShape(
+  shapeMask: MenuButton_Serialize["shapeMask"],
+  styleKind: MenuButton_Serialize["styleKind"],
+  width: number,
+  height: number,
+  config: {
+    fill?: string;
+    opacity?: number;
+    stroke?: string;
+    strokeWidth?: number;
+  },
+): Konva.Shape {
+  const common = { listening: false, ...config };
+  if (shapeMask === "circle") {
+    return new Konva.Ellipse({
+      x: width / 2,
+      y: height / 2,
+      radiusX: width / 2,
+      radiusY: height / 2,
+      ...common,
+    });
+  }
+  if (shapeMask === "star") {
+    return new Konva.Line({
+      points: starPoints(width, height),
+      closed: true,
+      ...common,
+    });
+  }
+  const cornerRadius =
+    shapeMask === "roundedRect"
+      ? Math.min(16, width / 4, height / 4)
+      : styleKind === "glassPill" || styleKind === "playBadge"
+        ? height / 2
+        : styleKind === "thumbnailCard" || styleKind === "classicFrame"
+          ? Math.min(14, height / 4)
+          : 0;
+  return new Konva.Rect({
+    x: 0,
+    y: 0,
+    width,
+    height,
+    cornerRadius,
+    ...common,
+  });
 }
 
 function paletteColor(palette: SubpicturePalette, index: 0 | 1 | 2 | 3): string {

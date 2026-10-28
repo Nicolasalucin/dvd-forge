@@ -857,7 +857,8 @@ impl Project {
                 }
             }
             for (index, chapter) in episode.chapters.iter().enumerate() {
-                if chapter.at_frame >= episode.trim.map(|trim| trim.end).unwrap_or(u64::MAX) {
+                if chapter.at_frame >= episode.trim.map(|trim| trim.duration()).unwrap_or(u64::MAX)
+                {
                     diagnostics.push(
                         Diagnostic::warning(
                             "W_CHAPTER_OUT_OF_RANGE",
@@ -1252,9 +1253,9 @@ fn validate_action(
                 && !matches!(project.disc.mode, AuthoringMode::Avchd)
             {
                 diagnostics.push(
-                    Diagnostic::error(
-                        "E_ACTION_CHAPTER_VMGM",
-                        "Los saltos a capítulo solo son válidos desde VTSM.",
+                    Diagnostic::warning(
+                        "W_ACTION_CHAPTER_VMGM",
+                        "El salto a capítulo desde VMGM requiere un comando de título completo.",
                     )
                     .with_entity(entity.to_string()),
                 );
@@ -1265,9 +1266,9 @@ fn validate_action(
                 && !matches!(project.disc.mode, AuthoringMode::Avchd)
             {
                 diagnostics.push(
-                    Diagnostic::error(
-                        "E_ACTION_AUDIO_VMGM",
-                        "El cambio de pista de audio solo es válido desde VTSM.",
+                    Diagnostic::warning(
+                        "W_ACTION_AUDIO_VMGM",
+                        "El cambio de pista de audio desde VMGM puede no aplicarse en todos los reproductores.",
                     )
                     .with_entity(entity.to_string()),
                 );
@@ -1555,5 +1556,25 @@ mod tests {
             episode.trim_end_ms = None;
             assert_eq!(episode.effective_duration_ms(), 0);
         }
+    }
+
+    #[test]
+    fn chapter_range_uses_trim_duration_not_absolute_end() {
+        let mut project = minimal_project();
+        let episode = project.episodes.first_mut().expect("episode");
+        episode.trim = Some(FrameRange {
+            start: 1_000,
+            end: 1_200,
+        });
+        episode.chapters.push(Chapter {
+            id: ChapterId::from_u128(99),
+            title: "Late".into(),
+            at_frame: 250,
+            thumbnail: None,
+        });
+        let diagnostics = project.validate();
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "W_CHAPTER_OUT_OF_RANGE" && diagnostic.severity == Severity::Warning
+        }));
     }
 }

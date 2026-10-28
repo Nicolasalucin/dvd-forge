@@ -66,10 +66,11 @@
 
   function setLanguage(kind: "audio" | "subtitle", index: number, language: string) {
     if (!episode) return;
+    const normalized = normalizeLanguageCode(language);
     if (kind === "audio") {
-      projectStore.updateEpisodeAudioTrack(episode.id, index, { language: language || "und" });
+      projectStore.updateEpisodeAudioTrack(episode.id, index, { language: normalized });
     } else {
-      projectStore.updateEpisodeSubtitleTrack(episode.id, index, { language: language || "und" });
+      projectStore.updateEpisodeSubtitleTrack(episode.id, index, { language: normalized });
     }
   }
 
@@ -159,7 +160,7 @@
               </div>
             </div>
 
-            {#each episode.audio as track, index (track.sourceStream)}
+            {#each episode.audio as track, index (index)}
               <div class="grid grid-cols-[94px_minmax(0,1fr)] items-center gap-2">
                 <span class="truncate text-[10px] text-slate-400">
                   Audio {index + 1}{track.default ? " · DEF" : ""}
@@ -234,7 +235,7 @@
           </div>
 
           <div class="mt-2 space-y-2">
-            {#each episode.audio as track, index (track.sourceStream)}
+            {#each episode.audio as track, index (index)}
               <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-2">
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">
@@ -365,12 +366,12 @@
                         label: event.currentTarget.value,
                       })}
                   />
-                  <input
-                    class="w-14 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-center font-mono text-[10px] uppercase text-slate-300 outline-none focus:border-cyan-500/60"
-                    value={track.language}
-                    aria-label={t("Idioma de subtítulo")}
-                    onchange={(event) => setLanguage("subtitle", index, event.currentTarget.value)}
-                  />
+                  <div class="w-40">
+                    <LanguageSelect
+                      value={track.language}
+                      onchange={(language: string) => setLanguage("subtitle", index, language)}
+                    />
+                  </div>
                   <label class="flex items-center gap-1 text-[9px] text-slate-400">
                     <input
                       type="checkbox"

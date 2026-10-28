@@ -7,7 +7,7 @@
 use crate::{
     validate_media_budget, BurnBackend, BurnError, BurnProgress, BurnReport, BurnRequest, DeviceId,
     DiscBurner, DiscMediaKind, MediaInfo, MediaStatus, OpticalDevice, ProgressSink, VerifyReport,
-    DVD_1X_BYTES_PER_SECOND, DVD_SECTOR_BYTES,
+    DVD_SECTOR_BYTES,
 };
 use async_trait::async_trait;
 use serde_json::Value;
@@ -165,6 +165,7 @@ impl DiscBurner for MacOsBurner {
             &self.drutil,
             &drutil_args,
             iso_size,
+            media.kind,
             progress.clone(),
             cancel.clone(),
         )
@@ -177,6 +178,7 @@ impl DiscBurner for MacOsBurner {
                         &self.hdiutil,
                         &args,
                         iso_size,
+                        media.kind,
                         progress.clone(),
                         cancel.clone(),
                     )
@@ -208,7 +210,10 @@ impl DiscBurner for MacOsBurner {
 
         let elapsed = started.elapsed();
         let average_speed_x = if elapsed.as_secs_f64() > 0.0 {
-            Some(((iso_size as f64 / elapsed.as_secs_f64()) / DVD_1X_BYTES_PER_SECOND) as f32)
+            Some(
+                ((iso_size as f64 / elapsed.as_secs_f64()) / media.kind.bytes_per_second_at_1x())
+                    as f32,
+            )
         } else {
             None
         };
@@ -682,7 +687,13 @@ fn parse_write_speeds(text: &str) -> Option<f32> {
 
 fn parse_macos_media_kind(value: &str) -> DiscMediaKind {
     let lower = value.to_ascii_lowercase();
-    if lower.contains("dvd+rw") {
+    if lower.contains("bd-re") {
+        DiscMediaKind::BdRe
+    } else if lower.contains("bd-rom") || lower.contains("blu-ray") || lower.contains("bluray") {
+        DiscMediaKind::BdRom
+    } else if lower.contains("bd-r") {
+        DiscMediaKind::BdR
+    } else if lower.contains("dvd+rw") {
         DiscMediaKind::DvdPlusRw
     } else if lower.contains("dvd-rw") {
         DiscMediaKind::DvdRw
@@ -779,7 +790,11 @@ pub fn build_diskutil_eject_args(device: &str) -> Vec<String> {
 }
 
 /// Parses percentage or phase lines emitted by drutil/hdiutil.
-pub fn parse_progress_line(line: &str, total_bytes: u64) -> Option<BurnProgress> {
+pub fn parse_progress_line(
+    line: &str,
+    total_bytes: u64,
+    media_kind: DiscMediaKind,
+) -> Option<BurnProgress> {
     let lower = line.to_ascii_lowercase();
     let percent = parse_percent(line).or_else(|| {
         if lower.contains("burn completed") {
@@ -799,6 +814,7 @@ pub fn parse_progress_line(line: &str, total_bytes: u64) -> Option<BurnProgress>
     let percent = percent.clamp(0.0, 100.0);
     let written_bytes = ((total_bytes as f64 * percent as f64 / 100.0) as u64).min(total_bytes);
     let speed = parse_speed(line);
+    let bytes_per_second = media_kind.bytes_per_second_at_1x();
     Some(BurnProgress {
         written_bytes,
         total_bytes,
@@ -807,8 +823,8 @@ pub fn parse_progress_line(line: &str, total_bytes: u64) -> Option<BurnProgress>
         eta_secs: speed.and_then(|speed| {
             if speed > 0.0 && written_bytes < total_bytes {
                 Some(
-                    (((total_bytes - written_bytes) as f64)
-                        / (speed as f64 * DVD_1X_BYTES_PER_SECOND)) as u64,
+                    (((total_bytes - written_bytes) as f64) / (speed as f64 * bytes_per_second))
+                        as u64,
                 )
             } else {
                 None
@@ -843,6 +859,7 @@ async fn run_with_progress(
     binary: &Path,
     args: &[String],
     total_bytes: u64,
+    media_kind: DiscMediaKind,
     progress: ProgressSink,
     cancel: CancellationToken,
 ) -> Result<(), BurnError> {
@@ -860,8 +877,18 @@ async fn run_with_progress(
         .stderr
         .take()
         .ok_or_else(|| BurnError::InvalidRequest("no se pudo capturar stderr".to_string()))?;
-    let stdout_task = tokio::spawn(read_progress_stream(stdout, total_bytes, progress.clone()));
-    let stderr_task = tokio::spawn(read_progress_stream(stderr, total_bytes, progress.clone()));
+    let stdout_task = tokio::spawn(read_progress_stream(
+        stdout,
+        total_bytes,
+        media_kind,
+        progress.clone(),
+    ));
+    let stderr_task = tokio::spawn(read_progress_stream(
+        stderr,
+        total_bytes,
+        media_kind,
+        progress.clone(),
+    ));
     let status = tokio::select! {
         _ = cancel.cancelled() => {
             terminate_child(&mut child).await;
@@ -894,7 +921,12 @@ async fn run_with_progress(
     }
 }
 
-async fn read_progress_stream<R>(mut stream: R, total_bytes: u64, progress: ProgressSink) -> String
+async fn read_progress_stream<R>(
+    mut stream: R,
+    total_bytes: u64,
+    media_kind: DiscMediaKind,
+    progress: ProgressSink,
+) -> String
 where
     R: AsyncRead + Unpin + Send + 'static,
 {
@@ -911,7 +943,7 @@ where
         while let Some(index) = pending.find(['\n', '\r']) {
             let line = pending[..index].to_string();
             pending.drain(..=index);
-            if let Some(update) = parse_progress_line(&line, total_bytes) {
+            if let Some(update) = parse_progress_line(&line, total_bytes, media_kind) {
                 if progress.send(update).await.is_err() {
                     return log;
                 }
@@ -1038,6 +1070,26 @@ mod tests {
     }
 
     #[test]
+    fn parses_blu_ray_media_and_progress_speed() {
+        let status = "\
+           Type: BD-R                Name: /dev/disk3
+   Writability: appendable
+   Space Free: 11826176 blocks
+   Space Used: 0 blocks
+   Write Speeds: 2x, 4x, 6x
+";
+        let media = parse_drutil_status(status).expect("bd media");
+        assert_eq!(media.kind, DiscMediaKind::BdR);
+        assert!(media.writable);
+        let progress = parse_progress_line("Writing: 50.0% at 4.0x", 100_000_000, media.kind)
+            .expect("bd progress");
+        let dvd_eta = (50_000_000.0f64 / (4.0 * crate::DVD_1X_BYTES_PER_SECOND)) as u64;
+        let bd_eta = (50_000_000.0f64 / (4.0 * crate::BD_1X_BYTES_PER_SECOND)) as u64;
+        assert_eq!(progress.eta_secs, Some(bd_eta));
+        assert!(bd_eta < dvd_eta);
+    }
+
+    #[test]
     fn detects_empty_macos_tray() {
         assert!(matches!(
             parse_drutil_status(EMPTY),
@@ -1080,13 +1132,15 @@ mod tests {
 
     #[test]
     fn parses_progress_percent_and_phases() {
-        let progress = parse_progress_line("Writing: 42.5% complete", 1000).expect("progress");
+        let progress = parse_progress_line("Writing: 42.5% complete", 1000, DiscMediaKind::DvdR)
+            .expect("progress");
         assert!((progress.percent - 42.5).abs() < 0.01);
         assert_eq!(progress.written_bytes, 425);
-        let phase = parse_progress_line("Closing session", 1000).expect("phase");
+        let phase =
+            parse_progress_line("Closing session", 1000, DiscMediaKind::DvdR).expect("phase");
         assert!((phase.percent - 98.0).abs() < 0.01);
         assert_eq!(
-            parse_progress_line("Burn completed successfully", 1000)
+            parse_progress_line("Burn completed successfully", 1000, DiscMediaKind::DvdR)
                 .expect("completed")
                 .percent,
             100.0

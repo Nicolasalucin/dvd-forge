@@ -427,6 +427,18 @@
         <option value="bd25">{t("BD-25 · 25 GB")}</option>
         <option value="bd50">{t("BD-50 · 50 GB")}</option>
       </select>
+      {#if project.disc.capacity === "dvd5" || project.disc.capacity === "dvd9"}
+        <select
+          class="shrink-0 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 outline-none focus:border-cyan-500/60"
+          value={project.disc.mode}
+          onchange={(event) =>
+            projectStore.setDiscMode(event.currentTarget.value as "dvdVideo" | "avchd")}
+          title={t("Formato de autoría")}
+        >
+          <option value="dvdVideo">{t("DVD-Video")}</option>
+          <option value="avchd">{t("AVCHD")}</option>
+        </select>
+      {/if}
     {/if}
   </div>
 

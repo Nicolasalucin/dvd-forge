@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n/index.svelte";
+  import { i18n, t } from "../i18n/index.svelte";
   import { commands } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
   import { projectStore } from "../stores/project.svelte";
@@ -10,7 +10,7 @@
   function formatDate(value: string): string {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString("es-ES", {
+    return date.toLocaleString(i18n.locale, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",

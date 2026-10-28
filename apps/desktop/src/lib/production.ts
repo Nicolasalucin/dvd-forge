@@ -35,8 +35,8 @@ export async function compositeProjectMenus(
       }
       const motion =
         menu.background.kind === "videoLoop" ||
-        (Boolean(menu.motionConfig) &&
-          menu.buttons.some((button) => button.motionPreview && button.thumbnail));
+        Boolean(menu.motionConfig) ||
+        menu.buttons.some((button) => Boolean(button.motionPreview && button.thumbnail));
       if (motion) {
         const exported = await exportMotionMenu(
           menu,

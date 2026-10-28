@@ -1,6 +1,6 @@
 use dvdforge_domain::{
     ButtonAction, Chapter, EpisodeId, FrameRate, LanguageCode, MenuId, MenuPlacement, MenuRole,
-    Project,
+    PostAction, Project,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -165,7 +165,6 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
                 request,
                 menu,
                 index + 1 + usize::from(request.intro.is_some()),
-                root_index,
                 &title_index,
                 mode_gprm,
             )?;
@@ -213,7 +212,6 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
                             request,
                             menu,
                             index + 1,
-                            root_index,
                             &title_index,
                             mode_gprm,
                         )?;
@@ -404,7 +402,6 @@ fn button_command(
     request: &AuthoringRequest<'_>,
     menu: &RenderedMenu,
     current_menu_index: usize,
-    root_index: usize,
     title_index: &HashMap<EpisodeId, usize>,
     mode_gprm: u8,
 ) -> Result<String, AuthorError> {
@@ -424,17 +421,15 @@ fn button_command(
             let title = title_index
                 .get(episode)
                 .ok_or(AuthorError::UnknownEpisode(*episode))?;
-            format!(
-                "g{mode_gprm}=0; jump title {title} chapter {};",
-                chapter.saturating_add(1)
-            )
+            let chapter = chapter.saturating_add(1);
+            if matches!(menu.placement, MenuPlacement::Vmgm) {
+                format!("g{mode_gprm}=0; jump titleset 1 title {title} chapter {chapter};")
+            } else {
+                format!("g{mode_gprm}=0; jump title {title} chapter {chapter};")
+            }
         }
         ButtonAction::SetAudioTrack { track } => {
-            if matches!(menu.placement, MenuPlacement::Vtsm { .. }) {
-                format!("audio={track}; jump menu {current_menu_index};")
-            } else {
-                format!("jump menu {root_index};")
-            }
+            format!("audio={track}; jump menu {current_menu_index};")
         }
         ButtonAction::Resume => "resume;".to_string(),
         ButtonAction::Noop => format!("jump menu {current_menu_index};"),
@@ -475,6 +470,19 @@ fn title_post(
     mode_gprm: u8,
 ) -> Result<String, AuthorError> {
     let current = request.episodes[title_index].episode;
+    let post_action = request
+        .project
+        .episode(current)
+        .map(|episode| episode.post_action)
+        .unwrap_or_default();
+    let fallback = match post_action {
+        PostAction::ReturnToMenu => format!("call vmgm menu {root_index};"),
+        PostAction::NextEpisode => match request.episodes.get(title_index + 1) {
+            Some(_) => format!("jump title {};", title_index + 2),
+            None => format!("call vmgm menu {root_index};"),
+        },
+        PostAction::Stop => "exit;".to_string(),
+    };
     let order: Vec<EpisodeId> = if request.project.play_all.order.is_empty() {
         request
             .episodes
@@ -485,7 +493,7 @@ fn title_post(
         request.project.play_all.order.clone()
     };
     let Some(position) = order.iter().position(|episode| *episode == current) else {
-        return Ok(format!("g{mode_gprm}=0; call vmgm menu {root_index};"));
+        return Ok(format!("g{mode_gprm}=0; {fallback}"));
     };
     if let Some(next) = order.get(position + 1) {
         let next_title = request
@@ -495,10 +503,10 @@ fn title_post(
             .map(|index| index + 1)
             .ok_or(AuthorError::UnknownEpisode(*next))?;
         Ok(format!(
-            "if (g{mode_gprm} == 1) {{ jump title {next_title}; }} else {{ call vmgm menu {root_index}; }}"
+            "if (g{mode_gprm} == 1) {{ jump title {next_title}; }} else {{ {fallback} }}"
         ))
     } else {
-        Ok(format!("g{mode_gprm}=0; call vmgm menu {root_index};"))
+        Ok(format!("g{mode_gprm}=0; {fallback}"))
     }
 }
 
@@ -708,6 +716,69 @@ mod tests {
         .expect("xml");
         assert!(xml.contains("entry=\"ptt\""));
         assert!(xml.contains("jump title 1 chapter 1;"));
+    }
+
+    #[test]
+    fn vmgm_chapter_and_audio_actions_use_full_title_commands() {
+        let project = fixture_project();
+        let mut menus = rendered_menus(&project);
+        let episode = project.episodes[0].id;
+        menus[0].buttons = vec![
+            AuthoredButton {
+                name: "chapter".to_string(),
+                action: ButtonAction::JumpTitleChapter {
+                    episode,
+                    chapter: 0,
+                },
+            },
+            AuthoredButton {
+                name: "audio".to_string(),
+                action: ButtonAction::SetAudioTrack { track: 2 },
+            },
+        ];
+        let episodes = episode_files(&project);
+        let xml = build_dvdauthor_xml(&AuthoringRequest {
+            project: &project,
+            intro: None,
+            menus: &menus,
+            episodes: &episodes,
+        })
+        .expect("xml");
+        assert!(xml.contains("g1=0; jump titleset 1 title 1 chapter 1;"));
+        assert!(xml.contains("audio=2; jump menu 1;"));
+    }
+
+    #[test]
+    fn title_post_honours_episode_post_action() {
+        let mut project = fixture_project();
+        let first = project.episodes[0].id;
+        project.play_all.order = vec![first];
+        project.episodes[0].post_action = PostAction::Stop;
+        let menus = rendered_menus(&project);
+        let mut episodes = episode_files(&project);
+        let xml = build_dvdauthor_xml(&AuthoringRequest {
+            project: &project,
+            intro: None,
+            menus: &menus,
+            episodes: &episodes,
+        })
+        .expect("xml");
+        assert!(xml.contains("g1=0; exit;"));
+
+        project.episodes[0].post_action = PostAction::NextEpisode;
+        let mut second = episodes[0].clone();
+        second.episode = EpisodeId::from_u128(99);
+        second.number = 2;
+        second.path = PathBuf::from("/tmp/episode-2.mpg");
+        episodes.push(second);
+        let xml = build_dvdauthor_xml(&AuthoringRequest {
+            project: &project,
+            intro: None,
+            menus: &menus,
+            episodes: &episodes,
+        })
+        .expect("xml");
+        assert!(xml.contains("g1=0; jump title 2;"));
     }
 
     #[test]

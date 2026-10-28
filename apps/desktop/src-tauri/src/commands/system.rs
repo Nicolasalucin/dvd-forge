@@ -8,14 +8,7 @@ pub fn tools_doctor() -> dvdforge_toolchain::ToolchainReport {
 #[specta::specta]
 pub fn open_folder(path: String) -> Result<(), String> {
     let requested = std::path::PathBuf::from(&path);
-    let target = if requested.is_file() {
-        requested
-            .parent()
-            .map(std::path::Path::to_path_buf)
-            .unwrap_or(requested)
-    } else {
-        requested
-    };
+    let target = resolve_folder_target(&requested);
     if !target.exists() {
         return Err(format!(
             "La carpeta todavía no existe: {}",
@@ -34,4 +27,17 @@ pub fn open_folder(path: String) -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|error| error.to_string())
+}
+
+fn resolve_folder_target(requested: &std::path::Path) -> std::path::PathBuf {
+    if requested.is_file() {
+        requested
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(std::path::Path::to_path_buf)
+            .or_else(|| std::env::current_dir().ok())
+            .unwrap_or_else(|| requested.to_path_buf())
+    } else {
+        requested.to_path_buf()
+    }
 }

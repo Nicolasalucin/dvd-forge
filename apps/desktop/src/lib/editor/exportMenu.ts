@@ -398,22 +398,7 @@ function drawButton(
       context.lineWidth = 2;
       context.stroke();
       if (image && layout.thumbnail) {
-        const area = layout.thumbnail;
-        context.save();
-        context.beginPath();
-        context.rect(area.x, area.y, area.w, area.h);
-        context.clip();
-        const scale = Math.max(area.w / image.width, area.h / image.height);
-        const drawWidth = image.width * scale;
-        const drawHeight = image.height * scale;
-        context.drawImage(
-          image,
-          area.x + (area.w - drawWidth) / 2,
-          area.y + (area.h - drawHeight) / 2,
-          drawWidth,
-          drawHeight,
-        );
-        context.restore();
+        drawThumbnail(context, layout.thumbnail, image);
       } else if (layout.thumbnail) {
         context.fillStyle = "rgba(30, 41, 59, 0.9)";
         context.fillRect(
@@ -440,6 +425,9 @@ function drawButton(
       context.strokeStyle = "rgba(226, 232, 240, 0.65)";
       context.lineWidth = 2;
       context.stroke();
+      if (image && layout.thumbnail) {
+        drawThumbnail(context, layout.thumbnail, image);
+      }
       break;
     case "playBadge": {
       roundedRect(context, 0, 0, width, height, height / 2);
@@ -467,6 +455,28 @@ function drawButton(
   }
 
   drawButtonLabel(context, button, layout);
+}
+
+function drawThumbnail(
+  context: CanvasRenderingContext2D,
+  area: { x: number; y: number; w: number; h: number },
+  image: HTMLImageElement,
+): void {
+  context.save();
+  context.beginPath();
+  context.rect(area.x, area.y, area.w, area.h);
+  context.clip();
+  const scale = Math.max(area.w / image.width, area.h / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  context.drawImage(
+    image,
+    area.x + (area.w - drawWidth) / 2,
+    area.y + (area.h - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
+  context.restore();
 }
 
 export function compileButton(
@@ -541,7 +551,7 @@ function renderMask(
       traceShape(context, x0, y0, widthPx, heightPx, button.shapeMask);
       context.fill();
     }
-    context.strokeStyle = selected ? selectColor : highlightColor;
+    context.strokeStyle = highlightColor;
     context.lineWidth = border;
     traceShape(
       context,
@@ -553,7 +563,46 @@ function renderMask(
     );
     context.stroke();
   }
+  quantizeMask(canvas, palette);
   return canvas;
+}
+
+/**
+ * HTML5 Canvas antialiases curved and diagonal edges, producing dozens of
+ * intermediate alpha values that DVD subpictures cannot represent. Snap every
+ * pixel to either transparent or the nearest of the two subpicture colors.
+ */
+function quantizeMask(canvas: HTMLCanvasElement, palette: SubpicturePalette): void {
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error(t("No se pudo validar la paleta de la subimagen."));
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = image.data;
+  const highlight = palette.colors[1].rgb;
+  const select = palette.colors[2].rgb;
+  for (let index = 0; index < data.length; index += 4) {
+    if (data[index + 3] < 128) {
+      data[index] = 0;
+      data[index + 1] = 0;
+      data[index + 2] = 0;
+      data[index + 3] = 0;
+      continue;
+    }
+    const red = data[index];
+    const green = data[index + 1];
+    const blue = data[index + 2];
+    const highlightDistance =
+      (red - highlight[0]) ** 2 +
+      (green - highlight[1]) ** 2 +
+      (blue - highlight[2]) ** 2;
+    const selectDistance =
+      (red - select[0]) ** 2 + (green - select[1]) ** 2 + (blue - select[2]) ** 2;
+    const color = highlightDistance <= selectDistance ? highlight : select;
+    data[index] = color[0];
+    data[index + 1] = color[1];
+    data[index + 2] = color[2];
+    data[index + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
 }
 
 function traceShape(

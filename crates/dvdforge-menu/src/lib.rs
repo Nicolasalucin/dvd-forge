@@ -373,10 +373,19 @@ pub fn shift_srt(input: &str, delay_ms: i64) -> Result<String, MenuError> {
             continue;
         };
         let (start, end) = parse_srt_timing(lines[timing_index])?;
-        let shifted_start = (start + delay_ms).max(0);
-        let shifted_end = (end + delay_ms).max(shifted_start + 1);
-        output.push_str(&lines[..timing_index].join("\n"));
-        output.push('\n');
+        let shifted_start = start + delay_ms;
+        let shifted_end = end + delay_ms;
+        if shifted_end <= 0 {
+            // El bloque completo queda antes del inicio: descartarlo evita
+            // colapsar varios subtítulos en 00:00:00,000.
+            continue;
+        }
+        let shifted_start = shifted_start.max(0);
+        let shifted_end = shifted_end.max(shifted_start + 1);
+        if timing_index > 0 {
+            output.push_str(&lines[..timing_index].join("\n"));
+            output.push('\n');
+        }
         output.push_str(&format!(
             "{} --> {}\n",
             format_srt_time(shifted_start),
@@ -1021,6 +1030,12 @@ mod tests {
         let negative = shift_srt(input, -2_000).expect("negative shift");
         assert!(negative.contains("00:00:00,000 --> 00:00:01,500"));
         assert!(negative.contains("00:00:03,000 --> 00:00:04,000"));
+
+        let clipped = shift_srt(input, -5_000).expect("clipped shift");
+        assert!(!clipped.starts_with('\n'));
+        assert!(!clipped.contains("Hola"));
+        assert!(clipped.contains("00:00:00,000 --> 00:00:01,000"));
+        assert!(clipped.contains("Mundo"));
     }
 
     #[test]

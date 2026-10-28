@@ -191,13 +191,33 @@ function normalizeProject(project: Project_Serialize): void {
               : { kind: "playAll" };
           }
           break;
-        case "jumpTitleChapter":
-          if (!episodeIds.has(button.action.episode)) {
-            button.action = firstEpisode
-              ? { kind: "jumpTitleChapter", episode: firstEpisode, chapter: 0 }
-              : { kind: "playAll" };
+        case "jumpTitleChapter": {
+          const action = button.action;
+          const target = project.episodes.find(
+            (episode) => episode.id === action.episode,
+          );
+          if (!target) {
+            const chapterEpisode = project.episodes.find(
+              (episode) => episode.chapters.length > 0,
+            );
+            button.action = chapterEpisode
+              ? { kind: "jumpTitleChapter", episode: chapterEpisode.id, chapter: 0 }
+              : firstEpisode
+                ? { kind: "playEpisode", episode: firstEpisode }
+                : { kind: "playAll" };
+          } else if (target.chapters.length === 0) {
+            // Un salto al primer capítulo de un título sin capítulos es
+            // inválido; reproducir el episodio desde el inicio es la
+            // intención más cercana.
+            button.action = { kind: "playEpisode", episode: target.id };
+          } else {
+            button.action = {
+              ...action,
+              chapter: Math.min(action.chapter, target.chapters.length - 1),
+            };
           }
           break;
+        }
         case "gotoMenu":
           if (!menuIds.has(button.action.menu)) {
             button.action = { kind: "gotoMenu", menu: project.rootMenu };
@@ -350,6 +370,7 @@ class ProjectStore {
   setProject(project: Project_Serialize): void {
     normalizeProject(project);
     this.project = project;
+    this.syncPlayAll();
     this.plan = null;
     this.planError = null;
     this.error = null;
@@ -685,6 +706,7 @@ class ProjectStore {
     };
     project.episodes = [...project.episodes, episode];
     this.selectedEpisodeId = episode.id;
+    this.syncPlayAll();
     const menu = this.activeMenu;
     if (menu && menu.buttons.length === 0) {
       const button = this.makeButton(
@@ -931,7 +953,8 @@ class ProjectStore {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return false;
     const start = episode.trimStartMs ?? 0;
-    const offset = Math.max(0, sourceMs - start);
+    if (sourceMs < start) return false;
+    const offset = sourceMs - start;
     const duration = this.episodeEffectiveDuration(episode);
     if (offset >= duration - 500) return false;
     if (episode.chapters.some((chapter) => Math.abs(this.chapterTimeMs(episode, chapter) - offset) < 1000)) {
@@ -955,6 +978,7 @@ class ProjectStore {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
     episode.chapters = episode.chapters.filter((chapter) => chapter.id !== chapterId);
+    this.clampChapterActions(episodeId, episode);
     this.touch();
   }
 
@@ -975,6 +999,7 @@ class ProjectStore {
       atFrame: Math.round((offset / 1000) * this.frameRate),
       thumbnail: null,
     }));
+    this.clampChapterActions(episodeId, episode);
     this.touch();
   }
 
@@ -990,6 +1015,7 @@ class ProjectStore {
       ...item,
       number: position + 1,
     }));
+    this.syncPlayAll();
     this.touch();
   }
 
@@ -1001,13 +1027,31 @@ class ProjectStore {
       ...item,
       number: position + 1,
     }));
+    const fallback = project.episodes[0] ?? null;
+    const chapterFallback =
+      project.episodes.find((episode) => episode.chapters.length > 0) ?? null;
     for (const menu of project.menus) {
       for (const button of menu.buttons) {
-        if (button.action.kind === "playEpisode" && button.action.episode === episodeId) {
-          button.action = { kind: "playAll" };
+        if (
+          button.action.kind === "playEpisode" &&
+          button.action.episode === episodeId
+        ) {
+          button.action = fallback
+            ? { kind: "playEpisode", episode: fallback.id }
+            : { kind: "playAll" };
+        } else if (
+          button.action.kind === "jumpTitleChapter" &&
+          button.action.episode === episodeId
+        ) {
+          button.action = chapterFallback
+            ? { kind: "jumpTitleChapter", episode: chapterFallback.id, chapter: 0 }
+            : fallback
+              ? { kind: "playEpisode", episode: fallback.id }
+              : { kind: "playAll" };
         }
       }
     }
+    this.syncPlayAll();
     this.selectedEpisodeId = project.episodes[0]?.id ?? null;
     this.touch();
   }
@@ -1191,6 +1235,7 @@ class ProjectStore {
         );
         menu.buttons = [...menu.buttons, button];
         this.selectedButtonId = button.id;
+        this.syncPlayAll();
         this.touch();
         return true;
       }
@@ -1212,6 +1257,7 @@ class ProjectStore {
 
   updateButtonAction(id: string, action: MenuButton_Serialize["action"]): void {
     this.updateButton(id, { action });
+    this.syncPlayAll();
   }
 
   updateButtonRect(
@@ -1254,6 +1300,7 @@ class ProjectStore {
     if (!menu || !this.selectedButtonId) return;
     menu.buttons = menu.buttons.filter((button) => button.id !== this.selectedButtonId);
     this.selectedButtonId = menu.buttons[0]?.id ?? null;
+    this.syncPlayAll();
     this.touch();
   }
 
@@ -1378,11 +1425,86 @@ class ProjectStore {
     menu.buttons = buttons;
     this.selectedButtonId = buttons[0]?.id ?? null;
     this.error = null;
+    this.syncPlayAll();
     this.touch();
     for (const episode of episodes) {
       void this.ensureVideoThumbnail(episode.video);
     }
     return true;
+  }
+
+  /**
+   * Keeps the play-all configuration aligned with the episode list and the
+   * buttons that actually trigger it. Rust validation rejects stale episode
+   * IDs and warns when a play-all button points at a disabled feature.
+   */
+  private syncPlayAll(): void {
+    const project = this.project;
+    if (!project) return;
+    project.playAll.order = project.episodes.map((episode) => episode.id);
+    project.playAll.enabled = project.menus.some((menu) =>
+      menu.buttons.some((button) => button.action.kind === "playAll"),
+    );
+  }
+
+  private clampChapterActions(episodeId: string, episode: Episode_Serialize): void {
+    const project = this.project;
+    if (!project) return;
+    for (const menu of project.menus) {
+      for (const button of menu.buttons) {
+        if (
+          button.action.kind !== "jumpTitleChapter" ||
+          button.action.episode !== episodeId
+        ) {
+          continue;
+        }
+        if (episode.chapters.length === 0) {
+          button.action = { kind: "playEpisode", episode: episodeId };
+        } else {
+          button.action = {
+            ...button.action,
+            chapter: Math.min(button.action.chapter, episode.chapters.length - 1),
+          };
+        }
+      }
+    }
+  }
+
+  /**
+   * Reflows a menu when its canvas changes (DVD ↔ AVCHD). Every rectangle is
+   * normalized and rounded to even pixels so the DVD subpicture masks remain
+   * valid after the conversion.
+   */
+  private rescaleMenu(menu: Menu_Serialize, next: Menu_Serialize["canvas"]): void {
+    const previousHeight = menu.canvas.height || next.height;
+    const factor = next.height / previousHeight;
+    for (const button of menu.buttons) {
+      const rect = normalizeRect(button.rect, next.width, previousHeight);
+      button.rect = this.evenRect(
+        {
+          x: rect.x0,
+          y: rect.y0 * factor,
+          w: rect.x1 - rect.x0,
+          h: (rect.y1 - rect.y0) * factor,
+        },
+        next.width,
+        next.height,
+      );
+    }
+    for (const item of menu.items) {
+      const rect = normalizeRect(item.rect, next.width, previousHeight);
+      item.rect = this.evenRect(
+        {
+          x: rect.x0,
+          y: rect.y0 * factor,
+          w: rect.x1 - rect.x0,
+          h: (rect.y1 - rect.y0) * factor,
+        },
+        next.width,
+        next.height,
+      );
+    }
+    menu.canvas = next;
   }
 
   private evenRect(
@@ -1419,7 +1541,13 @@ class ProjectStore {
       project.disc.aspect = "sixteenNine";
       project.budget = { ...AVCHD_BUDGET };
       project.firstPlay = null;
-      if (project.menus.length === 0) this.createRootMenu(project);
+      if (project.menus.length === 0) {
+        this.createRootMenu(project);
+      } else {
+        for (const menu of project.menus) {
+          this.rescaleMenu(menu, canvasFor("ntsc", "sixteenNine"));
+        }
+      }
       this.selectedMenuId = project.menus[0]?.id ?? null;
       this.studioMode = project.menus.length > 0 ? "menu" : "trim";
     } else {
@@ -1436,7 +1564,14 @@ class ProjectStore {
         trellis: true,
       };
       project.budget = { ...DVD_BUDGET };
-      this.createRootMenu(project);
+      if (project.menus.length === 0) {
+        this.createRootMenu(project);
+      } else {
+        for (const menu of project.menus) {
+          this.rescaleMenu(menu, canvasFor(project.disc.standard, project.disc.aspect));
+        }
+      }
+      this.selectedMenuId = project.menus[0]?.id ?? null;
       this.studioMode = "menu";
     }
     this.touch();
@@ -1509,21 +1644,12 @@ class ProjectStore {
       project.budget.headerMarginPpm = 30_000;
       project.budget.muxOverheadPpm = 50_000;
       for (const menu of project.menus) {
-        const previousHeight = menu.canvas.height || 480;
-        const factor = 480 / previousHeight;
-        menu.canvas.tvStandard = "ntsc";
-        menu.canvas.aspect = "sixteenNine";
-        menu.canvas.height = 480;
-        if (factor !== 1) {
-          for (const button of menu.buttons) {
-            button.rect.y = (button.rect.y ?? 0) * factor;
-            button.rect.h = (button.rect.h ?? 0) * factor;
-          }
-          for (const item of menu.items) {
-            item.rect.y = (item.rect.y ?? 0) * factor;
-            item.rect.h = (item.rect.h ?? 0) * factor;
-          }
-        }
+        this.rescaleMenu(menu, {
+          ...menu.canvas,
+          tvStandard: "ntsc",
+          aspect: "sixteenNine",
+          height: 480,
+        });
       }
     } else if (project.disc.mode === "avchd") {
       if (project.disc.video.kind === "avchd") {
@@ -1595,6 +1721,9 @@ class ProjectStore {
     if (patch === null) {
       button.motionPreview = null;
     } else {
+      if (!this.activeMenu?.motionConfig) {
+        this.updateMenuMotion({});
+      }
       button.motionPreview = {
         sourceStartMs: 0,
         loopDurationMs: 10_000,

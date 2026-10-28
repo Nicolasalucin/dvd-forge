@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "../i18n/index.svelte";
+  import { i18n, t } from "../i18n/index.svelte";
   import type {
     ButtonAction,
     ButtonStyleKind,
@@ -103,8 +103,16 @@
   function setActionKind(kind: ButtonAction["kind"]) {
     if (!button) return;
     const fallbackEpisode = episode ?? episodes[0];
+    const chapterEpisode =
+      fallbackEpisode && fallbackEpisode.chapters.length > 0
+        ? fallbackEpisode
+        : episodes.find((item) => item.chapters.length > 0);
     if ((kind === "playEpisode" || kind === "jumpTitleChapter") && !fallbackEpisode) {
       localError = t("Añade un episodio antes de asignar esta acción.");
+      return;
+    }
+    if (kind === "jumpTitleChapter" && !chapterEpisode) {
+      localError = t("Añade un capítulo a un episodio antes de asignar esta acción.");
       return;
     }
     const targetMenu = menu?.id ?? project?.rootMenu ?? menus[0]?.id;
@@ -121,7 +129,7 @@
         action = { kind, menu: targetMenu! };
         break;
       case "jumpTitleChapter":
-        action = { kind, episode: fallbackEpisode!.id, chapter: 0 };
+        action = { kind, episode: chapterEpisode!.id, chapter: 0 };
         break;
       case "setAudioTrack":
         action = { kind, track: 0 };
@@ -145,6 +153,13 @@
     if (button.action.kind === "gotoMenu" && patch.menu === "") {
       localError = t("Selecciona un menú válido.");
       return;
+    }
+    if (button.action.kind === "jumpTitleChapter" && typeof patch.episode === "string") {
+      const target = episodes.find((item) => item.id === patch.episode);
+      if (!target || target.chapters.length === 0) {
+        localError = t("El episodio seleccionado no tiene capítulos.");
+        return;
+      }
     }
     projectStore.updateButtonAction(button.id, {
       ...button.action,
@@ -211,7 +226,9 @@
   }
 
   function chapterTime(chapter: Episode_Serialize["chapters"][number]): number {
-    return episode ? projectStore.chapterTimeMs(episode, chapter) : 0;
+    return episode
+      ? (episode.trimStartMs ?? 0) + projectStore.chapterTimeMs(episode, chapter)
+      : 0;
   }
 
   function removeChapter(chapterId: string) {
@@ -1057,7 +1074,7 @@
                 </div>
               </dl>
               <ul class="mt-2 space-y-1">
-                {#each episode.audio as track, index (track.sourceStream)}
+                {#each episode.audio as track, index (index)}
                   <li class="flex items-center justify-between gap-2 rounded border border-slate-800 bg-slate-950/50 px-1.5 py-1 text-[9px]">
                     <span class="truncate text-amber-200/80">A{index + 1} · {track.label}</span>
                     <span class="font-mono text-slate-500">{track.delayMs > 0 ? "+" : ""}{track.delayMs} ms</span>
@@ -1114,7 +1131,7 @@
               <dl class="mt-2 space-y-1 text-[10px]">
                 <div class="flex justify-between gap-2">
                   <dt class="text-slate-500">{t("Promedio")}</dt>
-                  <dd class="font-mono text-cyan-300">{projectStore.plan.videoKbps.toLocaleString("es-ES")} kbps</dd>
+                  <dd class="font-mono text-cyan-300">{projectStore.plan.videoKbps.toLocaleString(i18n.locale)} kbps</dd>
                 </div>
                 <div class="flex justify-between gap-2">
                   <dt class="text-slate-500">{t("Llenado")}</dt>
