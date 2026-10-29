@@ -49,7 +49,14 @@
       button.id,
       enabled
         ? {
-            sourceStartMs: button.motionPreview?.sourceStartMs ?? (button.thumbnail?.inFrame ?? 0) * 1000,
+            sourceStartMs:
+              button.motionPreview?.sourceStartMs ??
+              (button.thumbnail && button.thumbnail.fps.num > 0
+                ? Math.round(
+                    (button.thumbnail.inFrame * 1000 * button.thumbnail.fps.den) /
+                      button.thumbnail.fps.num,
+                  )
+                : 0),
             loopDurationMs: button.motionPreview?.loopDurationMs ?? 10_000,
           }
         : null,

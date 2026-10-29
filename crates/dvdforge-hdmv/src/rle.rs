@@ -54,6 +54,39 @@ pub fn encode_rle(pixels: &[u8]) -> Vec<u8> {
     writer.finish()
 }
 
+/// Encodes an indexed object bitmap line by line, as the BD-ROM PG/IG object
+/// syntax requires: runs never cross a line boundary and every line ends with
+/// the `00 00` end_of_line code. Colour runs shorter than three pixels use the
+/// one-byte form. Every code is byte aligned, so no bit writer is needed.
+pub fn encode_rle_lines(pixels: &[u8], width: usize) -> Vec<u8> {
+    if width == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::with_capacity(pixels.len() + 2 * pixels.len().div_ceil(width));
+    for line in pixels.chunks(width) {
+        let mut index = 0usize;
+        while index < line.len() {
+            let color = line[index];
+            let mut run = 1usize;
+            while index + run < line.len() && line[index + run] == color && run < MAX_RUN {
+                run += 1;
+            }
+            index += run;
+            let (high, low) = ((run >> 8) as u8, run as u8);
+            match (color, run) {
+                (0, 1..=63) => out.extend_from_slice(&[0x00, low]),
+                (0, _) => out.extend_from_slice(&[0x00, 0x40 | high, low]),
+                (_, 1) => out.push(color),
+                (_, 2) => out.extend_from_slice(&[color, color]),
+                (_, 3..=63) => out.extend_from_slice(&[0x00, 0x80 | low, color]),
+                (_, _) => out.extend_from_slice(&[0x00, 0xC0 | high, low, color]),
+            }
+        }
+        out.extend_from_slice(&[0x00, 0x00]);
+    }
+    out
+}
+
 /// Inverse used by unit tests and diagnostics.
 pub fn decode_rle(bytes: &[u8], pixel_count: usize) -> Result<Vec<u8>, RleError> {
     let mut reader = BitReader::new(bytes);
@@ -72,6 +105,10 @@ pub fn decode_rle(bytes: &[u8], pixel_count: usize) -> Result<Vec<u8>, RleError>
             .read_bits(if long { 14 } else { 6 })
             .ok_or(RleError::Truncated(pixel_count))? as usize;
         if len == 0 {
+            if !colored && !long {
+                // `00 00`: end_of_line.
+                continue;
+            }
             return Err(RleError::ZeroLength);
         }
         let color = if colored {
@@ -178,5 +215,20 @@ mod tests {
     #[test]
     fn rejects_a_truncated_stream() {
         assert_eq!(decode_rle(&[], 3), Err(RleError::Truncated(3)));
+    }
+
+    #[test]
+    fn line_encoding_ends_every_line_and_never_spans_lines() {
+        let pixels = [3u8, 3, 3, 3, 3, 3, 3, 0, 0, 7];
+        let encoded = encode_rle_lines(&pixels, 5);
+        assert_eq!(
+            encoded,
+            vec![0x00, 0x85, 0x03, 0x00, 0x00, 0x03, 0x03, 0x00, 0x02, 0x07, 0x00, 0x00]
+        );
+        assert_eq!(decode_rle(&encoded, pixels.len()), Ok(pixels.to_vec()));
+        let wide = vec![9u8; 1920 * 4];
+        let encoded = encode_rle_lines(&wide, 1920);
+        assert_eq!(encoded.len(), 4 * (4 + 2));
+        assert_eq!(decode_rle(&encoded, wide.len()), Ok(wide));
     }
 }

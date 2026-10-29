@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -15,6 +16,24 @@ use std::time::{Duration, Instant};
 /// the list explicit blocks `http`, `concat`, `subfile` and similar protocols
 /// that a crafted playlist or IPC path could otherwise trigger.
 pub const MEDIA_PROTOCOL_WHITELIST: &str = "file,pipe";
+
+/// `CREATE_NO_WINDOW`: the release desktop build uses the Windows GUI
+/// subsystem, so a console child spawned without it opens its own console
+/// window (and closing that window kills the child).
+pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// `std::process::Command` that never opens a console window on Windows.
+/// Wrap it with `tokio::process::Command::from` for async spawns.
+pub fn background_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -346,32 +365,84 @@ pub fn output_with_timeout(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| std::io::Error::other("stdout no redirigido"))?;
+    let mut stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| std::io::Error::other("stderr no redirigido"))?;
+    // Drain both pipes concurrently with the child. Windows anonymous pipes
+    // hold only 4 KiB; polling try_wait without reading deadlocks the child as
+    // soon as a version banner or diagnostic exceeds that buffer.
+    let stdout_reader = std::thread::spawn(move || -> std::io::Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+        stdout.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    });
+    let stderr_reader = std::thread::spawn(move || -> std::io::Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+        stderr.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    });
     let started = Instant::now();
-    loop {
-        if child.try_wait()?.is_some() {
-            return child.wait_with_output();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
         }
         if started.elapsed() >= timeout {
             let _ = child.kill();
             let _ = child.wait();
+            // Don't join the readers: a grandchild that inherited the pipes
+            // (wrapper script, `sh -c`) keeps them open after the kill and
+            // would hold us past the deadline. The threads exit on EOF.
+            drop(stdout_reader);
+            drop(stderr_reader);
             return Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
                 format!("el comando superó el límite de {timeout:?}"),
             ));
         }
         std::thread::sleep(Duration::from_millis(20));
-    }
+    };
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| std::io::Error::other("lector de stdout abortado"))??;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| std::io::Error::other("lector de stderr abortado"))??;
+    Ok(std::process::Output {
+        status,
+        stdout,
+        stderr,
+    })
 }
 
 /// Detects every tool in `ToolId::ALL`, filtered by platform.
 pub fn detect_toolchain() -> ToolchainReport {
     let platform = env::consts::OS;
     let directories = default_search_directories();
-    let statuses = SPECS
-        .iter()
-        .filter(|spec| tool_supported_on(spec.id, platform))
-        .map(|spec| detect_tool(spec, platform, &directories))
-        .collect();
+    // Each probe spawns a process (5 s timeout); run them in parallel so the
+    // doctor costs max(probe) instead of sum(probes). Order is preserved.
+    let statuses: Vec<ToolStatus> = std::thread::scope(|scope| {
+        let probes: Vec<_> = SPECS
+            .iter()
+            .filter(|spec| tool_supported_on(spec.id, platform))
+            .map(|spec| {
+                let directories = &directories;
+                scope.spawn(move || detect_tool(spec, platform, directories))
+            })
+            .collect();
+        probes
+            .into_iter()
+            .map(|probe| {
+                probe
+                    .join()
+                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+            })
+            .collect()
+    });
     ToolchainReport::from_statuses(statuses)
 }
 
@@ -393,7 +464,7 @@ fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> Tool
     };
 
     let output = output_with_timeout(
-        Command::new(&path).args(spec.version_args),
+        background_command(&path).args(spec.version_args),
         Duration::from_secs(5),
     );
     match output {
@@ -716,6 +787,21 @@ mod tests {
             resolve_binary("dvdforge-tool-that-does-not-exist"),
             PathBuf::from("dvdforge-tool-that-does-not-exist")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_with_timeout_drains_large_stdout_and_stderr() {
+        let output = output_with_timeout(
+            Command::new("sh").args(["-c", "seq 1 200000; seq 1 200000 >&2"]),
+            Duration::from_secs(30),
+        )
+        .expect("large output");
+        assert!(output.status.success());
+        assert!(output.stdout.len() > 4 * 1024);
+        assert!(output.stderr.len() > 4 * 1024);
+        assert!(output.stdout.starts_with(b"1\n"));
+        assert!(output.stderr.starts_with(b"1\n"));
     }
 
     #[cfg(unix)]

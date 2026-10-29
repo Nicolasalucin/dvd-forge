@@ -17,11 +17,10 @@ use dvdforge_dvd::{
     RenderedMenu, VideoEncodeConfig,
 };
 use dvdforge_hdmv::{
-    append_menu_movie_object, compile_ig_m2ts, compile_ig_pes, compile_ig_pes_packets,
-    dummy_pgs_for_slots, frame_rate_code, inject_ig_into_menu_m2ts, jump_object, jump_title,
-    movie_object_count, patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count,
-    set_audio_stream, set_gpr, set_index_menu_object, HdmvButton, HdmvButtonState, HdmvCommand,
-    HdmvMenu, RgbaBitmap,
+    append_menu_movie_object, compile_ig_pes_packets, dummy_pgs_for_slots, frame_rate_code,
+    inject_ig_into_menu_m2ts, jump_object, jump_title, m2ts_from_pes_packets, movie_object_count,
+    patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count, set_audio_stream, set_gpr,
+    set_index_menu_object, HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu, RgbaBitmap,
 };
 use dvdforge_iso::{BdmvIsoBuilder, Xorriso};
 use dvdforge_jobs::{ArtifactKind, JobEventKind, JobStage};
@@ -36,7 +35,7 @@ use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -52,6 +51,10 @@ pub type EventSink = mpsc::Sender<JobEventKind>;
 /// tsMuxeR/BDAV timelines start at 600 seconds. Menu IG packets are aligned to
 /// that origin so the interactive composition is valid on a real playlist.
 pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
+
+/// Bump when the FFmpeg arguments or the encoded artifact layout change so
+/// existing cache entries are invalidated.
+const ENCODER_REV: u32 = 1;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -248,33 +251,34 @@ async fn render_dvd_project(
     let intro = encode_intro(&project, &probes, &project_dir, &output_dir, &encoder).await?;
     progress(&events, JobStage::EncodeIntro, 1000).await;
 
-    stage(&events, JobStage::EncodeEpisodes, "Codificando episodios").await;
-    let episodes = encode_episodes(
-        &project,
-        &probes,
-        &project_dir,
-        &output_dir,
-        &encoder,
-        &plan,
-        &events,
-    )
-    .await?;
-
     stage(
         &events,
-        JobStage::EncodeMenus,
-        "Compilando menús con spumux",
+        JobStage::EncodeEpisodes,
+        "Codificando episodios y compilando menús",
     )
     .await;
-    let menus = render_menus(
-        &project,
-        &project_dir,
-        &output_dir,
-        &encoder,
-        &events,
-        composited_backgrounds.as_deref(),
-    )
-    .await?;
+    // Episodes and menus are independent: overlap them instead of adding the
+    // whole menu encode to the episode encode. If one side fails, try_join!
+    // drops the other future and its children are killed on drop.
+    let (episodes, menus) = tokio::try_join!(
+        encode_episodes(
+            &project,
+            &probes,
+            &project_dir,
+            &output_dir,
+            &encoder,
+            &plan,
+            &events,
+        ),
+        render_menus(
+            &project,
+            &project_dir,
+            &output_dir,
+            &encoder,
+            &events,
+            composited_backgrounds.as_deref(),
+        ),
+    )?;
 
     ensure_not_cancelled(&cancel)?;
     stage(&events, JobStage::Author, "Compilando DVD con dvdauthor").await;
@@ -337,43 +341,77 @@ async fn collect_probes(
     project_dir: &Path,
     refresh: bool,
 ) -> HashMap<AssetId, MediaProbe> {
-    let mut probes = HashMap::new();
-    for asset in &project.assets {
-        probes.insert(asset.id, asset.probe.clone());
-        if !refresh || asset.kind != MediaKind::Video {
-            continue;
-        }
+    let mut probes: HashMap<AssetId, MediaProbe> = project
+        .assets
+        .iter()
+        .map(|asset| (asset.id, asset.probe.clone()))
+        .collect();
+    if !refresh {
+        return probes;
+    }
+    let ffprobe = Ffprobe::default();
+    let permits = Arc::new(tokio::sync::Semaphore::new(4));
+    let mut set = tokio::task::JoinSet::new();
+    for asset in project
+        .assets
+        .iter()
+        .filter(|asset| asset.kind == MediaKind::Video)
+    {
         let Some(path) = asset_path(project_dir, asset) else {
             continue;
         };
         if !path.is_file() {
             continue;
         }
-        if let Ok(probe) = Ffprobe::default().probe(&path).await {
-            probes.insert(asset.id, probe);
+        let id = asset.id;
+        let ffprobe = ffprobe.clone();
+        let permits = Arc::clone(&permits);
+        set.spawn(async move {
+            let _permit = permits.acquire_owned().await.ok()?;
+            ffprobe.probe(&path).await.ok().map(|probe| (id, probe))
+        });
+    }
+    while let Some(joined) = set.join_next().await {
+        if let Ok(Some((id, probe))) = joined {
+            probes.insert(id, probe);
         }
     }
     probes
 }
 
-async fn sha256_file(path: &Path) -> Result<String, RenderError> {
+/// Cheap content fingerprint: size, mtime and the first/last 8 MiB.
+///
+/// Hashing a multi-gigabyte source before every episode was a full extra I/O
+/// pass. The `fp1:` prefix invalidates the old SHA-256 cache entries on
+/// purpose, because the stored value no longer represents a whole-file hash.
+async fn source_fingerprint(path: &Path) -> Result<String, RenderError> {
     let path = path.to_path_buf();
-    let hash = tokio::task::spawn_blocking(move || -> Result<String, std::io::Error> {
-        let mut file = std::fs::File::open(path)?;
+    tokio::task::spawn_blocking(move || -> std::io::Result<String> {
+        const EDGE: u64 = 8 << 20;
+        let mut file = std::fs::File::open(&path)?;
+        let meta = file.metadata()?;
+        let len = meta.len();
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0, |duration| duration.as_nanos());
         let mut hasher = Sha256::new();
-        let mut buffer = [0u8; 1024 * 1024];
-        loop {
-            let read = file.read(&mut buffer)?;
-            if read == 0 {
-                break;
-            }
-            hasher.update(&buffer[..read]);
+        hasher.update(len.to_le_bytes());
+        hasher.update(mtime.to_le_bytes());
+        let mut buffer = vec![0u8; EDGE.min(len) as usize];
+        file.read_exact(&mut buffer)?;
+        hasher.update(&buffer);
+        if len > EDGE {
+            file.seek(SeekFrom::Start(len - EDGE))?;
+            file.read_exact(&mut buffer)?;
+            hasher.update(&buffer);
         }
-        Ok(hex::encode(hasher.finalize()))
+        Ok(format!("fp1:{}", hex::encode(hasher.finalize())))
     })
     .await
-    .map_err(|error| RenderError::Encode(format!("hash cancelado: {error}")))??;
-    Ok(hash)
+    .map_err(|error| RenderError::Encode(format!("huella cancelada: {error}")))?
+    .map_err(RenderError::Io)
 }
 
 fn audio_params_hash(episode: &Episode) -> String {
@@ -383,7 +421,7 @@ fn audio_params_hash(episode: &Episode) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn cached_artifact_path(
+async fn cached_artifact_path(
     store: &Store,
     key: &ArtifactKey,
     extension: &str,
@@ -394,10 +432,25 @@ fn cached_artifact_path(
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::copy(source, &target)?;
-    store
-        .put_artifact(key, &target, duration_ms)
-        .map_err(|error| RenderError::Encode(error.to_string()))?;
+    let (from, to) = (source.to_path_buf(), target.clone());
+    tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+        let _ = std::fs::remove_file(&to);
+        // Prefer a hard link: the artifact is immutable once published and the
+        // store normally lives on the same filesystem as the render output.
+        std::fs::hard_link(&from, &to).or_else(|_| {
+            // A failed cross-volume copy must not leave an orphan partial blob.
+            std::fs::copy(&from, &to).map(|_| ()).inspect_err(|_| {
+                let _ = std::fs::remove_file(&to);
+            })
+        })
+    })
+    .await
+    .map_err(|error| RenderError::Encode(format!("copia de caché cancelada: {error}")))??;
+    if let Err(error) = store.put_artifact(key, &target, duration_ms) {
+        // Unregistered blobs are never looked up or evicted again.
+        let _ = std::fs::remove_file(&target);
+        return Err(RenderError::Encode(error.to_string()));
+    }
     Ok(target)
 }
 
@@ -409,10 +462,9 @@ fn prepare_output(output: &Path) -> Result<(), RenderError> {
         }
         std::fs::create_dir_all(&path)?;
     }
-    let iso = output.join("disc.iso");
-    if iso.exists() {
-        std::fs::remove_file(iso)?;
-    }
+    // Do not delete the previous disc.iso here: the ISO builders write a
+    // temporary sibling and atomically rename it over the target only after
+    // validation, so a failed or cancelled render keeps the last good image.
     Ok(())
 }
 
@@ -426,10 +478,7 @@ fn prepare_avchd_output(output: &Path) -> Result<(), RenderError> {
     std::fs::create_dir_all(output.join("episodes"))?;
     std::fs::create_dir_all(output.join("meta"))?;
     std::fs::create_dir_all(output.join("menus"))?;
-    let iso = output.join("disc.iso");
-    if iso.exists() {
-        std::fs::remove_file(iso)?;
-    }
+    // Keep the previous disc.iso until BdmvIsoBuilder atomically replaces it.
     Ok(())
 }
 
@@ -575,9 +624,10 @@ fn compile_hd_menu(
         buttons,
         default_selected: Some(1),
     };
+    // Compile once; the concatenated PES and the debug M2TS derive from the packets.
     let pes_packets = compile_ig_pes_packets(&menu, pts_90k).map_err(menu_error)?;
-    let pes = compile_ig_pes(&menu, pts_90k).map_err(menu_error)?;
-    let m2ts = compile_ig_m2ts(&menu, pts_90k).map_err(menu_error)?;
+    let pes = pes_packets.concat();
+    let m2ts = m2ts_from_pes_packets(&pes_packets);
     Ok(CompiledHdMenu {
         pes,
         m2ts,
@@ -599,7 +649,9 @@ fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<Hdmv
             .get(menu)
             .copied()
             .map(|object| vec![jump_object(object as u32)])
-            .unwrap_or_else(|| vec![jump_title(0)]),
+            // Button-less menus get no MovieObject; JumpTitle(0) is not a
+            // valid HDMV title (1..=999), so keep the button inert instead.
+            .unwrap_or_else(|| vec![HdmvCommand::new(dvdforge_hdmv::OP_NOP, 0, 0)]),
         ButtonAction::PlayFirstPlay => vec![set_gpr(0, 0), jump_title(1)],
         ButtonAction::JumpTitleChapter { episode, chapter } => context
             .chapter_marks
@@ -773,15 +825,21 @@ async fn render_avchd_project(
         }
         let cache_key = if cache.is_some() {
             Some(ArtifactKey {
-                source_sha256: sha256_file(&input).await?,
+                source_sha256: source_fingerprint(&input).await?,
                 trim_in_ms: episode.trim_start_ms.unwrap_or(0),
                 trim_out_ms: episode.trim_end_ms.unwrap_or(duration_ms),
                 target_profile: format!(
-                    "hdmv:{:?}:{:.3}:{:?}:{}",
+                    "hdmv:{:?}:{:.3}:{:?}:{}:{:?}:{}:{}:{}:{}:{}",
                     config.resolution,
                     config.frame_rate.as_f64(),
                     episode.scale_mode,
-                    project.disc.capacity.label()
+                    project.disc.capacity.label(),
+                    project.disc.aspect,
+                    config.vbv_maxrate_kbps,
+                    config.vbv_bufsize_kbps,
+                    project.disc.audio.channels,
+                    project.disc.audio.ac3_kbps,
+                    ENCODER_REV
                 ),
                 target_bitrate: planned_kbps,
                 audio_params_hash: audio_params_hash(episode),
@@ -798,7 +856,7 @@ async fn render_avchd_project(
             log(
                 &events,
                 format!(
-                    "Episodio AVCHD {}/{}: reutilizando caché SHA-256 {}",
+                    "Episodio AVCHD {}/{}: reutilizando caché de artefactos {}",
                     index + 1,
                     total,
                     artifact.artifact_path
@@ -864,6 +922,7 @@ async fn render_avchd_project(
             .await?;
             if let (Some(store), Some(key)) = (&cache, &cache_key) {
                 cached_artifact_path(store, key, "mkv", &encoded.stream_mkv, duration_ms)
+                    .await
                     .unwrap_or(encoded.stream_mkv)
             } else {
                 encoded.stream_mkv
@@ -872,10 +931,12 @@ async fn render_avchd_project(
         stream_inputs.push(stream_mkv);
         chapters.push(timeline_ms);
         episode_start_ms.insert(episode.id, timeline_ms);
-        episode_fps.insert(episode.id, source_fps);
+        // Chapter::at_frame is authored in disc-rate frames (the editor's rate,
+        // which the encoder conforms to with `fps=`), not in source frames.
+        episode_fps.insert(episode.id, config.frame_rate);
         for chapter in &episode.chapters {
-            let offset_ms = if source_fps.is_valid() {
-                (chapter.at_frame as f64 * 1000.0 / source_fps.as_f64()).round() as u64
+            let offset_ms = if config.frame_rate.is_valid() {
+                (chapter.at_frame as f64 * 1000.0 / config.frame_rate.as_f64()).round() as u64
             } else {
                 0
             };
@@ -1348,6 +1409,60 @@ async fn mux_episode_subtitles(
     let mut current = context.input_mpeg.to_path_buf();
     let mut authored = Vec::new();
     let mut stream_id = 0u8;
+    let extracted_path = |index: usize| {
+        context
+            .output_dir
+            .join(format!("{}.s{}.source.srt", context.stem, index + 1))
+    };
+    // Extract every embedded track in ONE demux pass: extra `-map` outputs are
+    // free, while one FFmpeg run per track re-reads the whole source file.
+    let embedded: Vec<(usize, usize)> = context
+        .episode
+        .subtitles
+        .iter()
+        .enumerate()
+        .filter(|(_, track)| track.source_path.is_none())
+        .enumerate()
+        .map(|(internal_index, (index, _))| (index, internal_index))
+        .collect();
+    if !embedded.is_empty() {
+        let asset = context
+            .project
+            .asset(context.episode.video)
+            .ok_or_else(|| RenderError::Menu("episodio sin asset".to_string()))?;
+        let video = asset_path(context.project_dir, asset)
+            .ok_or_else(|| RenderError::Menu("ruta de vídeo inválida".to_string()))?;
+        let mut command =
+            tokio::process::Command::from(dvdforge_toolchain::background_command(context.ffmpeg));
+        command
+            .arg("-hide_banner")
+            .arg("-y")
+            .arg("-protocol_whitelist")
+            .arg(MEDIA_PROTOCOL_WHITELIST)
+            .arg("-i")
+            .arg(&video)
+            .kill_on_drop(true);
+        for &(index, internal_index) in &embedded {
+            command
+                .arg("-map")
+                .arg(format!("0:s:{internal_index}"))
+                .arg("-c:s")
+                .arg("srt")
+                .arg(extracted_path(index));
+        }
+        let result = timeout(AUX_FFMPEG_TIMEOUT, command.output())
+            .await
+            .map_err(|_| {
+                RenderError::Encode("FFmpeg agotó el tiempo al extraer subtítulos".to_string())
+            })?
+            .map_err(|error| RenderError::Encode(error.to_string()))?;
+        if !result.status.success() {
+            return Err(RenderError::Menu(format!(
+                "No se pudieron extraer los subtítulos internos: {}",
+                String::from_utf8_lossy(&result.stderr).trim()
+            )));
+        }
+    }
     for (index, track) in context.episode.subtitles.iter().enumerate() {
         let text = if let Some(source_path) = &track.source_path {
             let source = resolve_project_path(context.project_dir, source_path);
@@ -1358,48 +1473,7 @@ async fn mux_episode_subtitles(
                 ))
             })?
         } else {
-            let internal_index = context.episode.subtitles[..index]
-                .iter()
-                .filter(|candidate| candidate.source_path.is_none())
-                .count();
-            let asset = context
-                .project
-                .asset(context.episode.video)
-                .ok_or_else(|| RenderError::Menu("episodio sin asset".to_string()))?;
-            let video = asset_path(context.project_dir, asset)
-                .ok_or_else(|| RenderError::Menu("ruta de vídeo inválida".to_string()))?;
-            let extracted =
-                context
-                    .output_dir
-                    .join(format!("{}.s{}.source.srt", context.stem, index + 1));
-            let mut command = tokio::process::Command::new(context.ffmpeg);
-            command
-                .arg("-hide_banner")
-                .arg("-y")
-                .arg("-protocol_whitelist")
-                .arg(MEDIA_PROTOCOL_WHITELIST)
-                .arg("-i")
-                .arg(&video)
-                .arg("-map")
-                .arg(format!("0:s:{internal_index}"))
-                .arg("-c:s")
-                .arg("srt")
-                .arg(&extracted)
-                .kill_on_drop(true);
-            let result = timeout(AUX_FFMPEG_TIMEOUT, command.output())
-                .await
-                .map_err(|_| {
-                    RenderError::Encode("FFmpeg agotó el tiempo al extraer subtítulos".to_string())
-                })?
-                .map_err(|error| RenderError::Encode(error.to_string()))?;
-            if !result.status.success() {
-                return Err(RenderError::Menu(format!(
-                    "No se pudo extraer el subtítulo interno {}: {}",
-                    internal_index,
-                    String::from_utf8_lossy(&result.stderr).trim()
-                )));
-            }
-            std::fs::read_to_string(&extracted)?
+            std::fs::read_to_string(extracted_path(index))?
         };
         let trim_start = context.episode.trim_start_ms.unwrap_or(0) as i64;
         let shifted = shift_srt(&text, track.delay_ms as i64 - trim_start)
@@ -1510,12 +1584,16 @@ async fn encode_episodes(
             .unwrap_or(1);
         let cache_key = if cache.is_some() {
             Some(ArtifactKey {
-                source_sha256: sha256_file(&input).await?,
+                source_sha256: source_fingerprint(&input).await?,
                 trim_in_ms: episode.trim_start_ms.unwrap_or(0),
                 trim_out_ms: episode.trim_end_ms.unwrap_or(duration),
                 target_profile: format!(
-                    "dvd:{:?}:{:?}:{:?}:{:?}",
-                    plan.profile, project.disc.standard, project.disc.aspect, episode.scale_mode
+                    "dvd:{:?}:{:?}:{:?}:{:?}:{}",
+                    plan.profile,
+                    project.disc.standard,
+                    project.disc.aspect,
+                    episode.scale_mode,
+                    ENCODER_REV
                 ),
                 target_bitrate: video_kbps,
                 audio_params_hash: audio_params_hash(episode),
@@ -1554,7 +1632,7 @@ async fn encode_episodes(
             log(
                 events,
                 format!(
-                    "Episodio {}/{}: reutilizando caché SHA-256 {}",
+                    "Episodio {}/{}: reutilizando caché de artefactos {}",
                     index + 1,
                     total,
                     artifact.artifact_path
@@ -1576,8 +1654,15 @@ async fn encode_episodes(
             let encoded =
                 encode_episode_with_progress(encoder, &request, duration, events, index, total)
                     .await?;
+            // Only the muxed program stream is used from here on; the elementary
+            // streams and the pass log would double the scratch footprint.
+            let _ = std::fs::remove_file(&encoded.video_m2v);
+            for ac3 in &encoded.audio_ac3 {
+                let _ = std::fs::remove_file(ac3);
+            }
+            let _ = std::fs::remove_file(encoded.passlog.with_extension("passlog-0.log"));
             if let (Some(store), Some(key)) = (&cache, &cache_key) {
-                match cached_artifact_path(store, key, "mpg", &encoded.muxed_mpg, duration) {
+                match cached_artifact_path(store, key, "mpg", &encoded.muxed_mpg, duration).await {
                     Ok(path) => path,
                     Err(_) => encoded.muxed_mpg.clone(),
                 }
@@ -2150,7 +2235,9 @@ async fn encode_menu_audio(
             fade_out_ms as f64 / 1000.0
         ));
     }
-    let mut command = tokio::process::Command::new(resolve_binary("ffmpeg"));
+    let mut command = tokio::process::Command::from(dvdforge_toolchain::background_command(
+        resolve_binary("ffmpeg"),
+    ));
     command.kill_on_drop(true);
     command.arg("-hide_banner").arg("-y");
     let loop_audio = audio.loop_audio || motion.map(|config| config.loop_enabled).unwrap_or(false);
@@ -2518,6 +2605,18 @@ async fn attach_hdmv_menu(
         &patched_mpls,
     )?;
 
+    // Keep the backup tree consistent with the main one. Players and strict
+    // validators may fall back to BACKUP/ when the primary files are damaged.
+    for (directory, name, bytes) in [
+        ("PLAYLIST", format!("{playlist:05}.mpls"), &patched_mpls),
+        ("CLIPINF", format!("{clip:05}.clpi"), &patched_clpi),
+    ] {
+        let backup = bdmv_root.join("BACKUP").join(directory);
+        if backup.is_dir() {
+            write_bdmv_file(&backup.join(name), bytes)?;
+        }
+    }
+
     let movie_object_path = bdmv_root.join("MovieObject.bdmv");
     let movie_object = read_bdmv_file(&movie_object_path)?;
     let (movie_object, object_index) = append_menu_movie_object(&movie_object, playlist)
@@ -2558,7 +2657,9 @@ async fn encode_menu_video(
     let x264_params = format!(
         "profile=high:keyint={keyint}:min-keyint={keyint}:scenecut=0:open-gop=0:bluray-compat=1"
     );
-    let mut command = Command::new(resolve_binary("ffmpeg"));
+    let mut command = Command::from(dvdforge_toolchain::background_command(resolve_binary(
+        "ffmpeg",
+    )));
     command.args(["-hide_banner", "-loglevel", "error", "-y"]);
     match &spec.video {
         MenuClipVideo::Black => {
@@ -2649,7 +2750,9 @@ async fn encode_hd_menu_audio(
     spec: &MenuClipSpec,
     duration_secs: f64,
 ) -> Result<(), RenderError> {
-    let mut command = Command::new(resolve_binary("ffmpeg"));
+    let mut command = Command::from(dvdforge_toolchain::background_command(resolve_binary(
+        "ffmpeg",
+    )));
     command.args(["-hide_banner", "-loglevel", "error", "-y"]);
     let mut filters = Vec::new();
     if let Some(audio) = &spec.audio {
@@ -2693,17 +2796,9 @@ async fn encode_hd_menu_audio(
     if !filters.is_empty() {
         command.args(["-af", &filters.join(",")]);
     }
-    command.args([
-        "-c:a",
-        "ac3",
-        "-b:a",
-        "192k",
-        "-ar",
-        "48000",
-        "-ac",
-        "2",
-        path.to_str().unwrap_or("menu.ac3"),
-    ]);
+    command.args(["-c:a", "ac3", "-b:a", "192k", "-ar", "48000", "-ac", "2"]);
+    // Pass the OsStr path itself; never fall back to a CWD-relative name.
+    command.arg(path);
     run_menu_ffmpeg(command, path, "audio").await
 }
 
@@ -2827,6 +2922,87 @@ async fn progress(events: &EventSink, stage: JobStage, permille: u16) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_directory(label: &str) -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "dvdforge-render-{label}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("test directory");
+        path
+    }
+
+    #[tokio::test]
+    async fn source_fingerprint_tracks_content_and_mtime() {
+        let root = test_directory("fingerprint");
+        let source = root.join("source.bin");
+        std::fs::write(&source, vec![1u8; 4096]).expect("source");
+        let first = source_fingerprint(&source).await.expect("fingerprint");
+        assert!(first.starts_with("fp1:"));
+        assert_eq!(
+            first,
+            source_fingerprint(&source)
+                .await
+                .expect("stable fingerprint")
+        );
+
+        let mut bytes = std::fs::read(&source).expect("read source");
+        bytes[0] = 2;
+        std::fs::write(&source, &bytes).expect("changed source");
+        let changed = source_fingerprint(&source)
+            .await
+            .expect("changed fingerprint");
+        assert_ne!(first, changed);
+
+        let handle = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&source)
+            .expect("open source");
+        handle
+            .set_modified(std::time::SystemTime::now() + Duration::from_secs(2))
+            .expect("mtime");
+        drop(handle);
+        assert_ne!(
+            changed,
+            source_fingerprint(&source)
+                .await
+                .expect("mtime fingerprint")
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn cached_artifact_copies_or_links_and_registers_the_blob() {
+        let root = test_directory("cache");
+        let store = Store::open(root.join("store.db")).expect("store");
+        let source = root.join("source.mpg");
+        std::fs::write(&source, b"rendered artifact").expect("source");
+        let key = ArtifactKey {
+            source_sha256: "fp1:test".to_string(),
+            trim_in_ms: 0,
+            trim_out_ms: 1000,
+            target_profile: "dvd:test:1".to_string(),
+            target_bitrate: 4000,
+            audio_params_hash: "audio".to_string(),
+        };
+        let target = cached_artifact_path(&store, &key, "mpg", &source, 1234)
+            .await
+            .expect("cached artifact");
+        assert_eq!(
+            std::fs::read(&target).expect("cached bytes"),
+            b"rendered artifact"
+        );
+        let cached = store
+            .lookup_artifact(&key)
+            .expect("lookup")
+            .expect("registered artifact");
+        assert_eq!(PathBuf::from(cached.artifact_path), target);
+        assert_eq!(cached.duration_ms, 1234);
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[test]
     fn episode_buttons_use_chapter_marks_before_jumping_to_the_movie() {

@@ -57,13 +57,18 @@ struct EpisodeInput {
 const DVD_SECTOR_BYTES: u64 = 2048;
 const DVD_ECC_SECTORS: u64 = 16;
 
-fn dvd9_layer_break_sector(capacity: DiscCapacity) -> Option<u64> {
+/// Largest layer 0 accepted by both DVD-R DL (2,084,960) and DVD+R DL media.
+const DVD9_MAX_LAYER0_SECTORS: u64 = 2_084_960;
+
+/// OTP images are split at the middle of the recorded data (L0 >= L1), rounded
+/// up to an ECC block and capped at the layer-0 capacity.
+fn dvd9_layer_break_sector(capacity: DiscCapacity, estimated_bytes: u64) -> Option<u64> {
     if capacity != DiscCapacity::Dvd9 {
         return None;
     }
-    let sectors = capacity.nominal_bytes() / DVD_SECTOR_BYTES;
-    let middle = sectors / 2;
-    Some((middle / DVD_ECC_SECTORS) * DVD_ECC_SECTORS)
+    let sectors = estimated_bytes.div_ceil(DVD_SECTOR_BYTES);
+    let middle = sectors.div_ceil(2).div_ceil(DVD_ECC_SECTORS) * DVD_ECC_SECTORS;
+    Some(middle.clamp(DVD_ECC_SECTORS, DVD9_MAX_LAYER0_SECTORS))
 }
 
 fn layer_break_mode(capacity: DiscCapacity, mode: LayerBreakMode) -> Option<LayerBreakMode> {
@@ -346,7 +351,7 @@ pub fn calculate_bitrate_plan(
         total_duration_ms,
         video_kbps,
         profile,
-        layer_break_sector: dvd9_layer_break_sector(capacity),
+        layer_break_sector: dvd9_layer_break_sector(capacity, estimated_total),
         layer_break_mode: layer_break_mode(capacity, project.disc.layer_break_mode),
         per_episode,
         fill_ppm,
@@ -565,7 +570,10 @@ fn calculate_avchd_plan(
         total_duration_ms,
         video_kbps,
         profile: DvdProfile::D1,
-        layer_break_sector: dvd9_layer_break_sector(capacity),
+        layer_break_sector: dvd9_layer_break_sector(
+            capacity,
+            estimated_total.saturating_add(menus_bytes),
+        ),
         layer_break_mode: layer_break_mode(capacity, project.disc.layer_break_mode),
         per_episode,
         fill_ppm,
@@ -866,10 +874,18 @@ mod tests {
 
     #[test]
     fn dvd9_layer_break_is_ecc_aligned() {
-        assert_eq!(dvd9_layer_break_sector(DiscCapacity::Dvd5), None);
-        let sector = dvd9_layer_break_sector(DiscCapacity::Dvd9).expect("dvd9 break");
+        assert_eq!(
+            dvd9_layer_break_sector(DiscCapacity::Dvd5, 6_000_000_000),
+            None
+        );
+        let sector =
+            dvd9_layer_break_sector(DiscCapacity::Dvd9, 6_000_000_000).expect("dvd9 break");
         assert_eq!(sector % DVD_ECC_SECTORS, 0);
-        assert!(sector * DVD_SECTOR_BYTES < DiscCapacity::Dvd9.nominal_bytes());
+        assert!(sector * DVD_SECTOR_BYTES * 2 >= 6_000_000_000);
+        assert_eq!(
+            dvd9_layer_break_sector(DiscCapacity::Dvd9, 9_000_000_000),
+            Some(DVD9_MAX_LAYER0_SECTORS)
+        );
         assert_eq!(
             layer_break_mode(DiscCapacity::Dvd9, LayerBreakMode::Ptp),
             Some(LayerBreakMode::Ptp)

@@ -130,7 +130,7 @@ pub fn inject_ig_into_menu_m2ts(
 
     let pmt_pid = find_pmt_pid(m2ts)?;
     let pgs_pid = find_pgs_pid(m2ts, pmt_pid)?;
-    let patched = patch_pmt(m2ts, pmt_pid, pgs_pid, ig_pid)?;
+    let mut patched = patch_pmt(m2ts, pmt_pid, pgs_pid, ig_pid)?;
 
     let ig_packets = packetize_pes(ig_pes_packets, ig_pid);
     if ig_packets.is_empty() {
@@ -149,23 +149,23 @@ pub fn inject_ig_into_menu_m2ts(
         });
     }
 
-    let mut output = Vec::with_capacity(patched.len());
+    // Overwrite the reserved slots in place (ATS bytes untouched): no third copy.
+    let null = null_ts_packet();
     let mut next = 0usize;
-    for packet in patched.as_chunks::<M2TS_PACKET_SIZE>().0 {
-        if ts_pid(&packet[4..]) == pgs_pid {
-            output.extend_from_slice(&packet[..4]);
-            if let Some(ig) = ig_packets.get(next) {
-                output.extend_from_slice(ig);
+    for packet in patched.as_chunks_mut::<M2TS_PACKET_SIZE>().0 {
+        if ts_pid(&packet[4..]) != pgs_pid {
+            continue;
+        }
+        match ig_packets.get(next) {
+            Some(ig) => {
+                packet[4..].copy_from_slice(ig);
                 next += 1;
-            } else {
-                output.extend_from_slice(&null_ts_packet());
             }
-        } else {
-            output.extend_from_slice(packet);
+            None => packet[4..].copy_from_slice(&null),
         }
     }
     debug_assert_eq!(next, ig_packets.len());
-    Ok(output)
+    Ok(patched)
 }
 
 fn ts_pid(packet: &[u8]) -> u16 {
@@ -636,7 +636,12 @@ pub fn dummy_pgs(width: u16, height: u16, display_sets: u16) -> Result<Vec<u8>, 
     let width = width.max(2);
     let height = height.max(2);
     for set in 0..display_sets.max(1) {
-        let pts = 54_000_000u32.saturating_add(u32::from(set) * 45_000);
+        // tsMuxeR 2.7 adds the 600 s BDAV origin to the SUP timestamps. Start
+        // the dummy track at zero so its PES land at 54 000 000 (the PTS used
+        // by the IG packets) and keep every reserved display set inside the
+        // first few milliseconds of the clip. Spacing them by 0.5 s makes the
+        // IG composition arrive long after the PTS of its ICS.
+        let pts = u32::from(set) * 90;
         // tsMuxeR 2.7's SUP probe requires the compact 4-byte palette form
         // used by its own PGS samples. This track is discarded after muxing,
         // so compatibility with the muxer matters more than palette fidelity.
@@ -778,7 +783,35 @@ mod tests {
         crc
     }
 
+    fn pgs_display_set_pts(bytes: &[u8]) -> Vec<u32> {
+        let mut pts = Vec::new();
+        let mut offset = 0usize;
+        while offset + 13 <= bytes.len() {
+            assert_eq!(&bytes[offset..offset + 2], b"PG");
+            let timestamp = u32::from_be_bytes([
+                bytes[offset + 2],
+                bytes[offset + 3],
+                bytes[offset + 4],
+                bytes[offset + 5],
+            ]);
+            if pts.last().copied() != Some(timestamp) {
+                pts.push(timestamp);
+            }
+            let length = u16::from_be_bytes([bytes[offset + 11], bytes[offset + 12]]) as usize;
+            offset += 13 + length;
+        }
+        assert_eq!(offset, bytes.len());
+        pts
+    }
+
     fn synthetic_m2ts(pgs_packets: usize) -> Vec<u8> {
+        let ats: Vec<u32> = (0..pgs_packets)
+            .map(|index| u32::try_from(index).unwrap_or(u32::MAX))
+            .collect();
+        synthetic_m2ts_with_slot_ats(&ats)
+    }
+
+    fn synthetic_m2ts_with_slot_ats(slot_ats: &[u32]) -> Vec<u8> {
         let mut output = Vec::new();
         let pat = [
             0x00, 0xB0, 0x0D, 0x00, 0x01, 0xC1, 0x00, 0x00, 0x00, 0x01, 0xE1, 0x00,
@@ -811,14 +844,14 @@ mod tests {
         output.extend_from_slice(&[0, 0, 0, 1]);
         output.extend_from_slice(&pmt_packet);
 
-        for _ in 0..pgs_packets {
+        for ats in slot_ats {
             let mut pgs = [0xFFu8; 188];
             pgs[0] = 0x47;
             pgs[1] = 0x12;
             pgs[2] = 0x00;
             pgs[3] = 0x10;
             pgs[4] = 0x00;
-            output.extend_from_slice(&[0, 0, 0, 2]);
+            output.extend_from_slice(&ats.to_be_bytes());
             output.extend_from_slice(&pgs);
         }
         output
@@ -1028,6 +1061,62 @@ mod tests {
         }
         assert_eq!(offset, bytes.len());
         assert_eq!(segments, 10);
+    }
+
+    #[test]
+    fn dummy_pgs_groups_display_sets_at_the_start_of_the_clip() {
+        let bytes = dummy_pgs(320, 180, 25).expect("dummy pgs");
+        let pts = pgs_display_set_pts(&bytes);
+        assert_eq!(pts.len(), 25);
+        assert_eq!(pts[0], 0);
+        assert_eq!(pts[24], 24 * 90);
+        assert!(
+            pts[24] - pts[0] < 90_000,
+            "los display sets deben caber en un segundo"
+        );
+    }
+
+    #[test]
+    fn injected_ig_slots_arrive_before_the_ics_presentation_time() {
+        const ICS_PTS: u32 = 54_000_000;
+        let pes = compile_ig_pes_packets(&menu(), u64::from(ICS_PTS)).expect("pes");
+        let needed = pes_transport_packet_count(&pes);
+        let per_set = pgs_transport_packet_count(320, 180);
+        let sets = needed.div_ceil(per_set).saturating_add(1);
+        let dummy = dummy_pgs(320, 180, u16::try_from(sets).expect("sets")).expect("dummy pgs");
+        let display_pts = pgs_display_set_pts(&dummy);
+        assert!(display_pts.len() >= sets);
+
+        // tsMuxeR places the reserved PGS PES near the start of the clip (about
+        // 3 s of ATS lead for this menu). Model that lead: with the old 0.5 s
+        // spacing, or with the old 54 000 000 SUP base, the later slots cross
+        // the ICS PTS while the grouped slots starting at zero stay below it.
+        let lead_27mhz = 81_000_000u64;
+        let mut slot_ats = Vec::with_capacity(needed);
+        for pts in &display_pts {
+            let ats = ((lead_27mhz + u64::from(*pts) * 300) & 0x3FFF_FFFF) as u32;
+            for _ in 0..per_set {
+                slot_ats.push(ats);
+            }
+        }
+        slot_ats.truncate(needed);
+        assert_eq!(slot_ats.len(), needed);
+
+        let m2ts = synthetic_m2ts_with_slot_ats(&slot_ats);
+        let output = inject_ig_into_menu_m2ts(&m2ts, &pes, IG_PID).expect("inject");
+        let ics_ats = ((u64::from(ICS_PTS) * 300) & 0x3FFF_FFFF) as u32;
+        let ig_ats: Vec<u32> = output
+            .as_chunks::<192>()
+            .0
+            .iter()
+            .filter(|packet| (((packet[5] & 0x1F) as u16) << 8 | packet[6] as u16) == IG_PID)
+            .map(|packet| u32::from_be_bytes([packet[0], packet[1], packet[2], packet[3]]))
+            .collect();
+        assert_eq!(ig_ats.len(), needed);
+        assert!(
+            ig_ats.iter().all(|ats| *ats < ics_ats),
+            "ATS de las ranuras IG: {ig_ats:?}, PTS del ICS: {ics_ats}"
+        );
     }
 
     #[test]

@@ -125,10 +125,10 @@ export async function exportMenu(
     context.restore();
   }
 
+  // quantizeMask() snaps every pixel to transparent/highlight/select, so the
+  // layers are palette-safe without a second full getImageData pass.
   const highlight = renderMask(buttons, width, height, false, menu.subpicture.palette);
   const select = renderMask(buttons, width, height, true, menu.subpicture.palette);
-  assertStrictPalette(highlight);
-  assertStrictPalette(select);
 
   const backgroundBlob = await toBlob(background);
   const highlightBlob = await toBlob(highlight);
@@ -140,9 +140,9 @@ export async function exportMenu(
     backgroundUrl: URL.createObjectURL(backgroundBlob),
     highlightUrl: URL.createObjectURL(highlightBlob),
     selectUrl: URL.createObjectURL(selectBlob),
-    backgroundDataUrl: background.toDataURL("image/png"),
-    highlightDataUrl: highlight.toDataURL("image/png"),
-    selectDataUrl: select.toDataURL("image/png"),
+    backgroundDataUrl: await blobToDataUrl(backgroundBlob),
+    highlightDataUrl: await blobToDataUrl(highlightBlob),
+    selectDataUrl: await blobToDataUrl(selectBlob),
     buttons,
   };
 }
@@ -224,7 +224,14 @@ export async function exportMotionMenu(
     );
     labelsContext.save();
     labelsContext.translate(rect.x0, rect.y0);
-    if (button.motionPreview && button.thumbnail) {
+    // Mirror build_motion_buttons: without a thumbnail the backend animates
+    // the episode targeted by the action, so no opaque card may cover it.
+    const animated =
+      button.motionPreview &&
+      (button.thumbnail ||
+        button.action.kind === "playEpisode" ||
+        button.action.kind === "jumpTitleChapter");
+    if (animated) {
       drawMotionButtonOverlay(labelsContext, button, layout, buttonWidth, buttonHeight);
     } else {
       drawButton(labelsContext, button, layout, buttonWidth, buttonHeight, image);
@@ -234,8 +241,6 @@ export async function exportMotionMenu(
 
   const highlight = renderMask(buttons, width, height, false, menu.subpicture.palette);
   const select = renderMask(buttons, width, height, true, menu.subpicture.palette);
-  assertStrictPalette(highlight);
-  assertStrictPalette(select);
 
   const backgroundBlob = await toBlob(background);
   const labelsBlob = await toBlob(labels);
@@ -246,10 +251,10 @@ export async function exportMotionMenu(
     labelsUrl: URL.createObjectURL(labelsBlob),
     highlightUrl: URL.createObjectURL(highlightBlob),
     selectUrl: URL.createObjectURL(selectBlob),
-    backgroundDataUrl: background.toDataURL("image/png"),
-    labelsDataUrl: labels.toDataURL("image/png"),
-    highlightDataUrl: highlight.toDataURL("image/png"),
-    selectDataUrl: select.toDataURL("image/png"),
+    backgroundDataUrl: await blobToDataUrl(backgroundBlob),
+    labelsDataUrl: await blobToDataUrl(labelsBlob),
+    highlightDataUrl: await blobToDataUrl(highlightBlob),
+    selectDataUrl: await blobToDataUrl(selectBlob),
     buttons,
   };
 }
@@ -524,7 +529,8 @@ function renderMask(
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext("2d");
+  // quantizeMask() reads the pixels back; keep the backing store on the CPU.
+  const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error(t("No se pudo crear el contexto 2D de la subimagen."));
 
   const highlightColor = paletteHex(palette, 1);
@@ -647,27 +653,6 @@ function paletteHex(palette: SubpicturePalette, index: 0 | 1 | 2 | 3): string {
   return `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
 }
 
-function assertStrictPalette(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error(t("No se pudo validar la paleta de la subimagen."));
-  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  const colors = new Set<number>();
-  for (let index = 0; index < data.length; index += 4) {
-    const alpha = data[index + 3];
-    if (alpha === 0) continue;
-    colors.add(
-      (data[index] << 24) |
-        (data[index + 1] << 16) |
-        (data[index + 2] << 8) |
-        alpha,
-    );
-    if (colors.size > 4) break;
-  }
-  if (colors.size > 4) {
-    throw new Error(`La capa contiene ${colors.size} colores; el máximo es 4.`);
-  }
-}
-
 function validateGaps(buttons: CompiledButton[]) {
   for (let i = 0; i < buttons.length; i += 1) {
     for (let j = i + 1; j < buttons.length; j += 1) {
@@ -728,6 +713,16 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error(t("No se pudo cargar la imagen de fondo.")));
     image.src = url;
+  });
+}
+
+/** Base64-encodes an already encoded PNG off the main thread. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(t("No se pudo exportar el PNG.")));
+    reader.readAsDataURL(blob);
   });
 }
 

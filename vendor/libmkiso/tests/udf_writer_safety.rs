@@ -167,6 +167,31 @@ fn boot_catalog_addresses_exact_original_payloads_across_partition_profiles() {
 }
 
 #[test]
+fn digest_can_be_skipped_without_affecting_the_image() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut image = UdfImage::new();
+    image.add_bytes("file", vec![0x5a; 131072]).unwrap();
+    let output = directory.path().join("no-digest.udf");
+    let options = UdfOptions {
+        compute_digest: false,
+        ..Default::default()
+    };
+    let hash = image.write(&output, &options).unwrap();
+    assert!(hash.is_empty());
+    let bytes = std::fs::read(&output).unwrap();
+    let reader = UdfReader::open(&bytes, Limits::default()).unwrap();
+    let index = reader
+        .entries()
+        .iter()
+        .position(|entry| entry.name == "file")
+        .unwrap();
+    assert_eq!(
+        reader.read_entry(index, 1 << 20).unwrap(),
+        vec![0x5a; 131072]
+    );
+}
+
+#[test]
 fn fixed_options_produce_identical_images_and_hashes() {
     let directory = tempfile::tempdir().unwrap();
     let mut image = UdfImage::new();

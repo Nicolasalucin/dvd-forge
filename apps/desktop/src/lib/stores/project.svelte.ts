@@ -62,6 +62,8 @@ const AVCHD_BUDGET = {
   maxVideoKbps: 24_000,
   defaultAc3Kbps: 192,
 };
+/** Concurrent ffmpeg frame extractions for UI thumbnails. */
+const THUMBNAIL_CONCURRENCY = 3;
 const DVD_BUDGET = {
   targetFillPpm: 990_000,
   headerMarginPpm: 30_000,
@@ -284,6 +286,8 @@ class ProjectStore {
 
   private planSequence = 0;
   private thumbnailJobs = new Map<string, Promise<void>>();
+  private thumbnailSlots = 0;
+  private readonly thumbnailWaiters: Array<() => void> = [];
 
   get hasProject(): boolean {
     return this.project !== null;
@@ -371,8 +375,10 @@ class ProjectStore {
     normalizeProject(project);
     this.project = project;
     this.syncPlayAll();
+    this.planSequence += 1;
     this.plan = null;
     this.planError = null;
+    this.planBusy = false;
     this.error = null;
     this.selectedMenuId = project.menus[0]?.id ?? null;
     this.selectedEpisodeId = project.episodes[0]?.id ?? null;
@@ -396,6 +402,7 @@ class ProjectStore {
     this.lastIso = null;
     this.previewUrls = {};
     this.framePaths = {};
+    this.planSequence += 1;
     this.planBusy = false;
     this.busy = false;
     this.productionOpen = false;
@@ -544,13 +551,14 @@ class ProjectStore {
     };
     this.project.assets = [...this.project.assets, asset];
     if (previewUrl) {
-      this.previewUrls = { ...this.previewUrls, [id]: previewUrl };
+      this.previewUrls[id] = previewUrl;
     }
     return id;
   }
 
   async importMedia(paths: string[]): Promise<number> {
-    if (!this.project || paths.length === 0) return 0;
+    const project = this.project;
+    if (!project || paths.length === 0) return 0;
     this.busy = true;
     this.error = null;
     const failures: string[] = [];
@@ -567,16 +575,22 @@ class ProjectStore {
             preview = null;
           }
         }
+        // Opening/creating another project while probes are in flight must not
+        // append the rest of this batch to that project.
+        if (this.project !== project) break;
         const assetId = this.addAsset(path, probe, kind, preview);
         imported += 1;
         if (kind === "video") {
-          await this.ensureVideoThumbnail(assetId);
+          // Thumbnails fill in asynchronously (bounded by withThumbnailSlot);
+          // the import itself only waits for the probes.
+          void this.ensureVideoThumbnail(assetId);
         }
       } catch (cause) {
         failures.push(`${path.split(/[\\/]/).pop() ?? path}: ${messageOf(cause)}`);
       }
     }
     this.busy = false;
+    if (this.project !== project) return imported;
     if (failures.length > 0) {
       this.error = t("No se pudieron importar {count} archivo(s): {detail}", { count: failures.length, detail: failures[0] });
     }
@@ -585,16 +599,34 @@ class ProjectStore {
   }
 
   async addImageAssetFromPath(path: string): Promise<string | null> {
-    if (!this.project) return null;
+    const project = this.project;
+    if (!project) return null;
     try {
       const probe = await unwrap(commands.mediaProbeFile(path));
       const preview = await unwrap(commands.readImageDataUrl(path));
+      if (this.project !== project) return null;
       const assetId = this.addAsset(path, probe, "image", preview);
       this.touch();
       return assetId;
     } catch (cause) {
       this.error = messageOf(cause);
       return null;
+    }
+  }
+
+  private async withThumbnailSlot<T>(task: () => Promise<T>): Promise<T> {
+    if (this.thumbnailSlots >= THUMBNAIL_CONCURRENCY) {
+      // The releasing job hands its slot over directly.
+      await new Promise<void>((resolve) => this.thumbnailWaiters.push(resolve));
+    } else {
+      this.thumbnailSlots += 1;
+    }
+    try {
+      return await task();
+    } finally {
+      const next = this.thumbnailWaiters.shift();
+      if (next) next();
+      else this.thumbnailSlots -= 1;
     }
   }
 
@@ -611,12 +643,18 @@ class ProjectStore {
         const duration = asset.probe.durationMs ?? 0;
         const target =
           timestampMs ?? (duration > 0 ? Math.min(duration * 0.1, 10_000) : 1_000);
-        const framePath = await unwrap(
-          commands.mediaExtractFrame(path, Math.max(0, Math.round(target)), null),
+        const framePath = await this.withThumbnailSlot(async () =>
+          // Skip jobs that were queued for a project that is no longer open.
+          this.assetFor(assetId)
+            ? unwrap(commands.mediaExtractFrame(path, Math.max(0, Math.round(target)), null))
+            : null,
         );
+        if (!framePath) return;
         const dataUrl = await unwrap(commands.readImageDataUrl(framePath));
-        this.previewUrls = { ...this.previewUrls, [assetId]: dataUrl };
-        this.framePaths = { ...this.framePaths, [assetId]: framePath };
+        // The project may have been closed or replaced while ffmpeg ran.
+        if (!this.assetFor(assetId)) return;
+        this.previewUrls[assetId] = dataUrl;
+        this.framePaths[assetId] = framePath;
       } catch {
         // La miniatura es opcional: un fallo no debe bloquear la importación.
       } finally {
@@ -636,7 +674,8 @@ class ProjectStore {
         if (!path || this.previewUrls[asset.id]) continue;
         try {
           const dataUrl = await unwrap(commands.readImageDataUrl(path));
-          this.previewUrls = { ...this.previewUrls, [asset.id]: dataUrl };
+          if (this.project !== project) return;
+          this.previewUrls[asset.id] = dataUrl;
         } catch {
           // Ignorar assets movidos o inaccesibles.
         }
@@ -646,15 +685,14 @@ class ProjectStore {
       if (!episode.thumbnailPath || this.previewUrls[episode.video]) continue;
       try {
         const dataUrl = await unwrap(commands.readImageDataUrl(episode.thumbnailPath));
-        this.previewUrls = { ...this.previewUrls, [episode.video]: dataUrl };
-        this.framePaths = {
-          ...this.framePaths,
-          [episode.video]: episode.thumbnailPath,
-        };
+        if (this.project !== project) return;
+        this.previewUrls[episode.video] = dataUrl;
+        this.framePaths[episode.video] = episode.thumbnailPath;
       } catch {
         // La miniatura se regenerará bajo demanda.
       }
     }
+    if (this.project !== project) return;
     for (const asset of project.assets) {
       if (asset.kind === "video" && !this.previewUrls[asset.id]) {
         void this.ensureVideoThumbnail(asset.id);
@@ -777,8 +815,8 @@ class ProjectStore {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
     episode.thumbnailPath = framePath;
-    this.previewUrls = { ...this.previewUrls, [episode.video]: previewUrl };
-    this.framePaths = { ...this.framePaths, [episode.video]: framePath };
+    this.previewUrls[episode.video] = previewUrl;
+    this.framePaths[episode.video] = framePath;
     const menu = this.activeMenu;
     for (const button of menu?.buttons ?? []) {
       if (button.action.kind === "playEpisode" && button.action.episode === episode.id) {
@@ -961,15 +999,20 @@ class ProjectStore {
       return false;
     }
     const atFrame = Math.round((offset / 1000) * this.frameRate);
+    const chapterId = crypto.randomUUID();
     episode.chapters = [
       ...episode.chapters,
       {
-        id: crypto.randomUUID(),
+        id: chapterId,
         title: t("Capítulo {number}", { number: episode.chapters.length + 1 }),
         atFrame,
         thumbnail: null,
       },
     ].sort((a, b) => a.atFrame - b.atFrame);
+    // Buttons store chapter *indices*: shift those at/after the insertion point
+    // so they keep targeting the same chapter.
+    const inserted = episode.chapters.findIndex((chapter) => chapter.id === chapterId);
+    this.shiftChapterActions(episodeId, inserted, 1);
     this.touch();
     return true;
   }
@@ -977,9 +1020,29 @@ class ProjectStore {
   removeChapter(episodeId: string, chapterId: string): void {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
+    const removed = episode.chapters.findIndex((chapter) => chapter.id === chapterId);
+    if (removed < 0) return;
     episode.chapters = episode.chapters.filter((chapter) => chapter.id !== chapterId);
+    this.shiftChapterActions(episodeId, removed + 1, -1);
     this.clampChapterActions(episodeId, episode);
     this.touch();
+  }
+
+  private shiftChapterActions(episodeId: string, from: number, delta: number): void {
+    for (const menu of this.project?.menus ?? []) {
+      for (const button of menu.buttons) {
+        if (
+          button.action.kind === "jumpTitleChapter" &&
+          button.action.episode === episodeId &&
+          button.action.chapter >= from
+        ) {
+          button.action = {
+            ...button.action,
+            chapter: Math.max(0, button.action.chapter + delta),
+          };
+        }
+      }
+    }
   }
 
   autoChapters(episodeId: string, mode: "5min" | "10min" | "quarters"): void {
@@ -1298,7 +1361,21 @@ class ProjectStore {
   deleteSelectedButton(): void {
     const menu = this.activeMenu;
     if (!menu || !this.selectedButtonId) return;
-    menu.buttons = menu.buttons.filter((button) => button.id !== this.selectedButtonId);
+    const removed = this.selectedButtonId;
+    menu.buttons = menu.buttons.filter((button) => button.id !== removed);
+    // Overrides that targeted the deleted button would survive as dangling IDs;
+    // Rust reports E_NAV_OVERRIDE_INVALID and the render aborts.
+    for (const button of menu.buttons) {
+      const nav = button.navOverride;
+      if (nav.up === removed || nav.down === removed || nav.left === removed || nav.right === removed) {
+        button.navOverride = {
+          up: nav.up === removed ? null : nav.up,
+          down: nav.down === removed ? null : nav.down,
+          left: nav.left === removed ? null : nav.left,
+          right: nav.right === removed ? null : nav.right,
+        };
+      }
+    }
     this.selectedButtonId = menu.buttons[0]?.id ?? null;
     this.syncPlayAll();
     this.touch();
@@ -1581,31 +1658,11 @@ class ProjectStore {
   setStandard(standard: TvStandard): void {
     const project = this.project;
     if (!project || project.disc.mode === "avchd" || project.disc.standard === standard) return;
-    const oldHeight = project.disc.standard === "pal" ? 576 : 480;
-    const newHeight = standard === "pal" ? 576 : 480;
     project.disc.standard = standard;
-    const factor = newHeight / oldHeight;
     for (const menu of project.menus) {
-      menu.canvas = canvasFor(standard, project.disc.aspect);
-      for (const button of menu.buttons) {
-        const rect = normalizeRect(button.rect, menu.canvas.width, menu.canvas.height);
-        const scaled = normalizeRect(
-          {
-            x: rect.x0,
-            y: rect.y0 * factor,
-            w: rect.x1 - rect.x0,
-            h: (rect.y1 - rect.y0) * factor,
-          },
-          menu.canvas.width,
-          menu.canvas.height,
-        );
-        button.rect = {
-          x: scaled.x0,
-          y: scaled.y0,
-          w: scaled.x1 - scaled.x0,
-          h: scaled.y1 - scaled.y0,
-        };
-      }
+      // rescaleMenu normalizes against the *previous* canvas height before
+      // scaling (no clipping of the lower rows) and also rescales menu items.
+      this.rescaleMenu(menu, canvasFor(standard, project.disc.aspect));
     }
     this.touch();
   }
@@ -1797,18 +1854,16 @@ class ProjectStore {
   }
 
   async calculatePlan(): Promise<void> {
-    const project = this.project;
-    if (!project) {
-      this.plan = null;
-      this.planError = null;
-      return;
-    }
-    if (project.episodes.length === 0) {
-      this.plan = null;
-      this.planError = null;
-      return;
-    }
+    // Bump first so a response still in flight for an older project/state can
+    // never overwrite the cleared plan below.
     const sequence = ++this.planSequence;
+    const project = this.project;
+    if (!project || project.episodes.length === 0) {
+      this.plan = null;
+      this.planError = null;
+      this.planBusy = false;
+      return;
+    }
     this.planBusy = true;
     try {
       const result = await unwrap(commands.planCalculate(project));

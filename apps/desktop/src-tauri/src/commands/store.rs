@@ -1,7 +1,7 @@
 use dvdforge_domain::Project;
 use dvdforge_store::{RecentProject, RecentProjectInput, Store};
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn recent_projects_list(limit: Option<u32>) -> Result<Vec<RecentProject>, String> {
     let store = Store::open_default().map_err(|error| error.to_string())?;
@@ -10,7 +10,7 @@ pub fn recent_projects_list(limit: Option<u32>) -> Result<Vec<RecentProject>, St
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn recent_project_forget(file_path: String) -> Result<(), String> {
     let store = Store::open_default().map_err(|error| error.to_string())?;
@@ -19,7 +19,7 @@ pub fn recent_project_forget(file_path: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn job_history_list(
     limit: Option<u32>,

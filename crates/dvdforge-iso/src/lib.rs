@@ -1,5 +1,6 @@
 //! ISO/UDF image creation and DVD-Video validation.
 
+use dvdforge_toolchain::resolve_binary;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -21,16 +22,18 @@ pub enum IsoError {
     InvalidLabel(String),
     #[error("no existe {0}")]
     MissingSource(String),
-    #[error("xorriso falló con código {code}: {stderr}")]
+    #[error("el generador de ISO falló con código {code}: {stderr}")]
     XorrisoFailed { code: i32, stderr: String },
     #[error("el ISO no contiene {0}")]
     MissingIsoEntry(String),
     #[error("el ISO está vacío")]
     EmptyIso,
+    #[error("el ISO no es legible: {0}")]
+    UnreadableIso(String),
     #[error("no se pudo autorar el UDF del BDMV: {0}")]
     BdmvAuthoring(String),
-    #[error("no se pudo crear el ISO con xorriso ({xorriso}) ni con el fallback ({fallback})")]
-    BuildersFailed { xorriso: String, fallback: String },
+    #[error("no se pudo crear el ISO con genisoimage ({primary}) ni con mkisofs ({fallback})")]
+    BuildersFailed { primary: String, fallback: String },
 }
 
 #[derive(Debug, Clone)]
@@ -121,7 +124,7 @@ async fn run_iso_builder(
     output: &Path,
     label: &str,
 ) -> Result<(), IsoError> {
-    let mut command = Command::new(binary);
+    let mut command = Command::from(dvdforge_toolchain::background_command(binary));
     command.args(prefix);
     let result = command
         .arg("-dvd-video")
@@ -146,17 +149,20 @@ async fn run_iso_builder(
 
 #[derive(Debug, Clone)]
 pub struct Xorriso {
+    /// Primary DVD-Video builder (genisoimage). xorriso itself cannot build
+    /// these images: libisofs has no UDF writer and `xorriso -as mkisofs`
+    /// aborts with "Unsupported option" on both `-udf` and `-dvd-video`.
     pub binary: PathBuf,
-    /// CachyOS ships xorriso without mkisofs' `-dvd-video` option. In that
-    /// case the wrapper falls back to genisoimage/mkisofs for the image.
+    /// Second mkisofs-compatible builder: cdrtools `mkisofs`, shipped by
+    /// Arch/CachyOS, Homebrew and Windows ports instead of genisoimage.
     pub fallback_binary: PathBuf,
 }
 
 impl Default for Xorriso {
     fn default() -> Self {
         Self {
-            binary: PathBuf::from("xorriso"),
-            fallback_binary: PathBuf::from("genisoimage"),
+            binary: resolve_binary("genisoimage"),
+            fallback_binary: resolve_binary("mkisofs"),
         }
     }
 }
@@ -165,7 +171,7 @@ impl Xorriso {
     pub fn new(binary: impl Into<PathBuf>) -> Self {
         Self {
             binary: binary.into(),
-            fallback_binary: PathBuf::from("genisoimage"),
+            fallback_binary: resolve_binary("mkisofs"),
         }
     }
 
@@ -195,23 +201,17 @@ impl Xorriso {
         }
 
         let temp = TempIso::new(iso_path);
-        // CachyOS ships xorriso without mkisofs' `-dvd-video` option. Do not
-        // parse its (localised) stderr: retry with genisoimage/mkisofs on any
-        // failure and report both errors if the fallback also fails.
-        if let Err(xorriso_error) = run_iso_builder(
-            &self.binary,
-            &["-as", "mkisofs"],
-            source_dir,
-            temp.path(),
-            label,
-        )
-        .await
+        // Only genisoimage (cdrkit) and mkisofs (cdrtools) implement
+        // `-dvd-video -udf`. Do not parse their (localised) stderr: retry with
+        // the second builder on any failure and report both errors.
+        if let Err(primary_error) =
+            run_iso_builder(&self.binary, &[], source_dir, temp.path(), label).await
         {
             let _ = std::fs::remove_file(temp.path());
             run_iso_builder(&self.fallback_binary, &[], source_dir, temp.path(), label)
                 .await
                 .map_err(|fallback_error| IsoError::BuildersFailed {
-                    xorriso: xorriso_error.to_string(),
+                    primary: primary_error.to_string(),
                     fallback: fallback_error.to_string(),
                 })?;
         }
@@ -223,28 +223,42 @@ impl Xorriso {
     }
 
     pub async fn validate_dvd_iso(&self, iso_path: &Path) -> Result<IsoReport, IsoError> {
-        let metadata = std::fs::metadata(iso_path)?;
-        if metadata.len() == 0 {
-            return Err(IsoError::EmptyIso);
-        }
-        let result = Command::new(&self.binary)
-            .arg("-indev")
-            .arg(iso_path)
-            .arg("-find")
-            .arg("/")
-            .arg("-maxdepth")
-            .arg("2")
-            .arg("-exec")
-            .arg("lsdl")
-            .kill_on_drop(true)
-            .output()
-            .await?;
-        if !result.status.success() {
-            let code = result.status.code().unwrap_or(-1);
-            let stderr = String::from_utf8_lossy(&result.stderr).trim().to_string();
-            return Err(IsoError::XorrisoFailed { code, stderr });
-        }
-        let listing = String::from_utf8_lossy(&result.stdout).into_owned();
+        // Validate in-process with libmkiso instead of spawning xorriso, and
+        // require the UDF Anchor Volume Descriptor Pointer (tag 2, sector 256)
+        // of the UDF bridge that DVD players actually read.
+        let path = iso_path.to_path_buf();
+        let (metadata, listing) = tokio::task::spawn_blocking(move || {
+            use std::io::{Read, Seek, SeekFrom};
+            let mut file = std::fs::File::open(&path)?;
+            let metadata = file.metadata()?;
+            if metadata.len() == 0 {
+                return Err(IsoError::EmptyIso);
+            }
+            let mut anchor = [0u8; SECTOR_BYTES as usize];
+            file.seek(SeekFrom::Start(256 * SECTOR_BYTES))?;
+            file.read_exact(&mut anchor)?;
+            if u16::from_le_bytes([anchor[0], anchor[1]]) != 2
+                || u32::from_le_bytes([anchor[12], anchor[13], anchor[14], anchor[15]]) != 256
+            {
+                return Err(IsoError::MissingIsoEntry(
+                    "UDF Anchor Volume Descriptor Pointer".to_string(),
+                ));
+            }
+            let reader = libmkiso::IsoReader::open(
+                std::io::BufReader::new(file),
+                libmkiso::IsoLimits::default(),
+            )
+            .map_err(|error| IsoError::UnreadableIso(error.to_string()))?;
+            let listing = reader
+                .entries()
+                .iter()
+                .map(|entry| entry.name.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            Ok((metadata, listing))
+        })
+        .await
+        .map_err(|error| IsoError::UnreadableIso(error.to_string()))??;
         let has_video_ts_ifo = listing_has_entry(&listing, VIDEO_TS_IFO);
         let has_vts_01_ifo = listing_has_entry(&listing, VTS_01_IFO);
         if !has_video_ts_ifo {
@@ -332,21 +346,28 @@ impl BdmvIsoBuilder {
         if label.trim().is_empty() || !label.is_ascii() {
             return Err(IsoError::InvalidLabel(label.to_string()));
         }
-        let label: String = label.chars().take(31).collect();
+        // UDF dstring<32> fields (PVD Volume Identifier, FSD File Set
+        // Identifier) hold a compression-ID byte, at most 30 CS0 characters
+        // and a length byte; libmkiso rejects 31-character labels.
+        let label: String = label.chars().take(30).collect();
         if let Some(parent) = iso_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let temp = TempIso::new(iso_path);
-        let target = temp.path().to_path_buf();
+        let directory = iso_path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
         let source = source_dir.to_path_buf();
         let label = label.to_string();
         let revision = self.udf_revision;
-        tokio::task::spawn_blocking(move || {
+        let staged = tokio::task::spawn_blocking(move || {
             let options = libmkiso::UdfOptions {
                 revision,
                 partition: libmkiso::UdfPartition::Metadata { mirror: true },
                 allocation: libmkiso::AllocationMode::Long,
                 label,
+                compute_digest: false,
                 ..libmkiso::UdfOptions::default()
             };
             let checkpoint = {
@@ -362,17 +383,27 @@ impl BdmvIsoBuilder {
                     }
                 }
             };
-            libmkiso::write_udf_with_cancel(&source, &target, &options, checkpoint)
+            // `write_udf_with_cancel` publishes with `fs::hard_link`, which
+            // exFAT/FAT volumes reject. Stage instead: libmkiso renames its
+            // temporary into this TempPath, which deletes itself on drop if
+            // the render is aborted before publication.
+            let tree = libmkiso::tree_source::HostTreeSource::new(&source)?;
+            let max_bytes = usize::try_from(options.max_metadata_bytes).unwrap_or(usize::MAX);
+            libmkiso::UdfImage::from_tree_source(&tree, options.max_entries, max_bytes)
+                .and_then(|image| image.stage_with_cancel(&directory, &options, checkpoint))
+                .map(|(path, _digest)| path)
                 .map_err(|error| IsoError::BdmvAuthoring(error.to_string()))
         })
         .await
         .map_err(|error| IsoError::BdmvAuthoring(format!("tarea UDF abortada: {error}")))??;
 
-        let metadata = std::fs::metadata(temp.path())?;
+        let metadata = std::fs::metadata(&staged)?;
         if metadata.len() == 0 {
             return Err(IsoError::EmptyIso);
         }
-        temp.publish(iso_path)?;
+        staged
+            .persist(iso_path)
+            .map_err(|error| IsoError::Io(error.error))?;
         Ok(BdmvIsoReport {
             iso_path: iso_path.to_path_buf(),
             size_bytes: metadata.len(),

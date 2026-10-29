@@ -237,7 +237,7 @@
             const target = episodeNode(episode.id);
             if (target) {
               edges.push({
-                id: `${source}-all-${episode.id}`,
+                id: `${source}-b${index}-all-${episode.id}`,
                 from: source,
                 to: target,
                 label: t("reproducir todo"),
@@ -246,7 +246,7 @@
             }
           });
         } else if (action.kind === "playFirstPlay" && known.has("firstPlay")) {
-          edges.push({ id: `${source}-first`, from: source, to: "firstPlay", label, dashed: false });
+          edges.push({ id: `${source}-b${index}-first`, from: source, to: "firstPlay", label, dashed: false });
         }
       });
       if (!isContinuousAvchd && rootMenu && menu.id !== rootMenu.id) {

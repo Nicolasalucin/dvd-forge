@@ -102,6 +102,9 @@ pub struct UdfOptions {
     pub metadata_extent_blocks: u32,
     /// Logical packet starts to relocate into the sparable profile's replacement area.
     pub sparing_packets: Vec<u32>,
+    /// Re-read the finished image to return its SHA-256 digest. Disable it when
+    /// the caller does not consume the digest to avoid a full extra I/O pass.
+    pub compute_digest: bool,
 }
 impl Default for UdfOptions {
     fn default() -> Self {
@@ -123,6 +126,7 @@ impl Default for UdfOptions {
             extent_blocks: (MAX_EXTENT / BLOCK) as u32,
             metadata_extent_blocks: 0,
             sparing_packets: Vec::new(),
+            compute_digest: true,
         }
     }
 }
@@ -1437,7 +1441,8 @@ fn write_payload(
             for p in pieces.iter() {
                 if let Piece::Deferred(content) = p {
                     let mut copied = 0;
-                    let mut buffer = [0; 65536];
+                    let mut buffer =
+                        vec![0u8; usize::try_from(content.len().min(4 << 20))?.max(4096)];
                     output.seek(SeekFrom::Start(position))?;
                     content.validate()?;
                     while copied < content.len() {
@@ -2028,6 +2033,13 @@ fn write_image(
             "sparing metadata limit exceeded"
         );
     }
+    if vat_layout.is_none() {
+        // Close the volume on a 64 KiB boundary (one BD ECC cluster, two DVD
+        // ECC blocks) so burner padding cannot strand the AVDPs at N-256/N.
+        total = total
+            .checked_next_multiple_of(32)
+            .context("volume layout overflow")?;
+    }
     ensure!(
         u64::from(total) * BLOCK <= options.max_image_bytes,
         "writer image byte limit exceeded"
@@ -2208,18 +2220,22 @@ fn write_image(
         &options.label,
     )?;
     file.sync_all()?;
-    file.seek(SeekFrom::Start(0))?;
-    let mut digest = Sha256::new();
-    let mut buffer = [0; 65536];
-    loop {
-        checkpoint()?;
-        let count = file.read(&mut buffer)?;
-        if count == 0 {
-            break;
+    let hash = if options.compute_digest {
+        file.seek(SeekFrom::Start(0))?;
+        let mut digest = Sha256::new();
+        let mut buffer = vec![0u8; 4 << 20];
+        loop {
+            checkpoint()?;
+            let count = file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            digest.update(&buffer[..count]);
         }
-        digest.update(&buffer[..count]);
-    }
-    let hash = hex::encode(digest.finalize());
+        hex::encode(digest.finalize())
+    } else {
+        String::new()
+    };
     drop(file);
     checkpoint()?;
     // A source copied early may drift while later payloads or hashing run.
@@ -2237,7 +2253,11 @@ fn write_image(
     if staged {
         fs::rename(&temp, output).context("retain staged UDF image")?;
     } else {
-        fs::hard_link(&temp, output).context("publish UDF image without overwriting output")?;
+        // A bare hard link fails on exFAT/FAT32 and many network volumes; the
+        // no-clobber rename keeps the "never overwrite output" guarantee there.
+        temp.persist_noclobber(output)
+            .map_err(|error| error.error)
+            .context("publish UDF image without overwriting output")?;
     }
     Ok(hash)
 }

@@ -118,7 +118,7 @@
       if (path) {
         try {
           const preview = await unwrap(commands.readImageDataUrl(path));
-          projectStore.previewUrls = { ...projectStore.previewUrls, [assetId]: preview };
+          projectStore.previewUrls[assetId] = preview;
         } catch (cause) {
           localError = messageOf(cause);
           return;

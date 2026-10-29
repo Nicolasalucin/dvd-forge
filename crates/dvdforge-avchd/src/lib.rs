@@ -473,7 +473,7 @@ async fn run_stage(
     stage: &'static str,
     progress: Option<&EncodeProgressSink>,
 ) -> Result<(), AvchdError> {
-    let mut child = Command::new(ffmpeg)
+    let mut child = Command::from(dvdforge_toolchain::background_command(ffmpeg))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -594,7 +594,17 @@ pub async fn concat_mkv(
         std::fs::create_dir_all(parent)?;
     }
     if inputs.len() == 1 {
-        std::fs::copy(&inputs[0], output)?;
+        if inputs[0].as_path() == output {
+            return Ok(());
+        }
+        // tsMuxeR only reads the stream: hard-link it instead of copying many
+        // GB; fall back to a copy across volumes.
+        if output.exists() {
+            std::fs::remove_file(output)?;
+        }
+        if std::fs::hard_link(&inputs[0], output).is_err() {
+            std::fs::copy(&inputs[0], output)?;
+        }
         return Ok(());
     }
     let list_path = output.with_extension("concat.txt");
@@ -737,7 +747,14 @@ pub struct TsMuxer {
 impl Default for TsMuxer {
     fn default() -> Self {
         Self {
-            binary: PathBuf::from("tsMuxeR"),
+            binary: {
+                let primary = resolve_binary("tsMuxeR");
+                if primary.components().count() > 1 {
+                    primary
+                } else {
+                    resolve_binary("tsmuxer")
+                }
+            },
         }
     }
 }
@@ -792,7 +809,7 @@ impl TsMuxer {
                 std::fs::create_dir_all(output)?;
             }
         }
-        let child = Command::new(&self.binary)
+        let child = Command::from(dvdforge_toolchain::background_command(&self.binary))
             .arg(meta)
             .arg(output)
             .current_dir(work_dir)

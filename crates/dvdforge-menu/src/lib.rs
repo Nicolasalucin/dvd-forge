@@ -13,6 +13,7 @@ pub use dvdforge_domain::navigation::{
     resolve_navigation, EdgeSource, NavDirection, NavEdge, NavNode, NavPolicy, NavigationGraph,
 };
 use dvdforge_domain::{AspectRatio, ButtonId, FrameRate, MenuId, TvStandard};
+use dvdforge_toolchain::resolve_binary;
 use image::{imageops::FilterType, GrayImage, Luma, Rgba, RgbaImage};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -256,7 +257,7 @@ pub struct Spumux {
 impl Default for Spumux {
     fn default() -> Self {
         Self {
-            binary: PathBuf::from("spumux"),
+            binary: resolve_binary("spumux"),
         }
     }
 }
@@ -292,7 +293,7 @@ impl Spumux {
         }
         let stdin = std::fs::File::open(input_mpeg)?;
         let stdout = std::fs::File::create(output_mpeg)?;
-        let status = Command::new(&self.binary)
+        let status = Command::from(dvdforge_toolchain::background_command(&self.binary))
             .arg("-m")
             .arg("dvd")
             .arg("-s")

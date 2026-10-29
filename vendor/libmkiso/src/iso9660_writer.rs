@@ -904,6 +904,9 @@ fn emit_nodes(
     let mut emitted = temporary.stream_position()?;
     progress(emitted, total_bytes)?;
     let mut written = HashSet::new();
+    // One 1 MiB heap buffer for all payloads: each deferred read re-opens and
+    // re-stats the host file, so 64 KiB chunks pay that cost 16x as often.
+    let mut buffer = vec![0u8; 1 << 20];
     for &i in &file_order {
         checkpoint()?;
         let node = &nodes[i];
@@ -924,7 +927,6 @@ fn emit_nodes(
             None
         };
         let mut copied = 0u64;
-        let mut buffer = [0u8; 65536];
         loop {
             checkpoint()?;
             let count = if let Some(content) = &node.content {

@@ -1,6 +1,20 @@
 import Konva from "konva";
 import type { Menu_Serialize } from "../../api/bindings";
 
+/** Decoded backgrounds by data-URL (small LRU): slider drags re-compose only. */
+const DECODED_BACKGROUND_LIMIT = 4;
+const decodedBackgrounds = new Map<string, HTMLImageElement>();
+
+function rememberBackground(url: string, image: HTMLImageElement): void {
+  decodedBackgrounds.delete(url);
+  decodedBackgrounds.set(url, image);
+  while (decodedBackgrounds.size > DECODED_BACKGROUND_LIMIT) {
+    const oldest = decodedBackgrounds.keys().next().value;
+    if (oldest === undefined) break;
+    decodedBackgrounds.delete(oldest);
+  }
+}
+
 /**
  * Pinta el fondo del menú en el lienzo nativo. La composición se hace en un
  * canvas 2D para que Cover/Contain/Stretch, el desenfoque y el oscurecido se
@@ -13,18 +27,30 @@ export function drawBackground(
   imageUrl: string | null = null,
   showSafeAreas = true,
 ): void {
-  layer.destroyChildren();
   const width = menu.canvas.width;
   const height = menu.canvas.height;
+  // The URL is compared by reference (it is the same string held by the store)
+  // instead of being concatenated into the token, which copied it every call.
+  const url = imageUrl ?? "";
   const token = [
-    imageUrl ?? "",
     menu.scaleMode,
     menu.dimPercent,
     menu.blurPx,
     showSafeAreas ? "guides" : "clean",
     color,
+    width,
+    height,
   ].join("|");
+  if (
+    layer.hasChildren() &&
+    layer.getAttr("background-token") === token &&
+    layer.getAttr("background-url") === url
+  ) {
+    return;
+  }
+  layer.destroyChildren();
   layer.setAttr("background-token", token);
+  layer.setAttr("background-url", url);
 
   layer.add(
     new Konva.Rect({
@@ -46,9 +72,13 @@ export function drawBackground(
     return;
   }
 
-  const image = new Image();
-  image.onload = () => {
-    if (layer.getAttr("background-token") !== token) return;
+  const compose = (image: HTMLImageElement) => {
+    if (
+      layer.getAttr("background-token") !== token ||
+      layer.getAttr("background-url") !== url
+    ) {
+      return;
+    }
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -78,6 +108,17 @@ export function drawBackground(
     layer.add(node);
     node.zIndex(1);
     layer.batchDraw();
+  };
+  const cached = decodedBackgrounds.get(imageUrl);
+  if (cached) {
+    rememberBackground(imageUrl, cached);
+    compose(cached);
+    return;
+  }
+  const image = new Image();
+  image.onload = () => {
+    rememberBackground(imageUrl, image);
+    compose(image);
   };
   image.onerror = () => {
     if (layer.getAttr("background-token") === token) layer.batchDraw();

@@ -73,7 +73,7 @@ fn pes_packet(payload: &[u8], pts_90k: u64) -> Vec<u8> {
     out.push(0x80); // marker bits
     out.push(0xC0); // PTS and DTS present
     out.push(10); // PTS + DTS are ten bytes
-    push_timestamp(&mut out, 0x20, pts_90k); // '0010' PTS
+    push_timestamp(&mut out, 0x30, pts_90k); // '0011' PTS (DTS present)
     push_timestamp(&mut out, 0x10, pts_90k); // '0001' DTS
     out.extend_from_slice(payload);
     out
@@ -114,6 +114,9 @@ mod tests {
         assert_eq!(packet[6], 0x80);
         assert_eq!(packet[7], 0xC0);
         assert_eq!(packet[8], 10);
+        // ISO/IEC 13818-1: with PTS_DTS_flags = 0xC0 the PTS prefix is 0011.
+        assert_eq!(packet[9] >> 4, 0x3);
+        assert_eq!(packet[14] >> 4, 0x1);
         assert_eq!(decode_timestamp(&packet[9..14]), 90_000);
         assert_eq!(decode_timestamp(&packet[14..19]), 90_000);
         assert_eq!(&packet[19..], &[SEGMENT_PDS, 0, 2, 0xAA, 0xBB]);

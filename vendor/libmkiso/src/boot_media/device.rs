@@ -272,15 +272,12 @@ mod linux {
             ));
         }
         let mut opened_capacity = 0u64;
+        // BLKGETSIZE64 = _IOR(0x12, 114, size_t): the size field is 8 on 64-bit
+        // targets (0x80081272) but 4 on i686/armv7 (0x80041272).
+        const BLKGETSIZE64: u32 =
+            (2 << 30) | ((std::mem::size_of::<libc::size_t>() as u32) << 16) | (0x12 << 8) | 114;
         // SAFETY: BLKGETSIZE64 writes one u64 into a valid pointer for an open block-device fd.
-        if unsafe {
-            libc::ioctl(
-                target.as_raw_fd(),
-                0x8008_1272_u32 as _,
-                &mut opened_capacity,
-            )
-        } < 0
-        {
+        if unsafe { libc::ioctl(target.as_raw_fd(), BLKGETSIZE64 as _, &mut opened_capacity) } < 0 {
             return Err(Error::Io(std::io::Error::last_os_error()));
         }
         if opened_capacity != info.capacity {

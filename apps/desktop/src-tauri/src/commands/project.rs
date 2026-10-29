@@ -204,7 +204,9 @@ pub fn project_new(
     })
 }
 
-#[tauri::command]
+// Sync commands run on the main (UI) thread; saving now fsyncs and also
+// writes SQLite, so run it on the async runtime instead.
+#[tauri::command(async)]
 #[specta::specta]
 pub fn project_save(path: String, project: Project) -> Result<(), String> {
     dvdforge_project::save_project(&project, &path).map_err(|error| error.to_string())?;
@@ -213,7 +215,7 @@ pub fn project_save(path: String, project: Project) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 #[specta::specta]
 pub fn project_open(path: String) -> Result<Project, String> {
     let project = dvdforge_project::load_and_validate(&path).map_err(|error| error.to_string())?;

@@ -418,7 +418,7 @@ pub fn write_iso_with_hash(source: &Path, output: &Path) -> Result<String> {
 /// Write optical media with cooperative cancellation during scanning, layout,
 /// payload copying, verification, hashing and immediately before publication.
 /// Returning an error from `checkpoint` removes the temporary image and leaves
-/// the output unpublished. Each payload copy reads at most 64 KiB per check.
+/// the output unpublished. Each payload copy reads at most 1 MiB per check.
 pub fn write_iso_with_cancel(
     source: &Path,
     output: &Path,
@@ -585,6 +585,9 @@ pub fn write_iso_with_cancel(
             sector(&mut f, loc, &anchor(loc, reserve))?;
         }
         sector(&mut f, PART, &descriptor(256, 0, cursor, files, dirs))?;
+        // One 1 MiB heap buffer for payloads and the digest pass; each deferred
+        // read re-opens and re-stats the source, so small chunks multiply that.
+        let mut buffer = vec![0u8; 1 << 20];
         for (i, n) in ns.iter().enumerate() {
             checkpoint()?;
             sector(&mut f, PART + i as u32 + 1, &entry(n, i)?)?;
@@ -597,7 +600,6 @@ pub fn write_iso_with_cancel(
                     .as_ref()
                     .context("missing deferred source content")?;
                 let mut copied = 0;
-                let mut buffer = [0u8; 65536];
                 while copied < n.size {
                     checkpoint()?;
                     let count = (n.size - copied).min(buffer.len() as u64) as usize;
@@ -634,14 +636,13 @@ pub fn write_iso_with_cancel(
 
         f.seek(SeekFrom::Start(0))?;
         let mut digest = Sha256::new();
-        let mut buf = [0u8; 65536];
         loop {
             checkpoint()?;
-            let n = f.read(&mut buf)?;
+            let n = f.read(&mut buffer)?;
             if n == 0 {
                 break;
             }
-            digest.update(&buf[..n]);
+            digest.update(&buffer[..n]);
         }
         let hash = hex::encode(digest.finalize());
         drop(f);

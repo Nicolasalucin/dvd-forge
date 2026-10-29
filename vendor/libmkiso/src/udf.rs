@@ -45,9 +45,11 @@ impl Default for Limits {
         Self {
             max_entries: 100_000,
             max_metadata_bytes: 16 << 20,
-            max_entry_bytes: 8 << 30,
-            max_total_bytes: 32 << 30,
-            max_input_bytes: 64 << 30,
+            // Single BD M2TS files exceed 8 GiB and BD-50/BD-XL payloads exceed
+            // 32 GiB; these bounds are sanity checks, not allocation sizes.
+            max_entry_bytes: 128 << 30,
+            max_total_bytes: 256 << 30,
+            max_input_bytes: 128 << 30,
             max_nesting_depth: 64,
         }
     }
@@ -1223,16 +1225,21 @@ impl<'a> UdfReader<'a> {
     }
     /// Return a payload with an explicit allocation maximum, including sparse bytes.
     pub fn read_entry(&self, index: usize, maximum: u64) -> Result<Vec<u8>> {
-        if self
+        let size = self
             .entries
             .get(index)
             .ok_or_else(|| bad("unknown entry ID"))?
-            .size
-            > maximum
-        {
+            .size;
+        if size > maximum {
             return Err(Error::ResourceLimit("buffered entry bytes"));
         }
+        // Fail cleanly when the payload cannot fit the address space (i686) and
+        // allocate once instead of doubling through the extract loop.
         let mut output = Vec::new();
+        usize::try_from(size)
+            .ok()
+            .and_then(|size| output.try_reserve_exact(size).ok())
+            .ok_or(Error::ResourceLimit("buffered entry bytes"))?;
         self.extract(index, &mut output)?;
         Ok(output)
     }

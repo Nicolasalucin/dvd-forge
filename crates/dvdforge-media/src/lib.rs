@@ -64,7 +64,7 @@ impl Ffprobe {
         }
         let output = timeout(
             PROBE_TIMEOUT,
-            Command::new(&self.binary)
+            Command::from(dvdforge_toolchain::background_command(&self.binary))
                 .kill_on_drop(true)
                 .arg("-v")
                 .arg("error")

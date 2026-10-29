@@ -191,9 +191,11 @@ impl DiscBurner for MacOsBurner {
 
         let mut verified = false;
         if request.verify {
-            let report = self
-                .verify(&request.device, &request.iso_path, progress.clone())
-                .await?;
+            // Read-back takes as long as the burn: honour Cancel here too.
+            let report = tokio::select! {
+                _ = cancel.cancelled() => return Err(BurnError::Cancelled),
+                report = self.verify(&request.device, &request.iso_path, progress.clone()) => report?,
+            };
             if report.mismatches > 0 {
                 return Err(BurnError::VerifyFailed {
                     iso: report.sha256_iso,
@@ -236,7 +238,11 @@ impl DiscBurner for MacOsBurner {
             return Err(BurnError::InvalidRequest("el ISO está vacío".to_string()));
         }
         let sectors_checked = iso_size.div_ceil(DVD_SECTOR_BYTES);
-        let iso_hash = hash_file(iso).await?;
+        // Hash the ISO on a blocking thread while the drive is read back.
+        let iso_hash = tokio::task::spawn_blocking({
+            let iso = iso.to_path_buf();
+            move || hash_file(&iso)
+        });
         let raw = raw_device_path(device.as_str());
         let mut file = tokio::fs::File::open(&raw).await.map_err(map_io)?;
         let mut hasher = Sha256::new();
@@ -272,6 +278,9 @@ impl DiscBurner for MacOsBurner {
                 "la lectura de verificación terminó antes de cubrir el ISO".to_string(),
             ));
         }
+        let iso_hash = iso_hash
+            .await
+            .map_err(|error| BurnError::Io(std::io::Error::other(error)))??;
         let disc_hash = hex::encode(hasher.finalize());
         Ok(VerifyReport {
             sectors_checked,
@@ -769,7 +778,14 @@ pub fn build_hdiutil_burn_args(request: &BurnRequest) -> Vec<String> {
         request.iso_path.display().to_string(),
         "-device".to_string(),
         device_node_path(request.device.as_str()),
+        // hdiutil ejects and verifies by default; DVD Forge runs its own
+        // SHA-256 verify and eject afterwards and needs the disc in the tray.
+        "-noeject".to_string(),
+        "-noverifyburn".to_string(),
     ];
+    if request.close_session {
+        args.push("-forceclose".to_string());
+    }
     if let Some(speed) = request.speed_x {
         args.push("-speed".to_string());
         args.push(speed.to_string());
@@ -965,12 +981,13 @@ async fn terminate_child(child: &mut Child) {
     let _ = child.kill().await;
 }
 
-async fn hash_file(path: &Path) -> Result<String, BurnError> {
-    let mut file = tokio::fs::File::open(path).await.map_err(map_io)?;
+fn hash_file(path: &Path) -> Result<String, BurnError> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(map_io)?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; 1024 * 1024];
     loop {
-        let read = file.read(&mut buffer).await.map_err(map_io)?;
+        let read = file.read(&mut buffer).map_err(map_io)?;
         if read == 0 {
             break;
         }
@@ -1107,7 +1124,10 @@ mod tests {
             "-drive 2 burn -noverify -eject -speed 4 /tmp/disc.iso"
         );
         let hdiutil = build_hdiutil_burn_args(&request).join(" ");
-        assert_eq!(hdiutil, "burn /tmp/disc.iso -device /dev/disk2 -speed 4");
+        assert_eq!(
+            hdiutil,
+            "burn /tmp/disc.iso -device /dev/disk2 -noeject -noverifyburn -forceclose -speed 4"
+        );
         assert_eq!(build_drutil_status_args("2").join(" "), "-drive 2 status");
         assert_eq!(build_drutil_eject_args("2").join(" "), "-drive 2 eject");
         assert_eq!(

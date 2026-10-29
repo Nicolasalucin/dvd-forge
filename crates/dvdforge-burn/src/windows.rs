@@ -60,17 +60,26 @@ pub fn normalize_drive_id(device: &str) -> Result<String, BurnError> {
 
 /// IMAPI2 reports write speed in DVD sectors per second (2048-byte sectors).
 pub fn sectors_per_second_to_speed_x(sectors: i32) -> f32 {
+    sectors_per_second_to_speed_x_for(DiscMediaKind::DvdR, sectors)
+}
+
+/// Media-aware variant: 1x is 1385 KB/s on DVD but 4495 KB/s on Blu-ray.
+pub fn sectors_per_second_to_speed_x_for(kind: DiscMediaKind, sectors: i32) -> f32 {
     if sectors <= 0 {
         return 0.0;
     }
-    (sectors as f64 * DVD_SECTOR_BYTES as f64 / DVD_1X_BYTES_PER_SECOND) as f32
+    (sectors as f64 * DVD_SECTOR_BYTES as f64 / kind.bytes_per_second_at_1x()) as f32
 }
 
 pub fn speed_x_to_sectors_per_second(speed_x: f32) -> i32 {
+    speed_x_to_sectors_per_second_for(DiscMediaKind::DvdR, speed_x)
+}
+
+pub fn speed_x_to_sectors_per_second_for(kind: DiscMediaKind, speed_x: f32) -> i32 {
     if !speed_x.is_finite() || speed_x <= 0.0 {
         return 0;
     }
-    (speed_x as f64 * DVD_1X_BYTES_PER_SECOND / DVD_SECTOR_BYTES as f64).round() as i32
+    (speed_x as f64 * kind.bytes_per_second_at_1x() / DVD_SECTOR_BYTES as f64).round() as i32
 }
 
 pub fn imapi_sectors_to_bytes(sectors: i32) -> u64 {
@@ -85,6 +94,10 @@ pub fn imapi_media_kind(value: i32) -> DiscMediaKind {
         7 | 13 => DiscMediaKind::DvdPlusRw,
         9 | 11 => DiscMediaKind::DvdR,
         10 => DiscMediaKind::DvdRw,
+        // IMAPI_MEDIA_TYPE_BDROM / _BDR / _BDRE.
+        17 => DiscMediaKind::BdRom,
+        18 => DiscMediaKind::BdR,
+        19 => DiscMediaKind::BdRe,
         _ => DiscMediaKind::Unknown,
     }
 }
@@ -191,9 +204,13 @@ mod platform {
     };
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, ISequentialStream_Impl, IStream,
-        IStream_Impl, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, LOCKTYPE, STATFLAG, STATSTG,
-        STGC, STGM_READ, STGTY_STREAM, STREAM_SEEK, STREAM_SEEK_CUR, STREAM_SEEK_END,
-        STREAM_SEEK_SET,
+        IStream_Impl, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, LOCKTYPE, SAFEARRAY,
+        STATFLAG, STATSTG, STGC, STGM_READ, STGTY_STREAM, STREAM_SEEK, STREAM_SEEK_CUR,
+        STREAM_SEEK_END, STREAM_SEEK_SET,
+    };
+    use windows::Win32::System::Ole::{
+        SafeArrayAccessData, SafeArrayDestroy, SafeArrayGetLBound, SafeArrayGetUBound,
+        SafeArrayUnaccessData,
     };
 
     #[derive(Debug, Default, Clone, Copy)]
@@ -232,12 +249,48 @@ mod platform {
         BurnError::Imapi(format!("tarea COM terminó inesperadamente: {error}"))
     }
 
+    /// Drive letter of a recorder, from its mount points (`D:\`).
+    /// `LegacyDeviceNumber` is the N of `\\.\CdRomN`, not a letter index.
     fn drive_letter(recorder: &IDiscRecorder2) -> Option<char> {
-        let number = unsafe { recorder.LegacyDeviceNumber() }.ok()?;
-        if !(0..=25).contains(&number) {
+        let paths = unsafe { recorder.VolumePathNames() }.ok()?;
+        if paths.is_null() {
             return None;
         }
-        Some((b'A' + number as u8) as char)
+        let letter = unsafe { first_drive_letter(paths) };
+        let _ = unsafe { SafeArrayDestroy(paths) };
+        letter
+    }
+
+    /// Scans a SAFEARRAY of `VT_BSTR` VARIANTs for the first `X:` mount point.
+    unsafe fn first_drive_letter(paths: *mut SAFEARRAY) -> Option<char> {
+        const VT_BSTR: u16 = 8;
+        let lower = unsafe { SafeArrayGetLBound(paths, 1) }.ok()?;
+        let upper = unsafe { SafeArrayGetUBound(paths, 1) }.ok()?;
+        let stride = unsafe { (*paths).cbElements } as usize;
+        let mut data = std::ptr::null_mut();
+        unsafe { SafeArrayAccessData(paths, &mut data) }.ok()?;
+        let mut letter = None;
+        for index in 0..usize::try_from(upper - lower + 1).unwrap_or(0) {
+            // VARIANT layout: u16 `vt`, 6 reserved bytes, then the BSTR pointer.
+            let element = unsafe { data.cast::<u8>().add(index * stride) };
+            if unsafe { element.cast::<u16>().read_unaligned() } != VT_BSTR {
+                continue;
+            }
+            let text = unsafe { element.add(8).cast::<*const u16>().read_unaligned() };
+            // The BSTR length prefix (bytes) sits just before the text.
+            if text.is_null()
+                || unsafe { text.cast::<u8>().sub(4).cast::<u32>().read_unaligned() } < 4
+            {
+                continue;
+            }
+            let (first, second) = unsafe { (text.read_unaligned(), text.add(1).read_unaligned()) };
+            if second == u16::from(b':') && first < 0x80 && (first as u8).is_ascii_alphabetic() {
+                letter = Some((first as u8).to_ascii_uppercase() as char);
+                break;
+            }
+        }
+        let _ = unsafe { SafeArrayUnaccessData(paths) };
+        letter
     }
 
     fn com_list_devices() -> Result<Vec<OpticalDevice>, BurnError> {
@@ -351,7 +404,7 @@ mod platform {
         let free_sectors = unsafe { format.FreeSectorsOnMedia() }.unwrap_or(0);
         let speed = unsafe { format.CurrentWriteSpeed() }
             .ok()
-            .map(sectors_per_second_to_speed_x)
+            .map(|sectors| sectors_per_second_to_speed_x_for(kind, sectors))
             .filter(|value| *value > 0.0);
         Ok(MediaInfo {
             kind,
@@ -507,7 +560,7 @@ mod platform {
         let (recorder, _) = find_recorder(request.device.as_str())?;
         let format = format_for(&recorder)?;
         if let Some(speed) = request.speed_x {
-            let sectors = speed_x_to_sectors_per_second(speed as f32);
+            let sectors = speed_x_to_sectors_per_second_for(media.kind, f32::from(speed));
             if sectors > 0 {
                 unsafe { format.SetWriteSpeed(sectors, VARIANT_FALSE) }.map_err(map_com)?;
             }
@@ -546,13 +599,18 @@ mod platform {
         device: &DeviceId,
         iso: &std::path::Path,
         progress: &ProgressSink,
+        cancel: &CancellationToken,
     ) -> Result<VerifyReport, BurnError> {
         let iso_size = std::fs::metadata(iso).map_err(map_io)?.len();
         if iso_size == 0 {
             return Err(BurnError::InvalidRequest("el ISO está vacío".to_string()));
         }
         let sectors_checked = iso_size.div_ceil(DVD_SECTOR_BYTES);
-        let iso_hash = hash_file_sync(iso)?;
+        // Hash the ISO on its own thread while the drive is read back.
+        let iso_hasher = {
+            let iso = iso.to_path_buf();
+            std::thread::spawn(move || hash_file_sync(&iso))
+        };
         let raw = raw_volume_path(device.as_str())?;
         let mut file = std::fs::File::open(&raw).map_err(map_io)?;
         use std::io::{Read, Seek, SeekFrom};
@@ -563,6 +621,9 @@ mod platform {
         let mut remaining_read = sectors_checked * DVD_SECTOR_BYTES;
         let mut read_total = 0u64;
         while remaining_read > 0 {
+            if cancel.is_cancelled() {
+                return Err(BurnError::Cancelled);
+            }
             let chunk = remaining_read.min(buffer.len() as u64) as usize;
             let read = file.read(&mut buffer[..chunk]).map_err(map_io)?;
             if read == 0 {
@@ -588,6 +649,9 @@ mod platform {
                 "la verificación IMAPI2 no cubrió el ISO".to_string(),
             ));
         }
+        let iso_hash = iso_hasher.join().map_err(|_| {
+            BurnError::Imapi("el hash del ISO terminó inesperadamente".to_string())
+        })??;
         let disc_hash = hex::encode(hasher.finalize());
         Ok(VerifyReport {
             sectors_checked,
@@ -670,9 +734,15 @@ mod platform {
             .map_err(map_join)?;
             let (backend, mut verified) = result?;
             if verify {
+                let cancel_for_verify = cancel.clone();
                 let report = tokio::task::spawn_blocking(move || {
                     let _com = ComApartment::new()?;
-                    verify_sync(&device_for_verify, &iso_path, &progress_for_verify)
+                    verify_sync(
+                        &device_for_verify,
+                        &iso_path,
+                        &progress_for_verify,
+                        &cancel_for_verify,
+                    )
                 })
                 .await
                 .map_err(map_join)??;
@@ -716,7 +786,7 @@ mod platform {
             let iso = iso.to_path_buf();
             tokio::task::spawn_blocking(move || {
                 let _com = ComApartment::new()?;
-                verify_sync(&device, &iso, &progress)
+                verify_sync(&device, &iso, &progress, &CancellationToken::new())
             })
             .await
             .map_err(map_join)?
@@ -758,6 +828,12 @@ mod tests {
         assert_eq!(imapi_media_kind(9), DiscMediaKind::DvdR);
         assert_eq!(imapi_media_kind(10), DiscMediaKind::DvdRw);
         assert_eq!(imapi_media_kind(12), DiscMediaKind::Unknown);
+        assert_eq!(imapi_media_kind(18), DiscMediaKind::BdR);
+        assert_eq!(imapi_media_kind(19), DiscMediaKind::BdRe);
+        assert_eq!(
+            speed_x_to_sectors_per_second_for(DiscMediaKind::BdR, 1.0),
+            2_195
+        );
         assert_eq!(imapi_media_kind(99), DiscMediaKind::Unknown);
         assert_eq!(
             imapi_media_status(IMAPI_BLANK_STATE, DiscMediaKind::DvdR),

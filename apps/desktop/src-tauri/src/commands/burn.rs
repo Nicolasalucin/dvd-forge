@@ -7,6 +7,8 @@ use std::sync::{Mutex, OnceLock};
 use tauri::ipc::Channel;
 use tokio::sync::mpsc;
 
+const PROGRESS_THROTTLE: std::time::Duration = std::time::Duration::from_millis(200);
+
 struct BurnJob {
     id: JobId,
     cancel: CancellationToken,
@@ -140,7 +142,15 @@ pub async fn burn_start(
         burner.burn(request, sender, task_cancel).await
     });
 
+    let mut last_sent: Option<std::time::Instant> = None;
     while let Some(progress) = receiver.recv().await {
+        // Coalesce per-MiB verify / per-IStream::Read updates like render_start.
+        if progress.percent < 100.0
+            && last_sent.is_some_and(|sent| sent.elapsed() < PROGRESS_THROTTLE)
+        {
+            continue;
+        }
+        last_sent = Some(std::time::Instant::now());
         // Returning early drops command_guard, which requests cooperative
         // cancellation; the worker keeps the slot until it has actually stopped.
         if let Err(error) = channel.send(progress) {

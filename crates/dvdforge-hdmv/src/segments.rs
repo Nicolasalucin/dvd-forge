@@ -262,8 +262,10 @@ fn push_button(out: &mut Vec<u8>, button: &ButtonDefinition) -> Result<(), Segme
     out.push(0); // auto-action flag + reserved
     out.extend_from_slice(&button.x.to_be_bytes());
     out.extend_from_slice(&button.y.to_be_bytes());
+    // A missing neighbour points back at the button itself: that is how HDMV
+    // encodes "this key does not move the selection".
     for target in [button.up, button.down, button.left, button.right] {
-        out.extend_from_slice(&target.unwrap_or(NO_BUTTON).to_be_bytes());
+        out.extend_from_slice(&target.unwrap_or(button.id).to_be_bytes());
     }
     out.extend_from_slice(&button.normal_object.to_be_bytes());
     out.extend_from_slice(&button.normal_object.to_be_bytes());

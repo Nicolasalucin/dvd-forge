@@ -201,6 +201,13 @@ pub fn media_preview_url(video_path: String) -> Result<String, String> {
             .lock()
             .map_err(|_| "No se pudo registrar la vista previa.".to_string())?;
         files.retain(|_, entry| entry.created.elapsed() < PREVIEW_TOKEN_TTL);
+        // Reuse (and refresh) the live token of an already registered file: a
+        // stable URL lets <video> seek instead of reloading, and repeated
+        // registrations can no longer evict the token of a playing video.
+        if let Some((existing, entry)) = files.iter_mut().find(|(_, entry)| entry.path == path) {
+            entry.created = Instant::now();
+            return Ok(format!("{}/{}", server.base_url, existing));
+        }
         if files.len() >= MAX_PREVIEW_TOKENS {
             if let Some(oldest) = files
                 .iter()
@@ -548,12 +555,34 @@ pub async fn media_extract_frame(
             input.display()
         ));
     }
+    let cached = output_png.is_none();
     let output = frame_output_path(output_png.as_deref(), &input, timestamp_ms)?;
+    // The cache name is keyed by source path, size, mtime and timestamp, so a
+    // complete PNG there is exactly the frame FFmpeg would extract again.
+    if cached && png_is_complete(&output) {
+        return Ok(output.display().to_string());
+    }
+    // Opening a project requests one frame per video asset at once; bound the
+    // number of concurrent FFmpeg decoders. The deadline starts after the slot.
+    let _slot = frame_slots()
+        .acquire()
+        .await
+        .map_err(|_| "La cola de fotogramas no está disponible.".to_string())?;
+    if cached && png_is_complete(&output) {
+        return Ok(output.display().to_string());
+    }
+    // Cached frames go to a unique sibling renamed into place on success, so
+    // concurrent requests or a crash never leave a truncated cached PNG.
+    let target = if cached {
+        output.with_extension(format!("{}.part.png", uuid::Uuid::new_v4().simple()))
+    } else {
+        output.clone()
+    };
     let seconds = format!("{:.3}", timestamp_ms as f64 / 1000.0);
-    let args = build_frame_args(&input, &output, &seconds);
+    let args = build_frame_args(&input, &target, &seconds);
     let output_result = match tokio::time::timeout(
         FRAME_TIMEOUT,
-        Command::new(ffmpeg_binary())
+        Command::from(dvdforge_toolchain::background_command(ffmpeg_binary()))
             .args(&args)
             .stdin(Stdio::null())
             .kill_on_drop(true)
@@ -564,23 +593,55 @@ pub async fn media_extract_frame(
         Ok(result) => result.map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?,
         Err(_) => {
             // FFmpeg may have written a partial PNG before the deadline.
-            let _ = std::fs::remove_file(&output);
+            let _ = std::fs::remove_file(&target);
             return Err("FFmpeg agotó el tiempo al extraer el fotograma.".to_string());
         }
     };
     if !output_result.status.success() {
-        let _ = std::fs::remove_file(&output);
+        let _ = std::fs::remove_file(&target);
         let stderr = String::from_utf8_lossy(&output_result.stderr);
         return Err(format!(
             "FFmpeg no pudo extraer el fotograma: {}",
             stderr.trim()
         ));
     }
-    if !output.is_file() {
-        let _ = std::fs::remove_file(&output);
+    if !target.is_file() {
+        let _ = std::fs::remove_file(&target);
         return Err("FFmpeg terminó sin generar la imagen solicitada.".to_string());
     }
+    if cached {
+        if let Err(error) = std::fs::rename(&target, &output) {
+            let _ = std::fs::remove_file(&target);
+            return Err(error.to_string());
+        }
+    }
     Ok(output.display().to_string())
+}
+
+static FRAME_SLOTS: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
+
+/// At most one FFmpeg frame decoder per core (capped at 4) at a time.
+fn frame_slots() -> &'static tokio::sync::Semaphore {
+    FRAME_SLOTS.get_or_init(|| {
+        let cores = std::thread::available_parallelism().map_or(2, usize::from);
+        tokio::sync::Semaphore::new(cores.clamp(1, 4))
+    })
+}
+
+/// True when `path` is a PNG ending with its IEND chunk. FFmpeg writes IEND
+/// last, so files cut short by a crash or timeout are rejected.
+fn png_is_complete(path: &Path) -> bool {
+    const IEND: [u8; 12] = [0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xAE, 0x42, 0x60, 0x82];
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut signature = [0u8; 8];
+    let mut trailer = [0u8; 12];
+    file.read_exact(&mut signature).is_ok()
+        && &signature == b"\x89PNG\r\n\x1a\n"
+        && file.seek(SeekFrom::End(-12)).is_ok()
+        && file.read_exact(&mut trailer).is_ok()
+        && trailer == IEND
 }
 
 fn frame_output_path(
@@ -645,6 +706,13 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
             input.display()
         ));
     }
+    // A finished proxy only exists for non-direct sources and is keyed by
+    // path, size and mtime: reuse it without spawning ffprobe again.
+    let fingerprint = path_fingerprint(&input);
+    let cached_proxy = preview_cache_dir().join(format!("{fingerprint}.mp4"));
+    if std::fs::metadata(&cached_proxy).is_ok_and(|meta| meta.is_file() && meta.len() > 0) {
+        return Ok(cached_proxy.display().to_string());
+    }
     let probe = dvdforge_media::probe(&input)
         .await
         .map_err(|error| format!("No se pudo analizar el vídeo: {error}"))?;
@@ -667,7 +735,6 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
         return Ok(input.display().to_string());
     }
 
-    let fingerprint = path_fingerprint(&input);
     let key_lock = preview_lock(&fingerprint).await;
     let _single_flight = key_lock.lock().await;
 
@@ -686,7 +753,7 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
     let args = build_preview_args(&input, &partial, &codec);
     let result = tokio::time::timeout(
         PREVIEW_TIMEOUT,
-        Command::new(ffmpeg_binary())
+        Command::from(dvdforge_toolchain::background_command(ffmpeg_binary()))
             .args(&args)
             .stdin(Stdio::null())
             .kill_on_drop(true)
@@ -714,7 +781,59 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
         let _ = std::fs::remove_file(&partial);
         return Err(error.to_string());
     }
+    prune_preview_cache(&preview_dir, &preview);
     Ok(preview.display().to_string())
+}
+
+/// Budget for finished preview proxies kept between sessions.
+const PREVIEW_CACHE_BUDGET_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+
+/// Removes the oldest finished proxies until the cache fits the budget,
+/// skipping `keep` and every file registered with the preview server, and
+/// deletes `.part.mp4` leftovers older than any live FFmpeg run.
+fn prune_preview_cache(dir: &Path, keep: &Path) {
+    let in_use: std::collections::HashSet<PathBuf> = MEDIA_SERVER
+        .get()
+        .and_then(|server| server.files.lock().ok())
+        .map(|files| files.values().map(|entry| entry.path.clone()).collect())
+        .unwrap_or_default();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut total = 0u64;
+    let mut proxies = Vec::new();
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !metadata.is_file() || !name.ends_with(".mp4") {
+            continue;
+        }
+        let modified = metadata.modified().unwrap_or(UNIX_EPOCH);
+        if name.ends_with(".part.mp4") {
+            if modified.elapsed().unwrap_or_default() > PREVIEW_TIMEOUT * 2 {
+                let _ = std::fs::remove_file(&path);
+            }
+            continue;
+        }
+        total = total.saturating_add(metadata.len());
+        if path != keep && !in_use.contains(&path) {
+            proxies.push((modified, metadata.len(), path));
+        }
+    }
+    proxies.sort_by_key(|(modified, _, _)| *modified);
+    for (_, len, path) in proxies {
+        if total <= PREVIEW_CACHE_BUDGET_BYTES {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            total = total.saturating_sub(len);
+        }
+    }
 }
 
 /// Serialises proxy generation per source fingerprint so two panels requesting

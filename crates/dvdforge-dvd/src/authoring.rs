@@ -1,7 +1,8 @@
 use dvdforge_domain::{
-    ButtonAction, Chapter, EpisodeId, FrameRate, LanguageCode, MenuId, MenuPlacement, MenuRole,
-    PostAction, Project,
+    AspectRatio, ButtonAction, Chapter, EpisodeId, FrameRate, LanguageCode, MenuId, MenuPlacement,
+    MenuRole, PostAction, Project,
 };
+use dvdforge_toolchain::resolve_binary;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -124,7 +125,9 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
     let title_index = title_indices(request.episodes);
 
     let mut xml = String::new();
-    xml.push_str("<dvdauthor>\n");
+    // Without jumppads dvdauthor rejects VMGM chapter jumps and numbered
+    // `jump titleset T menu N` targets ("That form of jumping is not allowed").
+    xml.push_str("<dvdauthor jumppad=\"1\">\n");
     if request.project.disc.region_mask != 0 {
         xml.push_str(&format!(
             "  <!-- region_mask: {} -->\n",
@@ -132,6 +135,11 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
         ));
     }
     xml.push_str("  <vmgm>\n");
+    if request.intro.is_some() {
+        // The implicit first-play jumps to the `entry="title"` root menu and
+        // would skip the intro PGC.
+        xml.push_str("    <fpc>jump vmgm menu 1;</fpc>\n");
+    }
     xml.push_str("    <menus>\n");
 
     if let Some(intro) = request.intro {
@@ -232,29 +240,40 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
         if let Some(first) = request.episodes.first() {
             let mut emitted = 0usize;
             for audio in &first.audio {
-                let language = language_code(&audio.language);
                 xml.push_str(&format!(
-                    "      <audio format=\"{}\" channels=\"{}\" lang=\"{}\" />\n",
+                    "      <audio format=\"{}\" channels=\"{}\"{} />\n",
                     xml_escape(&audio.format),
                     audio.channels,
-                    xml_escape(language)
+                    lang_attribute(&audio.language)
                 ));
                 emitted += 1;
             }
             if emitted == 0 {
-                xml.push_str("      <audio format=\"ac3\" channels=\"2\" lang=\"und\" />\n");
+                xml.push_str("      <audio format=\"ac3\" channels=\"2\" />\n");
             }
+            let widescreen = request.project.disc.aspect == AspectRatio::SixteenNine;
             for subtitle in &first.subtitles {
+                // `normal` is illegal for 16:9 video: dvdauthor drops the stream.
+                let streams = if widescreen {
+                    format!(
+                        "        <stream mode=\"widescreen\" id=\"{0}\" />\n        <stream mode=\"letterbox\" id=\"{0}\" />\n",
+                        subtitle.stream_id
+                    )
+                } else {
+                    format!(
+                        "        <stream mode=\"normal\" id=\"{}\" />\n",
+                        subtitle.stream_id
+                    )
+                };
                 xml.push_str(&format!(
-                    "      <subpicture lang=\"{}\">\n        <stream mode=\"normal\" id=\"{}\" />\n      </subpicture>\n",
-                    xml_escape(language_code(&subtitle.language)),
-                    subtitle.stream_id
+                    "      <subpicture{}>\n{streams}      </subpicture>\n",
+                    lang_attribute(&subtitle.language)
                 ));
             }
         }
         for (index, episode) in request.episodes.iter().enumerate() {
             xml.push_str("      <pgc>\n");
-            let chapters = chapter_attribute(episode);
+            let chapters = chapter_attribute(episode, request.project.disc.standard.frame_rate());
             if chapters.is_empty() {
                 xml.push_str(&format!(
                     "        <vob file=\"{}\" />\n",
@@ -296,7 +315,7 @@ pub struct DvdAuthor {
 impl Default for DvdAuthor {
     fn default() -> Self {
         Self {
-            binary: PathBuf::from("dvdauthor"),
+            binary: resolve_binary("dvdauthor"),
         }
     }
 }
@@ -313,7 +332,7 @@ impl DvdAuthor {
             std::fs::remove_dir_all(output_dir)?;
         }
         std::fs::create_dir_all(output_dir)?;
-        let result = Command::new(&self.binary)
+        let result = Command::from(dvdforge_toolchain::background_command(&self.binary))
             .arg("-o")
             .arg(output_dir)
             .arg("-x")
@@ -389,6 +408,17 @@ fn language_code(language: &str) -> &'static str {
         .iso_639_1()
 }
 
+/// dvdauthor only accepts two-letter ISO 639-1 codes in `lang`; `und` aborts
+/// authoring, so undetermined tracks omit the attribute ("not specified").
+fn lang_attribute(language: &str) -> String {
+    let code = language_code(language);
+    if code.len() == 2 {
+        format!(" lang=\"{}\"", xml_escape(code))
+    } else {
+        String::new()
+    }
+}
+
 fn title_indices(episodes: &[EpisodeFile]) -> HashMap<EpisodeId, usize> {
     episodes
         .iter()
@@ -413,7 +443,15 @@ fn button_command(
             format!("g{mode_gprm}=0; jump title {title};")
         }
         ButtonAction::PlayAll => {
-            format!("g{mode_gprm}=1; jump title 1;")
+            let first = request
+                .project
+                .play_all
+                .order
+                .first()
+                .and_then(|episode| title_index.get(episode))
+                .copied()
+                .unwrap_or(1);
+            format!("g{mode_gprm}=1; jump title {first};")
         }
         ButtonAction::GotoMenu { menu: target } => target_menu_command(request, *target)?,
         ButtonAction::PlayFirstPlay => "jump vmgm menu 1;".to_string(),
@@ -421,7 +459,7 @@ fn button_command(
             let title = title_index
                 .get(episode)
                 .ok_or(AuthorError::UnknownEpisode(*episode))?;
-            let chapter = chapter.saturating_add(1);
+            let chapter = dvd_chapter_number(request, *episode, *chapter);
             if matches!(menu.placement, MenuPlacement::Vmgm) {
                 format!("g{mode_gprm}=0; jump titleset 1 title {title} chapter {chapter};")
             } else {
@@ -452,9 +490,19 @@ fn target_menu_command(
         )),
         MenuPlacement::Vtsm { titleset } => {
             let (_titleset, index) = vtsm_menu_index(request, target)?;
+            // Only the first chapter menu after the root carries entry="ptt".
+            let ptt_index = vtsm_menus_by_titleset(request)
+                .get(&titleset)
+                .and_then(|menus| {
+                    menus
+                        .iter()
+                        .skip(1)
+                        .position(|candidate| candidate.role == MenuRole::ChapterSelect)
+                })
+                .map(|position| position + 2);
             if index == 1 {
                 Ok(format!("jump titleset {titleset} menu entry root;"))
-            } else if menu.role == MenuRole::ChapterSelect {
+            } else if Some(index) == ptt_index {
                 Ok(format!("jump titleset {titleset} menu entry ptt;"))
             } else {
                 Ok(format!("jump titleset {titleset} menu {index};"))
@@ -510,14 +558,37 @@ fn title_post(
     }
 }
 
-fn chapter_attribute(episode: &EpisodeFile) -> String {
+/// `Chapter::at_frame` is authored in disc-rate frames (29.97/25, the rate of
+/// the encoded title), not in source frames.
+fn chapter_attribute(episode: &EpisodeFile, fps: FrameRate) -> String {
     episode
         .chapters
         .iter()
         .filter(|chapter| chapter.at_frame > 0)
-        .map(|chapter| format_chapter_time(chapter.at_frame, episode.fps))
+        .map(|chapter| format_chapter_time(chapter.at_frame, fps))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+/// Maps an index into `Episode::chapters` to the authored DVD chapter number:
+/// the start of the title is always chapter 1 and marks at frame 0 are not
+/// emitted, so count the positive marks up to the target.
+fn dvd_chapter_number(request: &AuthoringRequest<'_>, episode: EpisodeId, index: u32) -> usize {
+    request
+        .episodes
+        .iter()
+        .find(|file| file.episode == episode)
+        .and_then(|file| {
+            let target = file.chapters.get(index as usize)?;
+            Some(
+                1 + file
+                    .chapters
+                    .iter()
+                    .filter(|chapter| chapter.at_frame > 0 && chapter.at_frame <= target.at_frame)
+                    .count(),
+            )
+        })
+        .unwrap_or(index as usize + 1)
 }
 
 fn format_chapter_time(frame: u64, fps: FrameRate) -> String {

@@ -13,8 +13,13 @@ pub async fn collect_probes(
 ) -> (HashMap<AssetId, MediaProbe>, Vec<Diagnostic>) {
     let mut probes = HashMap::new();
     let mut warnings = Vec::new();
+    // FFprobe is I/O-bound: probe up to four sources at once (as the renderer
+    // does) and report results in project order.
+    let ffprobe = Ffprobe::default();
+    let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(4));
+    let mut pending = tokio::task::JoinSet::new();
 
-    for asset in &project.assets {
+    for (order, asset) in project.assets.iter().enumerate() {
         probes.insert(asset.id, asset.probe.clone());
         if asset.kind != MediaKind::Video {
             continue;
@@ -43,9 +48,27 @@ pub async fn collect_probes(
             ));
             continue;
         }
-        match Ffprobe::default().probe(&path).await {
+        let id = asset.id;
+        let ffprobe = ffprobe.clone();
+        let permits = std::sync::Arc::clone(&permits);
+        pending.spawn(async move {
+            let _permit = permits.acquire_owned().await;
+            let result = ffprobe.probe(&path).await;
+            (order, id, path, result)
+        });
+    }
+
+    let mut finished = Vec::new();
+    while let Some(joined) = pending.join_next().await {
+        if let Ok(result) = joined {
+            finished.push(result);
+        }
+    }
+    finished.sort_by_key(|(order, ..)| *order);
+    for (_, id, path, result) in finished {
+        match result {
             Ok(probe) => {
-                probes.insert(asset.id, probe);
+                probes.insert(id, probe);
             }
             Err(error) => {
                 warnings.push(Diagnostic::warning(

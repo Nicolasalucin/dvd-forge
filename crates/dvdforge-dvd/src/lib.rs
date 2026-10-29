@@ -380,7 +380,7 @@ async fn run_stage(
     stage: &'static str,
     progress: Option<&EncodeProgressSink>,
 ) -> Result<(), EncodeError> {
-    let mut child = Command::new(ffmpeg)
+    let mut child = Command::from(dvdforge_toolchain::background_command(ffmpeg))
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -496,20 +496,26 @@ pub fn build_scale_filter(video: &VideoEncodeConfig) -> String {
     } else {
         "flags=lanczos"
     };
+    // DVD-Video only allows 29.97 (NTSC) or 25 (PAL) fps; without a conform
+    // 23.976/24/30/50/60 fps sources keep an illegal MPEG-2 frame_rate_code.
+    let fps = match video.standard {
+        TvStandard::Ntsc => "fps=30000/1001,",
+        TvStandard::Pal => "fps=25,",
+    };
     match video.scale_mode {
         VideoScaleMode::Letterbox | VideoScaleMode::Contain => format!(
-            "scale=iw*sar:ih,setsar=1,\
+            "{fps}scale=iw*sar:ih,setsar=1,\
 scale={display_width}:{display_height}:force_original_aspect_ratio=decrease:{scale_flags},\
 pad={display_width}:{display_height}:(ow-iw)/2:(oh-ih)/2,\
 scale={target_width}:{target_height}:{scale_flags},setsar={sar},format=yuv420p"
         ),
         VideoScaleMode::CropFill | VideoScaleMode::Cover => format!(
-            "scale=iw*sar:ih,setsar=1,\
+            "{fps}scale=iw*sar:ih,setsar=1,\
 scale={target_width}:{target_height}:force_original_aspect_ratio=increase:{scale_flags},\
 crop={target_width}:{target_height},setsar={sar},format=yuv420p"
         ),
         VideoScaleMode::Stretch => format!(
-            "scale=iw*sar:ih,setsar=1,scale={target_width}:{target_height}:{scale_flags},\
+            "{fps}scale=iw*sar:ih,setsar=1,scale={target_width}:{target_height}:{scale_flags},\
 setsar={sar},format=yuv420p"
         ),
     }
@@ -529,7 +535,7 @@ fn push_file_input(args: &mut Vec<String>, path: &Path) {
 
 pub fn build_pass1_args(request: &EncodeRequest) -> Vec<String> {
     let mut args = input_args(request);
-    args.extend(video_codec_args(&request.video));
+    args.extend(first_pass_codec_args(&request.video));
     args.extend([
         "-pass".to_string(),
         "1".to_string(),
@@ -615,7 +621,14 @@ pub fn build_audio_args(request: &EncodeRequest, index: usize) -> Vec<String> {
 }
 
 pub fn build_mux_args(request: &EncodeRequest) -> Vec<String> {
-    let mut args = vec!["-hide_banner".to_string(), "-y".to_string()];
+    // The raw .m2v carries no timestamps: without genpts the reordered I/P
+    // pictures reach the PS with no PTS and dvdauthor collapses all chapters.
+    let mut args = vec![
+        "-hide_banner".to_string(),
+        "-y".to_string(),
+        "-fflags".to_string(),
+        "+genpts".to_string(),
+    ];
     push_file_input(&mut args, &request.video_m2v());
     for index in 0..request.audio_tracks.len() {
         push_file_input(&mut args, &request.audio_ac3(index));
@@ -648,7 +661,9 @@ pub fn build_menu_encode_args(request: &MenuEncodeRequest) -> Vec<String> {
         b_frames: 2,
         interlaced: false,
         top_field_first: true,
-        scale_mode: VideoScaleMode::Letterbox,
+        // The PNG is already a DVD storage-resolution frame whose pixels the
+        // spumux button rectangles reference; letterboxing it would move them.
+        scale_mode: VideoScaleMode::Stretch,
     };
     let mut args = vec![
         "-hide_banner".to_string(),
@@ -970,6 +985,19 @@ fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
     args
 }
 
+/// Pass 1 only gathers rate-control statistics and B-frame decisions
+/// (`-b_strategy 2` stays); RD macroblock decision, trellis and SATD
+/// comparators are only worth their cost in pass 2.
+fn first_pass_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
+    let mut args = video_codec_args(video);
+    for flag in ["-mbd", "-trellis", "-cmp", "-subcmp"] {
+        if let Some(position) = args.iter().position(|arg| arg == flag) {
+            args.drain(position..position + 2);
+        }
+    }
+    args
+}
+
 fn format_seconds(frames: u64, fps: FrameRate) -> String {
     format!("{:.6}", frames as f64 / fps.as_f64())
 }
@@ -1081,12 +1109,16 @@ mod tests {
     fn pass1_args_include_two_pass_and_motion_flags() {
         let args = build_pass1_args(&request());
         assert!(has_pair(&args, "-pass", "1"));
-        assert!(has_pair(&args, "-mbd", "rd"));
-        assert!(has_pair(&args, "-trellis", "2"));
-        assert!(has_pair(&args, "-cmp", "2"));
-        assert!(has_pair(&args, "-subcmp", "2"));
+        assert!(has_pair(&args, "-b_strategy", "2"));
+        assert!(!args.contains(&"-mbd".to_string()));
+        assert!(!args.contains(&"-trellis".to_string()));
         assert!(has_pair(&args, "-f", "null"));
         assert!(args.contains(&"-passlogfile".to_string()));
+        let pass2 = build_pass2_args(&request());
+        assert!(has_pair(&pass2, "-mbd", "rd"));
+        assert!(has_pair(&pass2, "-trellis", "2"));
+        assert!(has_pair(&pass2, "-cmp", "2"));
+        assert!(has_pair(&pass2, "-subcmp", "2"));
     }
 
     #[test]

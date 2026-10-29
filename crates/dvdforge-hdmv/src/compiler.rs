@@ -3,11 +3,11 @@
 use crate::opcodes::HdmvCommand;
 use crate::palette::Palette;
 use crate::pes::pes_packets_from_segments;
-use crate::rle::encode_rle;
+use crate::rle::encode_rle_lines;
 use crate::segments::{
     end_of_display_set_segment, interactive_composition_segment, palette_definition_segment,
-    window_definition_segment, ButtonDefinition, CompositionObject, InteractiveComposition,
-    PageDefinition, Segment, Window, NO_BUTTON, SEGMENT_ODS,
+    ButtonDefinition, CompositionObject, InteractiveComposition, PageDefinition, Segment, Window,
+    NO_BUTTON, SEGMENT_ODS,
 };
 use thiserror::Error;
 
@@ -144,6 +144,7 @@ pub fn compile_ig_segments(menu: &HdmvMenu) -> Result<Vec<Segment>, HdmvError> {
     // has marked the display set as being decoded.
     let mut display_segments = Vec::new();
     display_segments.push(palette_definition_segment(&palette, 0, 0));
+    // IG windows live in the ICS effect sequences; WDS is a PG-only segment.
     let window = Window {
         id: 0,
         x: 0,
@@ -151,7 +152,6 @@ pub fn compile_ig_segments(menu: &HdmvMenu) -> Result<Vec<Segment>, HdmvError> {
         width: menu.width,
         height: menu.height,
     };
-    display_segments.push(window_definition_segment(window));
 
     let mut next_object = 1u16;
     let mut in_objects = Vec::new();
@@ -163,7 +163,7 @@ pub fn compile_ig_segments(menu: &HdmvMenu) -> Result<Vec<Segment>, HdmvError> {
             object_id,
             background.width,
             background.height,
-            &encode_rle(&indexed),
+            &encode_rle_lines(&indexed, usize::from(background.width)),
         )?);
         in_objects.push(CompositionObject {
             object_id,
@@ -193,7 +193,7 @@ pub fn compile_ig_segments(menu: &HdmvMenu) -> Result<Vec<Segment>, HdmvError> {
                 object_id,
                 width,
                 height,
-                &encode_rle(&indexed),
+                &encode_rle_lines(&indexed, usize::from(width)),
             )?);
         }
         button_definitions.push(ButtonDefinition {
@@ -412,8 +412,8 @@ mod tests {
         let kinds: Vec<u8> = segments.iter().map(|segment| segment.kind).collect();
         assert_eq!(kinds.first().copied(), Some(SEGMENT_ICS));
         assert_eq!(kinds.get(1).copied(), Some(SEGMENT_PDS));
-        assert_eq!(kinds.get(2).copied(), Some(SEGMENT_WDS));
-        assert!(kinds.contains(&SEGMENT_ODS));
+        assert!(!kinds.contains(&SEGMENT_WDS));
+        assert_eq!(kinds.get(2).copied(), Some(SEGMENT_ODS));
         assert_eq!(kinds[kinds.len() - 1], SEGMENT_END);
     }
 

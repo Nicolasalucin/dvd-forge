@@ -2,9 +2,11 @@ use dvdforge_domain::{AuthoringMode, JobId};
 use dvdforge_jobs::JobEventKind;
 use dvdforge_plan::calculate_bitrate_plan;
 use dvdforge_project::load_and_validate;
-use dvdforge_render::{render_project_with_options, RenderOptions};
+use dvdforge_render::{render_project_with_options, RenderError, RenderOptions};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::support::{collect_probes, print_plan_summary};
@@ -45,7 +47,7 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
         .project
         .canonicalize()
         .map_err(|error| format!("No se pudo resolver {}: {error}", args.project.display()))?;
-    let project = load_and_validate(&project_path).map_err(|error| error.to_string())?;
+    let mut project = load_and_validate(&project_path).map_err(|error| error.to_string())?;
     let project_dir = project_path
         .parent()
         .ok_or_else(|| "El proyecto no tiene directorio padre".to_string())?
@@ -67,6 +69,13 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
     // unified renderer so DVD, AVCHD, Blu-ray, motion menus, HDMV IG menus,
     // subtitles and region masks behave exactly like the desktop app.
     let (probes, probe_warnings) = collect_probes(&project, &project_dir, !args.no_probe).await;
+    // Hand these probes to the renderer so it neither re-runs FFprobe over
+    // every source nor plans with different metadata than printed here.
+    for asset in &mut project.assets {
+        if let Some(probe) = probes.get(&asset.id) {
+            asset.probe = probe.clone();
+        }
+    }
     let mut plan = calculate_bitrate_plan(&project, &probes).map_err(|error| error.to_string())?;
     plan.warnings.extend(probe_warnings);
     print_plan_summary(&plan);
@@ -105,21 +114,32 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
         }
     });
 
-    let outcome = render_project_with_options(
+    // Cancel like the desktop app: raise the flag (libmkiso polls it) and drop
+    // the render future (kill_on_drop children, TempIso removes the .part).
+    let cancel = Arc::new(AtomicBool::new(false));
+    let render = Box::pin(render_project_with_options(
         project,
         project_dir,
         output.clone(),
         JobId::new(),
         RenderOptions {
-            probe_assets: !args.no_probe,
+            probe_assets: false,
             composited_backgrounds: None,
-            ..RenderOptions::default()
+            cancel: Some(Arc::clone(&cancel)),
         },
         sender,
-    )
-    .await
-    .map_err(|error| error.to_string())?;
+    ));
+    let result = tokio::select! {
+        result = render => result,
+        _ = tokio::signal::ctrl_c() => {
+            cancel.store(true, Ordering::SeqCst);
+            eprintln!("\nCancelando render...");
+            Err(RenderError::Cancelled)
+        }
+    };
+    // Flush every queued warning/error before propagating the result.
     let _ = drain.await;
+    let outcome = result.map_err(|error| error.to_string())?;
 
     let iso_path = PathBuf::from(&outcome.iso_path);
     let iso_bytes = std::fs::metadata(&iso_path)

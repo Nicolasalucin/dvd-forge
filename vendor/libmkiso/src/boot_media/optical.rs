@@ -104,9 +104,26 @@ pub struct ImageReport {
     pub bootable: bool,
     pub sha256: Option<String>,
 }
+/// Cancellation marker for `CheckedWriter`. `std::io::copy`/`write_all` (used by
+/// `IsoReader::extract`) retry `ErrorKind::Interrupted` forever, so cancellation
+/// must surface as a non-retryable error kind.
+#[derive(Debug)]
+struct WriteCancelled;
+impl std::fmt::Display for WriteCancelled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("cancelled")
+    }
+}
+impl std::error::Error for WriteCancelled {}
 fn optical(error: crate::iso9660::Error) -> Error {
     match error {
-        crate::iso9660::Error::Io(e) if e.kind() == io::ErrorKind::Interrupted => Error::Cancelled,
+        crate::iso9660::Error::Io(e)
+            if e.kind() == io::ErrorKind::Interrupted
+                || e.get_ref()
+                    .is_some_and(|inner| inner.is::<WriteCancelled>()) =>
+        {
+            Error::Cancelled
+        }
         crate::iso9660::Error::Io(e) => Error::Io(e),
         crate::iso9660::Error::Unsupported(e) => Error::Unsupported(e),
         crate::iso9660::Error::ResourceLimit(e) => Error::Resource(e.into()),
@@ -373,7 +390,7 @@ struct CheckedWriter<'a, 'b, W> {
 impl<W: Write> Write for CheckedWriter<'_, '_, W> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         if self.ctx.cancellation.is_cancelled() {
-            return Err(io::Error::new(io::ErrorKind::Interrupted, "cancelled"));
+            return Err(io::Error::other(WriteCancelled));
         }
         let n = self.output.write(bytes)?;
         self.digest.update(&bytes[..n]);

@@ -27,7 +27,8 @@
 
   $effect(() => {
     const signature = planSignature;
-    if (!projectStore.hasProject || projectStore.episodes.length === 0) return;
+    // With zero episodes calculatePlan() clears the plan; it must still run.
+    if (!projectStore.hasProject) return;
     if (signature === lastPlanSignature) return;
     lastPlanSignature = signature;
     if (planTimer) clearTimeout(planTimer);

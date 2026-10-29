@@ -411,7 +411,18 @@ pub fn data_root() -> Result<PathBuf, StoreError> {
             return Ok(PathBuf::from(value).join(APP_DIR));
         }
     }
-    let home = std::env::var("HOME").map_err(|_| StoreError::NoDataDir)?;
+    // Windows GUI processes have no HOME: keep the DB and the multi-GB
+    // artifact cache in the non-roaming %LOCALAPPDATA%.
+    #[cfg(windows)]
+    if let Some(value) = std::env::var_os("LOCALAPPDATA").or_else(|| std::env::var_os("APPDATA")) {
+        if !value.is_empty() {
+            return Ok(PathBuf::from(value).join(APP_DIR));
+        }
+    }
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .filter(|value| !value.is_empty())
+        .ok_or(StoreError::NoDataDir)?;
     Ok(PathBuf::from(home)
         .join(".local")
         .join("share")

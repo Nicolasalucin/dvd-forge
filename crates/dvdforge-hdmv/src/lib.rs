@@ -32,7 +32,7 @@ pub use opcodes::{
 };
 pub use palette::{Palette, PaletteEntry};
 pub use pes::{pes_packets_from_segments, PesError, IG_PID, IG_STREAM_ID};
-pub use rle::{decode_rle, encode_rle, RleError};
+pub use rle::{decode_rle, encode_rle, encode_rle_lines, RleError};
 pub use segments::{
     end_of_display_set_segment, interactive_composition_segment, object_definition_segment,
     palette_definition_segment, window_definition_segment, ButtonDefinition, CompositionObject,

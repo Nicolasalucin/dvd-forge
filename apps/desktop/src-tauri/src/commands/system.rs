@@ -22,9 +22,17 @@ pub fn open_folder(path: String) -> Result<(), String> {
     } else {
         "xdg-open"
     };
-    std::process::Command::new(command)
+    let mut child = std::process::Command::new(command)
         .arg(&target)
         .spawn()
+        .map_err(|error| error.to_string())?;
+    // A dropped std `Child` is never reaped: each click left a zombie
+    // xdg-open/open process. The launcher exits almost immediately.
+    std::thread::Builder::new()
+        .name("dvdforge-open-folder".to_string())
+        .spawn(move || {
+            let _ = child.wait();
+        })
         .map(|_| ())
         .map_err(|error| error.to_string())
 }

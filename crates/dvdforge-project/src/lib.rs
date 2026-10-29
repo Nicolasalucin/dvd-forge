@@ -48,8 +48,39 @@ pub fn project_to_json(project: &Project) -> Result<String, ProjectError> {
 }
 
 pub fn save_project(project: &Project, path: impl AsRef<Path>) -> Result<(), ProjectError> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+
+    let path = path.as_ref();
     let json = project_to_json(project)?;
-    std::fs::write(path, json)?;
+    // `fs::write` truncates the project before writing: a crash or a full disk
+    // left an empty/partial file. Write a synced sibling and rename it over
+    // the target so the previous version survives any failure.
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("project.json");
+    let temp = parent.join(format!(
+        ".{name}.{}.{}.tmp",
+        std::process::id(),
+        NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+    ));
+    let written = (|| -> std::io::Result<()> {
+        let mut file = std::fs::File::create(&temp)?;
+        file.write_all(json.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&temp, path)
+    })();
+    if let Err(error) = written {
+        let _ = std::fs::remove_file(&temp);
+        return Err(error.into());
+    }
     Ok(())
 }
 

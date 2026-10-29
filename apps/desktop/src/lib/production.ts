@@ -19,19 +19,17 @@ export async function compositeProjectMenus(
   source: MenuPreviewSource,
 ): Promise<string[]> {
   const warnings: string[] = [];
+  // One preview table shared by every menu: chapter menus reuse the same
+  // background and episode thumbnails, so each missing asset is resolved once.
+  const thumbnails: Record<string, string> = { ...source.previewUrls };
+  const shared: MenuPreviewSource = { ...source, previewUrls: thumbnails };
   for (const menu of project.menus) {
     if (menu.buttons.length === 0) continue;
     try {
-      const backgroundUrl =
-        source.previewUrls[menu.background.asset] ??
-        (await previewForAsset(project, menu.background.asset, source));
-      const thumbnails = { ...source.previewUrls };
+      const backgroundUrl = await previewForAsset(project, menu.background.asset, shared);
       for (const button of menu.buttons) {
         if (!button.thumbnail) continue;
-        const assetId = button.thumbnail.asset;
-        if (thumbnails[assetId]) continue;
-        const preview = await previewForAsset(project, assetId, source);
-        if (preview) thumbnails[assetId] = preview;
+        await previewForAsset(project, button.thumbnail.asset, shared);
       }
       const motion =
         menu.background.kind === "videoLoop" ||
@@ -87,10 +85,22 @@ async function previewForAsset(
   if (cached) return cached;
   const frame = source.framePaths[assetId];
   const asset = project.assets.find((item) => item.id === assetId);
-  const path = frame ?? (asset ? assetPath(asset) : null);
+  let path = frame ?? (asset ? assetPath(asset) : null);
   if (!path) return null;
   try {
-    return await unwrap(commands.readImageDataUrl(path));
+    if (!frame && asset?.kind === "video") {
+      // A video file is never a readable image: extract the poster frame the
+      // editor shows (same timestamp, cached by the backend) instead of
+      // silently composing the menu without it.
+      const duration = asset.probe.durationMs ?? 0;
+      const target = duration > 0 ? Math.min(duration * 0.1, 10_000) : 1_000;
+      path = await unwrap(
+        commands.mediaExtractFrame(path, Math.max(0, Math.round(target)), null),
+      );
+    }
+    const preview = await unwrap(commands.readImageDataUrl(path));
+    source.previewUrls[assetId] = preview;
+    return preview;
   } catch {
     return null;
   }

@@ -366,7 +366,9 @@ fn write_metadata_entry(
         "invalid metadata allocation extent size"
     );
     let descriptors = length.div_ceil(chunk);
-    if descriptors <= 234 {
+    // Extended entries hold 16-byte long allocation descriptors starting at
+    // offset 216, so 114 fit in the entry itself.
+    if descriptors <= 114 {
         return sector(
             output,
             PART + location,
@@ -377,7 +379,10 @@ fn write_metadata_entry(
         extent_blocks != 0,
         "metadata allocation chain requires fragmented storage"
     );
-    let aed_count = (descriptors - 233).div_ceil(252);
+    // The entry keeps 113 descriptors plus the AED pointer; every following
+    // allocation extent keeps 125 descriptors plus its own pointer, except the
+    // last one, which can use all 126 slots.
+    let aed_count = (descriptors - 114).div_ceil(125);
     ensure!(
         aed_count <= 32,
         "metadata allocation chain exceeds reserved gap"
@@ -387,15 +392,16 @@ fn write_metadata_entry(
         .context("metadata AED address overflow")?;
     let mut bytes = metadata_entry(options, location, file_type, data, 0, 0)?;
     put64(&mut bytes, 56, u64::from(length));
-    put64(&mut bytes, 64, u64::from(length).div_ceil(BLOCK));
+    put64(&mut bytes, 64, u64::from(length));
+    put64(&mut bytes, 72, u64::from(length.div_ceil(BLOCK as u32)));
     let mut remaining = length;
     let mut physical = data;
-    let mut header = 176;
+    let mut header = 216;
     let mut descriptor_location = location;
-    let mut descriptor_type = 261;
+    let mut descriptor_type = 266;
     let mut next_aed = 0;
     loop {
-        let capacity = (2048 - header) / 8;
+        let capacity = (2048 - header) / 16;
         let remaining_descriptors = remaining.div_ceil(chunk) as usize;
         let has_next = remaining_descriptors > capacity;
         let count = remaining_descriptors.min(if has_next { capacity - 1 } else { capacity });
@@ -404,13 +410,14 @@ fn write_metadata_entry(
             let amount = remaining.min(chunk);
             put32(&mut bytes, cursor, amount);
             put32(&mut bytes, cursor + 4, physical);
+            put16(&mut bytes, cursor + 8, 0);
             remaining -= amount;
             if remaining != 0 {
                 physical = physical
                     .checked_add(amount / BLOCK as u32 + 32)
                     .context("metadata extent address overflow")?;
             }
-            cursor += 8;
+            cursor += 16;
         }
         let next_location = aed_start
             .checked_add(next_aed)
@@ -418,11 +425,12 @@ fn write_metadata_entry(
         if has_next {
             put32(&mut bytes, cursor, 0xc0000800);
             put32(&mut bytes, cursor + 4, next_location);
-            cursor += 8;
+            put16(&mut bytes, cursor + 8, 0);
+            cursor += 16;
         }
         put32(
             &mut bytes,
-            if header == 176 { 172 } else { 20 },
+            if header == 216 { 212 } else { 20 },
             (cursor - header) as u32,
         );
         tag(

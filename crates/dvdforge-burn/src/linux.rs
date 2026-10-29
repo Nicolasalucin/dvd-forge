@@ -3,6 +3,7 @@ use crate::{
     DiscMediaKind, MediaInfo, MediaStatus, OpticalDevice, ProgressSink, VerifyReport,
 };
 use async_trait::async_trait;
+use dvdforge_toolchain::resolve_binary;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::io::ErrorKind;
@@ -27,11 +28,11 @@ pub struct LinuxBurner {
 impl Default for LinuxBurner {
     fn default() -> Self {
         Self {
-            lsblk: PathBuf::from("lsblk"),
-            dvd_rw_mediainfo: PathBuf::from("dvd+rw-mediainfo"),
-            growisofs: PathBuf::from("growisofs"),
-            xorriso: PathBuf::from("xorriso"),
-            eject: PathBuf::from("eject"),
+            lsblk: resolve_binary("lsblk"),
+            dvd_rw_mediainfo: resolve_binary("dvd+rw-mediainfo"),
+            growisofs: resolve_binary("growisofs"),
+            xorriso: resolve_binary("xorriso"),
+            eject: resolve_binary("eject"),
         }
     }
 }
@@ -142,9 +143,11 @@ impl DiscBurner for LinuxBurner {
 
         let mut verified = false;
         if request.verify {
-            let report = self
-                .verify(&request.device, &request.iso_path, progress.clone())
-                .await?;
+            // Read-back takes as long as the burn: honour Cancel here too.
+            let report = tokio::select! {
+                _ = cancel.cancelled() => return Err(BurnError::Cancelled),
+                report = self.verify(&request.device, &request.iso_path, progress.clone()) => report?,
+            };
             if report.mismatches > 0 {
                 return Err(BurnError::VerifyFailed {
                     iso: report.sha256_iso,
@@ -182,7 +185,12 @@ impl DiscBurner for LinuxBurner {
             return Err(BurnError::InvalidRequest("el ISO está vacío".to_string()));
         }
         let sectors_checked = iso_size.div_ceil(DVD_SECTOR_BYTES);
-        let iso_hash = hash_file(iso).await?;
+        // Hash the ISO on a blocking thread while the (much slower) drive is
+        // read back: verify time becomes max(iso, disc) instead of the sum.
+        let iso_hash = tokio::task::spawn_blocking({
+            let iso = iso.to_path_buf();
+            move || hash_file(&iso)
+        });
 
         let mut file = tokio::fs::File::open(device.as_str())
             .await
@@ -224,6 +232,9 @@ impl DiscBurner for LinuxBurner {
             ));
         }
 
+        let iso_hash = iso_hash
+            .await
+            .map_err(|error| BurnError::Io(std::io::Error::other(error)))??;
         let disc_hash = hex::encode(hasher.finalize());
         Ok(VerifyReport {
             sectors_checked,
@@ -506,6 +517,9 @@ pub fn parse_progress_line_with_speed(
     total_bytes: u64,
     bytes_per_second_at_1x: f64,
 ) -> Option<BurnProgress> {
+    if let Some(update) = parse_growisofs_meter(line, total_bytes, bytes_per_second_at_1x) {
+        return Some(update);
+    }
     let marker = "builtin_dd:";
     let index = line.find(marker)?;
     let rest = line[index + marker.len()..].trim();
@@ -546,6 +560,73 @@ pub fn parse_progress_line_with_speed(
     Some(BurnProgress {
         written_bytes,
         total_bytes,
+        percent,
+        speed_x,
+        eta_secs,
+    })
+}
+
+/// growisofs' periodic meter (stderr, ~1 line/s while writing):
+/// `  26607616/4700372992 ( 0.6%) @5.7x, remaining 11:42 RBU 100.0% UBU   2.2%`.
+/// `builtin_dd:` only appears in the final summary line.
+fn parse_growisofs_meter(
+    line: &str,
+    total_bytes: u64,
+    bytes_per_second_at_1x: f64,
+) -> Option<BurnProgress> {
+    let (written, rest) = line.trim().split_once('/')?;
+    if !rest.contains("%)") {
+        return None;
+    }
+    let written = written.trim().parse::<u64>().ok()?;
+    let reported_total = rest
+        .split(|character: char| !character.is_ascii_digit())
+        .next()?
+        .parse::<u64>()
+        .ok()?;
+    let total = if total_bytes > 0 {
+        total_bytes
+    } else {
+        reported_total
+    };
+    let denominator = if reported_total > 0 {
+        reported_total
+    } else {
+        total
+    };
+    let written_bytes = written.min(total);
+    let percent = if denominator == 0 {
+        0.0
+    } else {
+        ((written as f64 / denominator as f64) * 100.0).clamp(0.0, 100.0) as f32
+    };
+    let speed_x = rest
+        .split_whitespace()
+        .find_map(|token| token.strip_prefix('@'))
+        .and_then(|token| {
+            token
+                .trim_end_matches(',')
+                .trim_end_matches('x')
+                .parse::<f32>()
+                .ok()
+        })
+        .filter(|speed| *speed > 0.0);
+    let eta_secs = rest
+        .split_once("remaining")
+        .and_then(|(_, tail)| tail.split_whitespace().next())
+        .and_then(|clock| clock.split_once(':'))
+        .and_then(|(minutes, seconds)| {
+            Some(minutes.parse::<u64>().ok()? * 60 + seconds.parse::<u64>().ok()?)
+        })
+        .or_else(|| {
+            speed_x.map(|speed| {
+                (total.saturating_sub(written_bytes) as f64
+                    / (f64::from(speed) * bytes_per_second_at_1x)) as u64
+            })
+        });
+    Some(BurnProgress {
+        written_bytes,
+        total_bytes: total,
         percent,
         speed_x,
         eta_secs,
@@ -734,12 +815,13 @@ async fn terminate_child(child: &mut Child) {
     let _ = child.kill().await;
 }
 
-async fn hash_file(path: &Path) -> Result<String, BurnError> {
-    let mut file = tokio::fs::File::open(path).await.map_err(map_io)?;
+fn hash_file(path: &Path) -> Result<String, BurnError> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(map_io)?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; 1024 * 1024];
     loop {
-        let read = file.read(&mut buffer).await.map_err(map_io)?;
+        let read = file.read(&mut buffer).map_err(map_io)?;
         if read == 0 {
             break;
         }
@@ -988,6 +1070,29 @@ mod tests {
     #[test]
     fn ignores_unrelated_lines() {
         assert!(parse_progress_line("some other output", 10_000).is_none());
+    }
+
+    #[test]
+    fn parses_growisofs_meter_lines() {
+        let line = "   26607616/4700372992 ( 0.6%) @5.7x, remaining 11:42 RBU 100.0% UBU   2.2%";
+        let progress = parse_progress_line(line, 4_700_372_992).expect("meter");
+        assert_eq!(progress.written_bytes, 26_607_616);
+        assert!((progress.percent - 0.566).abs() < 0.01);
+        assert_eq!(progress.speed_x, Some(5.7));
+        assert_eq!(progress.eta_secs, Some(702));
+        let warmup = parse_progress_line(
+            "          0/4700372992 ( 0.0%) @0x, remaining ??:?? RBU   0.0% UBU   0.0%",
+            4_700_372_992,
+        )
+        .expect("warm-up meter");
+        assert_eq!(warmup.written_bytes, 0);
+        assert_eq!(warmup.eta_secs, None);
+        assert!(parse_progress_line(
+            "Executing 'builtin_dd if=/tmp/disc.iso of=/dev/sr0 obs=32k seek=0'",
+            1
+        )
+        .is_none());
+        assert!(parse_progress_line("/dev/sr0: flushing cache", 1).is_none());
     }
 
     #[test]

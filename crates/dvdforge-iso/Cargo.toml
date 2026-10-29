@@ -8,6 +8,7 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+dvdforge-toolchain = { path = "../dvdforge-toolchain" }
 libmkiso = { path = "../../vendor/libmkiso" }
 thiserror.workspace = true
 tokio.workspace = true

@@ -114,6 +114,7 @@ export class ButtonsLayer {
   readonly layer: Konva.Layer;
   private readonly transformer: Konva.Transformer;
   private readonly groups = new Map<string, Konva.Group>();
+  private deferred: { menu: Menu_Serialize; options: ButtonSyncOptions } | null = null;
 
   constructor() {
     this.layer = new Konva.Layer();
@@ -132,6 +133,17 @@ export class ButtonsLayer {
   }
 
   sync(menu: Menu_Serialize, options: ButtonSyncOptions): void {
+    // Destroying the group being dragged makes Konva fire its dragend
+    // (Node.remove → stopDrag) and commit a mid-gesture rect; a transform in
+    // progress would be dropped. Rebuild once the gesture has ended.
+    if (
+      this.transformer.isTransforming() ||
+      Array.from(this.groups.values()).some((group) => group.isDragging())
+    ) {
+      this.deferred = { menu, options };
+      return;
+    }
+    this.deferred = null;
     this.transformer.nodes([]);
     this.transformer.visible(options.editable !== false);
     for (const child of this.layer.getChildren().slice()) {
@@ -155,7 +167,9 @@ export class ButtonsLayer {
         y: rect.y0,
         draggable: options.editable !== false && button.enabled,
         opacity: button.enabled ? 1 : 0.38,
-        listening: button.enabled,
+        // The simulator ignores disabled buttons; the editor must keep them
+        // selectable so they can be re-enabled or deleted.
+        listening: options.editable !== false || button.enabled,
         clipFunc: shapeClipFunc(button.shapeMask, width, height),
       });
 
@@ -272,6 +286,7 @@ export class ButtonsLayer {
             group.position({ x: rect.x0, y: rect.y0 });
           }
           this.layer.batchDraw();
+          queueMicrotask(() => this.flushDeferred());
         });
         group.on("transformend", () => {
           const scaleX = group.scaleX();
@@ -294,6 +309,7 @@ export class ButtonsLayer {
             group.position({ x: rect.x0, y: rect.y0 });
           }
           this.layer.batchDraw();
+          queueMicrotask(() => this.flushDeferred());
         });
       } else {
         group.on("click tap", (event) => {
@@ -312,6 +328,13 @@ export class ButtonsLayer {
       this.transformer.moveToTop();
     }
     this.layer.batchDraw();
+  }
+
+  private flushDeferred(): void {
+    const deferred = this.deferred;
+    if (!deferred) return;
+    this.deferred = null;
+    this.sync(deferred.menu, deferred.options);
   }
 }
 

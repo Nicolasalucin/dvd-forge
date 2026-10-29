@@ -19,7 +19,8 @@ pub const OP_JUMP_OBJECT: u32 = 0x2180_0000;
 /// `PlayPlaylist`: branch/play, one immediate operand.
 pub const OP_PLAY_PLAYLIST: u32 = 0x2280_0000;
 /// `PlayPlaylist` from a playmark: immediate playlist + mark in a GPR.
-pub const OP_PLAY_PLAYLIST_PM: u32 = 0x2282_0000;
+/// Two operands (op_cnt = 2), otherwise the mark operand is never fetched.
+pub const OP_PLAY_PLAYLIST_PM: u32 = 0x4282_0000;
 /// `SetStream`: set/system with two operands (destination and source).
 pub const OP_SET_STREAM: u32 = 0x5180_0001;
 /// `SetGPR`: set/set with `MOVE` and an immediate source.
@@ -68,14 +69,16 @@ pub const fn play_playlist_mark(playlist: u32, register: u16) -> HdmvCommand {
     HdmvCommand::new(OP_PLAY_PLAYLIST_PM, playlist, register as u32)
 }
 
-/// Changes the primary audio stream. `track` is zero-based.
+/// Changes the primary audio stream. `track` is zero-based; HDMV primary audio
+/// stream numbers (PSR1) are one-based.
 pub const fn set_audio_stream(track: u8) -> HdmvCommand {
-    HdmvCommand::new(OP_SET_STREAM, 0x8000_0000 | ((track as u32) << 16), 0)
+    HdmvCommand::new(OP_SET_STREAM, 0x8000_0000 | ((track as u32 + 1) << 16), 0)
 }
 
-/// Changes the presentation-graphics subtitle stream. `stream` is zero-based.
+/// Selects the presentation-graphics subtitle stream and turns subtitle display
+/// on. `stream` is zero-based; PSR2 stream numbers are one-based.
 pub const fn set_subtitle_stream(stream: u8) -> HdmvCommand {
-    HdmvCommand::new(OP_SET_STREAM, 0x0000_8000 | stream as u32, 0)
+    HdmvCommand::new(OP_SET_STREAM, 0x0000_C000 | (stream as u32 + 1), 0)
 }
 
 /// `SetGPR(register, value)`: register `0..4095`, immediate value.
@@ -102,9 +105,17 @@ mod tests {
         assert_eq!(play_playlist(0x0102_0304).to_bytes()[4..8], [1, 2, 3, 4]);
         let audio = set_audio_stream(3);
         assert_eq!(audio.opcode(), OP_SET_STREAM);
-        assert_eq!(audio.dst, 0x8003_0000);
+        assert_eq!(audio.dst, 0x8004_0000);
         let subtitle = set_subtitle_stream(2);
-        assert_eq!(subtitle.dst, 0x0000_8002);
+        assert_eq!(subtitle.dst, 0x0000_C003);
+    }
+
+    #[test]
+    fn play_playlist_mark_has_two_operands() {
+        let command = play_playlist_mark(1, 10);
+        assert_eq!(command.opcode() >> 29, 2);
+        assert_eq!((command.opcode() >> 16) & 0x0F, 2);
+        assert_eq!(command.src, 10);
     }
 
     #[test]

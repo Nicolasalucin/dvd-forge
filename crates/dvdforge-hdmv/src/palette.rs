@@ -150,10 +150,23 @@ pub fn rgba_to_ycbcr([r, g, b, a]: [u8; 4]) -> [u8; 4] {
 }
 
 fn quantize_rgba([r, g, b, a]: [u8; 4]) -> [u8; 4] {
-    if a < 128 {
+    // Near-transparent pixels share index 0.
+    if a < 16 {
         return [0, 0, 0, 0];
     }
-    [r & 0xE0, g & 0xE0, b & 0x80, 255]
+    // Opaque pixels: 6x6x6 cube (216 entries); 3/3/1 bits left blue with two levels.
+    if a >= 240 {
+        return [cube6(r), cube6(g), cube6(b), 255];
+    }
+    // Translucent pixels (button highlights, anti-aliased edges) keep four
+    // alpha levels with 1-bit RGB: 32 entries. 216 + 32 + index 0 <= 256.
+    let bit = |value: u8| if value >= 128 { 255 } else { 0 };
+    [bit(r), bit(g), bit(b), (a & 0xC0) | 0x20]
+}
+
+/// Nearest of 0, 51, 102, 153, 204, 255.
+fn cube6(value: u8) -> u8 {
+    ((u16::from(value) + 25) / 51 * 51) as u8
 }
 
 #[cfg(test)]
@@ -187,5 +200,25 @@ mod tests {
         let palette = Palette::from_pixels([pixels.as_slice()]).expect("palette");
         assert!(palette.is_quantized());
         assert!(palette.len() <= MAX_PALETTE_ENTRIES);
+    }
+
+    #[test]
+    fn quantization_keeps_translucent_highlights_visible() {
+        let mut pixels = Vec::new();
+        for index in 0..300u32 {
+            pixels.extend_from_slice(&[
+                (index * 7) as u8,
+                (index * 13) as u8,
+                (index * 29) as u8,
+                255,
+            ]);
+        }
+        let highlight = [255u8, 255, 255, 76];
+        pixels.extend_from_slice(&highlight);
+        let palette = Palette::from_pixels([pixels.as_slice()]).expect("palette");
+        assert!(palette.is_quantized());
+        let index = palette.index_pixels(&highlight)[0];
+        assert_ne!(index, 0);
+        assert!(palette.entries[usize::from(index)].alpha > 0);
     }
 }
