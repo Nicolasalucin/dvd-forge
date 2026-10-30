@@ -359,11 +359,21 @@ pub fn inject_ig_into_menu_m2ts_stream<R: Read + Seek, W: Write>(
     ig_pes_packets: &[Vec<u8>],
     ig_pid: u16,
 ) -> Result<u32, BdmvError> {
-    const PREFIX_SCAN_BYTES: usize = 1024 * 1024;
+    // Keep the prefix buffer an exact multiple of the 192-byte M2TS packet.
+    // A raw 1 MiB buffer is not aligned (1,048,576 / 192 leaves a remainder)
+    // and would make every menu larger than 1 MiB fail the alignment check.
+    const PREFIX_SCAN_BYTES: usize = M2TS_PACKET_SIZE * (1024 * 1024 / M2TS_PACKET_SIZE);
     const PACKET_BUFFER_BYTES: usize = 192 * 1024;
 
     let mut prefix = vec![0u8; PREFIX_SCAN_BYTES];
-    let prefix_len = reader.read(&mut prefix)?;
+    let mut prefix_len = 0usize;
+    while prefix_len < prefix.len() {
+        let read = reader.read(&mut prefix[prefix_len..])?;
+        if read == 0 {
+            break;
+        }
+        prefix_len += read;
+    }
     prefix.truncate(prefix_len);
     if prefix.is_empty() || !prefix.len().is_multiple_of(M2TS_PACKET_SIZE) {
         return Err(BdmvError::InvalidM2ts);
