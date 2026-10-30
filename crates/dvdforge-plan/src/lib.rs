@@ -403,12 +403,12 @@ fn calculate_avchd_plan(
         episode
             .subtitles
             .iter()
-            .any(|subtitle| !project.is_pgs_track(episode, subtitle))
+            .any(|subtitle| subtitle.bitmap && !project.is_pgs_track(episode, subtitle))
     });
     if has_unsupported_avchd_subtitles {
         warnings.push(Diagnostic::warning(
             "W_AVCHD_SUBTITLES_IGNORED",
-            "Las pistas de subtítulos de texto o bitmap no PGS todavía no se multiplexan en AVCHD/Blu-ray; las pistas PGS sí se copian directamente.",
+            "Las pistas de subtítulos bitmap que no son PGS (VobSub/DVB) todavía no se multiplexan en AVCHD/Blu-ray; el texto se renderiza a PGS y las pistas PGS se copian directamente.",
         ));
     }
 
