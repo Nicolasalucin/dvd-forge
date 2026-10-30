@@ -866,7 +866,9 @@ fn take(cursor: &mut u32, length: u32) -> Result<u32> {
 
 #[derive(Debug, Clone)]
 struct Node {
-    path: String,
+    /// Shared with the `UdfImage` key map; never cloned into a second heap
+    /// allocation per node.
+    path: Arc<str>,
     name: Vec<u8>,
     parent: usize,
     children: Vec<usize>,
@@ -909,7 +911,7 @@ impl Node {
         }
     }
 }
-fn node(path: String, name: Vec<u8>, parent: usize, payload: Payload) -> Node {
+fn node(path: Arc<str>, name: Vec<u8>, parent: usize, payload: Payload) -> Node {
     Node {
         path,
         name,
@@ -966,23 +968,26 @@ fn build_nodes(image: &UdfImage, options: &UdfOptions) -> Result<(Vec<Node>, Opt
                 && image.entries.values().all(|e| e.streams.is_empty())),
         "named/system streams require UDF 2.00 or newer"
     );
-    let mut nodes = vec![node(String::new(), Vec::new(), 0, Payload::Directory)];
-    let mut names = BTreeMap::from([(String::new(), 0usize)]);
+    let mut nodes = Vec::with_capacity(node_count);
+    nodes.push(node(Arc::from(""), Vec::new(), 0, Payload::Directory));
+    let mut names: BTreeMap<Arc<str>, usize> = BTreeMap::new();
+    names.insert(Arc::from(""), 0);
     for (path, input) in &image.entries {
         let parent = path.rsplit_once('/').map_or("", |(p, _)| p);
         let parent = *names.get(parent).context("missing directory parent")?;
         let name = compressed(path.rsplit('/').next().context("missing name")?)?;
-        let mut n = node(path.clone(), name, parent, input.payload.clone());
+        let shared: Arc<str> = Arc::from(path.as_str());
+        let mut n = node(Arc::clone(&shared), name, parent, input.payload.clone());
         n.preallocated = input.preallocated;
         let idx = nodes.len();
         nodes.push(n);
         nodes[parent].children.push(idx);
-        names.insert(path.clone(), idx);
+        names.insert(shared, idx);
     }
     for i in 1..nodes.len() {
         if let Payload::HardLink(target) = &nodes[i].payload {
             let target = *names
-                .get(target)
+                .get(target.as_str())
                 .context("hard link target does not exist")?;
             ensure!(
                 matches!(nodes[target].payload, Payload::Pieces(_)),
@@ -993,16 +998,16 @@ fn build_nodes(image: &UdfImage, options: &UdfOptions) -> Result<(Vec<Node>, Opt
     }
     for (path, input) in &image.entries {
         if !input.streams.is_empty() {
-            let owner = names[path];
+            let owner = names[path.as_str()];
             let idx = nodes.len();
-            let mut n = node(String::new(), Vec::new(), owner, Payload::Directory);
+            let mut n = node(Arc::from(""), Vec::new(), owner, Payload::Directory);
             n.system = true;
             n.stream_owner = Some(owner);
             nodes.push(n);
             nodes[owner].stream_dir = Some(idx);
             for (name, bytes) in &input.streams {
                 let child = nodes.len();
-                nodes.push(node(String::new(), compressed(name)?, idx, bytes.clone()));
+                nodes.push(node(Arc::from(""), compressed(name)?, idx, bytes.clone()));
                 nodes[child].stream_owner = Some(owner);
                 nodes[idx].children.push(child);
             }
@@ -1010,14 +1015,14 @@ fn build_nodes(image: &UdfImage, options: &UdfOptions) -> Result<(Vec<Node>, Opt
     }
     if !image.root_streams.is_empty() {
         let index = nodes.len();
-        let mut directory = node(String::new(), Vec::new(), 0, Payload::Directory);
+        let mut directory = node(Arc::from(""), Vec::new(), 0, Payload::Directory);
         directory.system = true;
         directory.stream_owner = Some(0);
         nodes.push(directory);
         nodes[0].stream_dir = Some(index);
         for (name, bytes) in &image.root_streams {
             let child = nodes.len();
-            let mut entry = node(String::new(), compressed(name)?, index, bytes.clone());
+            let mut entry = node(Arc::from(""), compressed(name)?, index, bytes.clone());
             entry.stream_owner = Some(0);
             nodes.push(entry);
             nodes[index].children.push(child);
@@ -1027,13 +1032,13 @@ fn build_nodes(image: &UdfImage, options: &UdfOptions) -> Result<(Vec<Node>, Opt
         None
     } else {
         let idx = nodes.len();
-        let mut n = node(String::new(), Vec::new(), idx, Payload::Directory);
+        let mut n = node(Arc::from(""), Vec::new(), idx, Payload::Directory);
         n.system = true;
         n.system_stream = true;
         nodes.push(n);
         for (name, bytes) in &image.system_streams {
             let child = nodes.len();
-            nodes.push(node(String::new(), compressed(name)?, idx, bytes.clone()));
+            nodes.push(node(Arc::from(""), compressed(name)?, idx, bytes.clone()));
             nodes[child].system_stream = true;
             nodes[idx].children.push(child);
         }
@@ -1252,12 +1257,12 @@ fn allocation_lists(node: &Node, header: usize, namespace: u16) -> Result<Alloca
     let first_capacity = (2048 - header) / size;
     let aed_capacity = (2048 - 24) / size;
     let mut pos = 0;
-    let mut first = Vec::new();
     let count = if node.aeds.is_empty() {
         node.allocations.len()
     } else {
         first_capacity - 1
     };
+    let mut first = Vec::with_capacity(count + 1);
     first.extend_from_slice(&node.allocations[..count]);
     pos += count;
     if let Some(next) = node.aeds.first() {
@@ -1269,7 +1274,7 @@ fn allocation_lists(node: &Node, header: usize, namespace: u16) -> Result<Alloca
             partition: namespace,
         });
     }
-    let mut continuation = Vec::new();
+    let mut continuation = Vec::with_capacity(node.aeds.len());
     for (index, block) in node.aeds.iter().enumerate() {
         let remaining = node.allocations.len() - pos;
         let count = if index + 1 < node.aeds.len() {
@@ -1442,7 +1447,7 @@ fn write_payload(
                 if let Piece::Deferred(content) = p {
                     let mut copied = 0;
                     let mut buffer =
-                        vec![0u8; usize::try_from(content.len().min(4 << 20))?.max(4096)];
+                        vec![0u8; usize::try_from(content.len().min(1 << 20))?.max(4096)];
                     output.seek(SeekFrom::Start(position))?;
                     content.validate()?;
                     while copied < content.len() {
@@ -1578,7 +1583,7 @@ fn write_image(
         let path = host_relative_path(&boot.path)?;
         let index = nodes
             .iter()
-            .position(|node| node.path == path)
+            .position(|node| node.path.as_ref() == path)
             .context("boot image is missing from UDF tree")?;
         let target = nodes[index].alias.unwrap_or(index);
         let size = payload_size(&nodes[target].payload)?;
@@ -2208,7 +2213,7 @@ fn write_image(
         .filter(|n| !n.directory() && !n.path.is_empty())
         .map(|n| {
             let target = n.alias.map_or(n, |i| &nodes[i]);
-            (n.path.clone(), PART + target.data, target.size)
+            (Arc::clone(&n.path), PART + target.data, target.size)
         })
         .collect();
     crate::udf_boot::write_bridge(
@@ -2223,7 +2228,7 @@ fn write_image(
     let hash = if options.compute_digest {
         file.seek(SeekFrom::Start(0))?;
         let mut digest = Sha256::new();
-        let mut buffer = vec![0u8; 4 << 20];
+        let mut buffer = vec![0u8; 1 << 20];
         loop {
             checkpoint()?;
             let count = file.read(&mut buffer)?;

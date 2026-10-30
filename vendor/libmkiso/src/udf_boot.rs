@@ -3,6 +3,7 @@ use crate::el_torito::{ResolvedBootImage, boot_catalog, boot_descriptor};
 use crate::{BootOptions, IsoTimestamp};
 use anyhow::{Context, Result, ensure};
 use std::io::{Seek, SeekFrom, Write};
+use std::sync::Arc;
 
 const BLOCK: usize = 2048;
 
@@ -10,7 +11,7 @@ pub(crate) fn write_bridge(
     output: &mut std::fs::File,
     sectors: u32,
     options: &BootOptions,
-    images: &[(String, u32, u64)],
+    images: &[(Arc<str>, u32, u64)],
     timestamp: IsoTimestamp,
     label: &str,
 ) -> Result<()> {
@@ -37,7 +38,7 @@ pub(crate) fn write_bridge(
 
 fn resolve<'a>(
     image: &'a crate::BootImage,
-    images: &[(String, u32, u64)],
+    images: &[(Arc<str>, u32, u64)],
 ) -> Result<ResolvedBootImage<'a>> {
     let path = image
         .path
@@ -53,7 +54,7 @@ fn resolve<'a>(
         .join("/");
     let (_, sector, size) = images
         .iter()
-        .find(|(name, _, _)| name == &path)
+        .find(|(name, _, _)| name.as_ref() == path.as_str())
         .context("boot image must name a contiguous regular file")?;
     let size = u32::try_from(*size).context("boot image exceeds 4 GiB")?;
     image.validate(size)?;

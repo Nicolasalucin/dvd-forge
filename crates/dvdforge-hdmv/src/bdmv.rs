@@ -17,6 +17,9 @@
 
 use crate::opcodes::{jump_object, play_playlist};
 use crate::pes::IG_PID;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::path::Path;
 use thiserror::Error;
 
 pub const PGS_PID: u16 = 0x1200;
@@ -30,6 +33,10 @@ pub const STILL_TIME_INFINITE: u16 = 0xFFFF;
 pub enum BdmvError {
     #[error("el M2TS del menú está vacío o no está alineado a 192 bytes")]
     InvalidM2ts,
+    #[error("error de E/S: {0}")]
+    Io(String),
+    #[error("el M2TS supera el contador de paquetes de 32 bits")]
+    PacketCountOverflow,
     #[error("no se encontró el PAT/PMT del menú")]
     MissingPmt,
     #[error("la sección PMT está fragmentada; no se puede parchear en sitio")]
@@ -50,6 +57,12 @@ pub enum BdmvError {
         "el segmento PGS {kind:#04x} ocupa {length} bytes y no cabe en el campo de longitud de 16 bits"
     )]
     PgsSegmentTooLarge { kind: u8, length: usize },
+}
+
+impl From<std::io::Error> for BdmvError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error.to_string())
+    }
 }
 
 /// Supplies the number of transport packets needed by a set of PES packets.
@@ -268,60 +281,167 @@ fn find_pgs_pid(m2ts: &[u8], pmt_pid: u16) -> Result<u16, BdmvError> {
 }
 
 fn patch_pmt(m2ts: &[u8], pmt_pid: u16, pgs_pid: u16, ig_pid: u16) -> Result<Vec<u8>, BdmvError> {
+    if m2ts.is_empty() || !m2ts.len().is_multiple_of(M2TS_PACKET_SIZE) {
+        return Err(BdmvError::InvalidM2ts);
+    }
     let mut output = m2ts.to_vec();
     let mut patched = 0usize;
     for packet in output.as_chunks_mut::<M2TS_PACKET_SIZE>().0 {
-        let ts = &mut packet[4..];
-        if ts_pid(ts) != pmt_pid || ts[1] & 0x40 == 0 {
-            continue;
-        }
-        let Some(payload_start) = ts_payload_start(ts) else {
-            continue;
-        };
-        let pointer = ts[payload_start] as usize;
-        let section_start = payload_start + 1 + pointer;
-        if section_start + 12 > TS_PACKET_SIZE {
-            continue;
-        }
-        let section = &mut ts[section_start..TS_PACKET_SIZE];
-        if section[0] != 0x02 {
-            continue;
-        }
-        let section_length = (((section[1] & 0x0F) as usize) << 8) | section[2] as usize;
-        let end = 3 + section_length;
-        if end > section.len() || end < 16 {
-            return Err(BdmvError::FragmentedPmt);
-        }
-        if section[6] != 0 || section[7] != 0 {
-            return Err(BdmvError::FragmentedPmt);
-        }
-        let program_info_length = (((section[10] & 0x0F) as usize) << 8) | section[11] as usize;
-        let mut offset = 12 + program_info_length;
-        let mut found = false;
-        while offset + 5 <= end - 4 {
-            let info_length =
-                (((section[offset + 3] & 0x0F) as usize) << 8) | section[offset + 4] as usize;
-            let pid = (((section[offset + 1] & 0x1F) as u16) << 8) | section[offset + 2] as u16;
-            if section[offset] == PMT_STREAM_TYPE_PGS && pid == pgs_pid {
-                section[offset] = PMT_STREAM_TYPE_IG;
-                section[offset + 1] = 0xE0 | ((ig_pid >> 8) as u8 & 0x1F);
-                section[offset + 2] = (ig_pid & 0xFF) as u8;
-                let crc = mpeg_crc32(&section[..end - 4]);
-                section[end - 4..end].copy_from_slice(&crc.to_be_bytes());
-                patched += 1;
-                found = true;
-                break;
-            }
-            offset += 5 + info_length;
-        }
-        if !found {
-            return Err(BdmvError::MissingPgsTrack);
+        if patch_pmt_packet(packet, pmt_pid, pgs_pid, ig_pid)? {
+            patched += 1;
         }
     }
     if patched == 0 {
         return Err(BdmvError::MissingPmt);
     }
     Ok(output)
+}
+
+/// Patches one 192-byte M2TS packet if it carries the PMT. Returns whether the
+/// packet was a PMT that had its reserved PG stream retagged to IG.
+fn patch_pmt_packet(
+    packet: &mut [u8; M2TS_PACKET_SIZE],
+    pmt_pid: u16,
+    pgs_pid: u16,
+    ig_pid: u16,
+) -> Result<bool, BdmvError> {
+    let ts = &mut packet[4..];
+    if ts_pid(ts) != pmt_pid || ts[1] & 0x40 == 0 {
+        return Ok(false);
+    }
+    let Some(payload_start) = ts_payload_start(ts) else {
+        return Ok(false);
+    };
+    let pointer = ts[payload_start] as usize;
+    let section_start = payload_start + 1 + pointer;
+    if section_start + 12 > TS_PACKET_SIZE {
+        return Ok(false);
+    }
+    let section = &mut ts[section_start..TS_PACKET_SIZE];
+    if section[0] != 0x02 {
+        return Ok(false);
+    }
+    let section_length = (((section[1] & 0x0F) as usize) << 8) | section[2] as usize;
+    let end = 3 + section_length;
+    if end > section.len() || end < 16 {
+        return Err(BdmvError::FragmentedPmt);
+    }
+    if section[6] != 0 || section[7] != 0 {
+        return Err(BdmvError::FragmentedPmt);
+    }
+    let program_info_length = (((section[10] & 0x0F) as usize) << 8) | section[11] as usize;
+    let mut offset = 12 + program_info_length;
+    while offset + 5 <= end - 4 {
+        let info_length =
+            (((section[offset + 3] & 0x0F) as usize) << 8) | section[offset + 4] as usize;
+        let pid = (((section[offset + 1] & 0x1F) as u16) << 8) | section[offset + 2] as u16;
+        if section[offset] == PMT_STREAM_TYPE_PGS && pid == pgs_pid {
+            section[offset] = PMT_STREAM_TYPE_IG;
+            section[offset + 1] = 0xE0 | ((ig_pid >> 8) as u8 & 0x1F);
+            section[offset + 2] = (ig_pid & 0xFF) as u8;
+            let crc = mpeg_crc32(&section[..end - 4]);
+            section[end - 4..end].copy_from_slice(&crc.to_be_bytes());
+            return Ok(true);
+        }
+        offset += 5 + info_length;
+    }
+    Err(BdmvError::MissingPgsTrack)
+}
+
+/// Bounded streaming form of [`inject_ig_into_menu_m2ts`].
+///
+/// The reader is scanned only up to 1 MiB to locate the PAT/PMT; the rewrite
+/// then processes 192-byte packets through one reusable 192 KiB buffer. The
+/// returned value is the number of source packets in the output.
+pub fn inject_ig_into_menu_m2ts_stream<R: Read + Seek, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    ig_pes_packets: &[Vec<u8>],
+    ig_pid: u16,
+) -> Result<u32, BdmvError> {
+    const PREFIX_SCAN_BYTES: usize = 1024 * 1024;
+    const PACKET_BUFFER_BYTES: usize = 192 * 1024;
+
+    let mut prefix = vec![0u8; PREFIX_SCAN_BYTES];
+    let prefix_len = reader.read(&mut prefix)?;
+    prefix.truncate(prefix_len);
+    if prefix.is_empty() || !prefix.len().is_multiple_of(M2TS_PACKET_SIZE) {
+        return Err(BdmvError::InvalidM2ts);
+    }
+    let pmt_pid = find_pmt_pid(&prefix)?;
+    let pgs_pid = find_pgs_pid(&prefix, pmt_pid)?;
+    let ig_packets = packetize_pes(ig_pes_packets, ig_pid);
+    let null = null_ts_packet();
+    let mut next_ig = 0usize;
+    let mut available = 0usize;
+    let mut packets = 0u64;
+    let mut patched_pmt = false;
+
+    let mut write_packet = |packet: &[u8], writer: &mut W| -> Result<(), BdmvError> {
+        let mut output = [0u8; M2TS_PACKET_SIZE];
+        output.copy_from_slice(packet);
+        if patch_pmt_packet(&mut output, pmt_pid, pgs_pid, ig_pid)? {
+            patched_pmt = true;
+        }
+        if ts_pid(&output[4..]) == pgs_pid {
+            available += 1;
+            if let Some(ig) = ig_packets.get(next_ig) {
+                output[4..].copy_from_slice(ig);
+                next_ig += 1;
+            } else {
+                output[4..].copy_from_slice(&null);
+            }
+        }
+        writer.write_all(&output)?;
+        packets = packets
+            .checked_add(1)
+            .ok_or(BdmvError::PacketCountOverflow)?;
+        Ok(())
+    };
+
+    for packet in prefix.as_chunks::<M2TS_PACKET_SIZE>().0 {
+        write_packet(packet, writer)?;
+    }
+    reader.seek(SeekFrom::Start(prefix.len() as u64))?;
+    let mut buffer = vec![0u8; PACKET_BUFFER_BYTES];
+    loop {
+        let read = reader.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        if !read.is_multiple_of(M2TS_PACKET_SIZE) {
+            return Err(BdmvError::InvalidM2ts);
+        }
+        for packet in buffer[..read].as_chunks::<M2TS_PACKET_SIZE>().0 {
+            write_packet(packet, writer)?;
+        }
+    }
+    if !patched_pmt {
+        return Err(BdmvError::MissingPmt);
+    }
+    if next_ig < ig_packets.len() {
+        return Err(BdmvError::NotEnoughPgsSlots {
+            needed: ig_packets.len(),
+            available,
+        });
+    }
+    u32::try_from(packets).map_err(|_| BdmvError::PacketCountOverflow)
+}
+
+/// File-to-file wrapper around [`inject_ig_into_menu_m2ts_stream`]. The caller
+/// is responsible for removing a partial output after an error.
+pub fn inject_ig_into_menu_m2ts_file(
+    input: &Path,
+    output: &Path,
+    ig_pes_packets: &[Vec<u8>],
+    ig_pid: u16,
+) -> Result<u32, BdmvError> {
+    let mut reader = BufReader::new(File::open(input)?);
+    let mut writer = BufWriter::new(File::create(output)?);
+    let packets =
+        inject_ig_into_menu_m2ts_stream(&mut reader, &mut writer, ig_pes_packets, ig_pid)?;
+    writer.flush()?;
+    Ok(packets)
 }
 
 fn ts_payload_start(ts: &[u8]) -> Option<usize> {
@@ -879,6 +999,23 @@ mod tests {
             let pid = (((packet[1] & 0x1F) as u16) << 8) | packet[2] as u16;
             assert_eq!(pid, IG_PID);
         }
+    }
+
+    #[test]
+    fn streaming_injector_matches_the_in_memory_implementation() {
+        use std::io::Cursor;
+        const ICS_PTS: u32 = 54_000_000;
+        let pes = compile_ig_pes_packets(&menu(), u64::from(ICS_PTS)).expect("pes");
+        let needed = pes_transport_packet_count(&pes);
+        let m2ts = synthetic_m2ts(needed + 3);
+        let expected = inject_ig_into_menu_m2ts(&m2ts, &pes, IG_PID).expect("in-memory inject");
+        let mut reader = Cursor::new(m2ts.clone());
+        let mut output = Vec::new();
+        let packets = inject_ig_into_menu_m2ts_stream(&mut reader, &mut output, &pes, IG_PID)
+            .expect("streaming inject");
+        assert_eq!(output, expected);
+        assert_eq!(packets as usize, m2ts.len() / M2TS_PACKET_SIZE);
+        assert!(packets > 0);
     }
 
     #[test]

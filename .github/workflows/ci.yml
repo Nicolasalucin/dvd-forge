@@ -30,7 +30,8 @@ jobs:
           sudo apt-get install -y \
             build-essential curl wget file libssl-dev libxdo-dev \
             libwebkit2gtk-4.1-dev libgtk-3-dev \
-            libayatana-appindicator3-dev librsvg2-dev patchelf
+            libayatana-appindicator3-dev librsvg2-dev patchelf \
+            ffmpeg dvdauthor dvd+rw-tools xorriso libbluray-bin
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -61,7 +62,7 @@ jobs:
         run: cargo test --workspace
 
   cross-check:
-    name: 32-bit compile checks
+    name: 32-bit and FreeBSD compile checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,12 +70,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: i686-unknown-linux-gnu, i686-pc-windows-msvc
+          targets: i686-unknown-linux-gnu, i686-pc-windows-msvc, x86_64-unknown-freebsd
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          key: 32-bit
+          key: 32-bit-freebsd
 
       - name: Install 32-bit Linux build dependencies
         run: |
@@ -82,7 +83,37 @@ jobs:
           sudo apt-get install -y gcc-multilib libc6-dev-i386
 
       - name: Linux i686 CLI and authoring stack
-        run: cargo check -p dvdforge-cli --target i686-unknown-linux-gnu
+        run: cargo check --workspace --exclude dvdforge-desktop --target i686-unknown-linux-gnu
+
+      - name: Linux i686 core tests
+        run: cargo test -p dvdforge-plan -p dvdforge-verify -p dvdforge-hdmv --target i686-unknown-linux-gnu
+
+      - name: Vendor libmkiso i686 tests
+        working-directory: vendor/libmkiso
+        run: |
+          rustup target add --toolchain "$(rustup show active-toolchain | awk '{print $1}')" i686-unknown-linux-gnu
+          cargo test --target i686-unknown-linux-gnu --locked
 
       - name: Windows i686 IMAPI2 backend
         run: cargo check -p dvdforge-burn --target i686-pc-windows-msvc
+
+      - name: FreeBSD pure crates cross-check
+        run: cargo check -p dvdforge-burn -p dvdforge-toolchain -p dvdforge-hdmv -p dvdforge-verify --target x86_64-unknown-freebsd
+
+      - name: Large-address-aware linker flag
+        run: grep -q LARGEADDRESSAWARE .cargo/config.toml
+
+  freebsd:
+    name: FreeBSD workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the headless workspace on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y rust
+          run: |
+            cargo check --workspace --exclude dvdforge-desktop
+            cargo test -p dvdforge-burn -p dvdforge-toolchain

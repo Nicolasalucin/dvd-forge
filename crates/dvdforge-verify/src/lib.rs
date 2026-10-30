@@ -7,12 +7,12 @@
 pub mod bdmv;
 pub mod dvd;
 pub mod report;
+pub mod stream;
 pub mod udf;
 
 use dvdforge_domain::Severity;
 use libmkiso::{ReadAt, UdfReader};
 use report::{CheckList, CheckStatus, VerifyLocation, VerifyProfile, VerifyReport};
-use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
@@ -257,17 +257,7 @@ pub(crate) fn be32(bytes: &[u8], offset: usize) -> Option<u32> {
 }
 
 pub(crate) fn hash_file(path: &Path) -> Result<String, std::io::Error> {
-    let mut file = File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0u8; 1024 * 1024];
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-    }
-    Ok(hex::encode(hasher.finalize()))
+    stream::hash_file(path)
 }
 
 #[cfg(test)]

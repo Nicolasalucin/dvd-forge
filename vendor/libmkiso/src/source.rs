@@ -7,8 +7,10 @@
 //! `Interrupted` for cancellation). EOF returns zero, including offsets beyond
 //! the length; readers needing a complete range use [`ReadAt::read_exact_at`].
 
+use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
-use std::sync::Arc;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 /// An immutable, fixed-length source with source-relative byte offsets.
 pub trait ReadAt {
@@ -95,6 +97,75 @@ impl ReadAt for SliceSource<'_> {
         let count = buf.len().min(self.bytes.len() - start);
         buf[..count].copy_from_slice(&self.bytes[start..start + count]);
         Ok(count)
+    }
+}
+
+/// File-backed positional source for large images.
+///
+/// The source owns a read-only handle and never loads the image into memory.
+/// Positional reads are used on Unix and Windows; other hosts fall back to a
+/// mutex-protected cursor so the portable build still compiles.
+#[derive(Debug)]
+pub struct FileSource {
+    file: Mutex<File>,
+    len: u64,
+}
+
+impl FileSource {
+    /// Opens `path` and records its length at open time.
+    pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
+        let file = File::open(path)?;
+        let len = file.metadata()?.len();
+        Ok(Self {
+            file: Mutex::new(file),
+            len,
+        })
+    }
+
+    pub fn len(&self) -> u64 {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl ReadAt for FileSource {
+    fn len(&self) -> u64 {
+        self.len
+    }
+
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        let file = self
+            .file
+            .lock()
+            .map_err(|_| io::Error::other("file source lock poisoned"))?;
+        let count = usize::try_from((self.len.saturating_sub(offset)).min(buf.len() as u64))
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "read size overflow"))?;
+        if count == 0 {
+            return Ok(0);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileExt;
+            file.read_at(&mut buf[..count], offset)
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileExt;
+            file.seek_read(&mut buf[..count], offset)
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            drop(file);
+            let mut file = self
+                .file
+                .lock()
+                .map_err(|_| io::Error::other("file source lock poisoned"))?;
+            file.seek(SeekFrom::Start(offset))?;
+            file.read(&mut buf[..count])
+        }
     }
 }
 

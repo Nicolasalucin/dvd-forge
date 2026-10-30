@@ -128,6 +128,7 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
             composited_backgrounds: None,
             cancel: Some(Arc::clone(&cancel)),
             hardware_encoding: EncoderPreference::Auto,
+            mux_backend: dvdforge_render::MuxBackend::Auto,
         },
         sender,
     ));

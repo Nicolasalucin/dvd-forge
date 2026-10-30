@@ -16,6 +16,8 @@ use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::sync::mpsc;
 use tokio::time::{timeout, Duration};
 
+pub mod native;
+
 pub const CRATE_NAME: &str = "dvdforge-avchd";
 
 pub const AVCHD_MAX_VIDEO_KBPS: u32 = 24_000;
@@ -79,6 +81,20 @@ pub struct AvchdAudioConfig {
     pub sample_rate: u32,
 }
 
+/// One bitmap subtitle track passed through to the H.264/AC-3 MKV. Only
+/// `hdmv_pgs_subtitle` tracks are valid here; the render layer filters them.
+#[derive(Debug, Clone)]
+pub struct AvchdSubtitleConfig {
+    /// Embedded PGS stream index in the source video.
+    pub source_stream: Option<u32>,
+    /// External `.sup` file. Exactly one of `source_stream`/`source_path` is set.
+    pub source_path: Option<PathBuf>,
+    pub language: String,
+    pub forced: bool,
+    pub default: bool,
+    pub delay_ms: i32,
+}
+
 #[derive(Debug, Clone)]
 pub struct AvchdEncodeRequest {
     pub input: PathBuf,
@@ -91,6 +107,7 @@ pub struct AvchdEncodeRequest {
     pub maxrate_kbps: u32,
     pub vbv_bufsize_kbps: u32,
     pub audio: Option<AvchdAudioConfig>,
+    pub subtitles: Vec<AvchdSubtitleConfig>,
     pub trim: Option<FrameRange>,
     pub trim_start_ms: Option<u64>,
     pub trim_end_ms: Option<u64>,
@@ -165,6 +182,13 @@ impl AvchdEncodeRequest {
             if !matches!(audio.channels, 1 | 2 | 6) {
                 return Err(AvchdError::InvalidConfig(
                     "el audio AVCHD admite 1, 2 o 6 canales".to_string(),
+                ));
+            }
+        }
+        for subtitle in &self.subtitles {
+            if subtitle.source_stream.is_some() == subtitle.source_path.is_some() {
+                return Err(AvchdError::InvalidConfig(
+                    "cada subtítulo AVCHD debe tener exactamente un origen".to_string(),
                 ));
             }
         }
@@ -300,6 +324,26 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             "anullsrc=r=48000:cl=stereo".to_string(),
         ]);
     }
+    let mut external_inputs = Vec::new();
+    let mut next_input = if request.audio.is_none() {
+        2usize
+    } else {
+        1usize
+    };
+    for subtitle in &request.subtitles {
+        if let Some(path) = &subtitle.source_path {
+            if subtitle.delay_ms != 0 {
+                args.extend([
+                    "-itsoffset".to_string(),
+                    format!("{:.3}", f64::from(subtitle.delay_ms) / 1000.0),
+                ]);
+            }
+            args.extend(["-f".to_string(), "sup".to_string()]);
+            push_file_input(&mut args, path);
+            external_inputs.push(next_input);
+            next_input += 1;
+        }
+    }
     let duration_ms = if request.trim_end_ms.is_some() {
         let start = request.trim_start_ms.unwrap_or(0);
         request
@@ -426,6 +470,17 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     } else {
         args.extend(["-map".to_string(), "1:a:0".to_string()]);
     }
+    let mut external_cursor = 0usize;
+    for subtitle in &request.subtitles {
+        let source = if let Some(stream) = subtitle.source_stream {
+            format!("0:{stream}")
+        } else {
+            let input = external_inputs.get(external_cursor).copied().unwrap_or(1);
+            external_cursor += 1;
+            format!("{input}:s:0")
+        };
+        args.extend(["-map".to_string(), source]);
+    }
     args.extend([
         "-c:a".to_string(),
         "ac3".to_string(),
@@ -435,7 +490,32 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         "48000".to_string(),
         "-ac".to_string(),
         channels.to_string(),
-        "-sn".to_string(),
+    ]);
+    if request.subtitles.is_empty() {
+        args.push("-sn".to_string());
+    } else {
+        args.push("-c:s".to_string());
+        args.push("copy".to_string());
+        for (index, subtitle) in request.subtitles.iter().enumerate() {
+            args.push(format!("-metadata:s:s:{index}"));
+            args.push(format!(
+                "language={}",
+                normalize_language(&subtitle.language)
+            ));
+            if subtitle.forced || subtitle.default {
+                let mut disposition = Vec::new();
+                if subtitle.default {
+                    disposition.push("default");
+                }
+                if subtitle.forced {
+                    disposition.push("forced");
+                }
+                args.push(format!("-disposition:s:{index}"));
+                args.push(disposition.join("+"));
+            }
+        }
+    }
+    args.extend([
         "-dn".to_string(),
         "-progress".to_string(),
         "pipe:1".to_string(),
@@ -669,6 +749,8 @@ pub async fn concat_mkv(
     ];
     push_file_input(&mut args, &list_path);
     args.extend([
+        "-map".to_string(),
+        "0".to_string(),
         "-c".to_string(),
         "copy".to_string(),
         "-f".to_string(),
@@ -681,6 +763,14 @@ pub async fn concat_mkv(
         return Err(AvchdError::MissingOutput(output.display().to_string()));
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AvchdMetaSubtitle<'a> {
+    /// Path tsMuxeR can open; `combined.mkv` for embedded PGS tracks.
+    pub source: &'a str,
+    pub track: u32,
+    pub language: &'a str,
 }
 
 #[derive(Debug, Clone)]
@@ -699,6 +789,8 @@ pub struct AvchdMetaRequest<'a> {
     /// Flujo HDMV IG compilado (PES). tsMuxeR lo recibe como pista de
     /// gráficos; si el muxer no lo soporta, el render reintenta sin él.
     pub interactive_graphics: Option<&'a str>,
+    /// PGS tracks carried by `video`/external `.sup` inputs.
+    pub subtitles: &'a [AvchdMetaSubtitle<'a>],
 }
 
 pub fn build_meta(request: &AvchdMetaRequest<'_>) -> String {
@@ -737,6 +829,14 @@ pub fn build_meta(request: &AvchdMetaRequest<'_>) -> String {
     }
     if let Some(graphics) = request.interactive_graphics {
         meta.push_str(&format!("S_HDMV/PGS, {graphics}, track=1, lang=und\n"));
+    }
+    for subtitle in request.subtitles {
+        meta.push_str(&format!(
+            "S_HDMV/PGS, {}, track={}, lang={}\n",
+            subtitle.source,
+            subtitle.track,
+            normalize_language(subtitle.language)
+        ));
     }
     meta
 }
@@ -939,6 +1039,7 @@ mod tests {
                 channels: 2,
                 sample_rate: 48_000,
             }),
+            subtitles: Vec::new(),
             trim: None,
             trim_start_ms: None,
             trim_end_ms: None,
@@ -992,6 +1093,51 @@ mod tests {
     }
 
     #[test]
+    fn pgs_tracks_are_mapped_and_copied_into_the_mkv() {
+        let mut request = request();
+        request.subtitles = vec![AvchdSubtitleConfig {
+            source_stream: Some(3),
+            source_path: None,
+            language: "spa".to_string(),
+            forced: false,
+            default: true,
+            delay_ms: 0,
+        }];
+        let args = build_encode_args(&request).join(" ");
+        assert!(args.contains("-map 0:3"), "{args}");
+        assert!(args.contains("-c:s copy"), "{args}");
+        assert!(!args.contains("-sn"), "{args}");
+        assert!(args.contains("-metadata:s:s:0 language=spa"), "{args}");
+        assert!(args.contains("-disposition:s:0 default"), "{args}");
+    }
+
+    #[test]
+    fn meta_contains_pgs_passthrough_tracks() {
+        let meta = build_meta(&AvchdMetaRequest {
+            video: "combined.mkv",
+            audio: Some("combined.mkv"),
+            video_track: 1,
+            audio_track: 2,
+            fps: FrameRate::FPS_23_976,
+            chapters: &[0],
+            language: "eng",
+            capacity: DiscCapacity::Bd25,
+            maxrate_kbps: 38_000,
+            vbv_bufsize_kbps: 35_000,
+            interactive_graphics: None,
+            subtitles: &[AvchdMetaSubtitle {
+                source: "combined.mkv",
+                track: 3,
+                language: "spa",
+            }],
+        });
+        assert!(
+            meta.contains("S_HDMV/PGS, combined.mkv, track=3, lang=spa"),
+            "{meta}"
+        );
+    }
+
+    #[test]
     fn meta_contains_avchd_header_and_sorted_chapters() {
         let meta = build_meta(&AvchdMetaRequest {
             video: "combined.mkv",
@@ -1005,6 +1151,7 @@ mod tests {
             maxrate_kbps: 24_000,
             vbv_bufsize_kbps: 24_000,
             interactive_graphics: None,
+            subtitles: &[],
         });
         assert!(meta.starts_with("MUXOPT --avchd --vbv-bufsize=24000 --vbv-maxrate=24000"));
         assert!(meta.contains("--custom-chapters=00:00:00.000;00:00:05.000;00:00:20.000"));
@@ -1042,6 +1189,7 @@ mod tests {
                 maxrate_kbps: 24_000,
                 vbv_bufsize_kbps: 30_000,
                 interactive_graphics: None,
+                subtitles: &[],
             });
             assert!(
                 meta.contains(&format!("lang={expected}")),
@@ -1064,6 +1212,7 @@ mod tests {
             maxrate_kbps: 38_000,
             vbv_bufsize_kbps: 35_000,
             interactive_graphics: Some("/tmp/root.igs"),
+            subtitles: &[],
         });
         assert!(meta.starts_with("MUXOPT --blu-ray --vbv-bufsize=35000 --vbv-maxrate=38000"));
         assert!(meta.contains("S_HDMV/PGS, /tmp/root.igs, track=1, lang=und"));

@@ -1,10 +1,12 @@
-//! Optical disc burning abstractions and platform backends: Linux, macOS and
-//! Windows IMAPI2.
+//! Optical disc burning abstractions and platform backends: Linux, macOS,
+//! FreeBSD and Windows IMAPI2.
 
+pub mod freebsd;
 pub mod linux;
 pub mod macos;
 pub mod windows;
 
+pub use freebsd::{parse_camcontrol_devlist, FreeBsdBurner};
 pub use linux::{
     build_growisofs_args, build_growisofs_args_for_media, build_xorriso_args, parse_lsblk,
     parse_media_info, parse_progress_line, parse_progress_line_with_speed, validate_burn_guards,
@@ -104,6 +106,7 @@ pub fn device_matches_allowlist(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {
     Linux,
+    FreeBsd,
     MacOs,
     Windows,
 }
@@ -114,6 +117,10 @@ impl Platform {
         {
             Self::Linux
         }
+        #[cfg(target_os = "freebsd")]
+        {
+            Self::FreeBsd
+        }
         #[cfg(target_os = "macos")]
         {
             Self::MacOs
@@ -122,7 +129,12 @@ impl Platform {
         {
             Self::Windows
         }
-        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "freebsd",
+            target_os = "macos",
+            target_os = "windows"
+        )))]
         {
             Self::Linux
         }
@@ -131,6 +143,7 @@ impl Platform {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Linux => "linux",
+            Self::FreeBsd => "freebsd",
             Self::MacOs => "macos",
             Self::Windows => "windows",
         }
@@ -143,6 +156,10 @@ pub fn platform_burner() -> Box<dyn DiscBurner> {
     {
         Box::new(LinuxBurner::default())
     }
+    #[cfg(target_os = "freebsd")]
+    {
+        Box::new(FreeBsdBurner::default())
+    }
     #[cfg(target_os = "macos")]
     {
         Box::new(MacOsBurner::default())
@@ -151,16 +168,31 @@ pub fn platform_burner() -> Box<dyn DiscBurner> {
     {
         Box::new(WindowsBurner::new())
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "freebsd",
+        target_os = "macos",
+        target_os = "windows"
+    )))]
     {
         Box::new(UnsupportedBurner)
     }
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "macos",
+    target_os = "windows"
+)))]
 struct UnsupportedBurner;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "macos",
+    target_os = "windows"
+)))]
 #[async_trait::async_trait]
 impl DiscBurner for UnsupportedBurner {
     fn backend(&self) -> BurnBackend {

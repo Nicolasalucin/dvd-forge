@@ -17,7 +17,7 @@
   <a href="LICENSE"><img alt="Licencia GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-22d3ee?style=flat-square" /></a>
   <img alt="Linux x86_64 e i686" src="https://img.shields.io/badge/Linux-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=linux" />
   <img alt="Windows x86_64 e i686" src="https://img.shields.io/badge/Windows-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=windows" />
-  <img alt="macOS" src="https://img.shields.io/badge/macOS-source%20build-0f172a?style=flat-square&logo=apple" />
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-arm64%20%7C%20x86__64-0f172a?style=flat-square&logo=apple" />
   <img alt="Rust + Tauri v2 + Svelte 5" src="https://img.shields.io/badge/Rust%20%2B%20Tauri%20v2%20%2B%20Svelte%205-0f172a?style=flat-square&logo=rust" />
 </p>
 
@@ -44,6 +44,43 @@ de alta definición, sin duplicar el trabajo creativo.
 | Audio y subtítulos | Optimizador VBR |
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
+
+## Novedades de v0.4.0
+
+### Memoria y streaming en 32 bits
+
+- Todas las rutas de varios gigabytes usan buffers de streaming acotados
+  (64 KiB–1 MiB): huellas de origen, hashes de subtítulos/menús, payloads UDF,
+  verificación de grabación y procesado de M2TS de menús.
+- El escritor UDF comparte rutas con `Arc<str>`, pre-reserva nodos y extensiones
+  y mantiene un buffer de payload/digest de 1 MiB. Las pruebas de imágenes
+  dispersas de >4 GiB y 50 GiB usan una fuente posicional de fichero.
+- Las compilaciones Windows de 32 bits solicitan `/LARGEADDRESSAWARE` y la pila
+  completa se comprueba en `i686-unknown-linux-gnu`.
+
+### Toolchain portable y sin dependencia de 32 bits
+
+- Se buscan `DVDFORGE_TOOLCHAIN_DIR` y carpetas junto al ejecutable
+  (`toolchain/`, `toolchain/<plataforma>-<arch>/`, `bin/`) antes de los
+  recursos empaquetados y del PATH.
+- tsMuxeR pasa a ser opcional: un muxer nativo Rust + FFmpeg construye el M2TS
+  principal, `index.bdmv`, `MovieObject.bdmv`, MPLS, CLPI, marcas de capítulo y
+  menús HDMV IG cuando tsMuxeR no está o el host es de 32 bits.
+
+### Paso directo de PGS
+
+- Las pistas `hdmv_pgs_subtitle` activas se copian al M2TS AVCHD/Blu-ray y se
+  registran en MPLS STN y CLPI.
+- DVD-Video conserva `W_BITMAP_SUBTITLE_UNSUPPORTED`; los códecs bitmap que no
+  son PGS siguen rechazándose en Blu-ray.
+
+### FreeBSD y releases multiarquitectura
+
+- CLI y grabación nativos en FreeBSD con `camcontrol`, `dvd+rw-mediainfo`,
+  `growisofs` y `xorriso`.
+- Releases Windows x86_64/i686 (WebView2 x86), Linux x86_64/i686 y macOS
+  Apple Silicon/Intel. Los binarios usan LTO thin, una codegen-unit y símbolos
+  eliminados.
 
 ## Características principales
 
@@ -179,16 +216,16 @@ de alta definición, sin duplicar el trabajo creativo.
 
 | Plataforma | Arquitectura | Distribución |
 |---|---|---|
-| Linux | x86_64 | AppImage, `.deb`, CLI |
-| Linux | i686 | CLI y escritorio portátil |
+| Linux | x86_64 | AppImage, `.deb`, CLI tar.gz |
+| Linux | i686 | CLI tar.gz y pruebas en 32 bits |
 | Windows | x86_64 | MSI, NSIS, CLI portátil |
-| Windows | i686 | MSI 32-bit, NSIS 32-bit, CLI portátil |
-| macOS | Apple Silicon / Intel | Compilación desde código |
+| Windows | i686 | MSI/NSIS 32-bit con WebView2 x86, CLI zip |
+| macOS | Apple Silicon / Intel | `.dmg`, CLI tar.gz |
+| FreeBSD | x86_64 | Compilación desde código, CLI y grabación nativa |
 
 > En Linux i686 el CLI y toda la pila de authoring están soportados de forma
-> nativa. El escritorio se publica como binario portátil cuando la distribución
-> proporciona WebKitGTK/GTK de 32 bits; algunas distribuciones sólo ofrecen esas
-> bibliotecas para 64 bits.
+> nativa. El escritorio Linux de 32 bits no se publica porque WebKitGTK/GTK de
+> 32 bits no está disponible en todas las distribuciones.
 
 ## Requisitos
 
@@ -212,20 +249,29 @@ sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
   webkit2gtk4.1 gtk3
 ```
 
-`tsMuxeR` se distribuye como binario independiente: descárgalo y colócalo en el
-`PATH`. `libbluray`/`bd_info` son opcionales y se usan para validar los ISO.
+`tsMuxeR` es opcional en hosts de 64 bits: AVCHD/Blu-ray puede autorarse con la
+ruta nativa de FFmpeg. Coloca las herramientas en `toolchain/` junto al binario,
+define `DVDFORGE_TOOLCHAIN_DIR` o usa el `PATH`. `libbluray`/`bd_info` son
+opcionales.
 
 ### Windows
 
 - Windows 10 de 64 o 32 bits y Windows 11 de 64 bits, con WebView2.
-- FFmpeg/FFprobe, tsMuxeR y DVDAuthor/Spumux disponibles en el `PATH`.
+- FFmpeg/FFprobe y DVDAuthor/Spumux en el `PATH`; tsMuxeR es opcional.
 - La grabación usa la API nativa IMAPI2; no requiere herramientas externas.
 
 ### macOS
 
-La aplicación se puede compilar desde el código fuente. La grabación utiliza
-`drutil`/`hdiutil`; FFmpeg, tsMuxeR y las herramientas de authoring deben estar
-instaladas y accesibles.
+Ejecuta el `.dmg` de releases o compila desde el código. La grabación utiliza
+`drutil`/`hdiutil`; FFmpeg es obligatorio y tsMuxeR opcional.
+
+### FreeBSD
+
+```bash
+pkg install ffmpeg dvdauthor dvd+rw-tools xorriso
+```
+
+La grabación usa `camcontrol`, `growisofs` y `xorriso`; tsMuxeR es opcional.
 
 ## Instalación
 
@@ -233,9 +279,11 @@ instaladas y accesibles.
 
 Descarga el instalador correspondiente desde la página de releases:
 
-- Linux x86_64: `.AppImage` o `.deb`.
-- Linux i686: binario portátil del escritorio y CLI.
+- Linux x86_64: `.AppImage`, `.deb` y CLI tar.gz.
+- Linux i686: `dvdforge-cli-i686-unknown-linux.tar.gz`.
 - Windows x86_64/i686: `.msi`, instalador NSIS y CLI portátil.
+- Windows i686 CLI: `dvdforge-cli-i686-pc-windows-msvc.zip`.
+- macOS Apple Silicon/Intel: `.dmg` y CLI tar.gz.
 - CLI universal: `dvdforge-cli` para automatizar planes, renders y grabación.
 
 ### Compilar desde el código
@@ -304,6 +352,14 @@ de escritorio.
 - **Svelte 5 + Vite + Tailwind CSS 4 + Konva** para el editor visual.
 - **FFmpeg**, **tsMuxeR**, **DVDAuthor/Spumux**, **xorriso**, **growisofs** y
   **libbluray** como motores externos.
+
+## Hoja de ruta
+
+El plan de ingeniería v0.5.0–v1.0.0 cubre renderizado nativo de subtítulos y
+masterización de audio, el diseñador de menús 2.0, copia directa de streams,
+checkpointing, fuzzing, empaquetado y el congelamiento del esquema LTS v1.0.0.
+Consulta [ROADMAP.md](ROADMAP.md) para crates objetivo, entregables, IDs de
+verificación y criterios de aceptación.
 
 ## Licencia
 

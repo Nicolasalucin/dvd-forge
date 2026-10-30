@@ -43,6 +43,12 @@ Additional local hardening on top of upstream 0.1.5:
   over 32 GiB; `read_entry` reserves exactly once and rejects sizes that do
   not fit the address space.
 - The ISO and UDF writers use 1 MiB payload/hash buffers to reduce deferred
-  source re-opens and syscalls.
+  source re-opens and syscalls. DVD Forge v0.4.0 keeps the UDF payload/digest
+  buffer at 1 MiB and never buffers an entire image.
+- `source::FileSource` exposes a file-backed `ReadAt` source so the >4 GiB and
+  50 GiB sparse-image tests (and 32-bit hosts) index large UDF images without
+  `std::fs::read`.
+- UDF writer nodes share paths through `Arc<str>` instead of cloning one
+  `String` per node; object storage and extent vectors are pre-reserved.
 
 The rest of the crate is upstream 0.1.5 (MIT) plus these local patches.

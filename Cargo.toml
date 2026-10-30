@@ -23,12 +23,17 @@ members = [
 exclude = ["vendor/libmkiso"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.96"
 license = "GPL-3.0-or-later"
 authors = ["DVD Forge contributors"]
 repository = "https://github.com/Nicolasalucin/dvd-forge"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
 
 [workspace.dependencies]
 anyhow = "1"

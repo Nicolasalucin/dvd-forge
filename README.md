@@ -17,7 +17,7 @@
   <a href="LICENSE"><img alt="License GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-22d3ee?style=flat-square" /></a>
   <img alt="Linux x86_64 and i686" src="https://img.shields.io/badge/Linux-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=linux" />
   <img alt="Windows x86_64 and i686" src="https://img.shields.io/badge/Windows-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=windows" />
-  <img alt="macOS" src="https://img.shields.io/badge/macOS-source%20build-0f172a?style=flat-square&logo=apple" />
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-arm64%20%7C%20x86__64-0f172a?style=flat-square&logo=apple" />
   <img alt="Rust + Tauri v2 + Svelte 5" src="https://img.shields.io/badge/Rust%20%2B%20Tauri%20v2%20%2B%20Svelte%205-0f172a?style=flat-square&logo=rust" />
 </p>
 
@@ -44,6 +44,53 @@ work.
 | Audio and subtitles | VBR optimizer |
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
+
+## v0.4.0 highlights
+
+### 32-bit memory and streaming
+
+- Every multi-gigabyte path now uses bounded streaming buffers (64 KiB–1 MiB):
+  source fingerprints, subtitle/label hashes, UDF payloads, burn verification
+  and menu M2TS processing. No production path reads a DVD-9, BD-25/BD-50 or
+  M2TS file into memory.
+- The UDF writer shares node paths through `Arc<str>`, pre-reserves its object
+  and extent storage, and keeps a 1 MiB payload/digest buffer. The >4 GiB and
+  50 GiB sparse-image tests read through a file-backed source instead of
+  `std::fs::read`.
+- 32-bit Windows builds request `/LARGEADDRESSAWARE`, and the full authoring
+  stack is checked on `i686-unknown-linux-gnu` with core tests running on the
+  32-bit target.
+
+### Portable, 32-bit-independent toolchain
+
+- `DVDFORGE_TOOLCHAIN_DIR` and directories beside the executable
+  (`toolchain/`, `toolchain/<platform>-<arch>/`, `bin/`) are searched before
+  packaged resources and PATH, so a release can run as a zero-setup portable
+  bundle.
+- tsMuxeR is now optional: a native Rust + FFmpeg BDMV muxer builds the movie
+  M2TS, `index.bdmv`, `MovieObject.bdmv`, MPLS, CLPI, chapter marks and HDMV
+  IG menu clips when tsMuxeR is absent or the host is 32-bit. The existing
+  tsMuxeR path remains the default on 64-bit hosts.
+
+### Blu-ray PGS pass-through
+
+- Active `hdmv_pgs_subtitle` tracks are stream-copied into AVCHD/Blu-ray
+  M2TS and registered in the MPLS STN and CLPI program/sequence info.
+- DVD-Video keeps `W_BITMAP_SUBTITLE_UNSUPPORTED` because Spumux cannot
+  consume bitmap subtitles without OCR. Non-PGS bitmap codecs are still
+  rejected for Blu-ray.
+- PGS delay is ignored with `W_PGS_DELAY_IGNORED`; mixed per-episode PGS
+  layouts are skipped with `W_PGS_LAYOUT_MISMATCH`.
+
+### FreeBSD and multi-arch releases
+
+- Native FreeBSD CLI and burning: drive discovery through `camcontrol`,
+  media probing through `dvd+rw-mediainfo`, burning through `growisofs` with
+  `xorriso` fallback, and eject through `camcontrol eject`.
+- Release builds cover Windows x86_64/i686 (including 32-bit WebView2), Linux
+  x86_64/i686, and macOS Apple Silicon/Intel. The 32-bit Windows and Linux CLI
+  archives are published alongside the Tauri installers.
+- Release binaries use thin LTO, one codegen unit and stripped symbols.
 
 ## v0.3.0 highlights
 
@@ -268,16 +315,16 @@ work.
 
 | Platform | Architecture | Distribution |
 |---|---|---|
-| Linux | x86_64 | AppImage, `.deb`, CLI |
-| Linux | i686 | CLI and portable desktop |
+| Linux | x86_64 | AppImage, `.deb`, CLI tarball |
+| Linux | i686 | CLI tarball and 32-bit core test job |
 | Windows | x86_64 | MSI, NSIS, portable CLI |
-| Windows | i686 | 32-bit MSI, 32-bit NSIS, portable CLI |
-| macOS | Apple Silicon / Intel | Build from source |
+| Windows | i686 | 32-bit MSI/NSIS with x86 WebView2, portable CLI zip |
+| macOS | Apple Silicon / Intel | `.dmg`, CLI tarball |
+| FreeBSD | x86_64 | Source build, CLI and native burning |
 
 > On Linux i686 the CLI and the entire authoring stack are natively supported.
-> The desktop app is published as a portable binary when the distribution
-> provides 32-bit WebKitGTK/GTK; some distributions only ship those libraries
-> for 64-bit.
+> The 32-bit Linux desktop is not published because WebKitGTK/GTK 32-bit is not
+> available in every distribution.
 
 ## Requirements
 
@@ -301,19 +348,29 @@ sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
   webkit2gtk4.1 gtk3
 ```
 
-`tsMuxeR` is distributed as a standalone binary: download it and place it on
-`PATH`. `libbluray`/`bd_info` are optional and are used to validate the ISO.
+`tsMuxeR` is optional on 64-bit hosts: AVCHD/Blu-ray can be authored by the
+native FFmpeg path when it is absent. Place tools in `toolchain/` next to the
+binary, set `DVDFORGE_TOOLCHAIN_DIR`, or put them on `PATH`.
+`libbluray`/`bd_info` are optional and are used to validate the ISO.
 
 ### Windows
 
 - Windows 10 64-bit or 32-bit and Windows 11 64-bit, with WebView2.
-- FFmpeg/FFprobe, tsMuxeR and DVDAuthor/Spumux available on `PATH`.
+- FFmpeg/FFprobe and DVDAuthor/Spumux available on `PATH`; tsMuxeR is optional.
 - Burning uses the native IMAPI2 API; no external tools are required.
 
 ### macOS
 
-The application can be built from source. Burning uses `drutil`/`hdiutil`;
-FFmpeg, tsMuxeR and the authoring tools must be installed and accessible.
+Run the `.dmg` installer from the releases page or build from source. Burning
+uses `drutil`/`hdiutil`; FFmpeg is required and tsMuxeR is optional.
+
+### FreeBSD
+
+```bash
+pkg install ffmpeg dvdauthor dvd+rw-tools xorriso
+```
+
+Burning uses `camcontrol`, `growisofs` and `xorriso`; tsMuxeR is optional.
 
 ## Installation
 
@@ -321,9 +378,11 @@ FFmpeg, tsMuxeR and the authoring tools must be installed and accessible.
 
 Download the appropriate installer from the releases page:
 
-- Linux x86_64: `.AppImage` or `.deb`.
-- Linux i686: portable desktop binary and CLI.
+- Linux x86_64: `.AppImage`, `.deb` and CLI tarball.
+- Linux i686: `dvdforge-cli-i686-unknown-linux.tar.gz`.
 - Windows x86_64/i686: `.msi`, NSIS installer and portable CLI.
+- Windows i686 CLI: `dvdforge-cli-i686-pc-windows-msvc.zip`.
+- macOS Apple Silicon/Intel: `.dmg` and CLI tarball.
 - Universal CLI: `dvdforge-cli` to automate plans, renders and burning.
 
 ### Build from source
@@ -393,6 +452,14 @@ budget and artifact cache with the desktop application.
   **libbluray** as external engines.
 - Optional **NVENC / QSV / VAAPI / AMF / VideoToolbox** hardware H.264 paths with
   automatic CPU fallback.
+
+## Roadmap
+
+The v0.5.0–v1.0.0 engineering plan covers native subtitle rendering and audio
+mastering, the Studio menu designer 2.0, smart stream copy, checkpointing,
+fuzzing, packaging and the v1.0.0 LTS schema freeze. See
+[ROADMAP.md](ROADMAP.md) for target crates, deliverables, check IDs and
+verification criteria.
 
 ## License
 

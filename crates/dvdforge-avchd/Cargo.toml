@@ -8,6 +8,11 @@ authors.workspace = true
 
 [dependencies]
 dvdforge-domain = { path = "../dvdforge-domain" }
+dvdforge-hdmv = { path = "../dvdforge-hdmv" }
 dvdforge-toolchain = { path = "../dvdforge-toolchain" }
 thiserror.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+dvdforge-iso = { path = "../dvdforge-iso" }
+dvdforge-verify = { path = "../dvdforge-verify" }

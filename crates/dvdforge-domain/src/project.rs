@@ -774,6 +774,32 @@ pub struct Project {
 }
 
 impl Project {
+    /// Resolves the effective subtitle codec for a track. Embedded tracks use
+    /// the video asset's probe; external `.sup` files are recognized by suffix.
+    pub fn subtitle_codec(&self, episode: &Episode, track: &SubtitleTrack) -> Option<&str> {
+        if track
+            .source_path
+            .as_deref()
+            .is_some_and(|path| path.to_ascii_lowercase().ends_with(".sup"))
+        {
+            return Some("hdmv_pgs_subtitle");
+        }
+        if track.source_path.is_some() {
+            return None;
+        }
+        self.asset(episode.video)?
+            .probe
+            .subtitle_tracks
+            .iter()
+            .find(|stream| stream.index == track.source_stream)
+            .map(|stream| stream.codec.as_str())
+    }
+
+    /// Whether a subtitle track can be stream-copied as Blu-ray PGS.
+    pub fn is_pgs_track(&self, episode: &Episode, track: &SubtitleTrack) -> bool {
+        self.subtitle_codec(episode, track) == Some("hdmv_pgs_subtitle")
+    }
+
     pub fn menu(&self, id: MenuId) -> Option<&Menu> {
         self.menus.iter().find(|menu| menu.id == id)
     }
@@ -912,7 +938,9 @@ impl Project {
                 }
             }
             for subtitle in &episode.subtitles {
-                if subtitle.bitmap && subtitle.source_path.is_none() {
+                let bitmap = subtitle.bitmap || self.is_pgs_track(episode, subtitle);
+                let pgs_passthrough = is_avchd && self.is_pgs_track(episode, subtitle);
+                if bitmap && subtitle.source_path.is_none() && !pgs_passthrough {
                     diagnostics.push(
                         Diagnostic::warning(
                             "W_BITMAP_SUBTITLE_UNSUPPORTED",
@@ -1468,6 +1496,50 @@ mod tests {
             .filter(|diagnostic| diagnostic.severity == Severity::Error)
             .collect();
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    fn pgs_track() -> SubtitleTrack {
+        SubtitleTrack {
+            source_stream: 2,
+            source_path: None,
+            language: "spa".into(),
+            label: "PGS".into(),
+            delay_ms: 0,
+            is_forced: false,
+            is_default: false,
+            bitmap: true,
+        }
+    }
+
+    #[test]
+    fn blu_ray_pgs_is_accepted_while_dvd_still_warns() {
+        let mut project = avchd_project();
+        project.disc.capacity = DiscCapacity::Bd25;
+        project.assets[0].probe.subtitle_tracks = vec![SubtitleStreamInfo {
+            index: 2,
+            codec: "hdmv_pgs_subtitle".into(),
+            language: Some("spa".into()),
+            title: Some("PGS".into()),
+            default: false,
+            forced: false,
+            bitmap: true,
+        }];
+        project.episodes[0].subtitles = vec![pgs_track()];
+        let diagnostics = project.validate();
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code != "W_BITMAP_SUBTITLE_UNSUPPORTED"),
+            "{diagnostics:?}"
+        );
+
+        project.disc.mode = AuthoringMode::DvdVideo;
+        project.disc.capacity = DiscCapacity::Dvd5;
+        project.disc.video = VideoConfig::Dvd(DvdVideoConfig::default());
+        let diagnostics = project.validate();
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "W_BITMAP_SUBTITLE_UNSUPPORTED"));
     }
 
     #[test]

@@ -33,8 +33,11 @@ fn sparse_udf_250_file_over_four_gib_round_trips_without_buffering_it() {
     };
     let path = dir.path().join("large.udf");
     image.write(&path, &options).unwrap();
-    let bytes = std::fs::read(&path).unwrap();
-    let reader = UdfReader::open(&bytes, Limits::default()).unwrap();
+    let reader = UdfReader::open_source(
+        libmkiso::FileSource::open(&path).unwrap(),
+        Limits::default(),
+    )
+    .unwrap();
     let index = reader
         .entries()
         .iter()
@@ -120,4 +123,57 @@ fn udf_250_writes_and_validates_extended_file_entry_tag_266() {
         .position(|entry| entry.name == "extended.bin")
         .expect("extended entry");
     assert_eq!(reader.read_entry(index, 16_384).unwrap().len(), 8193);
+}
+#[cfg(unix)]
+#[test]
+fn fifty_gib_sparse_udf_layout_is_indexed_without_reading_the_payload() {
+    const FIFTY_GIB: u64 = 50 * GIB;
+    let dir = tempfile::tempdir().unwrap();
+    let mut image = UdfImage::new();
+    let head = vec![0x5a; BLOCK as usize];
+    let tail = b"fifty gib tail".to_vec();
+    image
+        .add_sparse_file(
+            "movies/bd50.m2ts",
+            vec![
+                UdfFileExtent::Data(head.clone()),
+                UdfFileExtent::Hole(FIFTY_GIB),
+                UdfFileExtent::Data(tail.clone()),
+            ],
+        )
+        .unwrap();
+    let options = UdfOptions {
+        revision: UdfRevision::V250,
+        partition: UdfPartition::Metadata { mirror: true },
+        allocation: AllocationMode::Long,
+        compute_digest: false,
+        ..Default::default()
+    };
+    let path = dir.path().join("bd50.udf");
+    image.write(&path, &options).unwrap();
+    // The 50 GiB extent is unallocated; the image itself stays small.
+    assert!(std::fs::metadata(&path).unwrap().len() < 100 * 1024 * 1024);
+    let source = libmkiso::FileSource::open(&path).unwrap();
+    let reader = UdfReader::open_source(source, Limits::default()).unwrap();
+    let index = reader
+        .entries()
+        .iter()
+        .position(|entry| entry.name == "movies/bd50.m2ts")
+        .expect("BD-50 entry");
+    assert_eq!(
+        reader.entries()[index].size,
+        head.len() as u64 + FIFTY_GIB + tail.len() as u64
+    );
+    let mut prefix = vec![0u8; head.len()];
+    reader.read_at(index, 0, &mut prefix).unwrap();
+    assert_eq!(prefix, head);
+    let mut suffix = vec![0u8; tail.len()];
+    reader
+        .read_at(
+            index,
+            reader.entries()[index].size - tail.len() as u64,
+            &mut suffix,
+        )
+        .unwrap();
+    assert_eq!(suffix, tail);
 }

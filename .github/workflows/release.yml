@@ -24,17 +24,12 @@ jobs:
             arch: x86_64
             target: x86_64-unknown-linux-gnu
             bundles: appimage,deb
-            bundles_desktop: true
-            experimental_desktop: false
+            desktop: true
           - name: linux-i686
             arch: i686
             target: i686-unknown-linux-gnu
             bundles: none
-            bundles_desktop: false
-            # WebKitGTK 32-bit is not available in every distribution. The CLI
-            # is always built; the portable desktop is attempted when the
-            # runner can provide a 32-bit GTK/WebKit sysroot.
-            experimental_desktop: true
+            desktop: false
 
     steps:
       - uses: actions/checkout@v4
@@ -70,13 +65,6 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386 pkg-config
-          # Best effort: distributions that ship 32-bit GTK/WebKit headers can
-          # build the portable desktop. Missing packages only disable that
-          # optional artifact; the 32-bit CLI is unaffected.
-          sudo apt-get install -y \
-            libgtk-3-dev:i386 libwebkit2gtk-4.1-dev:i386 \
-            libayatana-appindicator3-dev:i386 librsvg2-dev:i386 \
-            libssl-dev:i386 || true
 
       - name: Install frontend dependencies
         working-directory: apps/desktop
@@ -90,25 +78,18 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }} -p dvdforge-cli
 
       - name: Build desktop bundles
-        if: matrix.bundles_desktop
+        if: matrix.desktop
         working-directory: apps/desktop
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
-      - name: Build portable desktop (32-bit, best effort)
-        if: ${{ !matrix.bundles_desktop }}
-        continue-on-error: ${{ matrix.experimental_desktop }}
-        working-directory: apps/desktop
-        run: npm run tauri -- build --target ${{ matrix.target }} --no-bundle
-
-      - name: Prepare portable binaries
+      - name: Package Linux CLI
         shell: bash
         run: |
+          mkdir -p artifacts
           cp "target/${{ matrix.target }}/release/dvdforge-cli" \
-             "target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}"
-          if [ -f "target/${{ matrix.target }}/release/dvdforge-desktop" ]; then
-            cp "target/${{ matrix.target }}/release/dvdforge-desktop" \
-               "target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}"
-          fi
+             "target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.target }}"
+          tar -C "target/${{ matrix.target }}/release" -czf \
+             "artifacts/dvdforge-cli-${{ matrix.target }}.tar.gz" "dvdforge-cli"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -116,12 +97,9 @@ jobs:
           name: dvdforge-${{ matrix.name }}
           if-no-files-found: warn
           path: |
-            target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}
-            target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}
+            artifacts/*.tar.gz
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
             target/${{ matrix.target }}/release/bundle/deb/*.deb
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
 
   windows:
     name: Windows ${{ matrix.arch }}
@@ -172,14 +150,16 @@ jobs:
         working-directory: apps/desktop
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles msi,nsis
 
-      - name: Prepare portable binaries
+      - name: Package portable CLI
         shell: pwsh
         run: |
-          Copy-Item "target/${{ matrix.target }}/release/dvdforge-cli.exe" `
-            "target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}.exe"
-          if (Test-Path "target/${{ matrix.target }}/release/dvdforge-desktop.exe") {
-            Copy-Item "target/${{ matrix.target }}/release/dvdforge-desktop.exe" `
-              "target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}.exe"
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $exe = "target/${{ matrix.target }}/release/dvdforge-cli.exe"
+          $dest = "artifacts/dvdforge-cli-${{ matrix.target }}.exe"
+          Copy-Item $exe $dest
+          if ("${{ matrix.arch }}" -eq "i686") {
+            Compress-Archive -Path $exe -DestinationPath \
+              "artifacts/dvdforge-cli-i686-pc-windows-msvc.zip" -Force
           }
 
       - name: Upload Windows artifacts
@@ -188,17 +168,83 @@ jobs:
           name: dvdforge-${{ matrix.name }}
           if-no-files-found: warn
           path: |
-            target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.name }}.exe
-            target/${{ matrix.target }}/release/dvdforge-desktop-${{ matrix.name }}.exe
+            artifacts/*
             target/${{ matrix.target }}/release/bundle/msi/*.msi
             target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-aarch64
+            arch: aarch64
+            target: aarch64-apple-darwin
+            os: macos-14
+          - name: macos-x86_64
+            arch: x86_64
+            target: x86_64-apple-darwin
+            os: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Generate bindings
+        working-directory: apps/desktop
+        run: npm run bindings
+
+      - name: Build CLI
+        run: cargo build --release --target ${{ matrix.target }} -p dvdforge-cli
+
+      - name: Build desktop bundles
+        working-directory: apps/desktop
+        run: npm run tauri -- build --target ${{ matrix.target }} --bundles dmg
+
+      - name: Package macOS CLI
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp "target/${{ matrix.target }}/release/dvdforge-cli" \
+             "target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.target }}"
+          tar -C "target/${{ matrix.target }}/release" -czf \
+             "artifacts/dvdforge-cli-${{ matrix.target }}.tar.gz" "dvdforge-cli"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvdforge-${{ matrix.name }}
+          if-no-files-found: warn
+          path: |
+            artifacts/*.tar.gz
+            target/${{ matrix.target }}/release/bundle/dmg/*.dmg
 
   release:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    needs: [linux, windows, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -215,9 +261,16 @@ jobs:
             -name '*.AppImage' -o \
             -name '*.deb' -o \
             -name '*.msi' -o \
-            -name '*-setup.exe' \
+            -name '*-setup.exe' -o \
+            -name '*.dmg' -o \
+            -name '*.tar.gz' -o \
+            -name '*.zip' \
           \) -exec cp -v {} release/ \;
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
+          test -f release/dvdforge-cli-i686-unknown-linux.tar.gz
+          test -f release/dvdforge-cli-i686-pc-windows-msvc.zip
+          test "$(find release -name '*.dmg' | wc -l)" -ge 2
+          test "$(find release \( -name '*.AppImage' -o -name '*.deb' \) | wc -l)" -ge 1
+          test "$(find release \( -name '*.msi' -o -name '*-setup.exe' \) | wc -l)" -ge 2
           ls -lh release
 
       - name: Create release

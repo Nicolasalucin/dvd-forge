@@ -8,6 +8,7 @@
 pub mod bdmv;
 pub mod compiler;
 pub mod m2ts;
+pub mod native;
 pub mod opcodes;
 pub mod palette;
 pub mod pes;
@@ -16,9 +17,9 @@ pub mod segments;
 
 pub use bdmv::{
     append_menu_movie_object, dummy_pgs, dummy_pgs_for_slots, inject_ig_into_menu_m2ts,
-    movie_object_count, packetize_pes, patch_menu_clpi, patch_menu_mpls,
-    pes_transport_packet_count, pgs_transport_packet_count, set_index_menu_object, BdmvError,
-    STILL_TIME_INFINITE,
+    inject_ig_into_menu_m2ts_file, inject_ig_into_menu_m2ts_stream, movie_object_count,
+    packetize_pes, patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count,
+    pgs_transport_packet_count, set_index_menu_object, BdmvError, STILL_TIME_INFINITE,
 };
 pub use compiler::{
     compile_ig_m2ts, compile_ig_pes, compile_ig_pes_packets, compile_ig_segments, frame_rate_code,

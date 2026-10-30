@@ -1,0 +1,7 @@
+# DVD Forge per-target build settings.
+#
+# 32-bit Windows processes get a 2 GiB address space by default; the flag lets
+# the CLI use up to 3-4 GiB while the bounded streaming pipeline keeps actual
+# RSS far below the 256 MB budget.
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/LARGEADDRESSAWARE"]

@@ -11,7 +11,7 @@ pub mod source;
 pub mod topology;
 pub mod tree_source;
 pub mod udf;
-pub use source::{BoundedSource, ReadAt, SliceSource, SourceCursor};
+pub use source::{BoundedSource, FileSource, ReadAt, SliceSource, SourceCursor};
 
 // Format-prefixed names keep both reader APIs usable in the same consumer.
 pub use iso9660::{

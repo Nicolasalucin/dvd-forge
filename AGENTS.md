@@ -15,6 +15,10 @@ DVD Forge is a Rust + Tauri v2 + Svelte 5 optical authoring studio for:
 
 The desktop app and CLI share the same render pipeline in `dvdforge-render`.
 
+> Roadmap: [ROADMAP.md](ROADMAP.md) is the authoritative v0.5.0–v1.0.0 plan.
+> New check IDs and diagnostic codes proposed there are reserved before
+> implementation; keep this file's invariants and the roadmap in sync.
+
 ## Repository map
 
 ```text
@@ -25,10 +29,10 @@ crates/
   dvdforge-menu/         SPU/menu layer rasterization, Spumux/TextSub XML
   dvdforge-plan/         Bitrate planning, DVD-9 ECC layer-break sector math
   dvdforge-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
-  dvdforge-avchd/        H.264/AC-3 encoding, tsMuxeR metadata, hardware args
-  dvdforge-hdmv/         HDMV IG segments, opcodes, M2TS/MPLS/CLPI/MovieObject
+  dvdforge-avchd/        H.264/AC-3 encoding, tsMuxeR metadata, native BDMV muxer
+  dvdforge-hdmv/         HDMV IG segments, opcodes, native M2TS/MPLS/CLPI/MovieObject
   dvdforge-iso/          DVD-Video ISO builder and BDMV UDF 2.50 builder
-  dvdforge-burn/         Platform burners: growisofs/xorriso, IMAPI2, drutil
+  dvdforge-burn/         Platform burners: growisofs/xorriso, camcontrol, IMAPI2, drutil
   dvdforge-jobs/         Job events, stages, diagnostics-facing types
   dvdforge-toolchain/    Binary discovery, tool doctor, hardware encoder probes
   dvdforge-store/        SQLite recent projects, job history, artifact cache v2
@@ -143,9 +147,13 @@ Smart Render Cache v2:
 - Project schema is version 1. Add new fields with `#[serde(default)]` and
   `specta::Type`; old projects must continue to load.
 - `Project::validate` is authoritative: render, plan and save must use it.
-- Bitmap subtitles are metadata-only in v0.3.0; they are rejected by the text
+- DVD-Video bitmap subtitles are metadata-only and rejected by the text
   pipeline with `W_BITMAP_SUBTITLE_UNSUPPORTED`. Do not feed PGS/VobSub to
   Spumux.
+- Blu-ray/AVCHD `hdmv_pgs_subtitle` tracks are stream-copied and registered in
+  MPLS/CLPI. Non-PGS bitmap codecs remain unsupported; PGS delay is ignored with
+  `W_PGS_DELAY_IGNORED` and mixed episode layouts skip with
+  `W_PGS_LAYOUT_MISMATCH`.
 - HDMV DTS is kept equal to PTS until menu playback is validated on hardware.
 - Menu clip timing fields (`out_ms`, `loop_duration_ms`) must be honored by the
   FFmpeg filter/argument builders.
@@ -160,6 +168,37 @@ Smart Render Cache v2:
 - `BdmvIsoBuilder` must validate `index.bdmv`, `MovieObject.bdmv` and the
   playlist tree before publishing; the verifier does the independent deep check.
 
+### 8. Bounded memory and 32-bit I/O
+
+- No production path may `fs::read` an ISO, M2TS, VOB or other multi-gigabyte
+  payload. Use the 256 KiB streaming helpers in `dvdforge-verify::stream`,
+  `dvdforge-hdmv::inject_ig_into_menu_m2ts_file` or equivalent.
+- Buffers are 64 KiB–1 MiB. `vendor/libmkiso` uses a 1 MiB payload/digest
+  buffer and a file-backed `FileSource`; never add a full-image allocation.
+- `i686` is a first-class target: sector/extent math uses `u64`/`u128`, packet
+  counts use checked `u32` conversion, and the i686 check/test jobs must stay
+  green. 32-bit Windows carries `/LARGEADDRESSAWARE` in
+  `.cargo/config.toml`.
+
+### 9. Native BDMV muxer and portable toolchain
+
+- `dvdforge-hdmv::native` emits canonical INDX0200/MOBJ0200/MPLS0200/HDMV0200
+  structures; keep its tests and the `dvdforge-verify` integration test green.
+- tsMuxeR is optional. `MuxBackend::Auto` chooses native on 32-bit hosts or
+  when tsMuxeR is absent, and tsMuxeR otherwise. A native failure on 64-bit may
+  fall back with `W_NATIVE_MUX_FALLBACK`; on 32-bit it must fail structurally.
+- Portable discovery checks `DVDFORGE_TOOLCHAIN_DIR`, `<exe>/toolchain/`,
+  `<exe>/bin/` and platform-arch variants before resources and PATH.
+
+### 10. FreeBSD and multi-arch release
+
+- `dvdforge-burn` FreeBSD uses `camcontrol` for enumeration/eject,
+  `dvd+rw-mediainfo` for media, and `growisofs` with `xorriso` fallback.
+- The headless workspace must compile on FreeBSD (CI VM) and the pure crates are
+  cross-checked with `x86_64-unknown-freebsd`.
+- Release artifacts cover Windows x86_64/i686, Linux x86_64/i686, and macOS
+  arm64/x86_64. Keep the 32-bit archive names stable.
+
 ## Development commands
 
 Run these before committing. They are also the CI gate:
@@ -169,6 +208,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo check --workspace --exclude dvdforge-desktop --target i686-unknown-linux-gnu
+cargo test -p dvdforge-plan -p dvdforge-verify -p dvdforge-hdmv --target i686-unknown-linux-gnu
 cd apps/desktop && npm run check && npm run build
 ```
 
@@ -176,7 +216,16 @@ Vendored `libmkiso` tests (not part of the workspace):
 
 ```bash
 cd vendor/libmkiso
-cargo test
+cargo fmt -- --check
+cargo test --all-features --locked
+cargo test --no-default-features --locked
+cargo clippy --all-targets --all-features --locked -- -D warnings
+```
+
+FreeBSD (CI uses a native VM):
+
+```bash
+cargo check --workspace --exclude dvdforge-desktop
 ```
 
 Ignored render smoke tests (require FFmpeg, DVDAuthor, Spumux, xorriso, tsMuxeR
@@ -198,12 +247,13 @@ npm run bindings
 1. Update versions in `Cargo.toml` (workspace), `Cargo.lock`,
    `apps/desktop/package.json`, `apps/desktop/package-lock.json` and
    `apps/desktop/src-tauri/tauri.conf.json`.
-2. Update `README.md`, `README.es.md` and `CHANGELOG.md`.
-3. Regenerate bindings.
-4. Run the full verification command list above.
+2. Update `README.md`, `README.es.md`, `AGENTS.md` and `CHANGELOG.md`.
+3. Regenerate bindings only if an IPC-visible type changed.
+4. Run the full verification command list above plus the vendored gates.
 5. Commit, create annotated tag `vX.Y.Z`, push `main` and the tag.
-6. The `Release` workflow builds Linux/Windows artifacts and publishes the
-   GitHub Release; use `gh release edit` for final release notes if needed.
+6. The `Release` workflow builds Windows x86_64/i686, Linux x86_64/i686 and
+   macOS arm64/x86_64 artifacts and publishes the GitHub Release; verify the
+   32-bit `.zip`/`.tar.gz` names before publishing.
 
 ## Common pitfalls
 

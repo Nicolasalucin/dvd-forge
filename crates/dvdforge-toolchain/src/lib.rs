@@ -202,6 +202,7 @@ struct ToolSpec {
     version_args: &'static [&'static str],
     accept_any_exit: bool,
     markers: &'static [&'static str],
+    required: bool,
 }
 
 const SPECS: &[ToolSpec] = &[
@@ -212,6 +213,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["-version"],
         accept_any_exit: false,
         markers: &["ffmpeg version"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::Ffprobe,
@@ -220,6 +222,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["-version"],
         accept_any_exit: false,
         markers: &["ffprobe version"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::Dvdauthor,
@@ -228,6 +231,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["--version"],
         accept_any_exit: true,
         markers: &["DVDAuthor", "dvdauthor"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::Spumux,
@@ -236,6 +240,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["--version"],
         accept_any_exit: true,
         markers: &["DVDAuthor::spumux", "spumux"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::Xorriso,
@@ -244,6 +249,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["-version"],
         accept_any_exit: false,
         markers: &["xorriso"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::Growisofs,
@@ -252,6 +258,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["-version"],
         accept_any_exit: false,
         markers: &["growisofs"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::DvdRwMediaInfo,
@@ -260,6 +267,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &[],
         accept_any_exit: true,
         markers: &["usage:", "dvd+rw-mediainfo"],
+        required: true,
     },
     ToolSpec {
         id: ToolId::TsMuxer,
@@ -268,6 +276,7 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["--version"],
         accept_any_exit: true,
         markers: &["tsMuxeR version"],
+        required: false,
     },
 ];
 
@@ -275,9 +284,16 @@ const SPECS: &[ToolSpec] = &[
 /// use `drutil`/`hdiutil` and IMAPI2 respectively.
 pub fn tool_supported_on(id: ToolId, platform: &str) -> bool {
     match id {
-        ToolId::Growisofs | ToolId::DvdRwMediaInfo => platform == "linux",
-        _ => matches!(platform, "linux" | "macos" | "windows"),
+        ToolId::Growisofs | ToolId::DvdRwMediaInfo => {
+            matches!(platform, "linux" | "freebsd")
+        }
+        _ => matches!(platform, "linux" | "macos" | "windows" | "freebsd"),
     }
+}
+
+/// tsMuxeR is optional because AVCHD/BDMV has a native FFmpeg fallback.
+pub const fn tool_required(id: ToolId) -> bool {
+    !matches!(id, ToolId::TsMuxer)
 }
 
 /// Adds the platform executable suffix and keeps the bare name as a fallback.
@@ -291,13 +307,37 @@ pub fn platform_binary_candidates(name: &str, platform: &str) -> Vec<String> {
     }
 }
 
-/// Returns the ordered search path for a platform. `resource_root` points to
-/// the Tauri `resources/` directory; PATH entries are appended at the end.
+/// Returns the ordered search path for a platform. Portable locations
+/// (`DVDFORGE_TOOLCHAIN_DIR` and directories beside the executable) are
+/// checked before packaged resources, system prefixes and PATH.
 pub fn search_directories_for_platform(
     platform: &str,
     exe_dir: Option<&Path>,
     cwd: &Path,
     resource_root: Option<&Path>,
+    path_dirs: &[PathBuf],
+) -> Vec<PathBuf> {
+    let toolchain_dir = env::var_os("DVDFORGE_TOOLCHAIN_DIR").map(PathBuf::from);
+    search_directories_with(
+        platform,
+        env::consts::ARCH,
+        exe_dir,
+        cwd,
+        resource_root,
+        toolchain_dir.as_deref(),
+        path_dirs,
+    )
+}
+
+/// Pure search-path builder used by runtime resolution and tests.
+#[allow(clippy::too_many_arguments)]
+pub fn search_directories_with(
+    platform: &str,
+    arch: &str,
+    exe_dir: Option<&Path>,
+    cwd: &Path,
+    resource_root: Option<&Path>,
+    toolchain_dir: Option<&Path>,
     path_dirs: &[PathBuf],
 ) -> Vec<PathBuf> {
     let mut directories = Vec::new();
@@ -309,12 +349,37 @@ pub fn search_directories_for_platform(
             directories.push(path);
         }
     };
+    let platform_variants = [
+        platform.to_string(),
+        format!("{platform}-{arch}"),
+        format!("{arch}-{platform}"),
+    ];
+    let add_variants = |push: &mut dyn FnMut(PathBuf), root: &Path| {
+        for variant in &platform_variants {
+            push(root.join(variant));
+        }
+    };
 
-    if let Some(root) = resource_root {
-        push(root.join("toolchains").join(platform));
+    if let Some(root) = toolchain_dir {
+        push(root.to_path_buf());
+        add_variants(&mut push, root);
+        push(root.join("toolchain"));
+        push(root.join("bin"));
+        push(root.join("toolchain").join(platform));
+        push(root.join("bin").join(platform));
     }
     if let Some(exe_dir) = exe_dir {
+        push(exe_dir.join("toolchain"));
+        add_variants(&mut push, &exe_dir.join("toolchain"));
+        push(exe_dir.join("bin"));
+        push(exe_dir.join("bin").join(platform));
         push(exe_dir.join("resources").join("toolchains").join(platform));
+        push(
+            exe_dir
+                .join("resources")
+                .join("toolchains")
+                .join(format!("{platform}-{arch}")),
+        );
         if platform == "macos" {
             push(
                 exe_dir
@@ -325,6 +390,10 @@ pub fn search_directories_for_platform(
             );
         }
     }
+    if let Some(root) = resource_root {
+        push(root.join("toolchains").join(platform));
+        push(root.join("toolchains").join(format!("{platform}-{arch}")));
+    }
     push(cwd.join("resources").join("toolchains").join(platform));
     match platform {
         "macos" => {
@@ -332,6 +401,12 @@ pub fn search_directories_for_platform(
             push(PathBuf::from("/usr/local/bin"));
         }
         "linux" => push(PathBuf::from("/usr/local/bin")),
+        "freebsd" => {
+            push(PathBuf::from("/usr/local/bin"));
+            push(PathBuf::from("/usr/local/sbin"));
+            push(PathBuf::from("/sbin"));
+            push(PathBuf::from("/usr/sbin"));
+        }
         _ => {}
     }
     for directory in path_dirs {
@@ -358,6 +433,11 @@ pub fn default_search_directories() -> Vec<PathBuf> {
         resource_root.as_deref(),
         &path_dirs,
     )
+}
+
+/// Returns the resolved path of a tool, or `None` when no executable was found.
+pub fn find_binary(name: &str) -> Option<PathBuf> {
+    find_binary_in_dirs(&[name], env::consts::OS, &default_search_directories())
 }
 
 /// Finds the first executable candidate in the already ordered directories.
@@ -409,11 +489,7 @@ pub fn resolve_binary(name: &str) -> PathBuf {
             return candidate;
         }
     }
-    let platform = env::consts::OS;
-    if let Some(found) = find_binary_in_dirs(&[name], platform, &default_search_directories()) {
-        return found;
-    }
-    PathBuf::from(name)
+    find_binary(name).unwrap_or_else(|| PathBuf::from(name))
 }
 
 /// Runs a command with a hard deadline. The child is killed and reaped when
@@ -604,7 +680,7 @@ fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> Tool
         return ToolStatus {
             id: spec.id,
             name: spec.name.to_string(),
-            required: true,
+            required: spec.required,
             found: false,
             path: None,
             version: None,
@@ -643,7 +719,7 @@ fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> Tool
             ToolStatus {
                 id: spec.id,
                 name: spec.name.to_string(),
-                required: true,
+                required: spec.required,
                 found: accepted,
                 path: Some(path.display().to_string()),
                 version,
@@ -662,7 +738,7 @@ fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> Tool
         Err(error) => ToolStatus {
             id: spec.id,
             name: spec.name.to_string(),
-            required: true,
+            required: spec.required,
             found: false,
             path: Some(path.display().to_string()),
             version: None,
@@ -789,17 +865,53 @@ mod tests {
     }
 
     #[test]
-    fn search_directories_put_resources_before_path() {
+    fn search_directories_order_portable_before_resources_and_path() {
         let cwd = Path::new("/work/app");
         let exe = Path::new("/work/app/bin");
         let resources = Path::new("/work/app/resources");
+        let toolchain = Path::new("/portable/tools");
         let path_dirs = vec![PathBuf::from("/custom/bin")];
-        let dirs =
-            search_directories_for_platform("windows", Some(exe), cwd, Some(resources), &path_dirs);
-        assert_eq!(dirs[0], resources.join("toolchains/windows"));
-        assert!(dirs.contains(&exe.join("resources/toolchains/windows")));
+        let dirs = search_directories_with(
+            "windows",
+            "x86_64",
+            Some(exe),
+            cwd,
+            Some(resources),
+            Some(toolchain),
+            &path_dirs,
+        );
+        assert_eq!(dirs[0], toolchain);
+        let portable = dirs
+            .iter()
+            .position(|path| *path == exe.join("toolchain"))
+            .expect("exe toolchain");
+        let resource = dirs
+            .iter()
+            .position(|path| *path == resources.join("toolchains/windows"))
+            .expect("resource toolchain");
+        let custom = dirs
+            .iter()
+            .position(|path| path.as_path() == Path::new("/custom/bin"))
+            .expect("PATH");
+        assert!(portable < resource);
+        assert!(resource < custom);
+        assert!(dirs.contains(&exe.join("bin")));
+        assert!(dirs.contains(&exe.join("toolchain/windows-x86_64")));
         assert!(dirs.contains(&cwd.join("resources/toolchains/windows")));
         assert_eq!(dirs.last(), Some(&PathBuf::from("/custom/bin")));
+    }
+
+    #[test]
+    fn portable_toolchain_platform_variant_is_resolved() {
+        let dir = temp_dir("portable-variant");
+        let exe = dir.join("bin");
+        let toolchain = exe.join("toolchain/linux-x86_64");
+        std::fs::create_dir_all(&toolchain).expect("toolchain dir");
+        make_executable(&toolchain.join("xorriso"));
+        let dirs = search_directories_with("linux", "x86_64", Some(&exe), &dir, None, None, &[]);
+        let found = find_binary_in_dirs(&["xorriso"], "linux", &dirs).expect("xorriso");
+        assert_eq!(found, toolchain.join("xorriso"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -810,6 +922,9 @@ mod tests {
         assert!(mac.contains(&PathBuf::from("/usr/local/bin")));
         let linux = search_directories_for_platform("linux", None, cwd, None, &[]);
         assert!(linux.contains(&PathBuf::from("/usr/local/bin")));
+        let freebsd = search_directories_with("freebsd", "x86_64", None, cwd, None, None, &[]);
+        assert!(freebsd.contains(&PathBuf::from("/usr/local/bin")));
+        assert!(freebsd.contains(&PathBuf::from("/sbin")));
     }
 
     #[test]
@@ -845,8 +960,13 @@ mod tests {
         assert!(tool_supported_on(ToolId::DvdRwMediaInfo, "linux"));
         assert!(!tool_supported_on(ToolId::Growisofs, "macos"));
         assert!(!tool_supported_on(ToolId::DvdRwMediaInfo, "windows"));
+        assert!(tool_supported_on(ToolId::Growisofs, "freebsd"));
+        assert!(tool_supported_on(ToolId::DvdRwMediaInfo, "freebsd"));
         assert!(tool_supported_on(ToolId::TsMuxer, "windows"));
         assert!(tool_supported_on(ToolId::Ffmpeg, "macos"));
+        assert!(tool_supported_on(ToolId::Ffmpeg, "freebsd"));
+        assert!(!tool_required(ToolId::TsMuxer));
+        assert!(tool_required(ToolId::Ffmpeg));
     }
 
     #[test]
