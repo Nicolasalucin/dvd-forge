@@ -61,7 +61,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 4;
+const ENCODER_REV: u32 = 5;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -1000,6 +1000,7 @@ fn subtitle_inputs_hash(episode: &Episode, project_dir: &Path) -> String {
             u8::from(track.is_default),
             u8::from(track.bitmap),
         ]);
+        hasher.update(serde_json::to_vec(&track.style).unwrap_or_default());
         if let Some(source_path) = &track.source_path {
             let source = resolve_project_path(project_dir, source_path);
             match dvdforge_verify::stream::hash_file(&source) {
