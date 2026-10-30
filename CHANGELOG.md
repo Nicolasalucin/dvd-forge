@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.0 — 2026-10-30
+
+### Native subtitles
+
+- New workspace crate `dvdforge-subtitle` parses SRT, ASS/SSA and WebVTT in
+  Rust and rasterizes styled text with `ab_glyph`/`image`.
+- Blu-ray/AVCHD text tracks are now rendered to HDMV PGS `.sup` display sets
+  and muxed into the combined MKV instead of being ignored.
+- DVD subtitles are rasterized to native four-color PNGs and authored through
+  Spumux `<spu>` XML, replacing the hardcoded TextSub path; ASS/SSA colors,
+  sizes and alignments are preserved by the parser.
+- Added font resolution through `fontdb` with explicit project-relative font
+  paths, deterministic font fingerprints, safe-area layout, outline/shadow,
+  forced cues and bounded 1080p rasterization.
+
+### Audio mastering
+
+- Added per-track `AudioMastering`: optional EBU R128 `loudnorm`, source/stereo/
+  5.1 channel modes, explicit up/downmix matrices, codec preference and
+  pass-through metadata.
+- DVD and AVCHD apply loudness/channel pre-filters, gain and delay in one
+  `-af` chain; the AVCHD encoder now honors per-track bitrate and channel layout.
+- Mastering fields and measured target values are included in the render cache
+  key; `ENCODER_REV` was bumped.
+
+### Verification and tests
+
+- Added parser, layout, PGS, four-color Spumux and FFmpeg PGS smoke coverage.
+- Validated generated PGS with FFmpeg and Spumux output with DVDAuthor 0.7.2.
+- Preserved v0.4.1 audio warning fixes and all existing i686/native BDMV tests.
+
 ## 0.4.1 — 2026-10-30
 
 ### Bug fixes

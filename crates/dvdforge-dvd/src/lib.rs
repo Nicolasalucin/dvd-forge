@@ -54,6 +54,8 @@ pub struct AudioEncodeConfig {
     pub bitrate_kbps: u16,
     pub channels: u8,
     pub sample_rate: u32,
+    /// Mastering filter (loudnorm/channel matrix) inserted before gain/delay.
+    pub pre_filter: Option<String>,
     /// Per-track gain applied with `volume`.
     pub gain_db: f32,
     /// Desfase aplicado con `adelay` (positivo) o `atrim` (negativo).
@@ -626,6 +628,11 @@ pub fn build_audio_args(request: &EncodeRequest, index: usize) -> Vec<String> {
         audio.channels.to_string(),
     ]);
     let mut filters = Vec::new();
+    if let Some(pre_filter) = &audio.pre_filter {
+        if !pre_filter.trim().is_empty() {
+            filters.push(pre_filter.clone());
+        }
+    }
     if audio.gain_db.abs() > 0.01 {
         filters.push(format!("volume={:.3}dB", audio.gain_db));
     }
@@ -1148,6 +1155,7 @@ mod tests {
                 bitrate_kbps: 192,
                 channels: 2,
                 sample_rate: 48_000,
+                pre_filter: None,
                 gain_db: 0.0,
                 delay_ms: 0,
                 duration_ms: 0,
@@ -1279,6 +1287,7 @@ mod tests {
             bitrate_kbps: 448,
             channels: 6,
             sample_rate: 48_000,
+            pre_filter: None,
             gain_db: 0.0,
             delay_ms: 0,
             duration_ms: 0,

@@ -27,6 +27,7 @@ crates/
   dvdforge-project/      Project JSON load/save/validate (schema v1)
   dvdforge-media/        FFprobe adapter: streams, tags, chapters, dispositions
   dvdforge-menu/         SPU/menu layer rasterization, Spumux/TextSub XML
+  dvdforge-subtitle/     Native SRT/ASS/VTT parsing, ab_glyph rasterizer, PGS/SPU
   dvdforge-plan/         Bitrate planning, DVD-9 ECC layer-break sector math
   dvdforge-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
   dvdforge-avchd/        H.264/AC-3 encoding, tsMuxeR metadata, native BDMV muxer
@@ -142,7 +143,18 @@ Smart Render Cache v2:
 - `project_save` validates with `ensure_valid`; invalid projects must not be
   persisted by the normal save command.
 
-### 6. Domain/project compatibility
+### 6. Native subtitles and audio mastering
+
+- Text subtitle authoring goes through `dvdforge-subtitle`; do not route ASS/VTT
+  through the legacy TextSub XML. DVD uses four-color PNGs plus Spumux `<spu>`;
+  Blu-ray/AVCHD uses generated PGS `.sup` files in the combined MKV.
+- PGS and SPU buffers are bounded; render one 1080p bitmap at a time. Resolved
+  font bytes and subtitle style are part of the render cache identity.
+- `AudioMastering` (loudnorm/channel mode/codec/passthrough) and per-track gain,
+  delay and format must feed one `-af`/`-filter:a:N` chain. Keep mastering
+  fields in `audio_params_hash` and bump `ENCODER_REV` when arguments change.
+
+### 7. Domain/project compatibility
 
 - Project schema is version 1. Add new fields with `#[serde(default)]` and
   `specta::Type`; old projects must continue to load.
@@ -158,7 +170,7 @@ Smart Render Cache v2:
 - Menu clip timing fields (`out_ms`, `loop_duration_ms`) must be honored by the
   FFmpeg filter/argument builders.
 
-### 7. HDMV
+### 8. HDMV
 
 - IG segments use canonical PDS/WDS/ODS/ICS/END ordering.
 - MovieObject commands are 12 bytes. `HdmvCommand::from_bytes`/`decode_command`
@@ -168,7 +180,7 @@ Smart Render Cache v2:
 - `BdmvIsoBuilder` must validate `index.bdmv`, `MovieObject.bdmv` and the
   playlist tree before publishing; the verifier does the independent deep check.
 
-### 8. Bounded memory and 32-bit I/O
+### 9. Bounded memory and 32-bit I/O
 
 - No production path may `fs::read` an ISO, M2TS, VOB or other multi-gigabyte
   payload. Use the 256 KiB streaming helpers in `dvdforge-verify::stream`,
@@ -180,7 +192,7 @@ Smart Render Cache v2:
   green. 32-bit Windows carries `/LARGEADDRESSAWARE` in
   `.cargo/config.toml`.
 
-### 9. Native BDMV muxer and portable toolchain
+### 10. Native BDMV muxer and portable toolchain
 
 - `dvdforge-hdmv::native` emits canonical INDX0200/MOBJ0200/MPLS0200/HDMV0200
   structures; keep its tests and the `dvdforge-verify` integration test green.
@@ -190,7 +202,7 @@ Smart Render Cache v2:
 - Portable discovery checks `DVDFORGE_TOOLCHAIN_DIR`, `<exe>/toolchain/`,
   `<exe>/bin/` and platform-arch variants before resources and PATH.
 
-### 10. FreeBSD and multi-arch release
+### 11. FreeBSD and multi-arch release
 
 - `dvdforge-burn` FreeBSD uses `camcontrol` for enumeration/eject,
   `dvd+rw-mediainfo` for media, and `growisofs` with `xorriso` fallback.

@@ -1,0 +1,15 @@
+[package]
+name = "dvdforge-subtitle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+ab_glyph.workspace = true
+dvdforge-hdmv = { path = "../dvdforge-hdmv" }
+fontdb.workspace = true
+image.workspace = true
+thiserror.workspace = true
+unicode-segmentation.workspace = true

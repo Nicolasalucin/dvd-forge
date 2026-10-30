@@ -31,10 +31,10 @@ pub use navigation::{
     resolve_navigation, EdgeSource, NavDirection, NavEdge, NavNode, NavPolicy, NavigationGraph,
 };
 pub use project::{
-    AssetSource, AudioDefaults, AudioFormat, AudioStreamInfo, AuthoringMode, AvchdResolution,
-    AvchdVideoConfig, BurnPreferences, Chapter, DiscCapacity, DiscConfig, DvdProfile,
-    DvdVideoConfig, EncodeOverride, EncodingPriority, Episode, EpisodeAudio, FirstPlay, H264Level,
-    LayerBreakMode, MediaAsset, MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction,
-    Project, ProxyInfo, SubtitleStreamInfo, SubtitleTrack, VideoConfig, VideoScaleMode,
-    VideoStreamInfo,
+    AssetSource, AudioCodec, AudioDefaults, AudioFormat, AudioMastering, AudioStreamInfo,
+    AuthoringMode, AvchdResolution, AvchdVideoConfig, BurnPreferences, ChannelMode, Chapter,
+    DiscCapacity, DiscConfig, DvdProfile, DvdVideoConfig, EncodeOverride, EncodingPriority,
+    Episode, EpisodeAudio, FirstPlay, H264Level, LayerBreakMode, LoudnessTarget, MediaAsset,
+    MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction, Project, ProxyInfo,
+    SubtitleStreamInfo, SubtitleTrack, VideoConfig, VideoScaleMode, VideoStreamInfo,
 };

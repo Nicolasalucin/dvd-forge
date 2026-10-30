@@ -45,6 +45,19 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## v0.5.0 highlights
+
+- **Native subtitle engine**: SRT/ASS/SSA/WebVTT parsing and `ab_glyph`
+  rasterization to Blu-ray PGS `.sup` and DVD four-color SPU-ready bitmaps.
+- **Blu-ray/AVCHD text subtitles** are no longer ignored: each text track is
+  rendered to PGS and muxed into the combined stream.
+- **DVD subtitles** are authored from native four-color PNGs through Spumux
+  `<spu>` XML, preserving fonts, colors, alignment and safe areas.
+- **Audio mastering**: optional EBU R128 `loudnorm`, stereo/5.1 conversion,
+  per-track gain/delay, codec preference and pass-through metadata.
+- New `dvdforge-subtitle` crate with bounded 1080p rasterization, deterministic
+  font fingerprints and parser/PGS/Spumux tests.
+
 ## v0.4.1 bug-fix release
 
 - Per-track audio gain is applied on DVD and AVCHD/Blu-ray.

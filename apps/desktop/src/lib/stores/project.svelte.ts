@@ -757,6 +757,7 @@ class ProjectStore {
         format: stream.channels >= 6 ? "ac3Surround51" : "ac3Stereo",
         default: stream.default || index === 0,
         commentary: stream.commentary,
+        mastering: { loudness: null, channelMode: "source", codec: null, passthrough: false },
       })),
       subtitles: (asset.probe.subtitleTracks ?? []).map((stream, index) => ({
         sourceStream: stream.index,
@@ -903,6 +904,7 @@ class ProjectStore {
         format: (stream?.channels ?? 2) >= 6 ? "ac3Surround51" : "ac3Stereo",
         default: episode.audio.length === 0,
         commentary: stream?.commentary ?? false,
+        mastering: { loudness: null, channelMode: "source", codec: null, passthrough: false },
       },
     ];
     this.touch();

@@ -30,8 +30,8 @@ use dvdforge_iso::{BdmvIsoBuilder, Xorriso};
 use dvdforge_jobs::{ArtifactKind, JobEventKind, JobStage};
 use dvdforge_media::Ffprobe;
 use dvdforge_menu::{
-    generate_menu_layers, shift_srt, write_button_shape_mask, write_spumux_xml, write_textsub_xml,
-    CompiledButton, MenuCompileRequest, MenuLayerRequest, Spumux, TextSubtitleSpec,
+    generate_menu_layers, write_button_shape_mask, write_spumux_xml, CompiledButton,
+    MenuCompileRequest, MenuLayerRequest, Spumux,
 };
 use dvdforge_plan::{calculate_bitrate_plan, BitratePlan};
 use dvdforge_store::{ArtifactKey, ArtifactKind as CacheArtifactKind, CacheLookup, Store};
@@ -61,7 +61,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 3;
+const ENCODER_REV: u32 = 4;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -557,7 +557,7 @@ fn avchd_pgs_layout(project: &Project, order: &[&Episode]) -> (Option<Vec<String
         let current: Vec<String> = episode
             .subtitles
             .iter()
-            .filter(|track| project.is_pgs_track(episode, track))
+            .filter(|track| project.is_pgs_track(episode, track) || !track.bitmap)
             .map(|track| track.language.to_ascii_lowercase())
             .collect();
         if current.is_empty() {
@@ -575,27 +575,171 @@ fn avchd_pgs_layout(project: &Project, order: &[&Episode]) -> (Option<Vec<String
     (layout, enabled)
 }
 
-fn avchd_subtitle_configs(
+fn avchd_subtitle_tracks<'a>(
     project: &Project,
-    project_dir: &Path,
-    episode: &Episode,
-) -> Vec<AvchdSubtitleConfig> {
+    episode: &'a Episode,
+) -> Vec<&'a dvdforge_domain::SubtitleTrack> {
     episode
         .subtitles
         .iter()
-        .filter(|track| project.is_pgs_track(episode, track))
-        .map(|track| AvchdSubtitleConfig {
-            source_stream: track.source_path.is_none().then_some(track.source_stream),
-            source_path: track
-                .source_path
-                .as_deref()
-                .map(|path| resolve_project_path(project_dir, path)),
+        .filter(|track| project.is_pgs_track(episode, track) || !track.bitmap)
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn build_avchd_subtitle_configs(
+    project: &Project,
+    project_dir: &Path,
+    episode: &Episode,
+    output_dir: &Path,
+    width: u32,
+    height: u32,
+    ffmpeg: &Path,
+    events: &EventSink,
+) -> Result<Vec<AvchdSubtitleConfig>, RenderError> {
+    let mut configs = Vec::new();
+    let work_dir = output_dir
+        .join("subtitles")
+        .join(format!("episode-{:02}", episode.number));
+    let style = dvdforge_subtitle::SubtitleStyle::default();
+    for (index, track) in avchd_subtitle_tracks(project, episode).iter().enumerate() {
+        if project.is_pgs_track(episode, track) {
+            configs.push(AvchdSubtitleConfig {
+                source_stream: track.source_path.is_none().then_some(track.source_stream),
+                source_path: track
+                    .source_path
+                    .as_deref()
+                    .map(|path| resolve_project_path(project_dir, path)),
+                language: track.language.clone(),
+                forced: track.is_forced,
+                default: track.is_default,
+                delay_ms: track.delay_ms,
+            });
+            continue;
+        }
+        let parsed = match track
+            .source_path
+            .as_deref()
+            .map(|path| resolve_project_path(project_dir, path))
+        {
+            Some(path) => dvdforge_subtitle::parse_path(&path).map_err(|error| {
+                RenderError::Menu(format!(
+                    "Subtítulo AVCHD inválido {}: {error}",
+                    path.display()
+                ))
+            })?,
+            None => {
+                let asset = project
+                    .asset(episode.video)
+                    .ok_or_else(|| RenderError::Menu("episodio sin asset".to_string()))?;
+                let source = asset_path(project_dir, asset)
+                    .ok_or_else(|| RenderError::Menu("ruta de vídeo inválida".to_string()))?;
+                let text = extract_embedded_subtitle(ffmpeg, &source, track.source_stream).await?;
+                dvdforge_subtitle::cues::parse_text(dvdforge_subtitle::SubtitleFormat::Srt, &text)
+                    .map_err(|error| {
+                    RenderError::Menu(format!(
+                        "Subtítulo embebido inválido (stream {}): {error}",
+                        track.source_stream
+                    ))
+                })?
+            }
+        };
+        let trim_start = episode.trim_start_ms.unwrap_or(0) as i64;
+        let shift = track.delay_ms as i64 - trim_start;
+        let mut cues = parsed.cues;
+        for cue in &mut cues {
+            let start = cue.start_ms as i64 + shift;
+            let end = cue.end_ms as i64 + shift;
+            cue.start_ms = start.max(0) as u64;
+            cue.end_ms = end.max(0) as u64;
+            cue.forced |= track.is_forced;
+        }
+        cues.retain(|cue| cue.end_ms > cue.start_ms);
+        if cues.is_empty() {
+            let _ = events
+                .send(JobEventKind::Warning {
+                    code: "W_SUBTITLE_DROP".to_string(),
+                    message: format!(
+                        "Episodio {}: la pista «{}» no tiene cues tras el recorte; se omite.",
+                        episode.number, track.label
+                    ),
+                })
+                .await;
+            continue;
+        }
+        std::fs::create_dir_all(&work_dir)?;
+        let sup_path = work_dir.join(format!("track-{index:02}.sup"));
+        let options = dvdforge_subtitle::RasterOptions {
+            width,
+            height,
+            style: &style,
+        };
+        let sup = dvdforge_subtitle::render_pgs(&cues, &options)
+            .map_err(|error| RenderError::Menu(format!("PGS nativo: {error}")))?;
+        std::fs::write(&sup_path, sup)?;
+        configs.push(AvchdSubtitleConfig {
+            source_stream: None,
+            source_path: Some(sup_path),
             language: track.language.clone(),
             forced: track.is_forced,
             default: track.is_default,
-            delay_ms: track.delay_ms,
-        })
-        .collect()
+            delay_ms: 0,
+        });
+    }
+    Ok(configs)
+}
+
+async fn extract_embedded_subtitle(
+    ffmpeg: &Path,
+    source: &Path,
+    stream: u32,
+) -> Result<String, RenderError> {
+    let mut command = tokio::process::Command::from(dvdforge_toolchain::background_command(ffmpeg));
+    command
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .arg("-protocol_whitelist")
+        .arg(MEDIA_PROTOCOL_WHITELIST)
+        .arg("-i")
+        .arg(source)
+        .args(["-map", &format!("0:{stream}"), "-f", "srt", "pipe:1"])
+        .kill_on_drop(true);
+    let output = timeout(AUX_FFMPEG_TIMEOUT, command.output())
+        .await
+        .map_err(|_| RenderError::Menu("FFmpeg agotó el tiempo extrayendo subtítulos".into()))?
+        .map_err(|error| RenderError::Menu(error.to_string()))?;
+    if !output.status.success() {
+        return Err(RenderError::Menu(format!(
+            "No se pudo extraer el subtítulo embebido {stream}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| RenderError::Menu(format!("subtítulo no UTF-8: {error}")))
+}
+
+fn audio_pre_filter(audio: &dvdforge_domain::EpisodeAudio) -> Option<String> {
+    let mut filters = Vec::new();
+    if let Some(loudness) = &audio.mastering.loudness {
+        filters.push(format!(
+            "loudnorm=I={:.2}:TP={:.2}:LRA={:.2}",
+            loudness.target_lufs, loudness.true_peak_db, loudness.lra
+        ));
+    }
+    match audio.mastering.channel_mode {
+        dvdforge_domain::ChannelMode::Upmix51 => filters.push(
+            "pan=5.1|FL=FL|FR=FR|FC=0.707*FL+0.707*FR|LFE=0.5*FL+0.5*FR|BL=0.707*FL|BR=0.707*FR"
+                .to_string(),
+        ),
+        dvdforge_domain::ChannelMode::DownmixStereo => {
+            filters.push("pan=stereo|FL=FL+0.707*FC+0.707*BL|FR=FR+0.707*FC+0.707*BR".to_string())
+        }
+        _ => {}
+    }
+    if filters.is_empty() {
+        None
+    } else {
+        Some(filters.join(","))
+    }
 }
 
 fn audio_params_hash(episode: &Episode) -> String {
@@ -618,9 +762,28 @@ fn audio_params_hash(episode: &Episode) -> String {
                 dvdforge_domain::AudioFormat::Ac3Stereo => 1,
                 dvdforge_domain::AudioFormat::Ac3Surround51 => 2,
             },
+            match audio.mastering.channel_mode {
+                dvdforge_domain::ChannelMode::Source => 1,
+                dvdforge_domain::ChannelMode::Stereo => 2,
+                dvdforge_domain::ChannelMode::Surround51 => 3,
+                dvdforge_domain::ChannelMode::Upmix51 => 4,
+                dvdforge_domain::ChannelMode::DownmixStereo => 5,
+            },
+            match audio.mastering.codec {
+                None => 0,
+                Some(dvdforge_domain::AudioCodec::Ac3) => 1,
+                Some(dvdforge_domain::AudioCodec::Dts) => 2,
+                Some(dvdforge_domain::AudioCodec::Lpcm) => 3,
+            },
             u8::from(audio.default),
             u8::from(audio.commentary),
+            u8::from(audio.mastering.passthrough),
         ]);
+        if let Some(loudness) = &audio.mastering.loudness {
+            hasher.update(loudness.target_lufs.to_bits().to_be_bytes());
+            hasher.update(loudness.true_peak_db.to_bits().to_be_bytes());
+            hasher.update(loudness.lra.to_bits().to_be_bytes());
+        }
     }
     hex::encode(hasher.finalize())
 }
@@ -1123,7 +1286,7 @@ async fn render_avchd_project(
     let (pgs_layout, pgs_enabled) = avchd_pgs_layout(&project, &order);
     let mut pgs_warnings: Vec<Diagnostic> = Vec::new();
     if pgs_layout.is_some() && !pgs_enabled {
-        let message = "Las pistas PGS no tienen el mismo orden e idiomas en todos los episodios; se omite el paso directo de subtítulos.".to_string();
+        let message = "Las pistas de subtítulos no tienen el mismo orden e idiomas en todos los episodios; se omite su autoría.".to_string();
         let _ = events
             .send(JobEventKind::Warning {
                 code: "W_PGS_LAYOUT_MISMATCH".to_string(),
@@ -1219,6 +1382,7 @@ async fn render_avchd_project(
                 bitrate_kbps: audio.ac3_kbps,
                 channels: audio.format.channels().clamp(1, 6),
                 sample_rate: 48_000,
+                pre_filter: audio_pre_filter(audio),
                 gain_db: audio.gain_db,
                 delay_ms: audio.delay_ms,
                 duration_ms,
@@ -1229,6 +1393,7 @@ async fn render_avchd_project(
                     bitrate_kbps: project.disc.audio.ac3_kbps,
                     channels: project.disc.audio.channels.clamp(1, 6),
                     sample_rate: 48_000,
+                    pre_filter: None,
                     gain_db: 0.0,
                     delay_ms: 0,
                     duration_ms,
@@ -1351,6 +1516,21 @@ async fn render_avchd_project(
             )
             .await;
         }
+        let native_subtitles = if pgs_enabled {
+            build_avchd_subtitle_configs(
+                &project,
+                &project_dir,
+                episode,
+                &episodes_dir,
+                config.resolution.dimensions().0,
+                config.resolution.dimensions().1,
+                &encoder.ffmpeg,
+                &events,
+            )
+            .await?
+        } else {
+            Vec::new()
+        };
         let request = AvchdEncodeRequest {
             input,
             output_dir: episodes_dir.clone(),
@@ -1376,11 +1556,7 @@ async fn render_avchd_project(
                 dvdforge_avchd::AVCHD_MAX_VIDEO_KBPS
             },
             audio,
-            subtitles: if pgs_enabled {
-                avchd_subtitle_configs(&project, &project_dir, episode)
-            } else {
-                Vec::new()
-            },
+            subtitles: native_subtitles,
             trim: episode.trim,
             trim_start_ms: episode.trim_start_ms,
             trim_end_ms: episode.trim_end_ms,
@@ -2148,6 +2324,7 @@ fn audio_encode_config(
         bitrate_kbps: audio.ac3_kbps,
         channels: audio.format.channels(),
         sample_rate: 48_000,
+        pre_filter: audio_pre_filter(audio),
         gain_db: audio.gain_db,
         delay_ms: audio.delay_ms,
         duration_ms,
@@ -2237,6 +2414,22 @@ async fn mux_episode_subtitles(
             .await;
             continue;
         }
+        let native_parsed = track
+            .source_path
+            .as_deref()
+            .map(|path| resolve_project_path(context.project_dir, path))
+            .filter(|path| {
+                matches!(
+                    path.extension()
+                        .and_then(|value| value.to_str())
+                        .map(|value| value.to_ascii_lowercase())
+                        .as_deref(),
+                    Some("ass" | "ssa" | "vtt")
+                )
+            })
+            .map(|path| dvdforge_subtitle::parse_path(&path))
+            .transpose()
+            .map_err(|error| RenderError::Menu(error.to_string()))?;
         let text = if let Some(source_path) = &track.source_path {
             let source = resolve_project_path(context.project_dir, source_path);
             let extension = source
@@ -2252,20 +2445,24 @@ async fn mux_episode_subtitles(
                     ))
                 })?,
                 "ass" | "ssa" | "vtt" => {
-                    warn(
-                        events,
-                        "W_SUBTITLE_STYLE_LOST",
-                        format!(
-                            "Episodio {}: el subtítulo «{}» se convierte a SRT con FFmpeg; se pierden estilos y posiciones ASS/VTT.",
-                            context.episode.number, track.label
-                        ),
-                    )
-                    .await;
-                    convert_subtitle_to_srt(context.ffmpeg, &source).await?
+                    if native_parsed.is_some() {
+                        String::new()
+                    } else {
+                        warn(
+                            events,
+                            "W_SUBTITLE_STYLE_LOST",
+                            format!(
+                                "Episodio {}: el subtítulo «{}» se convierte a SRT con FFmpeg; se pierden estilos y posiciones ASS/VTT.",
+                                context.episode.number, track.label
+                            ),
+                        )
+                        .await;
+                        convert_subtitle_to_srt(context.ffmpeg, &source).await?
+                    }
                 }
                 _ => {
                     return Err(RenderError::Menu(format!(
-                        "Formato de subtítulo no soportado en 0.4.1: {}",
+                        "Formato de subtítulo no soportado: {}",
                         source.display()
                     )));
                 }
@@ -2274,29 +2471,55 @@ async fn mux_episode_subtitles(
             std::fs::read_to_string(extracted_path(index))?
         };
         let trim_start = context.episode.trim_start_ms.unwrap_or(0) as i64;
-        let shifted = shift_srt(&text, track.delay_ms as i64 - trim_start)
-            .map_err(|error| RenderError::Menu(error.to_string()))?;
-        let srt = context
-            .output_dir
-            .join(format!("{}.s{}.srt", context.stem, index + 1));
+        let mut parsed = match native_parsed {
+            Some(parsed) => parsed,
+            None => {
+                dvdforge_subtitle::cues::parse_text(dvdforge_subtitle::SubtitleFormat::Srt, &text)
+                    .map_err(|error| RenderError::Menu(error.to_string()))?
+            }
+        };
+        let shift = track.delay_ms as i64 - trim_start;
+        for cue in &mut parsed.cues {
+            cue.start_ms = (cue.start_ms as i64 + shift).max(0) as u64;
+            cue.end_ms = (cue.end_ms as i64 + shift).max(0) as u64;
+            cue.forced |= track.is_forced;
+        }
+        parsed.cues.retain(|cue| cue.end_ms > cue.start_ms);
+        if parsed.cues.is_empty() {
+            warn(
+                events,
+                "W_SUBTITLE_DROP",
+                format!(
+                    "Episodio {}: la pista «{}» no tiene cues tras el recorte; se omite.",
+                    context.episode.number, track.label
+                ),
+            )
+            .await;
+            continue;
+        }
         let xml = context
             .output_dir
             .join(format!("{}.s{}.xml", context.stem, index + 1));
         let mpeg = context
             .output_dir
             .join(format!("{}.s{}.mpg", context.stem, index + 1));
-        std::fs::write(&srt, shifted)?;
-        write_textsub_xml(
-            &xml,
-            &TextSubtitleSpec {
-                srt: &srt,
-                fps: context.project.disc.standard.frame_rate(),
-                standard: context.project.disc.standard,
-                aspect: context.project.disc.aspect,
-                forced: track.is_forced,
+        let (width, height) = match context.project.disc.standard {
+            TvStandard::Pal => (720, 576),
+            TvStandard::Ntsc => (720, 480),
+        };
+        let style = dvdforge_subtitle::SubtitleStyle::default();
+        let assets = dvdforge_subtitle::render_spumux_assets(
+            &parsed.cues,
+            &dvdforge_subtitle::RasterOptions {
+                width,
+                height,
+                style: &style,
             },
+            context.output_dir,
+            &format!("{}.s{}", context.stem, index + 1),
         )
         .map_err(|error| RenderError::Menu(error.to_string()))?;
+        std::fs::write(&xml, assets.xml)?;
         log(
             events,
             format!(

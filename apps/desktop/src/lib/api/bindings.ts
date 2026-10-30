@@ -79,6 +79,8 @@ export type AssetId = string;
 
 export type AssetSource = { kind: "project" } | { kind: "external"; absolutePath: string };
 
+export type AudioCodec = "ac3" | "dts" | "lpcm";
+
 export type AudioDefaults = {
 	ac3Kbps: number,
 	channels: number,
@@ -86,6 +88,22 @@ export type AudioDefaults = {
 };
 
 export type AudioFormat = "ac3Stereo" | "ac3Surround51";
+
+export type AudioMastering = AudioMastering_Serialize | AudioMastering_Deserialize;
+
+export type AudioMastering_Deserialize = {
+	loudness?: LoudnessTarget | null,
+	channelMode?: ChannelMode,
+	codec?: AudioCodec | null,
+	passthrough?: boolean,
+};
+
+export type AudioMastering_Serialize = {
+	loudness: LoudnessTarget | null,
+	channelMode: ChannelMode,
+	codec: AudioCodec | null,
+	passthrough: boolean,
+};
 
 export type AudioStreamInfo = AudioStreamInfo_Serialize | AudioStreamInfo_Deserialize;
 
@@ -292,6 +310,8 @@ export type CanvasSpec = {
 	gridPx: number,
 };
 
+export type ChannelMode = "source" | "stereo" | "surround51" | "upmix51" | "downmixStereo";
+
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;
 
 export type ChapterId = string;
@@ -448,6 +468,7 @@ export type EpisodeAudio_Deserialize = {
 	format?: AudioFormat,
 	default?: boolean,
 	commentary?: boolean,
+	mastering?: AudioMastering_Deserialize,
 };
 
 export type EpisodeAudio_Serialize = {
@@ -462,6 +483,7 @@ export type EpisodeAudio_Serialize = {
 	format: AudioFormat,
 	default: boolean,
 	commentary: boolean,
+	mastering: AudioMastering_Serialize,
 };
 
 export type EpisodeBitrate = {
@@ -630,6 +652,12 @@ export type LogicalRect = {
 	y: number | null,
 	w: number | null,
 	h: number | null,
+};
+
+export type LoudnessTarget = {
+	targetLufs: number | null,
+	truePeakDb: number | null,
+	lra: number | null,
 };
 
 export type MediaAsset = MediaAsset_Serialize | MediaAsset_Deserialize;

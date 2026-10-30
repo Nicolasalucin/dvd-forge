@@ -1,7 +1,7 @@
 # DVD Forge Roadmap — v0.5.0 to v1.0.0
 
-Status: post-v0.4.0 planning document  
-Baseline: v0.4.0 (2026-10-30)  
+Status: v0.5.0 implementation (v0.5.1 next)  
+Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
 Scope: native authoring, determinism, player compatibility, desktop UX and LTS packaging
 
 This roadmap is intentionally implementation-oriented. Every milestone names the

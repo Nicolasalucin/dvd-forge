@@ -45,6 +45,20 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## Novedades de v0.5.0
+
+- **Motor nativo de subtítulos**: parseo SRT/ASS/SSA/WebVTT y rasterizado con
+  `ab_glyph` a PGS `.sup` para Blu-ray y bitmaps de cuatro colores para DVD.
+- Los subtítulos de texto de Blu-ray/AVCHD ya no se ignoran: se renderizan a PGS
+  y se multiplexan en el stream combinado.
+- Los subtítulos DVD se generan desde PNG nativos de cuatro colores y se
+  autorizan con XML `<spu>` de Spumux, conservando fuente, color y alineación.
+- **Masterización de audio**: `loudnorm` EBU R128 opcional, conversión estéreo/
+  5.1, ganancia/retardo por pista, preferencia de códec y metadatos de paso
+  directo.
+- Nueva crate `dvdforge-subtitle` con rasterizado 1080p acotado y pruebas de
+  parser, PGS y Spumux.
+
 ## Correcciones de v0.4.1
 
 - La ganancia por pista se aplica en DVD y AVCHD/Blu-ray.

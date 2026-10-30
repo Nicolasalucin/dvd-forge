@@ -611,6 +611,56 @@ impl AudioFormat {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ChannelMode {
+    #[default]
+    Source,
+    Stereo,
+    Surround51,
+    Upmix51,
+    DownmixStereo,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AudioCodec {
+    Ac3,
+    Dts,
+    Lpcm,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LoudnessTarget {
+    pub target_lufs: f32,
+    pub true_peak_db: f32,
+    pub lra: f32,
+}
+
+impl Default for LoudnessTarget {
+    fn default() -> Self {
+        Self {
+            target_lufs: -16.0,
+            true_peak_db: -1.5,
+            lra: 11.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioMastering {
+    #[serde(default)]
+    pub loudness: Option<LoudnessTarget>,
+    #[serde(default)]
+    pub channel_mode: ChannelMode,
+    #[serde(default)]
+    pub codec: Option<AudioCodec>,
+    #[serde(default)]
+    pub passthrough: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EpisodeAudio {
@@ -632,6 +682,8 @@ pub struct EpisodeAudio {
     pub default: bool,
     #[serde(default)]
     pub commentary: bool,
+    #[serde(default)]
+    pub mastering: AudioMastering,
 }
 
 fn default_ac3_kbps() -> u16 {

@@ -79,6 +79,7 @@ pub struct AvchdAudioConfig {
     pub bitrate_kbps: u16,
     pub channels: u8,
     pub sample_rate: u32,
+    pub pre_filter: Option<String>,
     pub gain_db: f32,
     pub delay_ms: i32,
     pub duration_ms: u64,
@@ -486,6 +487,11 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     }
     let mut audio_filters = Vec::new();
     if let Some(audio) = &request.audio {
+        if let Some(pre_filter) = &audio.pre_filter {
+            if !pre_filter.trim().is_empty() {
+                audio_filters.push(pre_filter.clone());
+            }
+        }
         if audio.gain_db.abs() > 0.01 {
             audio_filters.push(format!("volume={:.3}dB", audio.gain_db));
         }
@@ -1065,6 +1071,7 @@ mod tests {
                 bitrate_kbps: 192,
                 channels: 2,
                 sample_rate: 48_000,
+                pre_filter: None,
                 gain_db: 0.0,
                 delay_ms: 0,
                 duration_ms: 0,

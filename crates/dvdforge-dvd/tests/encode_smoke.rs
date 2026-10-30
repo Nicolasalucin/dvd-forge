@@ -38,6 +38,7 @@ async fn encodes_a_short_episode_end_to_end() {
             bitrate_kbps: 192,
             channels: 2,
             sample_rate: 48_000,
+            pre_filter: None,
             gain_db: 0.0,
             delay_ms: 0,
             duration_ms: 0,
