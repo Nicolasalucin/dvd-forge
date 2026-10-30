@@ -133,15 +133,13 @@ pub fn calculate_bitrate_plan(
                 ),
             ));
         }
-        if episode
-            .subtitles
-            .iter()
-            .any(|subtitle| subtitle.source_path.is_none())
-        {
+        if episode.subtitles.iter().any(|subtitle| {
+            subtitle.source_path.is_none() && !project.is_pgs_track(episode, subtitle)
+        }) {
             warnings.push(Diagnostic::warning(
                 "W_SUBTITLE_STREAM_SOURCE",
                 format!(
-                    "El episodio {} tiene subtítulos internos; se extraerán del vídeo con FFmpeg antes de multiplexarlos.",
+                    "El episodio {} tiene subtítulos de texto internos; se extraerán del vídeo con FFmpeg antes de multiplexarlos.",
                     episode.number
                 ),
             ));
@@ -401,14 +399,16 @@ fn calculate_avchd_plan(
     let ts_overhead_bytes = target_bytes.saturating_sub(es_budget);
 
     let mut warnings = Vec::new();
-    if !project
-        .episodes
-        .iter()
-        .all(|episode| episode.subtitles.is_empty())
-    {
+    let has_unsupported_avchd_subtitles = project.episodes.iter().any(|episode| {
+        episode
+            .subtitles
+            .iter()
+            .any(|subtitle| !project.is_pgs_track(episode, subtitle))
+    });
+    if has_unsupported_avchd_subtitles {
         warnings.push(Diagnostic::warning(
             "W_AVCHD_SUBTITLES_IGNORED",
-            "Los subtítulos externos de AVCHD/Blu-ray se conservan en el proyecto, pero todavía no se multiplexan en la imagen.",
+            "Las pistas de subtítulos de texto o bitmap no PGS todavía no se multiplexan en AVCHD/Blu-ray; las pistas PGS sí se copian directamente.",
         ));
     }
 

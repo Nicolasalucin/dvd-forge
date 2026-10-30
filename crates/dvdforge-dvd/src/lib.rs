@@ -54,8 +54,13 @@ pub struct AudioEncodeConfig {
     pub bitrate_kbps: u16,
     pub channels: u8,
     pub sample_rate: u32,
+    /// Per-track gain applied with `volume`.
+    pub gain_db: f32,
     /// Desfase aplicado con `adelay` (positivo) o `atrim` (negativo).
     pub delay_ms: i32,
+    /// Effective program duration for padding a negative delay. Zero keeps the
+    /// legacy trim-only behavior.
+    pub duration_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -620,19 +625,27 @@ pub fn build_audio_args(request: &EncodeRequest, index: usize) -> Vec<String> {
         "-ac".to_string(),
         audio.channels.to_string(),
     ]);
+    let mut filters = Vec::new();
+    if audio.gain_db.abs() > 0.01 {
+        filters.push(format!("volume={:.3}dB", audio.gain_db));
+    }
     if audio.delay_ms > 0 {
-        args.extend([
-            "-af".to_string(),
-            format!("adelay={}:all=1", audio.delay_ms),
-        ]);
+        filters.push(format!("adelay={}:all=1", audio.delay_ms));
     } else if audio.delay_ms < 0 {
-        args.extend([
-            "-af".to_string(),
-            format!(
-                "atrim=start={:.3},asetpts=PTS-STARTPTS",
-                audio.delay_ms.unsigned_abs() as f64 / 1000.0
-            ),
-        ]);
+        let mut filter = format!(
+            "atrim=start={:.3},asetpts=PTS-STARTPTS",
+            audio.delay_ms.unsigned_abs() as f64 / 1000.0
+        );
+        if audio.duration_ms > 0 {
+            filter.push_str(&format!(
+                ",apad=whole_dur={:.3}",
+                audio.duration_ms as f64 / 1000.0
+            ));
+        }
+        filters.push(filter);
+    }
+    if !filters.is_empty() {
+        args.extend(["-af".to_string(), filters.join(",")]);
     }
     args.extend([
         "-vn".to_string(),
@@ -1135,7 +1148,9 @@ mod tests {
                 bitrate_kbps: 192,
                 channels: 2,
                 sample_rate: 48_000,
+                gain_db: 0.0,
                 delay_ms: 0,
+                duration_ms: 0,
             }],
             trim: None,
             trim_start_ms: None,
@@ -1230,6 +1245,18 @@ mod tests {
     }
 
     #[test]
+    fn audio_gain_and_padded_negative_delay_are_applied() {
+        let mut req = request();
+        req.audio_tracks[0].gain_db = 4.0;
+        req.audio_tracks[0].delay_ms = -250;
+        req.audio_tracks[0].duration_ms = 1_000;
+        let args = build_audio_args(&req, 0).join(" ");
+        assert!(args.contains(
+            "-af volume=4.000dB,atrim=start=0.250,asetpts=PTS-STARTPTS,apad=whole_dur=1.000"
+        ));
+    }
+
+    #[test]
     fn audio_delay_uses_adelay_or_atrim() {
         let mut req = request();
         req.audio_tracks[0].delay_ms = 750;
@@ -1252,7 +1279,9 @@ mod tests {
             bitrate_kbps: 448,
             channels: 6,
             sample_rate: 48_000,
+            gain_db: 0.0,
             delay_ms: 0,
+            duration_ms: 0,
         });
         let args = build_mux_args(&req);
         assert!(has_pair(&args, "-map", "0:v:0"));

@@ -79,6 +79,9 @@ pub struct AvchdAudioConfig {
     pub bitrate_kbps: u16,
     pub channels: u8,
     pub sample_rate: u32,
+    pub gain_db: f32,
+    pub delay_ms: i32,
+    pub duration_ms: u64,
 }
 
 /// One bitmap subtitle track passed through to the H.264/AC-3 MKV. Only
@@ -480,6 +483,30 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             format!("{input}:s:0")
         };
         args.extend(["-map".to_string(), source]);
+    }
+    let mut audio_filters = Vec::new();
+    if let Some(audio) = &request.audio {
+        if audio.gain_db.abs() > 0.01 {
+            audio_filters.push(format!("volume={:.3}dB", audio.gain_db));
+        }
+        if audio.delay_ms > 0 {
+            audio_filters.push(format!("adelay={}:all=1", audio.delay_ms));
+        } else if audio.delay_ms < 0 {
+            let mut filter = format!(
+                "atrim=start={:.3},asetpts=PTS-STARTPTS",
+                audio.delay_ms.unsigned_abs() as f64 / 1000.0
+            );
+            if audio.duration_ms > 0 {
+                filter.push_str(&format!(
+                    ",apad=whole_dur={:.3}",
+                    audio.duration_ms as f64 / 1000.0
+                ));
+            }
+            audio_filters.push(filter);
+        }
+    }
+    if !audio_filters.is_empty() {
+        args.extend(["-af".to_string(), audio_filters.join(",")]);
     }
     args.extend([
         "-c:a".to_string(),
@@ -1038,6 +1065,9 @@ mod tests {
                 bitrate_kbps: 192,
                 channels: 2,
                 sample_rate: 48_000,
+                gain_db: 0.0,
+                delay_ms: 0,
+                duration_ms: 0,
             }),
             subtitles: Vec::new(),
             trim: None,
@@ -1109,6 +1139,20 @@ mod tests {
         assert!(!args.contains("-sn"), "{args}");
         assert!(args.contains("-metadata:s:s:0 language=spa"), "{args}");
         assert!(args.contains("-disposition:s:0 default"), "{args}");
+    }
+
+    #[test]
+    fn audio_gain_and_delay_are_applied() {
+        let mut request = request();
+        if let Some(audio) = &mut request.audio {
+            audio.gain_db = 3.0;
+            audio.delay_ms = 250;
+        }
+        let args = build_encode_args(&request).join(" ");
+        assert!(
+            args.contains("-af volume=3.000dB,adelay=250:all=1"),
+            "{args}"
+        );
     }
 
     #[test]

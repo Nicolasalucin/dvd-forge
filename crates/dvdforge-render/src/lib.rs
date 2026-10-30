@@ -1217,8 +1217,11 @@ async fn render_avchd_project(
             .map(|audio| AvchdAudioConfig {
                 source_stream: audio.source_stream,
                 bitrate_kbps: audio.ac3_kbps,
-                channels: project.disc.audio.channels.clamp(1, 6),
+                channels: audio.format.channels().clamp(1, 6),
                 sample_rate: 48_000,
+                gain_db: audio.gain_db,
+                delay_ms: audio.delay_ms,
+                duration_ms,
             })
             .or_else(|| {
                 probe.audio.first().map(|audio| AvchdAudioConfig {
@@ -1226,6 +1229,9 @@ async fn render_avchd_project(
                     bitrate_kbps: project.disc.audio.ac3_kbps,
                     channels: project.disc.audio.channels.clamp(1, 6),
                     sample_rate: 48_000,
+                    gain_db: 0.0,
+                    delay_ms: 0,
+                    duration_ms,
                 })
             });
         if language == "und" {
@@ -2105,7 +2111,7 @@ async fn encode_intro(
         audio_tracks: first_play
             .audio
             .as_ref()
-            .map(|audio| vec![audio_encode_config(audio)])
+            .map(|audio| vec![audio_encode_config(audio, 0)])
             .unwrap_or_default(),
         trim: first_play.trim,
         trim_start_ms: None,
@@ -2133,13 +2139,18 @@ async fn encode_intro(
     Ok(Some(encoded.muxed_mpg))
 }
 
-fn audio_encode_config(audio: &dvdforge_domain::EpisodeAudio) -> AudioEncodeConfig {
+fn audio_encode_config(
+    audio: &dvdforge_domain::EpisodeAudio,
+    duration_ms: u64,
+) -> AudioEncodeConfig {
     AudioEncodeConfig {
         source_stream: audio.source_stream,
         bitrate_kbps: audio.ac3_kbps,
         channels: audio.format.channels(),
         sample_rate: 48_000,
+        gain_db: audio.gain_db,
         delay_ms: audio.delay_ms,
+        duration_ms,
     }
 }
 
@@ -2228,12 +2239,37 @@ async fn mux_episode_subtitles(
         }
         let text = if let Some(source_path) = &track.source_path {
             let source = resolve_project_path(context.project_dir, source_path);
-            std::fs::read_to_string(&source).map_err(|error| {
-                RenderError::Menu(format!(
-                    "No se pudo leer el subtítulo {}: {error}",
-                    source.display()
-                ))
-            })?
+            let extension = source
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            match extension.as_str() {
+                "srt" => std::fs::read_to_string(&source).map_err(|error| {
+                    RenderError::Menu(format!(
+                        "No se pudo leer el subtítulo {}: {error}",
+                        source.display()
+                    ))
+                })?,
+                "ass" | "ssa" | "vtt" => {
+                    warn(
+                        events,
+                        "W_SUBTITLE_STYLE_LOST",
+                        format!(
+                            "Episodio {}: el subtítulo «{}» se convierte a SRT con FFmpeg; se pierden estilos y posiciones ASS/VTT.",
+                            context.episode.number, track.label
+                        ),
+                    )
+                    .await;
+                    convert_subtitle_to_srt(context.ffmpeg, &source).await?
+                }
+                _ => {
+                    return Err(RenderError::Menu(format!(
+                        "Formato de subtítulo no soportado en 0.4.1: {}",
+                        source.display()
+                    )));
+                }
+            }
         } else {
             std::fs::read_to_string(extracted_path(index))?
         };
@@ -2286,6 +2322,35 @@ async fn mux_episode_subtitles(
     Ok((current, authored))
 }
 
+/// Converts ASS/SSA/VTT to SRT text for the legacy Spumux textsub path.
+/// v0.5.0 replaces this with the native styled subtitle renderer.
+async fn convert_subtitle_to_srt(ffmpeg: &Path, source: &Path) -> Result<String, RenderError> {
+    let mut command = tokio::process::Command::from(dvdforge_toolchain::background_command(ffmpeg));
+    command
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .arg("-protocol_whitelist")
+        .arg(MEDIA_PROTOCOL_WHITELIST)
+        .arg("-i")
+        .arg(source)
+        .args(["-f", "srt", "pipe:1"])
+        .kill_on_drop(true);
+    let output = timeout(AUX_FFMPEG_TIMEOUT, command.output())
+        .await
+        .map_err(|_| {
+            RenderError::Menu("FFmpeg agotó el tiempo al convertir el subtítulo".to_string())
+        })?
+        .map_err(|error| RenderError::Menu(error.to_string()))?;
+    if !output.status.success() {
+        return Err(RenderError::Menu(format!(
+            "No se pudo convertir {} a SRT: {}",
+            source.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    String::from_utf8(output.stdout)
+        .map_err(|error| RenderError::Menu(format!("subtítulo no UTF-8: {error}")))
+}
+
 fn resolve_project_path(project_dir: &Path, path: &str) -> PathBuf {
     let path = PathBuf::from(path);
     if path.is_absolute() {
@@ -2330,8 +2395,18 @@ async fn encode_episodes(
             .as_ref()
             .map(|video| video.frame_rate)
             .unwrap_or_else(|| project.disc.standard.frame_rate());
-        let audio_tracks: Vec<AudioEncodeConfig> =
-            episode.audio.iter().map(audio_encode_config).collect();
+        let duration = plan
+            .per_episode
+            .iter()
+            .find(|entry| entry.episode == episode.id)
+            .map(|entry| entry.duration_ms)
+            .or(probe.duration_ms)
+            .unwrap_or(1);
+        let audio_tracks: Vec<AudioEncodeConfig> = episode
+            .audio
+            .iter()
+            .map(|audio| audio_encode_config(audio, duration))
+            .collect();
         let audio_kbps: u32 = audio_tracks
             .iter()
             .map(|audio| audio.bitrate_kbps as u32)
@@ -2348,13 +2423,6 @@ async fn encode_episodes(
             .unwrap_or(plan.video_kbps);
         let video_kbps = planned.min(cap).max(1);
         let maxrate_kbps = (video_kbps + 3_000).min(cap).max(video_kbps);
-        let duration = plan
-            .per_episode
-            .iter()
-            .find(|entry| entry.episode == episode.id)
-            .map(|entry| entry.duration_ms)
-            .or(probe.duration_ms)
-            .unwrap_or(1);
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
             let audio_hash = audio_params_hash(episode);

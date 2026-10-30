@@ -45,6 +45,17 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## Correcciones de v0.4.1
+
+- La ganancia por pista se aplica en DVD y AVCHD/Blu-ray.
+- Los retardos negativos rellenan la pista hasta la duración del programa.
+- AVCHD usa el bitrate AC-3 y el layout estéreo/5.1 de cada pista.
+- Los subtítulos externos ASS/SSA/VTT se convierten a SRT con el aviso
+  `W_SUBTITLE_STYLE_LOST` antes de la ruta heredada de Spumux.
+- El paso directo PGS ya no dispara los avisos obsoletos de extracción o de
+  subtítulos ignorados en AVCHD.
+- Las extensiones no soportadas fallan con un error claro.
+
 ## Novedades de v0.4.0
 
 ### Memoria y streaming en 32 bits

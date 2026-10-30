@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.1 — 2026-10-30
+
+### Bug fixes
+
+- Episode `gain_db` is now applied to DVD and AVCHD/Blu-ray audio instead of
+  only being included in the cache hash.
+- DVD and AVCHD audio delay filters are composed into one `-af` chain; negative
+  delays pad the track back to the known program duration instead of truncating
+  the tail.
+- AVCHD/Blu-ray now honors the per-track AC-3 bitrate and channel layout
+  (`AudioFormat::Ac3Stereo`/`Ac3Surround51`) instead of always using the
+  project-wide channel count.
+- External ASS/SSA/VTT subtitle tracks are converted to SRT through FFmpeg before
+  Spumux authoring, with an explicit `W_SUBTITLE_STYLE_LOST` warning, instead of
+  being fed to Spumux as if they were SubRip.
+- Unsupported external subtitle extensions now fail with a clear message instead
+  of producing a corrupt subtitle stream.
+- `W_AVCHD_SUBTITLES_IGNORED` no longer fires for PGS tracks that are
+  stream-copied; it is limited to text/non-PGS bitmap tracks.
+- `W_SUBTITLE_STREAM_SOURCE` only applies to text tracks that need FFmpeg
+  extraction, not to embedded PGS.
+- Added regression tests for gain, padded negative delay, AVCHD filters and PGS
+  warning behavior.
+
 ## 0.4.0 — 2026-10-30
 
 ### Performance and 32-bit memory

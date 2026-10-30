@@ -45,6 +45,18 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## v0.4.1 bug-fix release
+
+- Per-track audio gain is applied on DVD and AVCHD/Blu-ray.
+- Negative audio delays pad the track to the program duration instead of
+  truncating it.
+- AVCHD uses each track's AC-3 bitrate and stereo/5.1 layout.
+- ASS/SSA/VTT external subtitles are converted to SRT with a clear
+  `W_SUBTITLE_STYLE_LOST` warning before the legacy Spumux path.
+- PGS pass-through no longer triggers the stale AVCHD "subtitles ignored" or
+  extraction warnings.
+- Unsupported subtitle extensions fail clearly instead of corrupting authoring.
+
 ## v0.4.0 highlights
 
 ### 32-bit memory and streaming
