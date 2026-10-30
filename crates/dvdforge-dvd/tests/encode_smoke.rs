@@ -44,6 +44,7 @@ async fn encodes_a_short_episode_end_to_end() {
         trim_start_ms: None,
         trim_end_ms: None,
         fps: FrameRate::NTSC,
+        passlog: output_dir.join("episode-01.passlog"),
     };
 
     let outputs = DvdEncoder::default()

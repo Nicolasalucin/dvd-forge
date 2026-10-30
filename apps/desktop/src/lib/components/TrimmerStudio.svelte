@@ -232,6 +232,17 @@
     localError = null;
   }
 
+  function importChapters() {
+    if (!episode) return;
+    const count = projectStore.importMediaChapters(episode.id);
+    if (count > 0) {
+      notice = t("Se importaron {count} capítulo(s) del archivo.", { count });
+      localError = null;
+    } else {
+      localError = t("El archivo no contiene capítulos dentro del rango activo.");
+    }
+  }
+
   function removeChapter(chapter: Chapter_Serialize) {
     if (!episode) return;
     projectStore.removeChapter(episode.id, chapter.id);
@@ -600,6 +611,13 @@
               class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
             >
               {t("4 partes")}
+            </button>
+            <button
+              type="button"
+              onclick={importChapters}
+              class="rounded-md border border-cyan-500/40 px-1.5 py-0.5 text-[9px] text-cyan-200 transition hover:border-cyan-400"
+            >
+              {t("Importar del archivo")}
             </button>
           </div>
           <ul class="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-0.5">

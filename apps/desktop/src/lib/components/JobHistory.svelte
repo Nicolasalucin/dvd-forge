@@ -58,6 +58,11 @@
       {localError}
     </p>
   {/if}
+  {#if projectStore.jobHistoryError}
+    <p class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-200">
+      {t("No se pudo cargar el historial: {error}", { error: projectStore.jobHistoryError })}
+    </p>
+  {/if}
   {#if projectStore.jobHistory.length === 0}
     <p class="px-2 py-1 text-[10px] text-slate-600">
       {projectStore.jobHistoryBusy

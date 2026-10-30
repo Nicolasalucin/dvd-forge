@@ -1,6 +1,6 @@
 use dvdforge_domain::{
-    AspectRatio, ButtonAction, Chapter, EpisodeId, FrameRate, LanguageCode, MenuId, MenuPlacement,
-    MenuRole, PostAction, Project,
+    AspectRatio, ButtonAction, Chapter, EpisodeId, FrameRate, LanguageCode, LayerBreakMode, MenuId,
+    MenuPlacement, MenuRole, PostAction, Project,
 };
 use dvdforge_toolchain::resolve_binary;
 use std::collections::{BTreeMap, HashMap};
@@ -74,6 +74,12 @@ pub enum AuthorError {
     DvdauthorFailed { code: i32, stderr: String },
     #[error("VIDEO_TS.IFO no es un VMG válido: {0}")]
     InvalidVmgIfo(String),
+    #[error("VTS IFO no es válido: {0}")]
+    InvalidVtsIfo(String),
+    #[error("el layer break {0} no está alineado a bloques ECC de 16 sectores")]
+    UnalignedLayerBreak(u64),
+    #[error("no se encontró ningún PGC/celda para el layer break {0}")]
+    LayerBreakOutsidePgc(u64),
 }
 
 /// Offset of the prohibited-region mask inside VMGI_MAT (byte 1 of the
@@ -109,6 +115,127 @@ fn patch_vmg_region(path: &Path, prohibited: u8) -> Result<(), AuthorError> {
     bytes[VMG_REGION_OFFSET] = prohibited;
     std::fs::write(path, bytes)?;
     Ok(())
+}
+
+/// Result of marking the layer-break cell in the VTS IFO.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LayerBreakReport {
+    pub requested_sector: u64,
+    pub relative_sector: u64,
+    pub cell_index: usize,
+    pub cell_start_sector: u64,
+    pub cell_end_sector: u64,
+    pub exact: bool,
+    pub mode: LayerBreakMode,
+}
+
+/// Marks the cell that contains the layer break as seamless (`SPLIP`).
+///
+/// dvdauthor does not expose a layer-break option. The physical break is set
+/// by growisofs, but the VTS IFO must agree: DVD players use the SPLIP bit of
+/// the cell category to decide whether the layer change is seamless. This
+/// parser walks `VTS_PGCI` and patches the first cell whose VOB sector range
+/// contains the requested break. Absolute image sectors are converted to VTS
+/// VOB-relative sectors using `VTS_VOB start sector`.
+pub fn apply_layer_break(
+    dvd_dir: &Path,
+    sector: u64,
+    mode: LayerBreakMode,
+) -> Result<LayerBreakReport, AuthorError> {
+    if !sector.is_multiple_of(16) {
+        return Err(AuthorError::UnalignedLayerBreak(sector));
+    }
+    let video_ts = dvd_dir.join("VIDEO_TS");
+    let ifo_path = video_ts.join("VTS_01_0.IFO");
+    let mut ifo = std::fs::read(&ifo_path)?;
+    if ifo.len() < 0x100 || &ifo[..12] != b"DVDVIDEO-VTS" {
+        return Err(AuthorError::InvalidVtsIfo(ifo_path.display().to_string()));
+    }
+    let vob_start = u64::from(be32(&ifo, 0xC4)?);
+    let pgci = be32(&ifo, 0xCC)? as usize * 2048;
+    if pgci + 8 > ifo.len() {
+        return Err(AuthorError::InvalidVtsIfo(
+            "puntero VTS_PGCI fuera del IFO".to_string(),
+        ));
+    }
+    let pgc_count = be16(&ifo, pgci)? as usize;
+    let relative_sector = sector.saturating_sub(vob_start);
+    let mut selected: Option<(usize, usize, u64, u64, bool)> = None;
+    let mut nearest: Option<(usize, usize, u64, u64, u64)> = None;
+
+    for pgc_index in 0..pgc_count {
+        let entry = pgci + 8 + pgc_index * 8;
+        if entry + 8 > ifo.len() {
+            break;
+        }
+        let pgc_offset = be32(&ifo, entry + 4)? as usize;
+        let pgc = pgci.saturating_add(pgc_offset);
+        if pgc + 0xEC > ifo.len() {
+            continue;
+        }
+        let cell_count = ifo[pgc + 3] as usize;
+        let cell_table_offset = be16(&ifo, pgc + 0xE8)? as usize;
+        let cell_table = pgc.saturating_add(cell_table_offset);
+        for cell_index in 0..cell_count {
+            let cell = cell_table + cell_index * 0x18;
+            if cell + 0x18 > ifo.len() {
+                break;
+            }
+            let start = u64::from(be32(&ifo, cell + 8)?);
+            let end = u64::from(be32(&ifo, cell + 0x14)?);
+            let exact = relative_sector >= start && relative_sector <= end;
+            let distance = relative_sector.abs_diff(start);
+            if exact && selected.is_none() {
+                selected = Some((pgc_index, cell_index, start, end, true));
+            }
+            if nearest
+                .as_ref()
+                .is_none_or(|(_, _, _, _, best)| distance < *best)
+            {
+                nearest = Some((pgc_index, cell_index, start, end, distance));
+            }
+        }
+    }
+
+    let (pgc_index, cell_index, cell_start, cell_end, exact) = selected
+        .or_else(|| nearest.map(|(p, c, s, e, _)| (p, c, s, e, false)))
+        .ok_or(AuthorError::LayerBreakOutsidePgc(sector))?;
+    // Recompute the cell byte address for the selected PGC/cell.
+    let entry = pgci + 8 + pgc_index * 8;
+    let pgc = pgci + be32(&ifo, entry + 4)? as usize;
+    let cell_table = pgc + be16(&ifo, pgc + 0xE8)? as usize;
+    let cell = cell_table + cell_index * 0x18;
+    // Cell category byte 0, bit 3: seamless playback linked in PCI.
+    ifo[cell] |= 0x08;
+
+    std::fs::write(&ifo_path, &ifo)?;
+    let bup_path = video_ts.join("VTS_01_0.BUP");
+    if bup_path.is_file() {
+        std::fs::write(&bup_path, &ifo)?;
+    }
+    Ok(LayerBreakReport {
+        requested_sector: sector,
+        relative_sector,
+        cell_index,
+        cell_start_sector: cell_start,
+        cell_end_sector: cell_end,
+        exact,
+        mode,
+    })
+}
+
+fn be16(bytes: &[u8], offset: usize) -> Result<u16, AuthorError> {
+    bytes
+        .get(offset..offset + 2)
+        .map(|slice| u16::from_be_bytes([slice[0], slice[1]]))
+        .ok_or_else(|| AuthorError::InvalidVtsIfo(format!("offset {offset} fuera del IFO")))
+}
+
+fn be32(bytes: &[u8], offset: usize) -> Result<u32, AuthorError> {
+    bytes
+        .get(offset..offset + 4)
+        .map(|slice| u32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]))
+        .ok_or_else(|| AuthorError::InvalidVtsIfo(format!("offset {offset} fuera del IFO")))
 }
 
 pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, AuthorError> {
@@ -628,6 +755,7 @@ mod tests {
     use super::*;
     use dvdforge_domain::{ButtonAction, EpisodeId, MenuId, MenuRole, Project};
     use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn fixture_project() -> Project {
         let path =
@@ -918,5 +1046,56 @@ mod tests {
     #[test]
     fn chapter_timestamp_is_generated_from_frames() {
         assert_eq!(format_chapter_time(30_000, FrameRate::NTSC), "00:16:41.000");
+    }
+
+    #[test]
+    fn layer_break_marks_the_containing_vts_cell_and_backup() {
+        fn put16(bytes: &mut [u8], offset: usize, value: u16) {
+            bytes[offset..offset + 2].copy_from_slice(&value.to_be_bytes());
+        }
+        fn put32(bytes: &mut [u8], offset: usize, value: u32) {
+            bytes[offset..offset + 4].copy_from_slice(&value.to_be_bytes());
+        }
+        let root = std::env::temp_dir().join(format!(
+            "dvdforge-layer-break-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let video_ts = root.join("VIDEO_TS");
+        std::fs::create_dir_all(&video_ts).expect("video ts");
+        let mut ifo = vec![0u8; 2048 * 5];
+        ifo[..12].copy_from_slice(b"DVDVIDEO-VTS");
+        put32(&mut ifo, 0xC4, 0);
+        put32(&mut ifo, 0xCC, 1);
+        let pgci = 2048;
+        put16(&mut ifo, pgci, 1);
+        put32(&mut ifo, pgci + 4, 0x30);
+        put32(&mut ifo, pgci + 8 + 4, 0x10);
+        let pgc = pgci + 0x10;
+        ifo[pgc + 3] = 1;
+        put16(&mut ifo, pgc + 0xE8, 0x20);
+        let cell = pgc + 0x20;
+        put32(&mut ifo, cell + 8, 100);
+        put32(&mut ifo, cell + 0x14, 200);
+        std::fs::write(video_ts.join("VTS_01_0.IFO"), &ifo).expect("ifo");
+        std::fs::write(video_ts.join("VTS_01_0.BUP"), &ifo).expect("bup");
+
+        let report = apply_layer_break(&root, 112, LayerBreakMode::Otp).expect("layer break");
+        assert!(report.exact);
+        assert_eq!(report.cell_index, 0);
+        let patched = std::fs::read(video_ts.join("VTS_01_0.IFO")).expect("patched");
+        assert_eq!(patched[cell] & 0x08, 0x08);
+        assert_eq!(
+            patched,
+            std::fs::read(video_ts.join("VTS_01_0.BUP")).expect("patched bup")
+        );
+        assert!(matches!(
+            apply_layer_break(&root, 113, LayerBreakMode::Otp),
+            Err(AuthorError::UnalignedLayerBreak(113))
+        ));
+        let _ = std::fs::remove_dir_all(root);
     }
 }

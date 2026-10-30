@@ -101,9 +101,14 @@ async fn render_start_forwards_job_events_and_produces_iso() {
         Ok(())
     });
 
-    let outcome = render_start(project, output.display().to_string(), channel)
-        .await
-        .expect("render_start");
+    let outcome = render_start(
+        project,
+        output.display().to_string(),
+        dvdforge_toolchain::EncoderPreference::CpuOnly,
+        channel,
+    )
+    .await
+    .expect("render_start");
     assert!(Path::new(&outcome.iso_path).is_file());
     assert!(outcome.iso_path.ends_with("disc.iso"));
 

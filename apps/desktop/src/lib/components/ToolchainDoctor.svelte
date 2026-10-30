@@ -97,6 +97,28 @@
           {/each}
         </div>
 
+        <div class="mt-4 rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            {t("Aceleración por hardware")}
+          </p>
+          {#if report.hardwareEncoders?.h264?.length}
+            <div class="mt-1 flex flex-wrap gap-1">
+              {#each report.hardwareEncoders.h264 as encoder}
+                <span class="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-200">
+                  {encoder}
+                </span>
+              {/each}
+            </div>
+            <p class="mt-1 text-[9px] text-slate-500">
+              {t("Los encoders se confirman con un frame de prueba; si fallan, el render cae a CPU.")}
+            </p>
+          {:else}
+            <p class="mt-1 text-[10px] text-slate-500">
+              {t("No se detectaron encoders H.264 por hardware; se usará libx264.")}
+            </p>
+          {/if}
+        </div>
+
         {#if report.missingRequired.length > 0}
           <div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] leading-5 text-rose-200">
             Instala o añade al PATH: {report.missingRequired.join(", ")}.

@@ -47,6 +47,15 @@ impl HdmvCommand {
         out
     }
 
+    /// Decodes the 12-byte on-disc representation.
+    pub fn from_bytes(bytes: &[u8; 12]) -> Self {
+        Self {
+            opcode: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+            dst: u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
+            src: u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
+        }
+    }
+
     pub const fn opcode(self) -> u32 {
         self.opcode
     }
@@ -84,6 +93,11 @@ pub const fn set_subtitle_stream(stream: u8) -> HdmvCommand {
 /// `SetGPR(register, value)`: register `0..4095`, immediate value.
 pub const fn set_gpr(register: u16, value: u32) -> HdmvCommand {
     HdmvCommand::new(OP_SET_GPR, register as u32, value)
+}
+
+/// Decodes a 12-byte HDMV navigation command.
+pub fn decode_command(bytes: &[u8; 12]) -> HdmvCommand {
+    HdmvCommand::from_bytes(bytes)
 }
 
 #[cfg(test)]
@@ -126,5 +140,20 @@ mod tests {
             command.to_bytes(),
             [0x50, 0x40, 0x00, 0x01, 0, 0, 0, 15, 0xDE, 0xAD, 0xBE, 0xEF]
         );
+    }
+
+    #[test]
+    fn every_canonical_command_round_trips_through_twelve_bytes() {
+        for command in [
+            jump_title(3),
+            jump_object(4),
+            play_playlist(5),
+            play_playlist_mark(6, 7),
+            set_audio_stream(1),
+            set_subtitle_stream(2),
+            set_gpr(15, 0xDEAD_BEEF),
+        ] {
+            assert_eq!(decode_command(&command.to_bytes()), command);
+        }
     }
 }

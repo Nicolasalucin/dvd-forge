@@ -45,6 +45,95 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## v0.3.0 highlights
+
+### Pre-burn structural verifier
+
+- New independent, read-only crate **`dvdforge-verify`**. It parses the image
+  itself instead of trusting the writer that produced it.
+- **UDF 1.02/2.50:** AVDP, VRS, PVD, partition map, FSD, root ICB, Tag 266
+  Extended File Entries (`information_length`, checksum and protected length),
+  extent bounds, metadata mirror and optional full SHA-256 digest.
+- **BDMV:** `index.bdmv`, `MovieObject.bdmv` (12-byte navigation commands and
+  offsets), playlists and CLPI references, IN/OUT times, M2TS sync, PAT/PMT,
+  video/audio/IG/PGS PIDs.
+- **DVD-Video:** byte-for-byte `.IFO`/`.BUP` identity for VMG and every VTS,
+  PGC/cell sector bounds, non-overlapping cells, DVD-9 SPLIP placement, region
+  mask and VOB presence.
+- CLI:
+
+  ```bash
+  dvdforge-cli verify disc.iso
+  dvdforge-cli verify disc.iso --deep --json
+  dvdforge-cli verify disc.iso --strict
+  ```
+
+- The desktop renderer runs the verifier automatically after building the ISO;
+  `burn_start` runs it again before touching the drive. A `Fail` verdict blocks
+  burning; `Warn` is shown in the production panel.
+
+### Smart Render Cache v2
+
+- `ArtifactKey` v2 covers **episodes, menu videos, menu overlays and intro
+  clips** with an explicit `ArtifactKind`.
+- Source identity uses `fp2:` full streaming SHA-256, not a size/mtime/edge
+  sample. `inputs_hash` is a canonical hash of trim, fps, scale mode, encoder
+  parameters, audio, subtitle contents and menu composition.
+- SQLite `artifact_cache_v2` stores `kind`, `inputs_hash`, `encoder_rev`,
+  `toolchain_hash`, `size_bytes`, `created_at` and `last_used_at`; `CacheLookup`
+  distinguishes `Hit`, `Miss`, `Stale` and `Error`.
+- Cache failures are diagnostics (`W_CACHE_DISABLED`, `W_CACHE_READ_FAILED`,
+  `W_CACHE_WRITE_FAILED`, `W_CACHE_STALE`), never silent render failures.
+- LRU pruning and cache statistics are available through the store API.
+- Editing one menu, subtitle or intro no longer re-encodes unchanged video
+  streams.
+
+### Cross-platform hardware H.264 encoding
+
+- Detects and smoke-tests **NVIDIA NVENC**, **Intel Quick Sync**, **VA-API**,
+  **AMD AMF** and **Apple VideoToolbox** with a one-frame `lavfi` encode.
+- Hardware encoding is used for AVCHD/Blu-ray H.264; classic DVD-Video remains
+  on the tuned CPU MPEG-2 path.
+- Output is checked with `ffprobe` for H.264, High profile and `yuv420p`; any
+  driver/encode/compliance failure emits `W_HW_ENCODER_FALLBACK` and re-encodes
+  with CPU `libx264`.
+- The production dialog exposes `Hardware if available` and `CPU only`;
+  `ToolchainDoctor` lists the confirmed encoders.
+
+### MKV/MP4 chapter and stream metadata import
+
+- FFprobe now reads `-show_chapters`, stream titles, audio disposition
+  (`default`, `comment`), subtitle disposition (`default`, `forced`) and bitmap
+  codecs.
+- Chapter markers are imported into the active trim range, converted to
+  disc-rate frames, deduplicated and anchored at 00:00.
+- Audio tracks inherit title/language/default/commentary metadata; subtitle
+  tracks inherit title, language, default and forced flags.
+- Bitmap subtitles (`hdmv_pgs_subtitle`, `dvd_subtitle`, `dvb_subtitle`, `xsub`)
+  are detected and reported with `W_BITMAP_SUBTITLE_UNSUPPORTED`; they are never
+  passed to the SRT/Spumux pipeline.
+
+### Reference-grade 2-pass MPEG-2
+
+- Lanczos scaling and DVD-compliant 720×480/720×576 output.
+- `-mbd rd`, `-cmp rd`, `-subcmp rd`, `-trellis 1` in pass 1 and `-trellis 2`
+  in pass 2.
+- `-intra_dc_precision` 0/1/2 for 8/9/10-bit DC precision based on target
+  bitrate.
+- Closed GOPs (`+cgop`) with strict PAL (15) / NTSC (18) GOP lengths. Because
+  FFmpeg rejects closed GOPs together with scene-cut detection, the encoder uses
+  `-sc_threshold 1000000000` instead of `-30000`.
+- Job-scoped passlog files; pass 1 writes to `NUL` on Windows and `/dev/null`
+  on Linux/macOS.
+
+### Hardware-accurate DVD-9 layer break
+
+- The planner computes an ECC-aligned layer-break sector.
+- Authoring patches the containing VTS PGC cell with the SPLIP/seamless flag and
+  keeps `VTS_01_0.IFO` and `VTS_01_0.BUP` byte-identical.
+- The verifier checks the SPLIP cell on DVD-9 images and reports unaligned or
+  missing layer-break metadata as a structural failure.
+
 ## Key features
 
 ### Unified studio
@@ -68,6 +157,10 @@ work.
 - Two-pass MPEG-2, AC-3 2.0/5.1 and `.srt`/`.ass`/`.ssa`/`.vtt` subtitles with
   sync offset. In HD projects, tracks are preserved in the project and shown in
   the editor.
+- Reference-grade MPEG-2 two-pass tuning (Lanczos, RD, Trellis, dynamic DC
+  precision and strict PAL/NTSC GOPs).
+- DVD-9 builds mark the layer-break cell in the VTS IFO and the verifier checks
+  its ECC alignment and PGC placement.
 
 ### High definition
 
@@ -79,6 +172,10 @@ work.
 - Nested menus: each menu is published as its own IG/Playlist clip and linked
   with `JumpObject`; episode and chapter buttons start at the exact mark through
   GPR and `PlayPL_PM`.
+- Optional hardware H.264 encoding (NVENC, QSV, VAAPI, AMF, VideoToolbox) with
+  automatic CPU fallback.
+- Smart artifact cache for episodes, menus and intros, keyed by full source
+  SHA-256 and canonical render inputs.
 - Looping video backgrounds, moving-thumbnail buttons and AC-3 menu audio with
   volume, fades and a silent backup track.
 - Final **UDF 2.50 image with Metadata Partition** (Metadata File + Metadata
@@ -128,8 +225,10 @@ work.
 - DVD-R/RW, DVD+R/RW, BD-R, BD-RE and BD-R DL support, with MMC profile, capacity
   and real media-speed detection.
 - Optional SHA-256 verification and clean cancellation of render or burn jobs.
-- SHA-256 artifact cache to avoid re-encoding unchanged sources, trims, audio or
-  bitrates.
+- Structural verification of the finished ISO after render and again before
+  burning; failed checks prevent the burn.
+- Smart Render Cache v2 with `fp2:` full-source SHA-256 and deterministic
+  `inputs_hash`, covering episodes, menus, overlays and intros.
 
 ## Optical format architecture
 
@@ -273,6 +372,9 @@ dvdforge-cli plan project.json -o plan.json --probe
 # Build the ISO with the same pipeline as the desktop app
 dvdforge-cli render project.json -o output
 
+# Structural verification (UDF/BDMV/DVD) before burning
+dvdforge-cli verify output/disc.iso --deep --strict
+
 # List drives and burn
 dvdforge-cli devices
 dvdforge-cli burn output/disc.iso --device /dev/sr0 --speed 4
@@ -284,11 +386,13 @@ budget and artifact cache with the desktop application.
 ## Technology
 
 - **Rust** for the domain, planning, encoding, authoring, ISO/UDF, HDMV menus,
-  SQLite persistence and optical burning.
+  SQLite persistence, structural verification and optical burning.
 - **Tauri v2** as the secure native bridge between the interface and the system.
 - **Svelte 5 + Vite + Tailwind CSS 4 + Konva** for the visual editor.
 - **FFmpeg**, **tsMuxeR**, **DVDAuthor/Spumux**, **xorriso**, **growisofs** and
   **libbluray** as external engines.
+- Optional **NVENC / QSV / VAAPI / AMF / VideoToolbox** hardware H.264 paths with
+  automatic CPU fallback.
 
 ## License
 

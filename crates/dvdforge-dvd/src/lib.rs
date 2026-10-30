@@ -4,9 +4,9 @@
 pub mod authoring;
 
 pub use authoring::{
-    apply_region_mask, build_dvdauthor_xml, write_dvdauthor_xml, AuthorError, AuthoredAudioTrack,
-    AuthoredButton, AuthoredSubtitleTrack, AuthoringRequest, DvdAuthor, EpisodeFile, RenderedMenu,
-    VMG_REGION_OFFSET,
+    apply_layer_break, apply_region_mask, build_dvdauthor_xml, write_dvdauthor_xml, AuthorError,
+    AuthoredAudioTrack, AuthoredButton, AuthoredSubtitleTrack, AuthoringRequest, DvdAuthor,
+    EpisodeFile, LayerBreakReport, RenderedMenu, VMG_REGION_OFFSET,
 };
 
 use dvdforge_domain::{
@@ -69,6 +69,8 @@ pub struct EncodeRequest {
     pub trim_start_ms: Option<u64>,
     pub trim_end_ms: Option<u64>,
     pub fps: FrameRate,
+    /// Job-scoped passlog path so concurrent renders never share statistics.
+    pub passlog: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -155,7 +157,7 @@ impl EncodeRequest {
     }
 
     pub fn passlog(&self) -> PathBuf {
-        self.output_dir.join(format!("{}.passlog", self.stem))
+        self.passlog.clone()
     }
 
     pub fn validate(&self) -> Result<(), EncodeError> {
@@ -306,10 +308,6 @@ impl DvdEncoder {
         })
     }
 
-    pub async fn encode_menu(&self, request: &MenuEncodeRequest) -> Result<PathBuf, EncodeError> {
-        self.encode_menu_with_progress(request, None).await
-    }
-
     pub async fn encode_menu_with_progress(
         &self,
         request: &MenuEncodeRequest,
@@ -418,20 +416,38 @@ async fn run_stage(
             return Err(EncodeError::Timeout(stage));
         }
     };
+    let mut task_errors = Vec::new();
     if let Some(task) = progress_task {
-        let _ = task.await;
+        if let Err(error) = task.await {
+            task_errors.push(format!("tarea de progreso: {error}"));
+        }
     }
     if let Some(task) = drain_task {
-        let _ = task.await;
+        if let Err(error) = task.await {
+            task_errors.push(format!("tarea de drenaje de stdout: {error}"));
+        }
     }
-    let stderr_log = stderr_task.await.unwrap_or_default();
-    if status.success() {
+    let stderr_log = match stderr_task.await {
+        Ok(log) => log,
+        Err(error) => {
+            task_errors.push(format!("tarea de stderr: {error}"));
+            String::new()
+        }
+    };
+    if status.success() && task_errors.is_empty() {
         Ok(())
     } else {
+        let mut detail = stderr_log;
+        if !task_errors.is_empty() {
+            if !detail.is_empty() {
+                detail.push('\n');
+            }
+            detail.push_str(&task_errors.join("\n"));
+        }
         Err(EncodeError::Ffmpeg {
             stage,
             code: status.code().unwrap_or(-1),
-            stderr: tail(&stderr_log, 4_000),
+            stderr: tail(&detail, 4_000),
         })
     }
 }
@@ -549,14 +565,26 @@ pub fn build_pass1_args(request: &EncodeRequest) -> Vec<String> {
         "-nostats".to_string(),
         "-f".to_string(),
         "null".to_string(),
-        "-".to_string(),
+        null_sink().to_string(),
     ]);
     args
 }
 
+fn null_sink() -> &'static str {
+    if cfg!(windows) {
+        "NUL"
+    } else {
+        "/dev/null"
+    }
+}
+
 pub fn build_pass2_args(request: &EncodeRequest) -> Vec<String> {
     let mut args = input_args(request);
-    args.extend(video_codec_args(&request.video));
+    let mut codec = video_codec_args(&request.video);
+    if let Some(position) = codec.iter().position(|arg| arg == "-b_strategy") {
+        codec.drain(position..position + 2);
+    }
+    args.extend(codec);
     args.extend([
         "-pass".to_string(),
         "2".to_string(),
@@ -657,7 +685,10 @@ pub fn build_menu_encode_args(request: &MenuEncodeRequest) -> Vec<String> {
         profile: DvdProfile::D1,
         standard: request.standard,
         aspect: request.aspect,
-        gop_frames: 12,
+        gop_frames: match request.standard {
+            TvStandard::Ntsc => 18,
+            TvStandard::Pal => 15,
+        },
         b_frames: 2,
         interlaced: false,
         top_field_first: true,
@@ -968,32 +999,62 @@ fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
         "-trellis".to_string(),
         "2".to_string(),
         "-cmp".to_string(),
-        "2".to_string(),
+        "rd".to_string(),
         "-subcmp".to_string(),
-        "2".to_string(),
+        "rd".to_string(),
+        // FFmpeg's MPEG-2 encoder rejects `+cgop` together with scene-cut
+        // GOPs ("closed gop with scene change detection are not supported
+        // yet"). Keep the strict closed GOP required by DVD and disable the
+        // scene-cut threshold instead.
+        "-sc_threshold".to_string(),
+        "1000000000".to_string(),
+        "-intra_dc_precision".to_string(),
+        intra_dc_precision(video.video_kbps).to_string(),
         "-aspect".to_string(),
         aspect_label(video.aspect).to_string(),
     ];
+    let mut flags = "+cgop".to_string();
     if video.interlaced {
+        flags.push_str("+ildct+ilme");
         args.extend([
-            "-flags".to_string(),
-            "+ildct+ilme".to_string(),
             "-top".to_string(),
             if video.top_field_first { "1" } else { "0" }.to_string(),
         ]);
     }
+    args.extend(["-flags".to_string(), flags]);
     args
 }
 
-/// Pass 1 only gathers rate-control statistics and B-frame decisions
-/// (`-b_strategy 2` stays); RD macroblock decision, trellis and SATD
-/// comparators are only worth their cost in pass 2.
+fn dc_precision(kbps: u32) -> u8 {
+    if kbps >= 5_000 {
+        10
+    } else if kbps >= 3_200 {
+        9
+    } else {
+        8
+    }
+}
+
+/// FFmpeg encodes MPEG-2 DC precision as 0/1/2 (8/9/10 bits).
+fn intra_dc_precision(kbps: u32) -> u8 {
+    match dc_precision(kbps) {
+        10 => 2,
+        9 => 1,
+        _ => 0,
+    }
+}
+
+/// Pass 1 keeps the RD decisions and uses trellis 1. Pass 2 raises trellis to
+/// 2 and omits `-b_strategy` because the B-frame layout is already fixed by the
+/// first pass.
 fn first_pass_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
     let mut args = video_codec_args(video);
-    for flag in ["-mbd", "-trellis", "-cmp", "-subcmp"] {
-        if let Some(position) = args.iter().position(|arg| arg == flag) {
-            args.drain(position..position + 2);
-        }
+    if let Some(position) = args.iter().position(|arg| arg == "-trellis") {
+        args.drain(position..position + 2);
+        args.splice(
+            position..position,
+            ["-trellis".to_string(), "1".to_string()],
+        );
     }
     args
 }
@@ -1080,6 +1141,7 @@ mod tests {
             trim_start_ms: None,
             trim_end_ms: None,
             fps: FrameRate::NTSC,
+            passlog: PathBuf::from("/tmp/out/episode-01.passlog"),
         }
     }
 
@@ -1110,15 +1172,31 @@ mod tests {
         let args = build_pass1_args(&request());
         assert!(has_pair(&args, "-pass", "1"));
         assert!(has_pair(&args, "-b_strategy", "2"));
-        assert!(!args.contains(&"-mbd".to_string()));
-        assert!(!args.contains(&"-trellis".to_string()));
+        assert!(has_pair(&args, "-mbd", "rd"));
+        assert!(has_pair(&args, "-trellis", "1"));
+        assert!(has_pair(&args, "-cmp", "rd"));
+        assert!(has_pair(&args, "-subcmp", "rd"));
+        assert!(has_pair(&args, "-intra_dc_precision", "1"));
+        assert!(has_pair(&args, "-flags", "+cgop"));
+        assert!(has_pair(&args, "-sc_threshold", "1000000000"));
         assert!(has_pair(&args, "-f", "null"));
         assert!(args.contains(&"-passlogfile".to_string()));
         let pass2 = build_pass2_args(&request());
         assert!(has_pair(&pass2, "-mbd", "rd"));
         assert!(has_pair(&pass2, "-trellis", "2"));
-        assert!(has_pair(&pass2, "-cmp", "2"));
-        assert!(has_pair(&pass2, "-subcmp", "2"));
+        assert!(has_pair(&pass2, "-cmp", "rd"));
+        assert!(has_pair(&pass2, "-subcmp", "rd"));
+        assert!(!pass2.contains(&"-b_strategy".to_string()));
+    }
+
+    #[test]
+    fn dc_precision_tracks_the_video_bitrate() {
+        assert_eq!(dc_precision(5_000), 10);
+        assert_eq!(dc_precision(3_200), 9);
+        assert_eq!(dc_precision(3_199), 8);
+        assert_eq!(intra_dc_precision(5_000), 2);
+        assert_eq!(intra_dc_precision(3_200), 1);
+        assert_eq!(intra_dc_precision(3_199), 0);
     }
 
     #[test]
@@ -1135,7 +1213,7 @@ mod tests {
         req.video.interlaced = true;
         req.video.top_field_first = true;
         let args = build_pass1_args(&req);
-        assert!(has_pair(&args, "-flags", "+ildct+ilme"));
+        assert!(has_pair(&args, "-flags", "+cgop+ildct+ilme"));
         assert!(has_pair(&args, "-top", "1"));
         assert!(build_scale_filter(&req.video).contains("interl=1"));
     }

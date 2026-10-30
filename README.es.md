@@ -69,6 +69,10 @@ de alta definición, sin duplicar el trabajo creativo.
 - MPEG-2 en dos pasadas, AC-3 2.0/5.1 y subtítulos `.srt`/`.ass`/`.ssa`/`.vtt`
   con ajuste de sincronía. En HD, las pistas se conservan en el proyecto y se
   muestran en el editor.
+- Ajuste MPEG-2 de referencia (Lanczos, RD, Trellis, DC dinámico y GOP estricto
+  PAL/NTSC).
+- El DVD-9 marca la celda del layer break en el VTS IFO y el verificador
+  comprueba su alineación ECC y su posición en el PGC.
 
 ### Alta definición
 
@@ -80,6 +84,10 @@ de alta definición, sin duplicar el trabajo creativo.
 - Menús anidados: cada menú se publica como su propio clip IG/Playlist y se
   enlaza con `JumpObject`; los botones de episodio y capítulo arrancan en la
   marca exacta mediante GPR y `PlayPL_PM`.
+- Codificación H.264 por hardware opcional (NVENC, QSV, VAAPI, AMF,
+  VideoToolbox) con fallback automático a CPU.
+- Caché inteligente de episodios, menús e intros, indexada por SHA-256 completo
+  y entradas de render canónicas.
 - Fondos de vídeo en bucle, botones con miniatura en movimiento y audio de menú
   AC-3 con volumen, fundidos y pista silenciosa de respaldo.
 - Imagen final **UDF 2.50 con Metadata Partition** (Metadata File + Metadata
@@ -275,6 +283,9 @@ dvdforge-cli plan proyecto.json -o plan.json --probe
 
 # Generar el ISO con el mismo pipeline que la aplicación
 dvdforge-cli render proyecto.json -o salida
+
+# Verificación estructural (UDF/BDMV/DVD) antes de grabar
+dvdforge-cli verify salida/disc.iso --deep --strict
 
 # Listar unidades y grabar
 dvdforge-cli devices

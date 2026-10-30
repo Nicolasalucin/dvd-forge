@@ -43,6 +43,11 @@
       {localError}
     </p>
   {/if}
+  {#if projectStore.recentProjectsError}
+    <p class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-200">
+      {t("No se pudieron cargar los proyectos recientes: {error}", { error: projectStore.recentProjectsError })}
+    </p>
+  {/if}
   {#if projectStore.recentProjects.length === 0}
     <p class="px-2 py-1 text-[10px] text-slate-600">
       {projectStore.recentProjectsBusy ? t("Cargando recientes…") : t("Todavía no hay proyectos recientes.")}

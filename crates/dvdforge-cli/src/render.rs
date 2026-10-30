@@ -3,6 +3,7 @@ use dvdforge_jobs::JobEventKind;
 use dvdforge_plan::calculate_bitrate_plan;
 use dvdforge_project::load_and_validate;
 use dvdforge_render::{render_project_with_options, RenderError, RenderOptions};
+use dvdforge_toolchain::EncoderPreference;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -126,6 +127,7 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
             probe_assets: false,
             composited_backgrounds: None,
             cancel: Some(Arc::clone(&cancel)),
+            hardware_encoding: EncoderPreference::Auto,
         },
         sender,
     ));

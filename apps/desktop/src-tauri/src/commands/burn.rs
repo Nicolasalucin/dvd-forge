@@ -85,7 +85,7 @@ pub async fn burn_start(
     channel: Channel<BurnProgress>,
 ) -> Result<BurnReport, String> {
     let iso = std::fs::canonicalize(&iso_path)
-        .map_err(|_| format!("El ISO no existe o no es accesible: {iso_path}"))?;
+        .map_err(|error| format!("El ISO no existe o no es accesible: {iso_path}: {error}"))?;
     if !iso.is_file() {
         return Err(format!(
             "El ISO no es un archivo regular: {}",
@@ -98,6 +98,26 @@ pub async fn burn_start(
         .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
     {
         return Err("El archivo seleccionado no tiene extensión .iso.".to_string());
+    }
+    let verification_path = iso.clone();
+    let verification =
+        tokio::task::spawn_blocking(move || dvdforge_verify::verify_iso(&verification_path, false))
+            .await
+            .map_err(|error| {
+                format!("La verificación estructural terminó inesperadamente: {error}")
+            })?
+            .map_err(|error| format!("No se pudo verificar la ISO antes de grabar: {error}"))?;
+    if verification.verdict == dvdforge_verify::report::VerifyVerdict::Fail {
+        let failures: Vec<String> = verification
+            .checks
+            .iter()
+            .filter(|check| matches!(check.status, dvdforge_verify::report::CheckStatus::Fail))
+            .map(|check| format!("{}: {}", check.id, check.message))
+            .collect();
+        return Err(format!(
+            "La ISO no pasó la verificación estructural: {}",
+            failures.join("; ")
+        ));
     }
     let job_id = JobId::new();
     let cancel = CancellationToken::new();

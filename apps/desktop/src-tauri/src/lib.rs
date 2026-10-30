@@ -17,7 +17,7 @@ use commands::{
     menu_navigation, menu_save_background, menu_save_labels, open_folder, plan_calculate,
     project_new, project_open, project_save, read_image_data_url, recent_project_forget,
     recent_projects_list, render_cancel, render_start, startup_project_path, tools_doctor,
-    PlaybackSupport,
+    verify_iso, PlaybackSupport,
 };
 
 pub const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/lib/api/bindings.ts");
@@ -48,7 +48,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             recent_projects_list,
             recent_project_forget,
             job_history_list,
-            tools_doctor
+            tools_doctor,
+            verify_iso
         ])
         .typ::<Project>()
         .typ::<DiscConfig>()
@@ -67,6 +68,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .typ::<dvdforge_store::RecentProject>()
         .typ::<dvdforge_store::JobHistoryEntry>()
         .typ::<dvdforge_toolchain::ToolchainReport>()
+        .typ::<dvdforge_verify::report::VerifyReport>()
         .dangerously_cast_bigints_to_number()
 }
 

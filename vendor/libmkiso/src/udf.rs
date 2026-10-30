@@ -187,14 +187,24 @@ fn tag(bytes: &[u8], expected: u16, location: u32) -> Result<()> {
         258 => 24,
         259 => 52,
         260 => 36,
-        261 => 176usize
-            .checked_add(u32_at(bytes, 168)? as usize)
-            .and_then(|start| start.checked_add(u32_at(bytes, 172).ok()? as usize))
-            .ok_or_else(|| bad("descriptor protected length overflow"))?,
-        266 => 216usize
-            .checked_add(u32_at(bytes, 208)? as usize)
-            .and_then(|start| start.checked_add(u32_at(bytes, 212).ok()? as usize))
-            .ok_or_else(|| bad("descriptor protected length overflow"))?,
+        261 => {
+            let extended = u32_at(bytes, 168)?;
+            let protected = u32_at(bytes, 172)
+                .map_err(|_| bad("file entry extended-attribute length field"))?;
+            176usize
+                .checked_add(extended as usize)
+                .and_then(|start| start.checked_add(protected as usize))
+                .ok_or_else(|| bad("descriptor protected length overflow"))?
+        }
+        266 => {
+            let extended = u32_at(bytes, 208)?;
+            let protected = u32_at(bytes, 212)
+                .map_err(|_| bad("extended file entry extended-attribute length field"))?;
+            216usize
+                .checked_add(extended as usize)
+                .and_then(|start| start.checked_add(protected as usize))
+                .ok_or_else(|| bad("descriptor protected length overflow"))?
+        }
         257 => bytes.len(),
         _ => 16,
     };

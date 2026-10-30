@@ -415,6 +415,38 @@ pub struct MediaProbe {
     pub audio: Vec<AudioStreamInfo>,
     #[serde(default)]
     pub subtitle_streams: u32,
+    #[serde(default)]
+    pub subtitle_tracks: Vec<SubtitleStreamInfo>,
+    #[serde(default)]
+    pub chapters: Vec<MediaChapter>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaChapter {
+    pub start_ms: u64,
+    #[serde(default)]
+    pub end_ms: Option<u64>,
+    pub title: String,
+    #[serde(default)]
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtitleStreamInfo {
+    pub index: u32,
+    pub codec: String,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub default: bool,
+    #[serde(default)]
+    pub forced: bool,
+    #[serde(default)]
+    pub bitmap: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -448,6 +480,12 @@ pub struct AudioStreamInfo {
     pub bitrate_bps: Option<u64>,
     #[serde(default)]
     pub language: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub default: bool,
+    #[serde(default)]
+    pub commentary: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
@@ -592,6 +630,8 @@ pub struct EpisodeAudio {
     pub format: AudioFormat,
     #[serde(default)]
     pub default: bool,
+    #[serde(default)]
+    pub commentary: bool,
 }
 
 fn default_ac3_kbps() -> u16 {
@@ -613,6 +653,9 @@ pub struct SubtitleTrack {
     pub is_forced: bool,
     #[serde(default)]
     pub is_default: bool,
+    /// PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR.
+    #[serde(default)]
+    pub bitmap: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, specta::Type)]
@@ -865,6 +908,17 @@ impl Project {
                             "El capítulo está fuera del rango del episodio.",
                         )
                         .with_entity(format!("chapter:{index}:{}", chapter.id)),
+                    );
+                }
+            }
+            for subtitle in &episode.subtitles {
+                if subtitle.bitmap && subtitle.source_path.is_none() {
+                    diagnostics.push(
+                        Diagnostic::warning(
+                            "W_BITMAP_SUBTITLE_UNSUPPORTED",
+                            "Los subtítulos bitmap (PGS/VobSub/DVB) no se pueden convertir a SRT sin OCR; la pista se omitirá.",
+                        )
+                        .with_entity(format!("subtitle:{}", subtitle.source_stream)),
                     );
                 }
             }
@@ -1347,6 +1401,8 @@ mod tests {
                     video: None,
                     audio: vec![],
                     subtitle_streams: 0,
+                    subtitle_tracks: Vec::new(),
+                    chapters: Vec::new(),
                 },
                 proxy: None,
                 imported_at: "2026-10-23T00:00:00Z".into(),

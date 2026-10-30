@@ -29,6 +29,7 @@ async fn main() -> ExitCode {
         "plan" => plan(&args[1..]).await,
         "probe" => probe_command(&args[1..]).await,
         "render" => render::run(&args[1..]).await,
+        "verify" => verify_command(&args[1..]).await,
         "devices" => devices_command(&args[1..]).await,
         "burn" => burn_command(&args[1..]).await,
         "version" | "--version" | "-V" => {
@@ -300,12 +301,115 @@ fn print_optical_media(media: &dvdforge_burn::MediaInfo) {
 }
 
 #[derive(Debug)]
+struct VerifyArgs {
+    iso: PathBuf,
+    deep: bool,
+    json: bool,
+    strict: bool,
+}
+
+async fn verify_command(args: &[String]) -> ExitCode {
+    let args = match parse_verify_args(args) {
+        Ok(args) => args,
+        Err(message) => {
+            eprintln!("{message}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let path = args.iso.clone();
+    let deep = args.deep;
+    let report =
+        match tokio::task::spawn_blocking(move || dvdforge_verify::verify_iso(&path, deep)).await {
+            Ok(Ok(report)) => report,
+            Ok(Err(error)) => {
+                eprintln!("No se pudo verificar el ISO: {error}");
+                return ExitCode::FAILURE;
+            }
+            Err(error) => {
+                eprintln!("La verificación terminó inesperadamente: {error}");
+                return ExitCode::FAILURE;
+            }
+        };
+
+    if args.json {
+        match serde_json::to_string_pretty(&report) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("No se pudo serializar el informe: {error}");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        println!("DVD Forge verify · {}", report.iso_path);
+        println!(
+            "Perfil: {:?} · {} bytes · {:?} · {} ms",
+            report.profile, report.size_bytes, report.verdict, report.elapsed_ms
+        );
+        for check in &report.checks {
+            let status = match check.status {
+                dvdforge_verify::report::CheckStatus::Pass => "OK  ",
+                dvdforge_verify::report::CheckStatus::Warn => "WARN",
+                dvdforge_verify::report::CheckStatus::Fail => "FAIL",
+                dvdforge_verify::report::CheckStatus::Skipped => "SKIP",
+            };
+            println!("[{status}] {:<18} {}", check.id, check.message);
+        }
+    }
+
+    let failed = report
+        .checks
+        .iter()
+        .any(|check| matches!(check.status, dvdforge_verify::report::CheckStatus::Fail));
+    let warned = report
+        .checks
+        .iter()
+        .any(|check| matches!(check.status, dvdforge_verify::report::CheckStatus::Warn));
+    if failed || (args.strict && warned) {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
+    let mut iso = None;
+    let mut deep = false;
+    let mut json = false;
+    let mut strict = false;
+    for arg in args {
+        match arg.as_str() {
+            "--deep" => deep = true,
+            "--json" => json = true,
+            "--strict" => strict = true,
+            value if value.starts_with('-') => {
+                return Err(format!("Opción desconocida para verify: {value}"));
+            }
+            value => {
+                if iso.is_some() {
+                    return Err("Solo se admite un ISO por invocación.".to_string());
+                }
+                iso = Some(PathBuf::from(value));
+            }
+        }
+    }
+    Ok(VerifyArgs {
+        iso: iso.ok_or_else(|| {
+            "Uso: dvdforge-cli verify <iso> [--deep] [--json] [--strict]".to_string()
+        })?,
+        deep,
+        json,
+        strict,
+    })
+}
+
+#[derive(Debug)]
 struct BurnArgs {
     iso: PathBuf,
     device: DeviceId,
     speed: Option<u16>,
     verify: bool,
     eject: bool,
+    skip_verify: bool,
 }
 
 async fn burn_command(args: &[String]) -> ExitCode {
@@ -316,6 +420,33 @@ async fn burn_command(args: &[String]) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    if !args.skip_verify {
+        let path = args.iso.clone();
+        match tokio::task::spawn_blocking(move || dvdforge_verify::verify_iso(&path, false)).await {
+            Ok(Ok(report)) => {
+                if report.verdict == dvdforge_verify::report::VerifyVerdict::Fail {
+                    eprintln!("La verificación estructural falló; no se graba el ISO.");
+                    for check in &report.checks {
+                        if matches!(check.status, dvdforge_verify::report::CheckStatus::Fail) {
+                            eprintln!("  [{}] {}", check.id, check.message);
+                        }
+                    }
+                    return ExitCode::FAILURE;
+                }
+                if report.verdict == dvdforge_verify::report::VerifyVerdict::Warn {
+                    eprintln!("Verificación estructural con avisos; se continúa.");
+                }
+            }
+            Ok(Err(error)) => {
+                eprintln!("No se pudo verificar el ISO antes de grabar: {error}");
+                return ExitCode::FAILURE;
+            }
+            Err(error) => {
+                eprintln!("La verificación terminó inesperadamente: {error}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
     let (sender, mut receiver) = tokio::sync::mpsc::channel(64);
     let burner = Arc::new(platform_burner());
     let cancel = CancellationToken::new();
@@ -393,6 +524,7 @@ fn parse_burn_args(args: &[String]) -> Result<BurnArgs, String> {
     let mut speed = None;
     let mut verify = false;
     let mut eject = false;
+    let mut skip_verify = false;
     let mut index = 0;
     while index < args.len() {
         match args[index].as_str() {
@@ -415,6 +547,7 @@ fn parse_burn_args(args: &[String]) -> Result<BurnArgs, String> {
             }
             "--verify" => verify = true,
             "--eject" => eject = true,
+            "--skip-verify" => skip_verify = true,
             value if value.starts_with('-') => {
                 return Err(format!("Opción desconocida para burn: {value}"));
             }
@@ -428,7 +561,7 @@ fn parse_burn_args(args: &[String]) -> Result<BurnArgs, String> {
         index += 1;
     }
     let iso = iso.ok_or_else(|| {
-        "Uso: dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject]".to_string()
+        "Uso: dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject] [--skip-verify]".to_string()
     })?;
     let device = device.ok_or_else(|| "Falta --device.".to_string())?;
     Ok(BurnArgs {
@@ -437,6 +570,7 @@ fn parse_burn_args(args: &[String]) -> Result<BurnArgs, String> {
         speed,
         verify,
         eject,
+        skip_verify,
     })
 }
 
@@ -532,8 +666,11 @@ fn print_help() {
     println!("  dvdforge-cli plan <project.json> [-o <plan.json>] [--probe]");
     println!("  dvdforge-cli probe <archivo|/dev/srX> [--json]");
     println!("  dvdforge-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--avchd-folder] [--no-probe]");
+    println!("  dvdforge-cli verify <iso> [--deep] [--json] [--strict]");
     println!("  dvdforge-cli devices [--json]");
-    println!("  dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject]");
+    println!(
+        "  dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject] [--skip-verify]"
+    );
     println!("  dvdforge-cli version");
     println!("  dvdforge-cli help");
     println!();

@@ -972,6 +972,8 @@ mod tests {
             }),
             audio: vec![],
             subtitle_streams: 0,
+            subtitle_tracks: Vec::new(),
+            chapters: Vec::new(),
         };
         let trim = dvdforge_domain::FrameRange {
             start: 0,

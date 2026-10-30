@@ -5,10 +5,10 @@ use dvdforge_avchd::{
     AvchdOutputs, TsMuxer,
 };
 use dvdforge_domain::{
-    normalize_rect, AssetId, AssetSource, AuthoringMode, ButtonAction, ButtonId, ButtonShapeMask,
-    Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, JobId, MediaKind,
-    MediaProbe, MenuBackground, MenuId, MenuScaleMode, PixelRect, Project, TvStandard, VideoConfig,
-    VideoScaleMode,
+    normalize_rect, AspectRatio, AssetId, AssetSource, AuthoringMode, ButtonAction, ButtonId,
+    ButtonShapeMask, Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, JobId,
+    MediaKind, MediaProbe, MenuBackground, MenuId, MenuScaleMode, PixelRect, Project, TvStandard,
+    VideoConfig, VideoScaleMode,
 };
 use dvdforge_dvd::{
     build_dvdauthor_xml, AudioEncodeConfig, AuthoredAudioTrack, AuthoredButton,
@@ -30,15 +30,18 @@ use dvdforge_menu::{
     CompiledButton, MenuCompileRequest, MenuLayerRequest, Spumux, TextSubtitleSpec,
 };
 use dvdforge_plan::{calculate_bitrate_plan, BitratePlan};
-use dvdforge_store::{ArtifactKey, Store};
-use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
+use dvdforge_store::{ArtifactKey, ArtifactKind as CacheArtifactKind, CacheLookup, Store};
+use dvdforge_toolchain::{
+    detect_hardware_encoders, resolve_binary, resolve_hardware_encoder, EncoderPreference,
+    MEDIA_PROTOCOL_WHITELIST,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::process::Command;
@@ -54,7 +57,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 1;
+const ENCODER_REV: u32 = 2;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -76,6 +79,7 @@ pub struct RenderOutcome {
     pub iso_path: String,
     pub elapsed_ms: u64,
     pub warnings: Vec<Diagnostic>,
+    pub verification: Option<dvdforge_verify::report::VerifyReport>,
 }
 
 #[derive(Debug, Error)]
@@ -112,6 +116,9 @@ pub struct RenderOptions {
     /// Cooperative cancellation shared with the UDF writer. Child processes
     /// are killed on drop; this flag stops work between stages as well.
     pub cancel: Option<Arc<AtomicBool>>,
+    /// Hardware encoder preference for AVCHD/Blu-ray H.264. DVD-Video always
+    /// stays on the CPU MPEG-2 path.
+    pub hardware_encoding: EncoderPreference,
 }
 
 impl Default for RenderOptions {
@@ -120,6 +127,7 @@ impl Default for RenderOptions {
             probe_assets: true,
             composited_backgrounds: None,
             cancel: None,
+            hardware_encoding: EncoderPreference::Auto,
         }
     }
 }
@@ -222,20 +230,16 @@ async fn render_dvd_project(
     let cancel = options.cancel.clone();
 
     stage(&events, JobStage::Probe, "Sondeando medios").await;
-    let probes = collect_probes(&project, &project_dir, options.probe_assets).await;
+    let probe_report = collect_probes(&project, &project_dir, options.probe_assets).await;
+    let probes = probe_report.probes;
+    let mut warnings = probe_report.warnings;
     progress(&events, JobStage::Probe, 1000).await;
 
     stage(&events, JobStage::Plan, "Calculando bitrate").await;
     let plan = calculate_bitrate_plan(&project, &probes)
         .map_err(|error| RenderError::Plan(error.to_string()))?;
-    for warning in &plan.warnings {
-        let _ = events
-            .send(JobEventKind::Warning {
-                code: warning.code.clone(),
-                message: warning.message.clone(),
-            })
-            .await;
-    }
+    warnings.extend(plan.warnings.clone());
+    emit_warnings(&events, &warnings).await;
     if !plan.feasible {
         return Err(RenderError::Plan(
             "el plan no es viable; revisa las advertencias".to_string(),
@@ -248,7 +252,15 @@ async fn render_dvd_project(
     let encoder = DvdEncoder::default();
 
     stage(&events, JobStage::EncodeIntro, "Codificando intro").await;
-    let intro = encode_intro(&project, &probes, &project_dir, &output_dir, &encoder).await?;
+    let intro = encode_intro(
+        &project,
+        &probes,
+        &project_dir,
+        &output_dir,
+        &encoder,
+        &events,
+    )
+    .await?;
     progress(&events, JobStage::EncodeIntro, 1000).await;
 
     stage(
@@ -300,6 +312,25 @@ async fn render_dvd_project(
         .map_err(|error| RenderError::Author(error.to_string()))?;
     dvdforge_dvd::apply_region_mask(&dvd_dir, project.disc.region_mask)
         .map_err(|error| RenderError::Author(error.to_string()))?;
+    if let Some(sector) = plan.layer_break_sector {
+        let report =
+            dvdforge_dvd::apply_layer_break(&dvd_dir, sector, project.disc.layer_break_mode)
+                .map_err(|error| RenderError::Author(error.to_string()))?;
+        if !report.exact {
+            warn(
+                &events,
+                "W_LAYER_BREAK_APPROXIMATE",
+                format!(
+                    "El layer break solicitado ({}) se aplicó a la celda {} ({}–{}), que no contiene el sector exacto.",
+                    report.requested_sector,
+                    report.cell_index,
+                    report.cell_start_sector,
+                    report.cell_end_sector
+                ),
+            )
+            .await;
+        }
+    }
     std::fs::create_dir_all(dvd_dir.join("AUDIO_TS"))?;
     progress(&events, JobStage::Author, 1000).await;
 
@@ -318,7 +349,7 @@ async fn render_dvd_project(
         .await;
     progress(&events, JobStage::Iso, 1000).await;
 
-    let warnings = plan.warnings.clone();
+    let verification = verify_artifact(&iso.iso_path, &events).await;
     let _ = events
         .send(JobEventKind::Completed {
             summary: format!(
@@ -333,92 +364,349 @@ async fn render_dvd_project(
         iso_path: iso.iso_path.display().to_string(),
         elapsed_ms: started.elapsed().as_millis() as u64,
         warnings,
+        verification,
     })
 }
 
-async fn collect_probes(
-    project: &Project,
-    project_dir: &Path,
-    refresh: bool,
-) -> HashMap<AssetId, MediaProbe> {
-    let mut probes: HashMap<AssetId, MediaProbe> = project
-        .assets
-        .iter()
-        .map(|asset| (asset.id, asset.probe.clone()))
-        .collect();
+struct ProbeReport {
+    probes: HashMap<AssetId, MediaProbe>,
+    warnings: Vec<Diagnostic>,
+}
+
+async fn collect_probes(project: &Project, project_dir: &Path, refresh: bool) -> ProbeReport {
+    let mut probes: HashMap<AssetId, MediaProbe> = HashMap::new();
+    let mut warnings = Vec::new();
     if !refresh {
-        return probes;
+        for asset in &project.assets {
+            probes.insert(asset.id, asset.probe.clone());
+        }
+        return ProbeReport { probes, warnings };
     }
     let ffprobe = Ffprobe::default();
     let permits = Arc::new(tokio::sync::Semaphore::new(4));
     let mut set = tokio::task::JoinSet::new();
-    for asset in project
-        .assets
-        .iter()
-        .filter(|asset| asset.kind == MediaKind::Video)
-    {
+    for asset in &project.assets {
+        if asset.kind != MediaKind::Video {
+            probes.insert(asset.id, asset.probe.clone());
+            continue;
+        }
         let Some(path) = asset_path(project_dir, asset) else {
+            warnings.push(Diagnostic::warning(
+                "W_PROBE_REFRESH_FAILED",
+                "No se pudo resolver la ruta del asset; se usa la sonda guardada.",
+            ));
+            probes.insert(asset.id, asset.probe.clone());
             continue;
         };
         if !path.is_file() {
+            warnings.push(Diagnostic::warning(
+                "W_PROBE_REFRESH_FAILED",
+                format!(
+                    "El archivo del asset no existe ({}); se usa la sonda guardada.",
+                    path.display()
+                ),
+            ));
+            probes.insert(asset.id, asset.probe.clone());
             continue;
         }
         let id = asset.id;
         let ffprobe = ffprobe.clone();
         let permits = Arc::clone(&permits);
         set.spawn(async move {
-            let _permit = permits.acquire_owned().await.ok()?;
-            ffprobe.probe(&path).await.ok().map(|probe| (id, probe))
+            let result = async {
+                let _permit = permits
+                    .acquire_owned()
+                    .await
+                    .map_err(|error| format!("semáforo de sondeo cerrado: {error}"))?;
+                ffprobe
+                    .probe(&path)
+                    .await
+                    .map_err(|error| error.to_string())
+            }
+            .await;
+            (id, result)
         });
     }
     while let Some(joined) = set.join_next().await {
-        if let Ok(Some((id, probe))) = joined {
-            probes.insert(id, probe);
+        match joined {
+            Ok((id, Ok(probe))) => {
+                probes.insert(id, probe);
+            }
+            Ok((id, Err(error))) => {
+                warnings.push(Diagnostic::warning(
+                    "W_PROBE_REFRESH_FAILED",
+                    format!("No se pudo refrescar la sonda del asset: {error}"),
+                ));
+                if let Some(asset) = project.assets.iter().find(|asset| asset.id == id) {
+                    probes.insert(id, asset.probe.clone());
+                }
+            }
+            Err(error) => warnings.push(Diagnostic::warning(
+                "W_PROBE_REFRESH_FAILED",
+                format!("La tarea de sondeo terminó inesperadamente: {error}"),
+            )),
         }
     }
-    probes
+    ProbeReport { probes, warnings }
 }
 
-/// Cheap content fingerprint: size, mtime and the first/last 8 MiB.
+async fn emit_warnings(events: &EventSink, warnings: &[Diagnostic]) {
+    for warning in warnings {
+        let _ = events
+            .send(JobEventKind::Warning {
+                code: warning.code.clone(),
+                message: warning.message.clone(),
+            })
+            .await;
+    }
+}
+
+async fn verify_artifact(
+    path: &Path,
+    events: &EventSink,
+) -> Option<dvdforge_verify::report::VerifyReport> {
+    let path = path.to_path_buf();
+    match tokio::task::spawn_blocking(move || dvdforge_verify::verify_iso(&path, false)).await {
+        Ok(Ok(report)) => {
+            if report.verdict == dvdforge_verify::report::VerifyVerdict::Fail {
+                warn(
+                    events,
+                    "W_STRUCTURE_VERIFY_FAILED",
+                    "La verificación estructural de la ISO encontró errores bloqueantes."
+                        .to_string(),
+                )
+                .await;
+            } else if report.verdict == dvdforge_verify::report::VerifyVerdict::Warn {
+                warn(
+                    events,
+                    "W_STRUCTURE_VERIFY_WARN",
+                    "La verificación estructural de la ISO encontró avisos.".to_string(),
+                )
+                .await;
+            }
+            Some(report)
+        }
+        Ok(Err(error)) => {
+            warn(
+                events,
+                "W_STRUCTURE_VERIFY_FAILED",
+                format!("No se pudo verificar la ISO generada: {error}"),
+            )
+            .await;
+            None
+        }
+        Err(error) => {
+            warn(
+                events,
+                "W_STRUCTURE_VERIFY_FAILED",
+                format!("La verificación estructural terminó inesperadamente: {error}"),
+            )
+            .await;
+            None
+        }
+    }
+}
+
+/// Full-content fingerprint used by the render cache.
 ///
-/// Hashing a multi-gigabyte source before every episode was a full extra I/O
-/// pass. The `fp1:` prefix invalidates the old SHA-256 cache entries on
-/// purpose, because the stored value no longer represents a whole-file hash.
+/// Hashing a multi-gigabyte source costs one sequential I/O pass, but a
+/// size/mtime/edge sample cannot detect an edit in the middle of a file. The
+/// asset SHA-256 recorded at import time is reused when it is a real hash;
+/// otherwise this function computes it and returns the `fp2:` form.
 async fn source_fingerprint(path: &Path) -> Result<String, RenderError> {
     let path = path.to_path_buf();
     tokio::task::spawn_blocking(move || -> std::io::Result<String> {
-        const EDGE: u64 = 8 << 20;
         let mut file = std::fs::File::open(&path)?;
-        let meta = file.metadata()?;
-        let len = meta.len();
-        let mtime = meta
-            .modified()
-            .ok()
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-            .map_or(0, |duration| duration.as_nanos());
         let mut hasher = Sha256::new();
-        hasher.update(len.to_le_bytes());
-        hasher.update(mtime.to_le_bytes());
-        let mut buffer = vec![0u8; EDGE.min(len) as usize];
-        file.read_exact(&mut buffer)?;
-        hasher.update(&buffer);
-        if len > EDGE {
-            file.seek(SeekFrom::Start(len - EDGE))?;
-            file.read_exact(&mut buffer)?;
-            hasher.update(&buffer);
+        let mut buffer = vec![0u8; 1024 * 1024];
+        loop {
+            let read = file.read(&mut buffer)?;
+            if read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..read]);
         }
-        Ok(format!("fp1:{}", hex::encode(hasher.finalize())))
+        Ok(format!("fp2:{}", hex::encode(hasher.finalize())))
     })
     .await
     .map_err(|error| RenderError::Encode(format!("huella cancelada: {error}")))?
     .map_err(RenderError::Io)
 }
 
+async fn source_fingerprint_for_asset(
+    path: &Path,
+    asset: &dvdforge_domain::MediaAsset,
+) -> Result<String, RenderError> {
+    let sha = asset.sha256.trim();
+    if sha.len() == 64
+        && sha != "0".repeat(64)
+        && sha.chars().all(|character| character.is_ascii_hexdigit())
+    {
+        return Ok(format!("fp2:{sha}"));
+    }
+    source_fingerprint(path).await
+}
+
 fn audio_params_hash(episode: &Episode) -> String {
-    let encoded = serde_json::to_vec(&episode.audio).unwrap_or_default();
     let mut hasher = Sha256::new();
-    hasher.update(encoded);
+    for audio in &episode.audio {
+        hasher.update(audio.source_stream.to_be_bytes());
+        hasher.update(audio.language.as_bytes());
+        hasher.update([0]);
+        hasher.update(audio.label.as_bytes());
+        hasher.update([0]);
+        if let Some(path) = &audio.source_path {
+            hasher.update(path.as_bytes());
+        }
+        hasher.update([0]);
+        hasher.update(audio.gain_db.to_bits().to_be_bytes());
+        hasher.update(audio.ac3_kbps.to_be_bytes());
+        hasher.update(audio.delay_ms.to_be_bytes());
+        hasher.update([
+            match audio.format {
+                dvdforge_domain::AudioFormat::Ac3Stereo => 1,
+                dvdforge_domain::AudioFormat::Ac3Surround51 => 2,
+            },
+            u8::from(audio.default),
+            u8::from(audio.commentary),
+        ]);
+    }
     hex::encode(hasher.finalize())
+}
+
+#[derive(Serialize)]
+struct EpisodeRenderInputs<'a> {
+    kind: &'a str,
+    source_fingerprint: &'a str,
+    trim_in_ms: u64,
+    trim_out_ms: u64,
+    target_bitrate: u32,
+    audio_params_hash: &'a str,
+    fps_num: u32,
+    fps_den: u32,
+    scale_mode: VideoScaleMode,
+    video_kbps: u32,
+    maxrate_kbps: u32,
+    profile: String,
+    gop_frames: u16,
+    b_frames: u8,
+    b_strategy: u8,
+    interlaced: bool,
+    top_field_first: bool,
+    dc_precision: u8,
+    resolution: Option<String>,
+    standard: TvStandard,
+    aspect: AspectRatio,
+    subtitles_hash: String,
+}
+
+#[derive(Serialize)]
+struct MenuRenderInputs<'a> {
+    menu: &'a dvdforge_domain::Menu,
+    background_sha: String,
+    audio_sha: Option<String>,
+    composited_labels_sha: Option<String>,
+}
+
+fn canonical_hash<T: Serialize>(value: &T) -> Result<String, RenderError> {
+    let bytes = serde_json::to_vec(value).map_err(|error| {
+        RenderError::Encode(format!("no se pudo serializar la clave de caché: {error}"))
+    })?;
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+fn subtitle_inputs_hash(episode: &Episode, project_dir: &Path) -> String {
+    let mut hasher = Sha256::new();
+    for track in &episode.subtitles {
+        hasher.update(track.source_stream.to_be_bytes());
+        hasher.update(track.language.as_bytes());
+        hasher.update([0]);
+        hasher.update(track.label.as_bytes());
+        hasher.update([0]);
+        hasher.update(track.delay_ms.to_be_bytes());
+        hasher.update([u8::from(track.is_forced), u8::from(track.is_default)]);
+        if let Some(source_path) = &track.source_path {
+            let source = resolve_project_path(project_dir, source_path);
+            match std::fs::read(&source) {
+                Ok(bytes) => hasher.update(bytes),
+                Err(error) => hasher.update(error.to_string().as_bytes()),
+            }
+        } else {
+            hasher.update(b"embedded");
+        }
+        hasher.update([0xff]);
+    }
+    hex::encode(hasher.finalize())
+}
+
+fn dc_precision_for_kbps(kbps: u32) -> u8 {
+    if kbps >= 5_000 {
+        10
+    } else if kbps >= 3_200 {
+        9
+    } else {
+        8
+    }
+}
+
+fn toolchain_hash() -> &'static str {
+    static HASH: OnceLock<String> = OnceLock::new();
+    HASH.get_or_init(|| {
+        let ffmpeg = resolve_binary("ffmpeg");
+        let mut hasher = Sha256::new();
+        hasher.update(ffmpeg.display().to_string().as_bytes());
+        if let Ok(output) = std::process::Command::new(&ffmpeg).arg("-version").output() {
+            hasher.update(&output.stdout);
+        }
+        format!("tc:{}", hex::encode(hasher.finalize()))
+    })
+}
+
+fn menu_background_sha(project: &Project, menu: &dvdforge_domain::Menu) -> String {
+    let asset_id = match &menu.background {
+        MenuBackground::Static { asset } | MenuBackground::VideoLoop { asset, .. } => *asset,
+    };
+    project
+        .asset(asset_id)
+        .map(|asset| asset.sha256.clone())
+        .unwrap_or_else(|| "missing".to_string())
+}
+
+fn menu_audio_sha(project: &Project, menu: &dvdforge_domain::Menu) -> Option<String> {
+    menu.audio
+        .as_ref()
+        .and_then(|audio| project.asset(audio.asset))
+        .map(|asset| {
+            format!(
+                "{}:{}",
+                asset.sha256,
+                menu.audio.as_ref().map(|a| a.gain_db).unwrap_or(0.0)
+            )
+        })
+}
+
+fn composited_labels_sha(composited_backgrounds: Option<&Path>, menu_id: MenuId) -> Option<String> {
+    let path = composited_backgrounds
+        .map(|directory| directory.join(format!("labels-{menu_id}.png")))
+        .filter(|path| path.is_file())?;
+    std::fs::read(path)
+        .ok()
+        .map(|bytes| hex::encode(Sha256::digest(bytes)))
+}
+
+fn menu_inputs_hash(
+    project: &Project,
+    menu: &dvdforge_domain::Menu,
+    composited_backgrounds: Option<&Path>,
+) -> Result<String, RenderError> {
+    canonical_hash(&MenuRenderInputs {
+        menu,
+        background_sha: menu_background_sha(project, menu),
+        audio_sha: menu_audio_sha(project, menu),
+        composited_labels_sha: composited_labels_sha(composited_backgrounds, menu.id),
+    })
 }
 
 async fn cached_artifact_path(
@@ -452,6 +740,24 @@ async fn cached_artifact_path(
         return Err(RenderError::Encode(error.to_string()));
     }
     Ok(target)
+}
+
+async fn materialize_cached_artifact(source: &Path, target: &Path) -> Result<PathBuf, RenderError> {
+    let (from, to) = (source.to_path_buf(), target.to_path_buf());
+    tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let _ = std::fs::remove_file(&to);
+        std::fs::hard_link(&from, &to).or_else(|_| {
+            std::fs::copy(&from, &to).map(|_| ()).inspect_err(|_| {
+                let _ = std::fs::remove_file(&to);
+            })
+        })
+    })
+    .await
+    .map_err(|error| RenderError::Encode(format!("copia de caché cancelada: {error}")))??;
+    Ok(target.to_path_buf())
 }
 
 fn prepare_output(output: &Path) -> Result<(), RenderError> {
@@ -723,20 +1029,16 @@ async fn render_avchd_project(
     };
 
     stage(&events, JobStage::Probe, "Sondeando medios").await;
-    let probes = collect_probes(&project, &project_dir, options.probe_assets).await;
+    let probe_report = collect_probes(&project, &project_dir, options.probe_assets).await;
+    let probes = probe_report.probes;
+    let mut probe_warnings = probe_report.warnings;
     progress(&events, JobStage::Probe, 1000).await;
 
     stage(&events, JobStage::Plan, "Calculando bitrate AVCHD").await;
     let plan = calculate_bitrate_plan(&project, &probes)
         .map_err(|error| RenderError::Plan(error.to_string()))?;
-    for warning in &plan.warnings {
-        let _ = events
-            .send(JobEventKind::Warning {
-                code: warning.code.clone(),
-                message: warning.message.clone(),
-            })
-            .await;
-    }
+    probe_warnings.extend(plan.warnings.clone());
+    emit_warnings(&events, &probe_warnings).await;
     if !plan.feasible {
         return Err(RenderError::Plan(
             "el plan AVCHD no es viable; revisa las advertencias".to_string(),
@@ -747,6 +1049,19 @@ async fn render_avchd_project(
 
     prepare_avchd_output(&output_dir)?;
     let encoder = AvchdEncoder::default();
+    let hardware_capabilities = detect_hardware_encoders(&encoder.ffmpeg);
+    let hardware_encoder =
+        resolve_hardware_encoder(options.hardware_encoding, &hardware_capabilities);
+    if let Some(encoder) = hardware_encoder {
+        log(
+            &events,
+            format!(
+                "Codificación AVCHD con aceleración hardware: {}",
+                encoder.label()
+            ),
+        )
+        .await;
+    }
     let episodes_dir = output_dir.join("episodes");
     let total = project.episodes.len().max(1);
     let mut stream_inputs = Vec::with_capacity(project.episodes.len());
@@ -757,7 +1072,18 @@ async fn render_avchd_project(
     let mut episode_fps: HashMap<EpisodeId, FrameRate> = HashMap::new();
     let mut timeline_ms = 0u64;
     let mut language = "und".to_string();
-    let cache = Store::open_default().ok();
+    let cache = match Store::open_default() {
+        Ok(store) => Some(store),
+        Err(error) => {
+            warn(
+                &events,
+                "W_CACHE_DISABLED",
+                format!("La caché de artefactos está desactivada: {error}"),
+            )
+            .await;
+            None
+        }
+    };
 
     stage(
         &events,
@@ -824,12 +1150,43 @@ async fn render_avchd_project(
             }
         }
         let cache_key = if cache.is_some() {
-            Some(ArtifactKey {
-                source_sha256: source_fingerprint(&input).await?,
+            let source_fp = source_fingerprint_for_asset(&input, asset).await?;
+            let audio_hash = audio_params_hash(episode);
+            let subtitles_hash = subtitle_inputs_hash(episode, &project_dir);
+            let inputs_hash = canonical_hash(&EpisodeRenderInputs {
+                kind: "avchd",
+                source_fingerprint: &source_fp,
                 trim_in_ms: episode.trim_start_ms.unwrap_or(0),
                 trim_out_ms: episode.trim_end_ms.unwrap_or(duration_ms),
+                target_bitrate: planned_kbps,
+                audio_params_hash: &audio_hash,
+                fps_num: config.frame_rate.num,
+                fps_den: config.frame_rate.den,
+                scale_mode: episode.scale_mode,
+                video_kbps: planned_kbps,
+                maxrate_kbps: config.vbv_maxrate_kbps,
+                profile: format!("{:?}:{:?}", config.resolution, hardware_encoder),
+                gop_frames: config.keyint_frames,
+                b_frames: 3,
+                b_strategy: 2,
+                interlaced: config.resolution.interlaced(),
+                top_field_first: true,
+                dc_precision: 8,
+                resolution: Some(format!(
+                    "{}x{}",
+                    config.resolution.dimensions().0,
+                    config.resolution.dimensions().1
+                )),
+                standard: project.disc.standard,
+                aspect: project.disc.aspect,
+                subtitles_hash,
+            })?;
+            Some(ArtifactKey {
+                kind: CacheArtifactKind::Episode,
+                source_fingerprint: source_fp,
+                inputs_hash,
                 target_profile: format!(
-                    "hdmv:{:?}:{:.3}:{:?}:{}:{:?}:{}:{}:{}:{}:{}",
+                    "hdmv:{:?}:{:.3}:{:?}:{}:{:?}:{}:{}:{}:{}",
                     config.resolution,
                     config.frame_rate.as_f64(),
                     episode.scale_mode,
@@ -838,20 +1195,44 @@ async fn render_avchd_project(
                     config.vbv_maxrate_kbps,
                     config.vbv_bufsize_kbps,
                     project.disc.audio.channels,
-                    project.disc.audio.ac3_kbps,
-                    ENCODER_REV
+                    project.disc.audio.ac3_kbps
                 ),
                 target_bitrate: planned_kbps,
-                audio_params_hash: audio_params_hash(episode),
+                audio_params_hash: audio_hash,
+                encoder_rev: ENCODER_REV,
+                toolchain_hash: toolchain_hash().to_string(),
             })
         } else {
             None
         };
-        let cached = cache
-            .as_ref()
-            .zip(cache_key.as_ref())
-            .and_then(|(store, key)| store.lookup_artifact(key).ok().flatten())
-            .filter(|artifact| Path::new(&artifact.artifact_path).is_file());
+        let cached = match cache.as_ref().zip(cache_key.as_ref()) {
+            Some((store, key)) => match store.lookup_artifact(key) {
+                CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                    Some(artifact)
+                }
+                CacheLookup::Hit(_) => None,
+                CacheLookup::Stale(reason) => {
+                    warn(
+                        &events,
+                        "W_CACHE_STALE",
+                        format!("La caché de artefactos quedó obsoleta: {reason}"),
+                    )
+                    .await;
+                    None
+                }
+                CacheLookup::Miss => None,
+                CacheLookup::Error(error) => {
+                    warn(
+                        &events,
+                        "W_CACHE_READ_FAILED",
+                        format!("No se pudo leer la caché de artefactos: {error}"),
+                    )
+                    .await;
+                    None
+                }
+            },
+            None => None,
+        };
         if let Some(artifact) = &cached {
             log(
                 &events,
@@ -907,6 +1288,7 @@ async fn render_avchd_project(
             scale_mode: episode.scale_mode,
             fps: source_fps,
             duration_ms,
+            hardware_encoder,
         };
         let stream_mkv = if let Some(artifact) = cached {
             PathBuf::from(artifact.artifact_path)
@@ -921,9 +1303,20 @@ async fn render_avchd_project(
             )
             .await?;
             if let (Some(store), Some(key)) = (&cache, &cache_key) {
-                cached_artifact_path(store, key, "mkv", &encoded.stream_mkv, duration_ms)
+                match cached_artifact_path(store, key, "mkv", &encoded.stream_mkv, duration_ms)
                     .await
-                    .unwrap_or(encoded.stream_mkv)
+                {
+                    Ok(path) => path,
+                    Err(error) => {
+                        warn(
+                            &events,
+                            "W_CACHE_WRITE_FAILED",
+                            format!("No se pudo publicar el artefacto AVCHD en caché: {error}"),
+                        )
+                        .await;
+                        encoded.stream_mkv
+                    }
+                }
             } else {
                 encoded.stream_mkv
             }
@@ -991,7 +1384,7 @@ async fn render_avchd_project(
         }
     }
 
-    let mut warnings = plan.warnings.clone();
+    let mut warnings = probe_warnings;
     let (menu_width, menu_height) = config.resolution.dimensions();
     let root_menu = project
         .menu(project.root_menu)
@@ -1273,6 +1666,7 @@ async fn render_avchd_project(
         .await;
     progress(&events, JobStage::Iso, 1000).await;
 
+    let verification = verify_artifact(&final_iso_path, &events).await;
     let _ = events
         .send(JobEventKind::Completed {
             summary: format!(
@@ -1289,6 +1683,7 @@ async fn render_avchd_project(
         iso_path: final_iso_path.display().to_string(),
         elapsed_ms: started.elapsed().as_millis() as u64,
         warnings,
+        verification,
     })
 }
 
@@ -1320,12 +1715,99 @@ async fn encode_avchd_episode_with_progress(
                 .await;
         }
     });
-    let result = encoder
-        .encode_with_progress(request, Some(sender))
-        .await
-        .map_err(|error| RenderError::Encode(error.to_string()));
+    let result = match encoder.encode_with_progress(request, Some(sender)).await {
+        Ok(output) if request.hardware_encoder.is_some() => {
+            match validate_h264_output(&output.stream_mkv).await {
+                Ok(()) => Ok(output),
+                Err(error) => {
+                    warn(
+                        events,
+                        "W_HW_ENCODER_FALLBACK",
+                        format!(
+                            "La salida hardware no cumple el perfil AVCHD/Blu-ray ({error}); se reintenta en CPU/libx264."
+                        ),
+                    )
+                    .await;
+                    let mut fallback = request.clone();
+                    fallback.hardware_encoder = None;
+                    encoder
+                        .encode(&fallback)
+                        .await
+                        .map_err(|error| RenderError::Encode(error.to_string()))
+                }
+            }
+        }
+        Ok(output) => Ok(output),
+        Err(error) if request.hardware_encoder.is_some() => {
+            warn(
+                events,
+                "W_HW_ENCODER_FALLBACK",
+                format!("El encoder hardware falló; se reintenta en CPU/libx264: {error}"),
+            )
+            .await;
+            let mut fallback = request.clone();
+            fallback.hardware_encoder = None;
+            encoder
+                .encode(&fallback)
+                .await
+                .map_err(|error| RenderError::Encode(error.to_string()))
+        }
+        Err(error) => Err(RenderError::Encode(error.to_string())),
+    };
     let _ = forward.await;
     result
+}
+
+async fn validate_h264_output(path: &Path) -> Result<(), String> {
+    let output = tokio::process::Command::from(dvdforge_toolchain::background_command(
+        resolve_binary("ffprobe"),
+    ))
+    .args([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,profile,level,pix_fmt",
+        "-of",
+        "json",
+    ])
+    .arg(path)
+    .kill_on_drop(true)
+    .output()
+    .await
+    .map_err(|error| format!("no se pudo ejecutar ffprobe: {error}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("ffprobe devolvió JSON inválido: {error}"))?;
+    let stream = value
+        .get("streams")
+        .and_then(|streams| streams.get(0))
+        .ok_or_else(|| "ffprobe no devolvió un stream de vídeo".to_string())?;
+    let codec = stream
+        .get("codec_name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let profile = stream
+        .get("profile")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    let pix_fmt = stream
+        .get("pix_fmt")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if codec != "h264" {
+        return Err(format!("códec {codec}, se esperaba h264"));
+    }
+    if !profile.eq_ignore_ascii_case("high") {
+        return Err(format!("perfil {profile}, se esperaba High"));
+    }
+    if pix_fmt != "yuv420p" {
+        return Err(format!("pix_fmt {pix_fmt}, se esperaba yuv420p"));
+    }
+    Ok(())
 }
 
 async fn encode_intro(
@@ -1334,6 +1816,7 @@ async fn encode_intro(
     project_dir: &Path,
     output: &Path,
     encoder: &DvdEncoder,
+    events: &EventSink,
 ) -> Result<Option<PathBuf>, RenderError> {
     let Some(first_play) = &project.first_play else {
         return Ok(None);
@@ -1349,6 +1832,93 @@ async fn encode_intro(
         .as_ref()
         .map(|video| video.frame_rate)
         .unwrap_or_else(|| project.disc.standard.frame_rate());
+    let cache = match Store::open_default() {
+        Ok(store) => Some(store),
+        Err(error) => {
+            warn(
+                events,
+                "W_CACHE_DISABLED",
+                format!("La caché de artefactos está desactivada: {error}"),
+            )
+            .await;
+            None
+        }
+    };
+    let cache_key = if cache.is_some() {
+        let source_fp = source_fingerprint_for_asset(&input, asset).await?;
+        let audio_hash = canonical_hash(&first_play.audio)?;
+        let inputs_hash = canonical_hash(&EpisodeRenderInputs {
+            kind: "intro",
+            source_fingerprint: &source_fp,
+            trim_in_ms: 0,
+            trim_out_ms: first_play
+                .trim
+                .map(|trim| (trim.duration() as f64 * 1000.0 / fps.as_f64()) as u64)
+                .unwrap_or(0),
+            target_bitrate: 5_000,
+            audio_params_hash: &audio_hash,
+            fps_num: fps.num,
+            fps_den: fps.den,
+            scale_mode: VideoScaleMode::Letterbox,
+            video_kbps: 5_000,
+            maxrate_kbps: 8_000,
+            profile: "D1".to_string(),
+            gop_frames: gop_for(project.disc.standard),
+            b_frames: 2,
+            b_strategy: 2,
+            interlaced: is_interlaced(probe),
+            top_field_first: is_top_field_first(probe),
+            dc_precision: dc_precision_for_kbps(5_000),
+            resolution: None,
+            standard: project.disc.standard,
+            aspect: project.disc.aspect,
+            subtitles_hash: String::new(),
+        })?;
+        Some(ArtifactKey {
+            kind: CacheArtifactKind::Intro,
+            source_fingerprint: source_fp,
+            inputs_hash,
+            target_profile: format!(
+                "dvd:intro:{:?}:{:?}:{:?}",
+                project.disc.standard, project.disc.aspect, project.disc.capacity
+            ),
+            target_bitrate: 5_000,
+            audio_params_hash: audio_hash,
+            encoder_rev: ENCODER_REV,
+            toolchain_hash: toolchain_hash().to_string(),
+        })
+    } else {
+        None
+    };
+    if let (Some(store), Some(key)) = (&cache, &cache_key) {
+        match store.lookup_artifact(key) {
+            CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                log(
+                    events,
+                    format!("Intro: reutilizando caché {}", artifact.artifact_path),
+                )
+                .await;
+                return Ok(Some(PathBuf::from(artifact.artifact_path)));
+            }
+            CacheLookup::Stale(reason) => {
+                warn(
+                    events,
+                    "W_CACHE_STALE",
+                    format!("La caché de intro quedó obsoleta: {reason}"),
+                )
+                .await;
+            }
+            CacheLookup::Error(error) => {
+                warn(
+                    events,
+                    "W_CACHE_READ_FAILED",
+                    format!("No se pudo leer la caché de intro: {error}"),
+                )
+                .await;
+            }
+            CacheLookup::Hit(_) | CacheLookup::Miss => {}
+        }
+    }
     let request = EncodeRequest {
         input,
         output_dir: output.join("intro"),
@@ -1374,11 +1944,25 @@ async fn encode_intro(
         trim_start_ms: None,
         trim_end_ms: None,
         fps,
+        passlog: output.join("intro").join("intro.passlog"),
     };
     let encoded = encoder
         .encode(&request)
         .await
         .map_err(|error| RenderError::Encode(error.to_string()))?;
+    if let (Some(store), Some(key)) = (&cache, &cache_key) {
+        match cached_artifact_path(store, key, "mpg", &encoded.muxed_mpg, 0).await {
+            Ok(path) => return Ok(Some(path)),
+            Err(error) => {
+                warn(
+                    events,
+                    "W_CACHE_WRITE_FAILED",
+                    format!("No se pudo publicar la intro en caché: {error}"),
+                )
+                .await
+            }
+        }
+    }
     Ok(Some(encoded.muxed_mpg))
 }
 
@@ -1421,9 +2005,8 @@ async fn mux_episode_subtitles(
         .subtitles
         .iter()
         .enumerate()
-        .filter(|(_, track)| track.source_path.is_none())
-        .enumerate()
-        .map(|(internal_index, (index, _))| (index, internal_index))
+        .filter(|(_, track)| track.source_path.is_none() && !track.bitmap)
+        .map(|(index, track)| (index, track.source_stream as usize))
         .collect();
     if !embedded.is_empty() {
         let asset = context
@@ -1442,10 +2025,10 @@ async fn mux_episode_subtitles(
             .arg("-i")
             .arg(&video)
             .kill_on_drop(true);
-        for &(index, internal_index) in &embedded {
+        for &(index, stream_index) in &embedded {
             command
                 .arg("-map")
-                .arg(format!("0:s:{internal_index}"))
+                .arg(format!("0:{stream_index}"))
                 .arg("-c:s")
                 .arg("srt")
                 .arg(extracted_path(index));
@@ -1464,6 +2047,18 @@ async fn mux_episode_subtitles(
         }
     }
     for (index, track) in context.episode.subtitles.iter().enumerate() {
+        if track.bitmap {
+            warn(
+                events,
+                "W_BITMAP_SUBTITLE_UNSUPPORTED",
+                format!(
+                    "Episodio {}: la pista de subtítulos bitmap «{}» ({}) se omite; requiere OCR.",
+                    context.episode.number, track.label, track.language
+                ),
+            )
+            .await;
+            continue;
+        }
         let text = if let Some(source_path) = &track.source_path {
             let source = resolve_project_path(context.project_dir, source_path);
             std::fs::read_to_string(&source).map_err(|error| {
@@ -1543,7 +2138,18 @@ async fn encode_episodes(
     events: &EventSink,
 ) -> Result<Vec<EpisodeFile>, RenderError> {
     let mut files = Vec::with_capacity(project.episodes.len());
-    let cache = Store::open_default().ok();
+    let cache = match Store::open_default() {
+        Ok(store) => Some(store),
+        Err(error) => {
+            warn(
+                events,
+                "W_CACHE_DISABLED",
+                format!("La caché de artefactos está desactivada: {error}"),
+            )
+            .await;
+            None
+        }
+    };
     let total = project.episodes.len().max(1);
     for (index, episode) in project.episodes.iter().enumerate() {
         let asset = project
@@ -1583,20 +2189,45 @@ async fn encode_episodes(
             .or(probe.duration_ms)
             .unwrap_or(1);
         let cache_key = if cache.is_some() {
-            Some(ArtifactKey {
-                source_sha256: source_fingerprint(&input).await?,
+            let source_fp = source_fingerprint_for_asset(&input, asset).await?;
+            let audio_hash = audio_params_hash(episode);
+            let subtitles_hash = subtitle_inputs_hash(episode, project_dir);
+            let inputs_hash = canonical_hash(&EpisodeRenderInputs {
+                kind: "dvd",
+                source_fingerprint: &source_fp,
                 trim_in_ms: episode.trim_start_ms.unwrap_or(0),
                 trim_out_ms: episode.trim_end_ms.unwrap_or(duration),
+                target_bitrate: video_kbps,
+                audio_params_hash: &audio_hash,
+                fps_num: fps.num,
+                fps_den: fps.den,
+                scale_mode: episode.scale_mode,
+                video_kbps,
+                maxrate_kbps,
+                profile: format!("{:?}", plan.profile),
+                gop_frames: gop_for(project.disc.standard),
+                b_frames: 2,
+                b_strategy: 2,
+                interlaced: is_interlaced(probe),
+                top_field_first: is_top_field_first(probe),
+                dc_precision: dc_precision_for_kbps(video_kbps),
+                resolution: None,
+                standard: project.disc.standard,
+                aspect: project.disc.aspect,
+                subtitles_hash,
+            })?;
+            Some(ArtifactKey {
+                kind: CacheArtifactKind::Episode,
+                source_fingerprint: source_fp,
+                inputs_hash,
                 target_profile: format!(
-                    "dvd:{:?}:{:?}:{:?}:{:?}:{}",
-                    plan.profile,
-                    project.disc.standard,
-                    project.disc.aspect,
-                    episode.scale_mode,
-                    ENCODER_REV
+                    "dvd:{:?}:{:?}:{:?}:{:?}",
+                    plan.profile, project.disc.standard, project.disc.aspect, episode.scale_mode
                 ),
                 target_bitrate: video_kbps,
-                audio_params_hash: audio_params_hash(episode),
+                audio_params_hash: audio_hash,
+                encoder_rev: ENCODER_REV,
+                toolchain_hash: toolchain_hash().to_string(),
             })
         } else {
             None
@@ -1622,12 +2253,38 @@ async fn encode_episodes(
             trim_start_ms: episode.trim_start_ms,
             trim_end_ms: episode.trim_end_ms,
             fps,
+            passlog: output
+                .join("episodes")
+                .join(format!("episode-{:02}.passlog", episode.number)),
         };
-        let cached = cache
-            .as_ref()
-            .zip(cache_key.as_ref())
-            .and_then(|(store, key)| store.lookup_artifact(key).ok().flatten())
-            .filter(|artifact| Path::new(&artifact.artifact_path).is_file());
+        let cached = match cache.as_ref().zip(cache_key.as_ref()) {
+            Some((store, key)) => match store.lookup_artifact(key) {
+                CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                    Some(artifact)
+                }
+                CacheLookup::Hit(_) => None,
+                CacheLookup::Stale(reason) => {
+                    warn(
+                        events,
+                        "W_CACHE_STALE",
+                        format!("La caché de artefactos quedó obsoleta: {reason}"),
+                    )
+                    .await;
+                    None
+                }
+                CacheLookup::Miss => None,
+                CacheLookup::Error(error) => {
+                    warn(
+                        events,
+                        "W_CACHE_READ_FAILED",
+                        format!("No se pudo leer la caché de artefactos: {error}"),
+                    )
+                    .await;
+                    None
+                }
+            },
+            None => None,
+        };
         let base_mpeg = if let Some(artifact) = cached {
             log(
                 events,
@@ -1664,7 +2321,15 @@ async fn encode_episodes(
             if let (Some(store), Some(key)) = (&cache, &cache_key) {
                 match cached_artifact_path(store, key, "mpg", &encoded.muxed_mpg, duration).await {
                     Ok(path) => path,
-                    Err(_) => encoded.muxed_mpg.clone(),
+                    Err(error) => {
+                        warn(
+                            events,
+                            "W_CACHE_WRITE_FAILED",
+                            format!("No se pudo publicar el artefacto en caché: {error}"),
+                        )
+                        .await;
+                        encoded.muxed_mpg.clone()
+                    }
                 }
             } else {
                 encoded.muxed_mpg.clone()
@@ -1793,6 +2458,18 @@ async fn render_menus(
 ) -> Result<Vec<RenderedMenu>, RenderError> {
     let mut rendered = Vec::with_capacity(project.menus.len());
     let total = project.menus.len().max(1);
+    let cache = match Store::open_default() {
+        Ok(store) => Some(store),
+        Err(error) => {
+            warn(
+                events,
+                "W_CACHE_DISABLED",
+                format!("La caché de menús está desactivada: {error}"),
+            )
+            .await;
+            None
+        }
+    };
     for (index, menu) in project.menus.iter().enumerate() {
         let menu_dir = output.join("menus").join(menu.id.to_string());
         let composited = composited_backgrounds
@@ -1933,7 +2610,7 @@ async fn render_menus(
             None
         };
 
-        let base_mpeg = menu_dir.join("menu_base.mpg");
+        let mut base_mpeg = menu_dir.join("menu_base.mpg");
         let video_background = matches!(menu.background, MenuBackground::VideoLoop { .. });
         let mut labels_overlay = composited_backgrounds
             .map(|directory| directory.join(format!("labels-{}.png", menu.id)))
@@ -1952,98 +2629,196 @@ async fn render_menus(
         }
         let animated = (menu.motion_config.is_some() || video_background)
             && (video_background || !motion_buttons.is_empty());
-        if animated {
-            let labels_overlay = labels_overlay.ok_or_else(|| {
-                RenderError::Menu(
-                    "no se pudo generar la capa de etiquetas del menú animado".to_string(),
-                )
-            })?;
-            let (motion_background, background_is_video) = match &menu.background {
-                MenuBackground::VideoLoop { asset, .. } => {
-                    let background_asset = project.asset(*asset).ok_or_else(|| {
-                        RenderError::Menu("fondo de vídeo inexistente".to_string())
-                    })?;
-                    let path = asset_path(project_dir, background_asset).ok_or_else(|| {
-                        RenderError::Menu("ruta de fondo de vídeo inválida".to_string())
-                    })?;
-                    (path, true)
-                }
-                MenuBackground::Static { .. } => (background_source.clone(), false),
-            };
-            log(
-                events,
-                format!(
-                    "Menú animado {}/{}: {} ({} botones de vídeo)",
-                    index + 1,
-                    total,
-                    menu.name,
-                    motion_buttons.len()
+        let menu_video_kbps = if animated { 6_000 } else { 5_000 };
+        let cache_key = if cache.is_some() {
+            let inputs_hash = menu_inputs_hash(project, menu, composited_backgrounds)?;
+            Some(ArtifactKey {
+                kind: CacheArtifactKind::MenuVideo,
+                source_fingerprint: format!("fp2:menu:{inputs_hash}"),
+                inputs_hash,
+                target_profile: format!(
+                    "menu:{:?}:{}x{}:{:.3}:{}",
+                    project.disc.standard,
+                    menu.canvas.width,
+                    menu.canvas.height,
+                    menu.timing.duration_ms as f64 / 1000.0,
+                    menu_video_kbps
                 ),
-            )
-            .await;
-            encode_motion_menu_with_progress(
-                encoder,
-                &MotionMenuEncodeRequest {
-                    background: motion_background,
-                    background_is_video,
-                    labels_overlay,
-                    buttons: motion_buttons,
-                    audio_ac3: audio_ac3.clone(),
-                    output_mpg: base_mpeg.clone(),
-                    duration_ms: menu.timing.duration_ms.max(1),
-                    standard: project.disc.standard,
-                    aspect: project.disc.aspect,
-                    fps: project.disc.standard.frame_rate(),
-                    video_kbps: 6_000,
-                    maxrate_kbps: 8_000,
-                    dim_percent: if background_is_video {
-                        menu.dim_percent
-                    } else {
-                        0
-                    },
-                    blur_px: if background_is_video { menu.blur_px } else { 0 },
-                    scale_mode: if background_is_video {
-                        menu.scale_mode
-                    } else {
-                        MenuScaleMode::Stretch
-                    },
-                },
-                menu.timing.duration_ms.max(1),
-                events,
-                index,
-                total,
-            )
-            .await?;
+                target_bitrate: menu_video_kbps,
+                audio_params_hash: menu_audio_sha(project, menu).unwrap_or_default(),
+                encoder_rev: ENCODER_REV,
+                toolchain_hash: toolchain_hash().to_string(),
+            })
         } else {
-            if menu.motion_config.is_some() && labels_overlay.is_none() {
+            None
+        };
+        let mut cache_hit = false;
+        if let (Some(store), Some(key)) = (&cache, &cache_key) {
+            match store.lookup_artifact(key) {
+                CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                    log(
+                        events,
+                        format!(
+                            "Menú {}/{}: reutilizando caché {}",
+                            index + 1,
+                            total,
+                            artifact.artifact_path
+                        ),
+                    )
+                    .await;
+                    let local = menu_dir.join("menu_base.mpg");
+                    match materialize_cached_artifact(Path::new(&artifact.artifact_path), &local)
+                        .await
+                    {
+                        Ok(path) => base_mpeg = path,
+                        Err(error) => {
+                            warn(
+                                events,
+                                "W_CACHE_MATERIALIZE_FAILED",
+                                format!(
+                                    "No se pudo materializar el menú cacheado; se usa el blob: {error}"
+                                ),
+                            )
+                            .await;
+                            base_mpeg = PathBuf::from(artifact.artifact_path);
+                        }
+                    }
+                    cache_hit = true;
+                }
+                CacheLookup::Stale(reason) => {
+                    warn(
+                        events,
+                        "W_CACHE_STALE",
+                        format!("La caché del menú quedó obsoleta: {reason}"),
+                    )
+                    .await;
+                }
+                CacheLookup::Error(error) => {
+                    warn(
+                        events,
+                        "W_CACHE_READ_FAILED",
+                        format!("No se pudo leer la caché del menú: {error}"),
+                    )
+                    .await;
+                }
+                CacheLookup::Hit(_) | CacheLookup::Miss => {}
+            }
+        }
+        if !cache_hit {
+            if animated {
+                let labels_overlay = labels_overlay.ok_or_else(|| {
+                    RenderError::Menu(
+                        "no se pudo generar la capa de etiquetas del menú animado".to_string(),
+                    )
+                })?;
+                let (motion_background, background_is_video) = match &menu.background {
+                    MenuBackground::VideoLoop { asset, .. } => {
+                        let background_asset = project.asset(*asset).ok_or_else(|| {
+                            RenderError::Menu("fondo de vídeo inexistente".to_string())
+                        })?;
+                        let path = asset_path(project_dir, background_asset).ok_or_else(|| {
+                            RenderError::Menu("ruta de fondo de vídeo inválida".to_string())
+                        })?;
+                        (path, true)
+                    }
+                    MenuBackground::Static { .. } => (background_source.clone(), false),
+                };
                 log(
                     events,
                     format!(
-                        "Menú «{}»: falta labels-<id>.png; se renderiza estático.",
-                        menu.name
+                        "Menú animado {}/{}: {} ({} botones de vídeo)",
+                        index + 1,
+                        total,
+                        menu.name,
+                        motion_buttons.len()
                     ),
                 )
                 .await;
+                encode_motion_menu_with_progress(
+                    encoder,
+                    &MotionMenuEncodeRequest {
+                        background: motion_background,
+                        background_is_video,
+                        labels_overlay,
+                        buttons: motion_buttons,
+                        audio_ac3: audio_ac3.clone(),
+                        output_mpg: base_mpeg.clone(),
+                        duration_ms: menu.timing.duration_ms.max(1),
+                        standard: project.disc.standard,
+                        aspect: project.disc.aspect,
+                        fps: project.disc.standard.frame_rate(),
+                        video_kbps: 6_000,
+                        maxrate_kbps: 8_000,
+                        dim_percent: if background_is_video {
+                            menu.dim_percent
+                        } else {
+                            0
+                        },
+                        blur_px: if background_is_video { menu.blur_px } else { 0 },
+                        scale_mode: if background_is_video {
+                            menu.scale_mode
+                        } else {
+                            MenuScaleMode::Stretch
+                        },
+                    },
+                    menu.timing.duration_ms.max(1),
+                    events,
+                    index,
+                    total,
+                )
+                .await?;
+            } else {
+                if menu.motion_config.is_some() && labels_overlay.is_none() {
+                    log(
+                        events,
+                        format!(
+                            "Menú «{}»: falta labels-<id>.png; se renderiza estático.",
+                            menu.name
+                        ),
+                    )
+                    .await;
+                }
+                encode_menu_with_progress(
+                    encoder,
+                    &MenuEncodeRequest {
+                        background_png: layers.background_png,
+                        audio_ac3,
+                        output_mpg: base_mpeg.clone(),
+                        duration_ms: menu.timing.duration_ms.max(1),
+                        standard: project.disc.standard,
+                        aspect: project.disc.aspect,
+                        video_kbps: 5_000,
+                        maxrate_kbps: 8_000,
+                        fps: project.disc.standard.frame_rate(),
+                    },
+                    menu.timing.duration_ms.max(1),
+                    events,
+                    index,
+                    total,
+                )
+                .await?;
             }
-            encode_menu_with_progress(
-                encoder,
-                &MenuEncodeRequest {
-                    background_png: layers.background_png,
-                    audio_ac3,
-                    output_mpg: base_mpeg.clone(),
-                    duration_ms: menu.timing.duration_ms.max(1),
-                    standard: project.disc.standard,
-                    aspect: project.disc.aspect,
-                    video_kbps: 5_000,
-                    maxrate_kbps: 8_000,
-                    fps: project.disc.standard.frame_rate(),
-                },
-                menu.timing.duration_ms.max(1),
-                events,
-                index,
-                total,
-            )
-            .await?;
+            if let (Some(store), Some(key)) = (&cache, &cache_key) {
+                match cached_artifact_path(
+                    store,
+                    key,
+                    "mpg",
+                    &base_mpeg,
+                    menu.timing.duration_ms.max(1),
+                )
+                .await
+                {
+                    Ok(path) => base_mpeg = path,
+                    Err(error) => {
+                        warn(
+                            events,
+                            "W_CACHE_WRITE_FAILED",
+                            format!("No se pudo publicar el menú en caché: {error}"),
+                        )
+                        .await;
+                    }
+                }
+            }
         }
 
         let sub_mpeg = menu_dir.join("menu_sub.mpg");
@@ -2307,7 +3082,7 @@ fn is_top_field_first(probe: &MediaProbe) -> bool {
 
 fn gop_for(standard: TvStandard) -> u16 {
     match standard {
-        TvStandard::Ntsc => 12,
+        TvStandard::Ntsc => 18,
         TvStandard::Pal => 15,
     }
 }
@@ -2640,6 +3415,39 @@ async fn attach_hdmv_menu(
     })
 }
 
+fn menu_video_clip_duration(in_ms: u64, out_ms: Option<u64>) -> Option<f64> {
+    out_ms
+        .filter(|out| *out > in_ms)
+        .map(|out| (out - in_ms) as f64 / 1000.0)
+}
+
+fn menu_overlay_filter(input: usize, overlay: &MenuClipOverlay, rate: &str) -> String {
+    let loop_duration = format!("{:.3}", overlay.loop_duration_ms.max(1) as f64 / 1000.0);
+    let loop_frames = ((overlay.loop_duration_ms.max(1) as f64
+        * rate
+            .split_once('/')
+            .and_then(|(num, den)| {
+                let num = num.parse::<f64>().ok()?;
+                let den = den.parse::<f64>().ok()?;
+                (den > 0.0).then_some(num / den)
+            })
+            .unwrap_or(25.0)
+        / 1000.0)
+        .ceil() as u64)
+        .max(1);
+    format!(
+        "[{input}:v]trim=duration={loop_duration},setpts=PTS-STARTPTS,fps={rate},\
+loop=loop=-1:size={loop_frames},setpts=N/FRAME_RATE/TB,\
+scale={}:{}:force_original_aspect_ratio=decrease,\
+pad={}:{}:(ow-iw)/2:(oh-ih)/2,setsar=1[ov{}]",
+        overlay.width,
+        overlay.height,
+        overlay.width,
+        overlay.height,
+        input - 1
+    )
+}
+
 async fn encode_menu_video(
     path: &Path,
     spec: &MenuClipSpec,
@@ -2675,12 +3483,14 @@ async fn encode_menu_video(
             in_ms,
             out_ms,
         } => {
-            let _ = out_ms;
             command.args(["-stream_loop", "-1"]);
             if *in_ms > 0 {
                 command.args(["-ss", &format!("{:.3}", *in_ms as f64 / 1000.0)]);
             }
             push_file_input(&mut command, source);
+            if let Some(duration) = menu_video_clip_duration(*in_ms, *out_ms) {
+                command.args(["-t", &format!("{duration:.3}")]);
+            }
         }
     }
     if spec.overlays.is_empty() {
@@ -2700,7 +3510,6 @@ async fn encode_menu_video(
         let mut current = "base".to_string();
         for (index, overlay) in spec.overlays.iter().enumerate() {
             let input = index + 1;
-            let _ = overlay.loop_duration_ms;
             command.args(["-stream_loop", "-1"]);
             if overlay.source_start_ms > 0 {
                 command.args([
@@ -2709,10 +3518,7 @@ async fn encode_menu_video(
                 ]);
             }
             push_file_input(&mut command, &overlay.path);
-            filter_graph.push(format!(
-                "[{input}:v]scale={}:{}:force_original_aspect_ratio=decrease,                 pad={}:{}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS[ov{index}]",
-                overlay.width, overlay.height, overlay.width, overlay.height
-            ));
+            filter_graph.push(menu_overlay_filter(input, overlay, &rate));
             filter_graph.push(format!(
                 "[{current}][ov{index}]overlay={}:{}:eof_action=repeat:shortest=0[v{index}]",
                 overlay.x, overlay.y
@@ -2898,6 +3704,15 @@ async fn log(events: &EventSink, message: String) {
         .await;
 }
 
+async fn warn(events: &EventSink, code: &str, message: String) {
+    let _ = events
+        .send(JobEventKind::Warning {
+            code: code.to_string(),
+            message,
+        })
+        .await;
+}
+
 async fn stage(events: &EventSink, stage: JobStage, label: &str) {
     let _ = events
         .send(JobEventKind::StageStarted {
@@ -2935,13 +3750,34 @@ mod tests {
         path
     }
 
+    #[test]
+    fn menu_clip_out_point_and_overlay_loop_are_applied_to_filters() {
+        assert_eq!(menu_video_clip_duration(1_000, Some(3_500)), Some(2.5));
+        assert_eq!(menu_video_clip_duration(1_000, Some(500)), None);
+        let overlay = MenuClipOverlay {
+            path: PathBuf::from("/tmp/overlay.mp4"),
+            source_start_ms: 2_000,
+            loop_duration_ms: 1_500,
+            x: 10,
+            y: 20,
+            width: 320,
+            height: 180,
+        };
+        let filter = menu_overlay_filter(2, &overlay, "30000/1001");
+        assert!(filter.contains("trim=duration=1.500"));
+        assert!(filter.contains("loop=loop=-1:size=45"));
+        assert!(filter.contains("scale=320:180"));
+        assert!(filter.contains("[ov1]"));
+    }
+
     #[tokio::test]
-    async fn source_fingerprint_tracks_content_and_mtime() {
+    async fn source_fingerprint_hashes_the_whole_file_and_ignores_mtime_only() {
         let root = test_directory("fingerprint");
         let source = root.join("source.bin");
-        std::fs::write(&source, vec![1u8; 4096]).expect("source");
+        let mut bytes = vec![1u8; 2 * 1024 * 1024 + 17];
+        std::fs::write(&source, &bytes).expect("source");
         let first = source_fingerprint(&source).await.expect("fingerprint");
-        assert!(first.starts_with("fp1:"));
+        assert!(first.starts_with("fp2:"));
         assert_eq!(
             first,
             source_fingerprint(&source)
@@ -2949,8 +3785,10 @@ mod tests {
                 .expect("stable fingerprint")
         );
 
-        let mut bytes = std::fs::read(&source).expect("read source");
-        bytes[0] = 2;
+        // A change in the middle must invalidate the cache even when the file
+        // size and mtime are unchanged.
+        let middle = bytes.len() / 2;
+        bytes[middle] ^= 0xff;
         std::fs::write(&source, &bytes).expect("changed source");
         let changed = source_fingerprint(&source)
             .await
@@ -2965,11 +3803,11 @@ mod tests {
             .set_modified(std::time::SystemTime::now() + Duration::from_secs(2))
             .expect("mtime");
         drop(handle);
-        assert_ne!(
+        assert_eq!(
             changed,
             source_fingerprint(&source)
                 .await
-                .expect("mtime fingerprint")
+                .expect("mtime-only fingerprint")
         );
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2981,12 +3819,14 @@ mod tests {
         let source = root.join("source.mpg");
         std::fs::write(&source, b"rendered artifact").expect("source");
         let key = ArtifactKey {
-            source_sha256: "fp1:test".to_string(),
-            trim_in_ms: 0,
-            trim_out_ms: 1000,
+            kind: CacheArtifactKind::Episode,
+            source_fingerprint: "fp2:test".to_string(),
+            inputs_hash: "inputs".to_string(),
             target_profile: "dvd:test:1".to_string(),
             target_bitrate: 4000,
             audio_params_hash: "audio".to_string(),
+            encoder_rev: ENCODER_REV,
+            toolchain_hash: "ffmpeg-test".to_string(),
         };
         let target = cached_artifact_path(&store, &key, "mpg", &source, 1234)
             .await
@@ -2995,10 +3835,10 @@ mod tests {
             std::fs::read(&target).expect("cached bytes"),
             b"rendered artifact"
         );
-        let cached = store
-            .lookup_artifact(&key)
-            .expect("lookup")
-            .expect("registered artifact");
+        let cached = match store.lookup_artifact(&key) {
+            CacheLookup::Hit(artifact) => artifact,
+            other => panic!("expected cache hit, got {other:?}"),
+        };
         assert_eq!(PathBuf::from(cached.artifact_path), target);
         assert_eq!(cached.duration_ms, 1234);
         let _ = std::fs::remove_dir_all(root);

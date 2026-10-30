@@ -27,10 +27,14 @@
   let refreshing = $state(false);
   let defaultsReady = $state(false);
   let cancelRequested = $state(false);
+  let hardwareEncoding = $state<"auto" | "cpuOnly">("auto");
 
   const project = $derived(projectStore.project);
   const devices = $derived(projectStore.devices);
   const isAvchd = $derived(project?.disc.mode === "avchd");
+  const hardwareEncoder = $derived(
+    isAvchd ? projectStore.toolsReport?.hardwareEncoders?.h264?.[0] ?? null : null,
+  );
   const isBluRay = $derived(
     project?.disc.capacity === "bd25" || project?.disc.capacity === "bd50",
   );
@@ -156,9 +160,10 @@
       const channel = new Channel<JobEvent_Deserialize>();
       channel.onmessage = (event) => projectStore.applyJobEvent(event);
       const outcome = await unwrap(
-        commands.renderStart(current, outputDir.trim(), channel),
+        commands.renderStart(current, outputDir.trim(), hardwareEncoding, channel),
       );
       projectStore.lastIso = outcome.isoPath;
+      projectStore.renderVerification = outcome.verification ?? null;
       projectStore.renderPercent = 100;
       if (!projectStore.renderSummary) {
         projectStore.renderSummary = t("ISO generado en {seconds} s", { seconds: (outcome.elapsedMs / 1000).toFixed(1) });
@@ -275,6 +280,15 @@
           {project?.episodes.length ?? 0}
           {t((project?.episodes.length ?? 0) === 1 ? "episodio" : "episodios")}
         </p>
+        {#if hardwareEncoder}
+          <p class="mt-1 text-[10px] text-emerald-300/80">
+            {t("Aceleración: {encoder} (fallback automático a CPU)", { encoder: hardwareEncoder })}
+          </p>
+        {:else if isAvchd && projectStore.toolsReport}
+          <p class="mt-1 text-[10px] text-slate-500">
+            {t("Codificación H.264 en CPU (libx264).")}
+          </p>
+        {/if}
       </div>
       <button
         type="button"
@@ -311,6 +325,20 @@
           </button>
         {/each}
       </div>
+
+      {#if isAvchd && mode !== "existing"}
+        <label class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2">
+          <span class="text-[10px] text-slate-400">{t("Codificación H.264")}</span>
+          <select
+            class="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+            bind:value={hardwareEncoding}
+            disabled={busy}
+          >
+            <option value="auto">{t("Hardware si está disponible")}</option>
+            <option value="cpuOnly">{t("Solo CPU (libx264)")}</option>
+          </select>
+        </label>
+      {/if}
 
       <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
         <div class="space-y-3">
@@ -400,6 +428,20 @@
                 {t("Grabación completada")} · {projectStore.burnReport.backend} · {(projectStore.burnReport.elapsedMs / 1000).toFixed(1)} s
                 {#if projectStore.burnReport.verified}· {t("verificada")}{/if}
               </p>
+            {/if}
+            {#if projectStore.renderVerification}
+              <details class="mt-2 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
+                <summary class="cursor-pointer select-none text-[10px] text-slate-400">
+                  {t("Verificación estructural")} · {projectStore.renderVerification.verdict}
+                </summary>
+                <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[9px]">
+                  {#each projectStore.renderVerification.checks as check}
+                    <li class:text-rose-300={check.status === "fail"} class:text-amber-300={check.status === "warn"} class:text-emerald-300={check.status === "pass"} class:text-slate-500={check.status === "skipped"}>
+                      [{check.status}] {check.id}: {check.message}
+                    </li>
+                  {/each}
+                </ul>
+              </details>
             {/if}
             {#if projectStore.lastIso}
               <div class="mt-2 flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">

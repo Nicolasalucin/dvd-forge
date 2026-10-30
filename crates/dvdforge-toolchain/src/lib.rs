@@ -88,6 +88,65 @@ pub struct ToolStatus {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum HardwareEncoder {
+    NvencH264,
+    QsvH264,
+    VaapiH264,
+    AmfH264,
+    VideoToolboxH264,
+}
+
+impl HardwareEncoder {
+    pub const fn ffmpeg_name(self) -> &'static str {
+        match self {
+            Self::NvencH264 => "h264_nvenc",
+            Self::QsvH264 => "h264_qsv",
+            Self::VaapiH264 => "h264_vaapi",
+            Self::AmfH264 => "h264_amf",
+            Self::VideoToolboxH264 => "h264_videotoolbox",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::NvencH264 => "NVIDIA NVENC",
+            Self::QsvH264 => "Intel Quick Sync",
+            Self::VaapiH264 => "VA-API",
+            Self::AmfH264 => "AMD AMF",
+            Self::VideoToolboxH264 => "Apple VideoToolbox",
+        }
+    }
+
+    pub fn supported_on(self, platform: &str) -> bool {
+        match self {
+            Self::NvencH264 => matches!(platform, "linux" | "windows"),
+            Self::QsvH264 => matches!(platform, "linux" | "windows"),
+            Self::VaapiH264 => platform == "linux",
+            Self::AmfH264 => platform == "windows",
+            Self::VideoToolboxH264 => platform == "macos",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EncoderCapabilities {
+    pub h264: Vec<HardwareEncoder>,
+    pub hevc: Vec<HardwareEncoder>,
+    pub probed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum EncoderPreference {
+    #[default]
+    Auto,
+    CpuOnly,
+    Prefer(HardwareEncoder),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolchainReport {
@@ -96,6 +155,8 @@ pub struct ToolchainReport {
     pub tools: Vec<ToolStatus>,
     pub missing_required: Vec<ToolId>,
     pub warnings: Vec<String>,
+    #[serde(default)]
+    pub hardware_encoders: EncoderCapabilities,
 }
 
 impl ToolchainReport {
@@ -125,6 +186,7 @@ impl ToolchainReport {
             tools,
             missing_required,
             warnings,
+            hardware_encoders: EncoderCapabilities::default(),
         }
     }
 
@@ -443,7 +505,98 @@ pub fn detect_toolchain() -> ToolchainReport {
             })
             .collect()
     });
-    ToolchainReport::from_statuses(statuses)
+    let mut report = ToolchainReport::from_statuses(statuses);
+    if let Some(ffmpeg) = report
+        .tool(ToolId::Ffmpeg)
+        .and_then(|tool| tool.path.as_deref())
+    {
+        report.hardware_encoders = detect_hardware_encoders(Path::new(ffmpeg));
+    }
+    report
+}
+
+/// Probes the FFmpeg hardware encoders available on this machine.
+///
+/// Presence in `ffmpeg -encoders` is not enough: the driver may be missing or
+/// the GPU may be busy. Each encoder is confirmed with a one-frame lavfi smoke
+/// test before it is reported as available. Results are cached per process.
+pub fn detect_hardware_encoders(ffmpeg: &Path) -> EncoderCapabilities {
+    static CACHE: std::sync::OnceLock<EncoderCapabilities> = std::sync::OnceLock::new();
+    CACHE
+        .get_or_init(|| probe_hardware_encoders(ffmpeg))
+        .clone()
+}
+
+fn probe_hardware_encoders(ffmpeg: &Path) -> EncoderCapabilities {
+    let platform = env::consts::OS;
+    let mut command = background_command(ffmpeg);
+    command.args(["-hide_banner", "-encoders"]);
+    let list = output_with_timeout(&mut command, Duration::from_secs(10))
+        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+        .unwrap_or_default();
+    let mut h264 = Vec::new();
+    for encoder in [
+        HardwareEncoder::NvencH264,
+        HardwareEncoder::QsvH264,
+        HardwareEncoder::VaapiH264,
+        HardwareEncoder::AmfH264,
+        HardwareEncoder::VideoToolboxH264,
+    ] {
+        if !encoder.supported_on(platform)
+            || !list.contains(encoder.ffmpeg_name())
+            || !hardware_smoke_test(ffmpeg, encoder)
+        {
+            continue;
+        }
+        h264.push(encoder);
+    }
+    EncoderCapabilities {
+        h264,
+        hevc: Vec::new(),
+        probed_at: Some(format!(
+            "{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs())
+                .unwrap_or(0)
+        )),
+    }
+}
+
+fn hardware_smoke_test(ffmpeg: &Path, encoder: HardwareEncoder) -> bool {
+    let mut command = background_command(ffmpeg);
+    command.args(["-hide_banner", "-loglevel", "error"]);
+    if encoder == HardwareEncoder::VaapiH264 {
+        command.args(["-vaapi_device", "/dev/dri/renderD128"]);
+    }
+    command.args([
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=black:s=256x256:r=24",
+        "-frames:v",
+        "1",
+    ]);
+    if encoder == HardwareEncoder::VaapiH264 {
+        command.args(["-vf", "format=nv12,hwupload"]);
+    }
+    command.args(["-c:v", encoder.ffmpeg_name(), "-f", "null"]);
+    command.arg(if cfg!(windows) { "NUL" } else { "/dev/null" });
+    output_with_timeout(&mut command, Duration::from_secs(5))
+        .is_ok_and(|output| output.status.success())
+}
+
+pub fn resolve_hardware_encoder(
+    preference: EncoderPreference,
+    capabilities: &EncoderCapabilities,
+) -> Option<HardwareEncoder> {
+    match preference {
+        EncoderPreference::CpuOnly => None,
+        EncoderPreference::Auto => capabilities.h264.first().copied(),
+        EncoderPreference::Prefer(encoder) => {
+            capabilities.h264.contains(&encoder).then_some(encoder)
+        }
+    }
 }
 
 fn detect_tool(spec: &ToolSpec, platform: &str, directories: &[PathBuf]) -> ToolStatus {
@@ -754,6 +907,26 @@ mod tests {
         }]);
         assert!(!report.ok);
         assert_eq!(report.missing_required, vec![ToolId::Ffmpeg]);
+    }
+
+    #[test]
+    fn hardware_preference_never_selects_a_gpu_in_cpu_only_mode() {
+        let capabilities = EncoderCapabilities {
+            h264: vec![HardwareEncoder::NvencH264],
+            hevc: Vec::new(),
+            probed_at: None,
+        };
+        assert_eq!(
+            resolve_hardware_encoder(EncoderPreference::CpuOnly, &capabilities),
+            None
+        );
+        assert_eq!(
+            resolve_hardware_encoder(EncoderPreference::Auto, &capabilities),
+            Some(HardwareEncoder::NvencH264)
+        );
+        assert!(HardwareEncoder::VaapiH264.supported_on("linux"));
+        assert!(!HardwareEncoder::VaapiH264.supported_on("windows"));
+        assert!(HardwareEncoder::VideoToolboxH264.supported_on("macos"));
     }
 
     #[test]

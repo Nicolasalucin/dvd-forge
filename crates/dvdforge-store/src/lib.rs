@@ -3,7 +3,7 @@
 //! `~/.local/share/org.dvdforge.desktop/dvdforge.db`.
 
 use chrono::Utc;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -43,26 +43,51 @@ pub struct RecentProjectInput {
     pub thumbnail_path: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ArtifactKind {
+    #[default]
+    Episode,
+    MenuVideo,
+    MenuOverlay,
+    Intro,
+}
+
+impl ArtifactKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Episode => "episode",
+            Self::MenuVideo => "menuVideo",
+            Self::MenuOverlay => "menuOverlay",
+            Self::Intro => "intro",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactKey {
-    pub source_sha256: String,
-    pub trim_in_ms: u64,
-    pub trim_out_ms: u64,
+    pub kind: ArtifactKind,
+    pub source_fingerprint: String,
+    pub inputs_hash: String,
     pub target_profile: String,
     pub target_bitrate: u32,
     pub audio_params_hash: String,
+    pub encoder_rev: u32,
+    pub toolchain_hash: String,
 }
 
 impl ArtifactKey {
     pub fn cache_id(&self) -> String {
         let mut hasher = Sha256::new();
-        hasher.update(self.source_sha256.as_bytes());
-        hasher.update(self.trim_in_ms.to_be_bytes());
-        hasher.update(self.trim_out_ms.to_be_bytes());
+        hasher.update(self.kind.as_str().as_bytes());
+        hasher.update(self.source_fingerprint.as_bytes());
+        hasher.update(self.inputs_hash.as_bytes());
         hasher.update(self.target_profile.as_bytes());
         hasher.update(self.target_bitrate.to_be_bytes());
         hasher.update(self.audio_params_hash.as_bytes());
+        hasher.update(self.encoder_rev.to_be_bytes());
+        hasher.update(self.toolchain_hash.as_bytes());
         hex::encode(hasher.finalize())
     }
 }
@@ -72,7 +97,34 @@ impl ArtifactKey {
 pub struct CachedArtifact {
     pub artifact_path: String,
     pub duration_ms: u64,
+    pub size_bytes: u64,
     pub created_at: String,
+    pub last_used_at: String,
+}
+
+#[derive(Debug)]
+pub enum CacheLookup {
+    Hit(CachedArtifact),
+    Miss,
+    Stale(String),
+    Error(StoreError),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheStats {
+    pub entries: u64,
+    pub bytes: u64,
+    pub oldest: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PruneReport {
+    pub removed_entries: u64,
+    pub removed_bytes: u64,
+    pub kept_entries: u64,
+    pub kept_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -152,6 +204,7 @@ impl Store {
         connection.execute_batch(
             "
             PRAGMA journal_mode = WAL;
+            PRAGMA user_version = 2;
             CREATE TABLE IF NOT EXISTS recent_projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_path TEXT NOT NULL UNIQUE,
@@ -160,21 +213,24 @@ impl Store {
                 updated_at TEXT NOT NULL,
                 thumbnail_path TEXT
             );
-            CREATE TABLE IF NOT EXISTS artifact_cache (
-                source_sha256 TEXT NOT NULL,
-                trim_in_ms INTEGER NOT NULL,
-                trim_out_ms INTEGER NOT NULL,
+            CREATE TABLE IF NOT EXISTS artifact_cache_v2 (
+                cache_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                source_fingerprint TEXT NOT NULL,
+                inputs_hash TEXT NOT NULL,
                 target_profile TEXT NOT NULL,
                 target_bitrate INTEGER NOT NULL,
                 audio_params_hash TEXT NOT NULL,
+                encoder_rev INTEGER NOT NULL,
+                toolchain_hash TEXT NOT NULL,
                 artifact_path TEXT NOT NULL,
                 duration_ms INTEGER NOT NULL,
+                size_bytes INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
-                PRIMARY KEY (
-                    source_sha256, trim_in_ms, trim_out_ms,
-                    target_profile, target_bitrate, audio_params_hash
-                )
+                last_used_at TEXT NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS artifact_cache_v2_used
+                ON artifact_cache_v2(last_used_at);
             CREATE TABLE IF NOT EXISTS job_history (
                 id TEXT PRIMARY KEY,
                 project_name TEXT NOT NULL,
@@ -188,6 +244,81 @@ impl Store {
             );
             ",
         )?;
+        // Preserve old v1 rows for visibility. They intentionally will not be
+        // hit by v2 keys because v1 did not record the canonical input hash.
+        let has_v1: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='artifact_cache')",
+            [],
+            |row| row.get(0),
+        )?;
+        if has_v1 {
+            let mut statement = connection.prepare(
+                "SELECT source_sha256, trim_in_ms, trim_out_ms, target_profile,
+                        target_bitrate, audio_params_hash, artifact_path, duration_ms, created_at
+                 FROM artifact_cache",
+            )?;
+            let rows = statement.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, i64>(7)?,
+                    row.get::<_, String>(8)?,
+                ))
+            })?;
+            for row in rows {
+                let (
+                    source,
+                    trim_in,
+                    trim_out,
+                    profile,
+                    bitrate,
+                    audio,
+                    artifact_path,
+                    duration,
+                    created_at,
+                ) = row?;
+                let key = ArtifactKey {
+                    kind: ArtifactKind::Episode,
+                    source_fingerprint: source,
+                    inputs_hash: format!("legacy-v1:{}:{}", trim_in, trim_out),
+                    target_profile: profile,
+                    target_bitrate: bitrate.max(0) as u32,
+                    audio_params_hash: audio,
+                    encoder_rev: 0,
+                    toolchain_hash: "legacy-v1".to_string(),
+                };
+                let _ = connection.execute(
+                    "INSERT OR IGNORE INTO artifact_cache_v2 (
+                        cache_id, kind, source_fingerprint, inputs_hash, target_profile,
+                        target_bitrate, audio_params_hash, encoder_rev, toolchain_hash,
+                        artifact_path, duration_ms, size_bytes, created_at, last_used_at
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                    params![
+                        key.cache_id(),
+                        key.kind.as_str(),
+                        key.source_fingerprint,
+                        key.inputs_hash,
+                        key.target_profile,
+                        key.target_bitrate as i64,
+                        key.audio_params_hash,
+                        key.encoder_rev as i64,
+                        key.toolchain_hash,
+                        artifact_path,
+                        duration,
+                        std::fs::metadata(&artifact_path)
+                            .map(|metadata| metadata.len() as i64)
+                            .unwrap_or(0),
+                        created_at,
+                        created_at,
+                    ],
+                );
+            }
+        }
         Ok(())
     }
 
@@ -253,37 +384,44 @@ impl Store {
         Ok(())
     }
 
-    pub fn lookup_artifact(&self, key: &ArtifactKey) -> Result<Option<CachedArtifact>, StoreError> {
-        let connection = self.connection()?;
-        let row = connection
-            .query_row(
-                "SELECT artifact_path, duration_ms, created_at FROM artifact_cache
-                 WHERE source_sha256 = ?1 AND trim_in_ms = ?2 AND trim_out_ms = ?3
-                   AND target_profile = ?4 AND target_bitrate = ?5 AND audio_params_hash = ?6",
-                params![
-                    key.source_sha256,
-                    key.trim_in_ms as i64,
-                    key.trim_out_ms as i64,
-                    key.target_profile,
-                    key.target_bitrate as i64,
-                    key.audio_params_hash
-                ],
-                |row| {
-                    Ok(CachedArtifact {
-                        artifact_path: row.get(0)?,
-                        duration_ms: row.get::<_, i64>(1)?.max(0) as u64,
-                        created_at: row.get(2)?,
-                    })
-                },
-            )
-            .optional()?;
-        if let Some(artifact) = &row {
-            if !Path::new(&artifact.artifact_path).is_file() {
-                self.remove_artifact(key)?;
-                return Ok(None);
+    pub fn lookup_artifact(&self, key: &ArtifactKey) -> CacheLookup {
+        let connection = match self.connection() {
+            Ok(connection) => connection,
+            Err(error) => return CacheLookup::Error(error),
+        };
+        let row = connection.query_row(
+            "SELECT artifact_path, duration_ms, size_bytes, created_at, last_used_at
+             FROM artifact_cache_v2 WHERE cache_id = ?1",
+            params![key.cache_id()],
+            |row| {
+                Ok(CachedArtifact {
+                    artifact_path: row.get(0)?,
+                    duration_ms: row.get::<_, i64>(1)?.max(0) as u64,
+                    size_bytes: row.get::<_, i64>(2)?.max(0) as u64,
+                    created_at: row.get(3)?,
+                    last_used_at: row.get(4)?,
+                })
+            },
+        );
+        match row {
+            Ok(artifact) => {
+                if !Path::new(&artifact.artifact_path).is_file() {
+                    let _ = self.remove_artifact(key);
+                    return CacheLookup::Stale(format!(
+                        "el blob {} ya no existe",
+                        artifact.artifact_path
+                    ));
+                }
+                let now = Utc::now().to_rfc3339();
+                let _ = connection.execute(
+                    "UPDATE artifact_cache_v2 SET last_used_at = ?1 WHERE cache_id = ?2",
+                    params![now, key.cache_id()],
+                );
+                CacheLookup::Hit(artifact)
             }
+            Err(rusqlite::Error::QueryReturnedNoRows) => CacheLookup::Miss,
+            Err(error) => CacheLookup::Error(error.into()),
         }
-        Ok(row)
     }
 
     pub fn put_artifact(
@@ -295,51 +433,114 @@ impl Store {
         let connection = self.connection()?;
         let now = Utc::now().to_rfc3339();
         let path = artifact_path.display().to_string();
+        let size_bytes = std::fs::metadata(artifact_path)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
         connection.execute(
-            "INSERT INTO artifact_cache (
-                source_sha256, trim_in_ms, trim_out_ms, target_profile,
-                target_bitrate, audio_params_hash, artifact_path, duration_ms, created_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-             ON CONFLICT(source_sha256, trim_in_ms, trim_out_ms, target_profile,
-                         target_bitrate, audio_params_hash)
-             DO UPDATE SET artifact_path = excluded.artifact_path,
-                           duration_ms = excluded.duration_ms,
-                           created_at = excluded.created_at",
+            "INSERT INTO artifact_cache_v2 (
+                cache_id, kind, source_fingerprint, inputs_hash, target_profile,
+                target_bitrate, audio_params_hash, encoder_rev, toolchain_hash,
+                artifact_path, duration_ms, size_bytes, created_at, last_used_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+             ON CONFLICT(cache_id) DO UPDATE SET
+                artifact_path = excluded.artifact_path,
+                duration_ms = excluded.duration_ms,
+                size_bytes = excluded.size_bytes,
+                last_used_at = excluded.last_used_at",
             params![
-                key.source_sha256,
-                key.trim_in_ms as i64,
-                key.trim_out_ms as i64,
+                key.cache_id(),
+                key.kind.as_str(),
+                key.source_fingerprint,
+                key.inputs_hash,
                 key.target_profile,
                 key.target_bitrate as i64,
                 key.audio_params_hash,
+                key.encoder_rev as i64,
+                key.toolchain_hash,
                 path,
                 duration_ms as i64,
-                now
+                size_bytes as i64,
+                now,
+                now,
             ],
         )?;
         Ok(CachedArtifact {
             artifact_path: path,
             duration_ms,
-            created_at: now,
+            size_bytes,
+            created_at: now.clone(),
+            last_used_at: now,
         })
     }
 
     pub fn remove_artifact(&self, key: &ArtifactKey) -> Result<(), StoreError> {
         let connection = self.connection()?;
         connection.execute(
-            "DELETE FROM artifact_cache
-             WHERE source_sha256 = ?1 AND trim_in_ms = ?2 AND trim_out_ms = ?3
-               AND target_profile = ?4 AND target_bitrate = ?5 AND audio_params_hash = ?6",
-            params![
-                key.source_sha256,
-                key.trim_in_ms as i64,
-                key.trim_out_ms as i64,
-                key.target_profile,
-                key.target_bitrate as i64,
-                key.audio_params_hash
-            ],
+            "DELETE FROM artifact_cache_v2 WHERE cache_id = ?1",
+            params![key.cache_id()],
         )?;
         Ok(())
+    }
+
+    pub fn cache_stats(&self) -> Result<CacheStats, StoreError> {
+        let connection = self.connection()?;
+        let (entries, bytes, oldest): (i64, i64, Option<String>) = connection.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(size_bytes), 0), MIN(last_used_at)
+             FROM artifact_cache_v2",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        Ok(CacheStats {
+            entries: entries.max(0) as u64,
+            bytes: bytes.max(0) as u64,
+            oldest,
+        })
+    }
+
+    pub fn prune_artifacts(&self, max_bytes: u64) -> Result<PruneReport, StoreError> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT cache_id, artifact_path, size_bytes FROM artifact_cache_v2
+             ORDER BY last_used_at ASC",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?.max(0) as u64,
+            ))
+        })?;
+        let mut current = 0u64;
+        let mut pending = Vec::new();
+        for row in rows {
+            let (cache_id, path, size) = row?;
+            current = current.saturating_add(size);
+            pending.push((cache_id, path, size));
+        }
+        let mut removed_entries = 0u64;
+        let mut removed_bytes = 0u64;
+        let mut kept_entries = 0u64;
+        let mut kept_bytes = 0u64;
+        for (cache_id, path, size) in pending {
+            if current.saturating_sub(removed_bytes) > max_bytes {
+                let _ = std::fs::remove_file(&path);
+                connection.execute(
+                    "DELETE FROM artifact_cache_v2 WHERE cache_id = ?1",
+                    params![cache_id],
+                )?;
+                removed_entries += 1;
+                removed_bytes = removed_bytes.saturating_add(size);
+            } else {
+                kept_entries += 1;
+                kept_bytes = kept_bytes.saturating_add(size);
+            }
+        }
+        Ok(PruneReport {
+            removed_entries,
+            removed_bytes,
+            kept_entries,
+            kept_bytes,
+        })
     }
 
     pub fn record_job(&self, job: &NewJobHistory) -> Result<JobHistoryEntry, StoreError> {
@@ -439,12 +640,14 @@ mod tests {
 
     fn key() -> ArtifactKey {
         ArtifactKey {
-            source_sha256: "a".repeat(64),
-            trim_in_ms: 1_000,
-            trim_out_ms: 9_000,
+            kind: ArtifactKind::Episode,
+            source_fingerprint: "fp2:test".to_string(),
+            inputs_hash: "inputs".to_string(),
             target_profile: "avchd:1080p".to_string(),
             target_bitrate: 12_000,
             audio_params_hash: "b".repeat(64),
+            encoder_rev: 2,
+            toolchain_hash: "ffmpeg-test".to_string(),
         }
     }
 
@@ -458,12 +661,18 @@ mod tests {
         store
             .put_artifact(&key(), &artifact_path, 8_000)
             .expect("insert");
-        let cached = store.lookup_artifact(&key()).expect("lookup").expect("hit");
+        let cached = match store.lookup_artifact(&key()) {
+            CacheLookup::Hit(artifact) => artifact,
+            other => panic!("expected cache hit, got {other:?}"),
+        };
         assert_eq!(cached.duration_ms, 8_000);
         assert_eq!(cached.artifact_path, artifact_path.display().to_string());
 
         std::fs::remove_file(&artifact_path).expect("remove");
-        assert!(store.lookup_artifact(&key()).expect("lookup").is_none());
+        assert!(matches!(
+            store.lookup_artifact(&key()),
+            CacheLookup::Stale(_)
+        ));
     }
 
     #[test]
@@ -492,6 +701,70 @@ mod tests {
         assert_eq!(recent[0].disc_kind, "BD-25");
     }
 
+    #[test]
+    fn artifact_cache_key_changes_for_every_input_field() {
+        let base = key();
+        let variants = [
+            ArtifactKey {
+                kind: ArtifactKind::MenuVideo,
+                ..base.clone()
+            },
+            ArtifactKey {
+                source_fingerprint: "fp2:other".into(),
+                ..base.clone()
+            },
+            ArtifactKey {
+                inputs_hash: "other".into(),
+                ..base.clone()
+            },
+            ArtifactKey {
+                target_profile: "dvd:other".into(),
+                ..base.clone()
+            },
+            ArtifactKey {
+                target_bitrate: 4_000,
+                ..base.clone()
+            },
+            ArtifactKey {
+                audio_params_hash: "other".into(),
+                ..base.clone()
+            },
+            ArtifactKey {
+                encoder_rev: 3,
+                ..base.clone()
+            },
+            ArtifactKey {
+                toolchain_hash: "other".into(),
+                ..base.clone()
+            },
+        ];
+        for (index, variant) in variants.iter().enumerate() {
+            assert_ne!(base.cache_id(), variant.cache_id(), "variant {index}");
+        }
+    }
+
+    #[test]
+    fn prune_artifacts_removes_oldest_blobs_until_under_budget() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = Store::open(temp.path().join("dvdforge.db")).expect("store");
+        for index in 0..3 {
+            let key = ArtifactKey {
+                kind: ArtifactKind::Episode,
+                source_fingerprint: format!("fp2:{index}"),
+                inputs_hash: format!("inputs-{index}"),
+                ..key()
+            };
+            let path = store.artifact_blob_path(&key, "mpg");
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, vec![0u8; 1024]).unwrap();
+            store.put_artifact(&key, &path, 1000).unwrap();
+        }
+        let report = store.prune_artifacts(1024).expect("prune");
+        assert_eq!(report.removed_entries, 2);
+        assert_eq!(report.kept_entries, 1);
+        assert_eq!(report.kept_bytes, 1024);
+        assert_eq!(store.cache_stats().unwrap().entries, 1);
+    }
     #[test]
     fn job_history_records_status_and_summary() {
         let temp = tempfile::tempdir().expect("tempdir");

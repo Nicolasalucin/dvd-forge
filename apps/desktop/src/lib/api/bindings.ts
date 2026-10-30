@@ -45,7 +45,7 @@ export const commands = {
 	menuNavigation: (menu: Menu_Deserialize, focus: string | null) => __TAURI_INVOKE<NavigationGraph_Serialize>("menu_navigation", { menu, focus }),
 	planCalculate: (project: Project_Deserialize) => typedError<BitratePlan_Serialize, string>(__TAURI_INVOKE("plan_calculate", { project })),
 	burnListDevices: () => typedError<OpticalDevice[], string>(__TAURI_INVOKE("burn_list_devices")),
-	renderStart: (project: Project_Deserialize, outputDir: string, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, channel })),
+	renderStart: (project: Project_Deserialize, outputDir: string, hardwareEncoding: EncoderPreference, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, hardwareEncoding, channel })),
 	/**
 	 *  Cancela la generación activa. Los procesos FFmpeg/herramientas se crean con
 	 *  `kill_on_drop` y la bandera compartida detiene la escritura UDF, por lo que
@@ -65,6 +65,8 @@ export const commands = {
 	recentProjectForget: (filePath: string) => typedError<null, string>(__TAURI_INVOKE("recent_project_forget", { filePath })),
 	jobHistoryList: (limit: number | null) => typedError<JobHistoryEntry_Serialize[], string>(__TAURI_INVOKE("job_history_list", { limit })),
 	toolsDoctor: () => __TAURI_INVOKE<ToolchainReport_Serialize>("tools_doctor"),
+	/**  Verifies a generated ISO before it is presented to the user or burned. */
+	verifyIso: (path: string, deep: boolean) => typedError<VerifyReport_Serialize, string>(__TAURI_INVOKE("verify_iso", { path, deep })),
 };
 
 /* Types */
@@ -94,6 +96,9 @@ export type AudioStreamInfo_Deserialize = {
 	sampleRate: number,
 	bitrateBps?: number | null,
 	language?: string | null,
+	title?: string | null,
+	default?: boolean,
+	commentary?: boolean,
 };
 
 export type AudioStreamInfo_Serialize = {
@@ -103,6 +108,9 @@ export type AudioStreamInfo_Serialize = {
 	sampleRate: number,
 	bitrateBps: number | null,
 	language: string | null,
+	title: string | null,
+	default: boolean,
+	commentary: boolean,
 };
 
 export type AuthoringMode = "dvdVideo" | "avchd";
@@ -302,6 +310,8 @@ export type Chapter_Serialize = {
 	thumbnail: AssetId | null,
 };
 
+export type CheckStatus = "pass" | "warn" | "fail" | "skipped";
+
 export type DeviceId = string;
 
 /**
@@ -404,6 +414,22 @@ export type EncodeOverride_Serialize = {
 	maxrateKbps: number | null,
 };
 
+export type EncoderCapabilities = EncoderCapabilities_Serialize | EncoderCapabilities_Deserialize;
+
+export type EncoderCapabilities_Deserialize = {
+	h264: HardwareEncoder[],
+	hevc: HardwareEncoder[],
+	probedAt?: string | null,
+};
+
+export type EncoderCapabilities_Serialize = {
+	h264: HardwareEncoder[],
+	hevc: HardwareEncoder[],
+	probedAt: string | null,
+};
+
+export type EncoderPreference = "auto" | "cpuOnly" | { prefer: HardwareEncoder };
+
 export type EncodingPriority = "low" | "medium" | "high";
 
 export type Episode = Episode_Serialize | Episode_Deserialize;
@@ -421,6 +447,7 @@ export type EpisodeAudio_Deserialize = {
 	delayMs?: number,
 	format?: AudioFormat,
 	default?: boolean,
+	commentary?: boolean,
 };
 
 export type EpisodeAudio_Serialize = {
@@ -434,6 +461,7 @@ export type EpisodeAudio_Serialize = {
 	delayMs: number,
 	format: AudioFormat,
 	default: boolean,
+	commentary: boolean,
 };
 
 export type EpisodeBitrate = {
@@ -518,6 +546,8 @@ export type FrameRate = {
 };
 
 export type H264Level = "level41" | "level42";
+
+export type HardwareEncoder = "nvencH264" | "qsvH264" | "vaapiH264" | "amfH264" | "videoToolboxH264";
 
 export type ImageItem = ImageItem_Serialize | ImageItem_Deserialize;
 
@@ -630,6 +660,22 @@ export type MediaAsset_Serialize = {
 	importedAt: string,
 };
 
+export type MediaChapter = MediaChapter_Serialize | MediaChapter_Deserialize;
+
+export type MediaChapter_Deserialize = {
+	startMs: number,
+	endMs?: number | null,
+	title: string,
+	language?: string | null,
+};
+
+export type MediaChapter_Serialize = {
+	startMs: number,
+	endMs: number | null,
+	title: string,
+	language: string | null,
+};
+
 export type MediaKind = "video" | "audio" | "image" | "subtitle";
 
 export type MediaProbe = MediaProbe_Serialize | MediaProbe_Deserialize;
@@ -642,6 +688,8 @@ export type MediaProbe_Deserialize = {
 	video?: VideoStreamInfo_Deserialize | null,
 	audio?: AudioStreamInfo_Deserialize[],
 	subtitleStreams?: number,
+	subtitleTracks?: SubtitleStreamInfo_Deserialize[],
+	chapters?: MediaChapter_Deserialize[],
 };
 
 export type MediaProbe_Serialize = {
@@ -652,6 +700,8 @@ export type MediaProbe_Serialize = {
 	video: VideoStreamInfo_Serialize | null,
 	audio: AudioStreamInfo_Serialize[],
 	subtitleStreams: number,
+	subtitleTracks: SubtitleStreamInfo_Serialize[],
+	chapters: MediaChapter_Serialize[],
 };
 
 /**
@@ -1027,6 +1077,7 @@ export type RenderOutcome_Deserialize = {
 	isoPath: string,
 	elapsedMs: number,
 	warnings: Diagnostic_Deserialize[],
+	verification?: VerifyReport_Deserialize | null,
 };
 
 export type RenderOutcome_Serialize = {
@@ -1034,6 +1085,7 @@ export type RenderOutcome_Serialize = {
 	isoPath: string,
 	elapsedMs: number,
 	warnings: Diagnostic_Serialize[],
+	verification: VerifyReport_Serialize | null,
 };
 
 /**  Severity of a validation or planning diagnostic. */
@@ -1084,6 +1136,28 @@ export type SubpictureSpec_Serialize = {
 	selectOpacity: number,
 };
 
+export type SubtitleStreamInfo = SubtitleStreamInfo_Serialize | SubtitleStreamInfo_Deserialize;
+
+export type SubtitleStreamInfo_Deserialize = {
+	index: number,
+	codec: string,
+	language?: string | null,
+	title?: string | null,
+	default?: boolean,
+	forced?: boolean,
+	bitmap?: boolean,
+};
+
+export type SubtitleStreamInfo_Serialize = {
+	index: number,
+	codec: string,
+	language: string | null,
+	title: string | null,
+	default: boolean,
+	forced: boolean,
+	bitmap: boolean,
+};
+
 export type SubtitleTrack = SubtitleTrack_Serialize | SubtitleTrack_Deserialize;
 
 export type SubtitleTrack_Deserialize = {
@@ -1095,6 +1169,8 @@ export type SubtitleTrack_Deserialize = {
 	delayMs?: number,
 	isForced?: boolean,
 	isDefault?: boolean,
+	/**  PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR. */
+	bitmap?: boolean,
 };
 
 export type SubtitleTrack_Serialize = {
@@ -1106,6 +1182,8 @@ export type SubtitleTrack_Serialize = {
 	delayMs: number,
 	isForced: boolean,
 	isDefault: boolean,
+	/**  PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR. */
+	bitmap: boolean,
 };
 
 export type TextAlign = "left" | "center" | "right";
@@ -1184,6 +1262,7 @@ export type ToolchainReport_Deserialize = {
 	tools: ToolStatus_Deserialize[],
 	missingRequired: ToolId[],
 	warnings: string[],
+	hardwareEncoders?: EncoderCapabilities_Deserialize,
 };
 
 export type ToolchainReport_Serialize = {
@@ -1192,10 +1271,69 @@ export type ToolchainReport_Serialize = {
 	tools: ToolStatus_Serialize[],
 	missingRequired: ToolId[],
 	warnings: string[],
+	hardwareEncoders: EncoderCapabilities_Serialize,
 };
 
 /**  Broadcast standard of the disc. */
 export type TvStandard = "ntsc" | "pal";
+
+export type VerifyCheck = VerifyCheck_Serialize | VerifyCheck_Deserialize;
+
+export type VerifyCheck_Deserialize = {
+	id: string,
+	severity: Severity,
+	status: CheckStatus,
+	message: string,
+	location?: VerifyLocation_Deserialize | null,
+};
+
+export type VerifyCheck_Serialize = {
+	id: string,
+	severity: Severity,
+	status: CheckStatus,
+	message: string,
+	location: VerifyLocation_Serialize | null,
+};
+
+export type VerifyLocation = VerifyLocation_Serialize | VerifyLocation_Deserialize;
+
+export type VerifyLocation_Deserialize = {
+	file: string,
+	offset?: number | null,
+	sector?: number | null,
+};
+
+export type VerifyLocation_Serialize = {
+	file: string,
+	offset: number | null,
+	sector: number | null,
+};
+
+export type VerifyProfile = "auto" | "dvdVideo" | "bdmv";
+
+export type VerifyReport = VerifyReport_Serialize | VerifyReport_Deserialize;
+
+export type VerifyReport_Deserialize = {
+	isoPath: string,
+	sizeBytes: number,
+	profile: VerifyProfile,
+	verdict: VerifyVerdict,
+	checks: VerifyCheck_Deserialize[],
+	diagnostics: Diagnostic_Deserialize[],
+	elapsedMs: number,
+};
+
+export type VerifyReport_Serialize = {
+	isoPath: string,
+	sizeBytes: number,
+	profile: VerifyProfile,
+	verdict: VerifyVerdict,
+	checks: VerifyCheck_Serialize[],
+	diagnostics: Diagnostic_Serialize[],
+	elapsedMs: number,
+};
+
+export type VerifyVerdict = "pass" | "warn" | "fail";
 
 export type VideoConfig = VideoConfig_Serialize | VideoConfig_Deserialize;
 

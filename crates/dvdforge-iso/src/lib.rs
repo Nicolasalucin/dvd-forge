@@ -277,10 +277,6 @@ impl Xorriso {
     }
 }
 
-pub fn sectors_for_bytes(bytes: u64) -> u64 {
-    bytes.div_ceil(SECTOR_BYTES)
-}
-
 #[derive(Debug, Clone)]
 pub struct BdmvIsoReport {
     pub iso_path: PathBuf,
@@ -414,14 +410,6 @@ impl BdmvIsoBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn sector_rounding_is_ceil() {
-        assert_eq!(sectors_for_bytes(0), 0);
-        assert_eq!(sectors_for_bytes(1), 1);
-        assert_eq!(sectors_for_bytes(2_048), 1);
-        assert_eq!(sectors_for_bytes(2_049), 2);
-    }
 
     fn test_root(name: &str) -> PathBuf {
         static NEXT: AtomicU64 = AtomicU64::new(0);

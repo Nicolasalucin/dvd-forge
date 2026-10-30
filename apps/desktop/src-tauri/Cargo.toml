@@ -34,6 +34,7 @@ dvdforge-project = { path = "../../../crates/dvdforge-project" }
 dvdforge-render = { path = "../../../crates/dvdforge-render" }
 dvdforge-store = { path = "../../../crates/dvdforge-store" }
 dvdforge-toolchain = { path = "../../../crates/dvdforge-toolchain" }
+dvdforge-verify = { path = "../../../crates/dvdforge-verify" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

@@ -2261,3 +2261,40 @@ fn write_image(
     }
     Ok(hash)
 }
+
+#[cfg(test)]
+mod extent_tests {
+    use super::*;
+
+    #[test]
+    fn add_extent_splits_lengths_past_the_u32_information_limit() {
+        let options = UdfOptions {
+            extent_blocks: 2_097_151,
+            ..UdfOptions::default()
+        };
+        let mut allocations = Vec::new();
+        let mut budget = 0u64;
+        add_extent(
+            &mut allocations,
+            0,
+            u64::from(u32::MAX) + 100,
+            0,
+            0,
+            &options,
+            &mut budget,
+        )
+        .expect("split extent");
+        assert_eq!(allocations.len(), 2);
+        assert_eq!(
+            allocations
+                .iter()
+                .map(|ad| u64::from(ad.length))
+                .sum::<u64>(),
+            u64::from(u32::MAX) + 100
+        );
+        assert_eq!(allocations[0].length, u32::MAX - 2047);
+        assert_eq!(allocations[1].length, 2147);
+        assert_eq!(allocations[1].block, 2_097_151);
+        assert!(budget >= (allocations.len() as u64) * std::mem::size_of::<Ad>() as u64);
+    }
+}

@@ -4,7 +4,9 @@
 //! audio stream metadata. It does not guess duration or resolution from the
 //! file name; everything comes from FFprobe JSON.
 
-use dvdforge_domain::{AudioStreamInfo, FrameRate, MediaProbe, VideoStreamInfo};
+use dvdforge_domain::{
+    AudioStreamInfo, FrameRate, MediaChapter, MediaProbe, SubtitleStreamInfo, VideoStreamInfo,
+};
 use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -74,6 +76,7 @@ impl Ffprobe {
                 .arg("json")
                 .arg("-show_format")
                 .arg("-show_streams")
+                .arg("-show_chapters")
                 .arg(path)
                 .output(),
         )
@@ -101,6 +104,18 @@ struct FfprobeOutput {
     streams: Vec<FfprobeStream>,
     #[serde(default)]
     format: FfprobeFormat,
+    #[serde(default)]
+    chapters: Vec<FfprobeChapter>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct FfprobeChapter {
+    #[serde(default)]
+    start_time: Option<String>,
+    #[serde(default)]
+    end_time: Option<String>,
+    #[serde(default)]
+    tags: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -220,14 +235,52 @@ fn parse_probe_json(bytes: &[u8]) -> Result<MediaProbe, MediaError> {
                 .unwrap_or(0),
             bitrate_bps: stream.bit_rate.as_deref().and_then(parse_u64),
             language: stream.tags.as_ref().and_then(tag_language),
+            title: stream.tags.as_ref().and_then(tag_title),
+            default: disposition_flag(stream, "default"),
+            commentary: disposition_flag(stream, "comment"),
         })
         .collect();
 
-    let subtitle_streams = raw
+    let subtitle_tracks: Vec<SubtitleStreamInfo> = raw
         .streams
         .iter()
         .filter(|stream| is_type(stream, "subtitle"))
-        .count() as u32;
+        .map(|stream| SubtitleStreamInfo {
+            index: stream.index,
+            codec: stream
+                .codec_name
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string()),
+            language: stream.tags.as_ref().and_then(tag_language),
+            title: stream.tags.as_ref().and_then(tag_title),
+            default: disposition_flag(stream, "default"),
+            forced: disposition_flag(stream, "forced"),
+            bitmap: stream
+                .codec_name
+                .as_deref()
+                .is_some_and(is_bitmap_subtitle_codec),
+        })
+        .collect();
+    let subtitle_streams = subtitle_tracks.len() as u32;
+
+    let chapters = raw
+        .chapters
+        .iter()
+        .enumerate()
+        .filter_map(|(index, chapter)| {
+            let start_ms = parse_duration_ms(chapter.start_time.as_deref())?;
+            Some(MediaChapter {
+                start_ms,
+                end_ms: parse_duration_ms(chapter.end_time.as_deref()),
+                title: chapter
+                    .tags
+                    .as_ref()
+                    .and_then(tag_title)
+                    .unwrap_or_else(|| format!("Capítulo {}", index + 1)),
+                language: chapter.tags.as_ref().and_then(tag_language),
+            })
+        })
+        .collect();
 
     let stream_duration_ms = raw
         .streams
@@ -248,6 +301,8 @@ fn parse_probe_json(bytes: &[u8]) -> Result<MediaProbe, MediaError> {
         video,
         audio,
         subtitle_streams,
+        subtitle_tracks,
+        chapters,
     })
 }
 
@@ -270,6 +325,32 @@ fn tag_language(tags: &HashMap<String, String>) -> Option<String> {
         .find(|(key, _)| key.eq_ignore_ascii_case("language"))
         .and_then(|(_, value)| dvdforge_domain::LanguageCode::from_code(value))
         .map(|language| language.iso_639_1().to_string())
+}
+
+fn tag_title(tags: &HashMap<String, String>) -> Option<String> {
+    tags.iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("title"))
+        .map(|(_, value)| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn disposition_flag(stream: &FfprobeStream, key: &str) -> bool {
+    stream
+        .disposition
+        .as_ref()
+        .and_then(|disposition| disposition.get(key))
+        .is_some_and(|value| {
+            value
+                .as_bool()
+                .unwrap_or_else(|| value.as_i64().is_some_and(|number| number != 0))
+        })
+}
+
+fn is_bitmap_subtitle_codec(codec: &str) -> bool {
+    matches!(
+        codec,
+        "hdmv_pgs_subtitle" | "dvd_subtitle" | "dvb_subtitle" | "xsub"
+    )
 }
 
 fn parse_frame_rate(value: Option<&str>) -> Option<FrameRate> {
@@ -347,12 +428,27 @@ mod tests {
           "channels": 2,
           "sample_rate": "48000",
           "bit_rate": "192000",
-          "tags": { "language": "spa" }
+          "tags": { "language": "spa", "title": "Comentario del director" },
+          "disposition": { "default": 1, "comment": 1 }
         },
         {
           "index": 2,
           "codec_name": "subrip",
-          "codec_type": "subtitle"
+          "codec_type": "subtitle",
+          "tags": { "language": "eng", "title": "English" },
+          "disposition": { "default": 1, "forced": 0 }
+        }
+      ],
+      "chapters": [
+        {
+          "start_time": "0.000000",
+          "end_time": "60.000000",
+          "tags": { "title": "Inicio" }
+        },
+        {
+          "start_time": "60.000000",
+          "end_time": "120.500000",
+          "tags": { "title": "Segunda parte", "language": "spa" }
         }
       ],
       "format": {
@@ -393,6 +489,31 @@ mod tests {
         assert_eq!(audio.sample_rate, 48_000);
         assert_eq!(audio.bitrate_bps, Some(192_000));
         assert_eq!(audio.language.as_deref(), Some("es"));
+        assert_eq!(audio.title.as_deref(), Some("Comentario del director"));
+        assert!(audio.default);
+        assert!(audio.commentary);
+
+        let subtitle = &probe.subtitle_tracks[0];
+        assert_eq!(subtitle.language.as_deref(), Some("en"));
+        assert_eq!(subtitle.title.as_deref(), Some("English"));
+        assert!(subtitle.default);
+        assert!(!subtitle.forced);
+        assert!(!subtitle.bitmap);
+
+        assert_eq!(probe.chapters.len(), 2);
+        assert_eq!(probe.chapters[0].start_ms, 0);
+        assert_eq!(probe.chapters[1].start_ms, 60_000);
+        assert_eq!(probe.chapters[1].title, "Segunda parte");
+        assert_eq!(probe.chapters[1].language.as_deref(), Some("es"));
+    }
+
+    #[test]
+    fn bitmap_subtitle_codecs_are_detected() {
+        assert!(is_bitmap_subtitle_codec("hdmv_pgs_subtitle"));
+        assert!(is_bitmap_subtitle_codec("dvd_subtitle"));
+        assert!(is_bitmap_subtitle_codec("dvb_subtitle"));
+        assert!(is_bitmap_subtitle_codec("xsub"));
+        assert!(!is_bitmap_subtitle_codec("subrip"));
     }
 
     #[test]

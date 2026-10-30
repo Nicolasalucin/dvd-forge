@@ -16,13 +16,14 @@ members = [
     "crates/dvdforge-store",
     "crates/dvdforge-testkit",
     "crates/dvdforge-cli",
+    "crates/dvdforge-verify",
     "crates/dvdforge-render",
     "apps/desktop/src-tauri",
 ]
 exclude = ["vendor/libmkiso"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.96"
 license = "GPL-3.0-or-later"

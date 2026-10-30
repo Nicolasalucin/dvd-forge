@@ -97,6 +97,7 @@ pub fn render_cancel() -> Result<(), String> {
 pub async fn render_start(
     project: Project,
     output_dir: String,
+    hardware_encoding: dvdforge_toolchain::EncoderPreference,
     channel: Channel<JobEvent>,
 ) -> Result<RenderOutcome, String> {
     let job_id = JobId::new();
@@ -137,6 +138,7 @@ pub async fn render_start(
             RenderOptions {
                 composited_backgrounds: Some(composited_backgrounds),
                 cancel: Some(cancel),
+                hardware_encoding,
                 ..RenderOptions::default()
             },
             sender,

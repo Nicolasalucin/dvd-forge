@@ -97,6 +97,8 @@ pub struct AvchdEncodeRequest {
     pub scale_mode: VideoScaleMode,
     pub fps: FrameRate,
     pub duration_ms: u64,
+    /// Resolved hardware encoder, or `None` for the CPU/libx264 path.
+    pub hardware_encoder: Option<dvdforge_toolchain::HardwareEncoder>,
 }
 
 impl AvchdEncodeRequest {
@@ -320,41 +322,78 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     args.extend(["-t".to_string(), format_millis(duration_ms)]);
 
     let spec = ResolutionSpec::from_config(&request.config);
-    let filter = build_filter(request, spec);
+    let mut filter = build_filter(request, spec);
     let keyint = request.config.keyint_frames.max(1);
     let maxrate = request.maxrate_kbps.max(request.video_kbps);
     let bufsize = request.vbv_bufsize_kbps.max(1);
-    let mut x264 = format!(
-        "bluray-compat=1:open-gop=0:slices=4:nal-hrd=vbr:vbv-maxrate={maxrate}:vbv-bufsize={bufsize}:aud=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:keyint={keyint}:min-keyint={keyint}:scenecut=0"
-    );
-    if spec.interlaced {
-        x264.push_str(":tff=1");
+    let hardware = request.hardware_encoder;
+    let codec = hardware
+        .map(dvdforge_toolchain::HardwareEncoder::ffmpeg_name)
+        .unwrap_or("libx264");
+    if hardware == Some(dvdforge_toolchain::HardwareEncoder::VaapiH264) {
+        filter.push_str(",format=nv12,hwupload");
     }
     args.extend([
         "-vf".to_string(),
         filter,
         "-c:v".to_string(),
-        "libx264".to_string(),
-        "-preset".to_string(),
-        "medium".to_string(),
-        "-profile:v".to_string(),
-        "high".to_string(),
-        "-level:v".to_string(),
-        AVCHD_X264_LEVEL.to_string(),
-        "-pix_fmt".to_string(),
-        "yuv420p".to_string(),
-        "-b:v".to_string(),
-        format!("{}k", request.video_kbps),
-        "-maxrate".to_string(),
-        format!("{maxrate}k"),
-        "-bufsize".to_string(),
-        format!("{bufsize}k"),
-        "-g".to_string(),
-        keyint.to_string(),
-        "-bf".to_string(),
-        "0".to_string(),
-        "-x264-params".to_string(),
-        x264,
+        codec.to_string(),
+    ]);
+    if let Some(hardware) = hardware {
+        if hardware == dvdforge_toolchain::HardwareEncoder::NvencH264 {
+            args.extend(["-preset".to_string(), "p5".to_string()]);
+        } else if hardware == dvdforge_toolchain::HardwareEncoder::QsvH264 {
+            args.extend(["-preset".to_string(), "medium".to_string()]);
+        }
+        args.extend([
+            "-profile:v".to_string(),
+            "high".to_string(),
+            "-level:v".to_string(),
+            AVCHD_X264_LEVEL.to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+            "-b:v".to_string(),
+            format!("{}k", request.video_kbps),
+            "-maxrate".to_string(),
+            format!("{maxrate}k"),
+            "-bufsize".to_string(),
+            format!("{bufsize}k"),
+            "-g".to_string(),
+            keyint.to_string(),
+            "-bf".to_string(),
+            "0".to_string(),
+        ]);
+    } else {
+        let mut x264 = format!(
+            "bluray-compat=1:open-gop=0:slices=4:nal-hrd=vbr:vbv-maxrate={maxrate}:vbv-bufsize={bufsize}:aud=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:keyint={keyint}:min-keyint={keyint}:scenecut=0"
+        );
+        if spec.interlaced {
+            x264.push_str(":tff=1");
+        }
+        args.extend([
+            "-preset".to_string(),
+            "medium".to_string(),
+            "-profile:v".to_string(),
+            "high".to_string(),
+            "-level:v".to_string(),
+            AVCHD_X264_LEVEL.to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+            "-b:v".to_string(),
+            format!("{}k", request.video_kbps),
+            "-maxrate".to_string(),
+            format!("{maxrate}k"),
+            "-bufsize".to_string(),
+            format!("{bufsize}k"),
+            "-g".to_string(),
+            keyint.to_string(),
+            "-bf".to_string(),
+            "0".to_string(),
+            "-x264-params".to_string(),
+            x264,
+        ]);
+    }
+    args.extend([
         "-color_primaries".to_string(),
         "bt709".to_string(),
         "-color_trc".to_string(),
@@ -906,6 +945,7 @@ mod tests {
             scale_mode: VideoScaleMode::Letterbox,
             fps: FrameRate::NTSC,
             duration_ms: 20_000,
+            hardware_encoder: None,
         }
     }
 
@@ -936,6 +976,19 @@ mod tests {
         assert!(args.contains("tff=1"));
         assert!(args.contains("+ildct+ilme"));
         assert!(args.contains("-top 1"));
+    }
+
+    #[test]
+    fn hardware_encoder_switches_codec_and_keeps_bluray_vbv_args() {
+        let mut request = request();
+        request.hardware_encoder = Some(dvdforge_toolchain::HardwareEncoder::NvencH264);
+        let args = build_encode_args(&request).join(" ");
+        assert!(args.contains("-c:v h264_nvenc"));
+        assert!(!args.contains("libx264"));
+        assert!(args.contains("-profile:v high"));
+        assert!(args.contains("-maxrate 24000k"));
+        assert!(args.contains("-bufsize 24000k"));
+        assert!(args.contains("-g 24"));
     }
 
     #[test]

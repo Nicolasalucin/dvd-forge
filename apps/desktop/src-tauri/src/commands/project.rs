@@ -19,6 +19,7 @@ pub fn startup_project_path() -> Option<String> {
         .ok()
         .map(|path| path.trim().to_string())
         .filter(|path| !path.is_empty())
+        .filter(|path| std::path::Path::new(path).is_file())
 }
 
 #[tauri::command]
@@ -57,6 +58,8 @@ pub fn project_new(
                     video: None,
                     audio: Vec::new(),
                     subtitle_streams: 0,
+                    subtitle_tracks: Vec::new(),
+                    chapters: Vec::new(),
                 },
                 proxy: None,
                 imported_at: now.clone(),
@@ -136,6 +139,8 @@ pub fn project_new(
                     video: None,
                     audio: Vec::new(),
                     subtitle_streams: 0,
+                    subtitle_tracks: Vec::new(),
+                    chapters: Vec::new(),
                 },
                 proxy: None,
                 imported_at: now.clone(),
@@ -209,9 +214,13 @@ pub fn project_new(
 #[tauri::command(async)]
 #[specta::specta]
 pub fn project_save(path: String, project: Project) -> Result<(), String> {
+    dvdforge_project::ensure_valid(&project)
+        .map_err(|error| format!("No se puede guardar un proyecto inválido: {error}"))?;
     dvdforge_project::save_project(&project, &path).map_err(|error| error.to_string())?;
     context::set_from_file(std::path::Path::new(&path));
-    let _ = super::store::record_project(&path, &project);
+    if let Err(error) = super::store::record_project(&path, &project) {
+        eprintln!("No se pudo actualizar la lista de proyectos recientes: {error}");
+    }
     Ok(())
 }
 
@@ -220,7 +229,9 @@ pub fn project_save(path: String, project: Project) -> Result<(), String> {
 pub fn project_open(path: String) -> Result<Project, String> {
     let project = dvdforge_project::load_and_validate(&path).map_err(|error| error.to_string())?;
     context::set_from_file(std::path::Path::new(&path));
-    let _ = super::store::record_project(&path, &project);
+    if let Err(error) = super::store::record_project(&path, &project) {
+        eprintln!("No se pudo actualizar la lista de proyectos recientes: {error}");
+    }
     Ok(project)
 }
 

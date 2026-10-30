@@ -183,7 +183,7 @@
             {#each episode.subtitles as track, index (index)}
               <div class="grid grid-cols-[94px_minmax(0,1fr)] items-center gap-2">
                 <span class="truncate text-[10px] text-slate-400">
-                  Sub {index + 1}{track.isDefault ? " · DEF" : ""}{track.isForced ? " · FORZ" : ""}
+                  Sub {index + 1}{track.isDefault ? " · DEF" : ""}{track.isForced ? " · FORZ" : ""}{track.bitmap ? " · BITMAP" : ""}
                 </span>
                 <div class="relative h-6 overflow-hidden rounded-md border border-slate-800 bg-slate-950">
                   <div class="absolute inset-y-0 left-0 w-full bg-violet-500/10"></div>
@@ -241,6 +241,12 @@
                   <span class="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">
                     A{index + 1}
                   </span>
+                  {#if track.default}
+                    <span class="rounded bg-cyan-500/15 px-1 py-0.5 text-[8px] font-bold text-cyan-200">DEF</span>
+                  {/if}
+                  {#if track.commentary}
+                    <span class="rounded bg-fuchsia-500/15 px-1 py-0.5 text-[8px] font-bold text-fuchsia-200">COM</span>
+                  {/if}
                   <input
                     class="min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
                     value={track.label}

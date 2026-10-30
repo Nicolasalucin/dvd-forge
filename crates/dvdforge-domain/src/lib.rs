@@ -34,6 +34,7 @@ pub use project::{
     AssetSource, AudioDefaults, AudioFormat, AudioStreamInfo, AuthoringMode, AvchdResolution,
     AvchdVideoConfig, BurnPreferences, Chapter, DiscCapacity, DiscConfig, DvdProfile,
     DvdVideoConfig, EncodeOverride, EncodingPriority, Episode, EpisodeAudio, FirstPlay, H264Level,
-    LayerBreakMode, MediaAsset, MediaKind, MediaProbe, PlayAllConfig, PostAction, Project,
-    ProxyInfo, SubtitleTrack, VideoConfig, VideoScaleMode, VideoStreamInfo,
+    LayerBreakMode, MediaAsset, MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction,
+    Project, ProxyInfo, SubtitleStreamInfo, SubtitleTrack, VideoConfig, VideoScaleMode,
+    VideoStreamInfo,
 };

@@ -600,13 +600,16 @@ pub fn set_index_menu_object(index: &[u8], object: u16) -> Result<Vec<u8>, BdmvE
 /// wraps its five PGS segments in a single PES. Used to reserve exactly as many
 /// slots as the native IG stream needs.
 pub fn pgs_transport_packet_count(width: u16, height: u16) -> usize {
-    let _ = width;
+    let width = usize::from(width.max(1));
     let height = usize::from(height.max(2));
     // PG + PTS + DTS + kind + length = 13 bytes per segment header.
     let palette = 2 + 256 * 4;
     let window = 10;
     let presentation = 25;
-    let object = 11 + height * 6;
+    // Worst-case RLE object: every row needs a 2-byte length plus up to one
+    // run byte per pixel. This is deliberately conservative; under-reserving
+    // PGS slots makes tsMuxeR drop or truncate the interactive stream.
+    let object = 11 + height * (2 + width);
     let payload = 5 * 13 + palette + window + presentation + object;
     // PES start code + length + flags + header length + PTS + DTS = 19 bytes.
     (19 + payload).div_ceil(184).max(1)
@@ -620,7 +623,11 @@ pub fn dummy_pgs_for_slots(
     height: u16,
     needed_slots: usize,
 ) -> Result<Vec<u8>, BdmvError> {
-    let per_set = pgs_transport_packet_count(width, height).max(1);
+    // The dummy object is a solid RLE fill, so `pgs_transport_packet_count`
+    // (which deliberately uses a worst-case per-pixel RLE estimate) would
+    // under-reserve display sets. Measure one real display set instead.
+    let one_set = dummy_pgs(width, height, 1)?;
+    let per_set = one_set.len().div_ceil(184).max(1);
     let sets = needed_slots
         .div_ceil(per_set)
         .saturating_add(1)
@@ -897,6 +904,31 @@ mod tests {
     }
 
     #[test]
+    fn reassembles_the_ig_pes_stream_from_injected_transport_packets() {
+        let pes = compile_ig_pes_packets(&menu(), 54_000_000).expect("pes");
+        let needed = pes_transport_packet_count(&pes);
+        let output =
+            inject_ig_into_menu_m2ts(&synthetic_m2ts(needed), &pes, IG_PID).expect("inject");
+        let mut reassembled = Vec::new();
+        for packet in output.as_chunks::<192>().0 {
+            let ts = &packet[4..];
+            let pid = (((ts[1] & 0x1F) as u16) << 8) | ts[2] as u16;
+            if pid != IG_PID {
+                continue;
+            }
+            let adaptation = (ts[3] >> 4) & 0x03;
+            let offset = if adaptation == 3 {
+                5 + ts[4] as usize
+            } else {
+                4
+            };
+            reassembled.extend_from_slice(&ts[offset..]);
+        }
+        assert_eq!(reassembled, pes.concat());
+        assert_eq!(&reassembled[..4], &[0x00, 0x00, 0x01, 0xBD]);
+    }
+
+    #[test]
     fn rejects_ig_streams_that_do_not_fit_the_reserved_slots() {
         let pes = compile_ig_pes_packets(&menu(), 54_000_000).expect("pes");
         let needed = pes_transport_packet_count(&pes);
@@ -1121,7 +1153,8 @@ mod tests {
 
     #[test]
     fn dummy_pgs_for_slots_scales_display_sets_with_the_estimate() {
-        let per_set = pgs_transport_packet_count(1920, 1080);
+        let one_set = dummy_pgs(1920, 1080, 1).expect("one dummy set");
+        let per_set = one_set.len().div_ceil(184).max(1);
         let needed = per_set * 3;
         let bytes = dummy_pgs_for_slots(1920, 1080, needed).expect("dummy pgs");
         let mut offset = 0;
@@ -1137,8 +1170,13 @@ mod tests {
     }
 
     #[test]
-    fn pgs_slot_estimate_accounts_for_the_object_height() {
+    fn pgs_slot_estimate_accounts_for_the_object_height_and_width() {
         assert!(pgs_transport_packet_count(1920, 1080) > pgs_transport_packet_count(1920, 480));
+        assert!(pgs_transport_packet_count(1920, 1080) > pgs_transport_packet_count(720, 1080));
         assert!(pgs_transport_packet_count(1920, 0) >= 1);
+        assert_ne!(
+            pgs_transport_packet_count(640, 480),
+            pgs_transport_packet_count(1920, 480)
+        );
     }
 }

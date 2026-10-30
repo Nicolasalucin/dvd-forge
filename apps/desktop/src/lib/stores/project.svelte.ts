@@ -28,6 +28,7 @@ import {
   type RecentProject_Serialize,
   type SubtitleTrack_Serialize,
   type ToolchainReport,
+  type VerifyReport_Serialize,
   type TvStandard,
   type VideoScaleMode,
 } from "../api/bindings";
@@ -245,8 +246,10 @@ class ProjectStore {
   projectPath = $state<string | null>(null);
   recentProjects = $state<RecentProject_Serialize[]>([]);
   recentProjectsBusy = $state(false);
+  recentProjectsError = $state<string | null>(null);
   jobHistory = $state<JobHistoryEntry_Serialize[]>([]);
   jobHistoryBusy = $state(false);
+  jobHistoryError = $state<string | null>(null);
   toolsReport = $state<ToolchainReport | null>(null);
   toolsBusy = $state(false);
   toolsError = $state<string | null>(null);
@@ -279,6 +282,7 @@ class ProjectStore {
   renderLogs = $state<string[]>([]);
   renderError = $state<string | null>(null);
   renderSummary = $state<string | null>(null);
+  renderVerification = $state<VerifyReport_Serialize | null>(null);
   burnProgress = $state<BurnProgress | null>(null);
   burnReport = $state<BurnReport | null>(null);
   burning = $state(false);
@@ -707,6 +711,18 @@ class ProjectStore {
     const number =
       project.episodes.reduce((highest, episode) => Math.max(highest, episode.number), 0) + 1;
     const title = asset.displayName.replace(/\.[^.]+$/, "") || `Episodio ${number}`;
+    const sourceChapters = asset.probe.chapters ?? [];
+    const importedChapters = sourceChapters
+      .map((chapter, index) => ({
+        id: crypto.randomUUID(),
+        title: chapter.title.trim() || t("Capítulo {number}", { number: index + 1 }),
+        atFrame: Math.max(0, Math.round((chapter.startMs / 1000) * this.frameRate)),
+        thumbnail: null,
+      }))
+      .filter((chapter, index, all) =>
+        chapter.atFrame >= 0 &&
+        all.findIndex((candidate) => Math.abs(candidate.atFrame - chapter.atFrame) < 1) === index,
+      );
     const episode: Episode_Serialize = {
       id: crypto.randomUUID(),
       number,
@@ -725,19 +741,33 @@ class ProjectStore {
           atFrame: 0,
           thumbnail: null,
         },
-      ],
+        ...importedChapters.filter((chapter) => chapter.atFrame > 0),
+      ].sort((a, b) => a.atFrame - b.atFrame),
       audio: asset.probe.audio.map((stream, index) => ({
         sourceStream: stream.index,
         sourcePath: null,
         language: stream.language ?? "und",
-        label: t("Pista {number}", { number: index + 1 }),
+        label: stream.title?.trim() ||
+          (stream.commentary
+            ? t("Comentario {number}", { number: index + 1 })
+            : t("Pista {number}", { number: index + 1 })),
         gainDb: 0,
         ac3Kbps: 192,
         delayMs: 0,
         format: stream.channels >= 6 ? "ac3Surround51" : "ac3Stereo",
-        default: index === 0,
+        default: stream.default || index === 0,
+        commentary: stream.commentary,
       })),
-      subtitles: [],
+      subtitles: (asset.probe.subtitleTracks ?? []).map((stream, index) => ({
+        sourceStream: stream.index,
+        sourcePath: null,
+        language: stream.language ?? "und",
+        label: stream.title?.trim() || t("Subtítulo {number}", { number: index + 1 }),
+        delayMs: 0,
+        isForced: stream.forced,
+        isDefault: stream.default,
+        bitmap: stream.bitmap,
+      })),
       encodingPriority: "medium",
       postAction: "returnToMenu",
       encodeOverride: null,
@@ -863,12 +893,16 @@ class ProjectStore {
         sourceStream,
         sourcePath: null,
         language: stream?.language ?? "und",
-        label: t("Pista {number}", { number: episode.audio.length + 1 }),
+        label: stream?.title?.trim() ||
+          (stream?.commentary
+            ? t("Comentario {number}", { number: episode.audio.length + 1 })
+            : t("Pista {number}", { number: episode.audio.length + 1 })),
         gainDb: 0,
         ac3Kbps: 192,
         delayMs: 0,
         format: (stream?.channels ?? 2) >= 6 ? "ac3Surround51" : "ac3Stereo",
         default: episode.audio.length === 0,
+        commentary: stream?.commentary ?? false,
       },
     ];
     this.touch();
@@ -942,6 +976,7 @@ class ProjectStore {
       delayMs: 0,
       isForced: false,
       isDefault: episode.subtitles.length === 0,
+      bitmap: false,
     };
     episode.subtitles = [...episode.subtitles, track];
     this.touch();
@@ -1064,6 +1099,43 @@ class ProjectStore {
     }));
     this.clampChapterActions(episodeId, episode);
     this.touch();
+  }
+
+  /** Imports FFprobe chapters into the active trim range. */
+  importMediaChapters(episodeId: string): number {
+    const episode = this.project?.episodes.find((item) => item.id === episodeId);
+    if (!episode) return 0;
+    const asset = this.assetFor(episode.video);
+    const source = asset?.probe.chapters ?? [];
+    const start = episode.trimStartMs ?? 0;
+    const end = episode.trimEndMs ?? this.episodeSourceDuration(episode);
+    const existing = new Set(episode.chapters.map((chapter) => chapter.atFrame));
+    const imported: Chapter_Serialize[] = [];
+    for (const chapter of source) {
+      if (chapter.startMs < start || chapter.startMs >= end) continue;
+      const atFrame = Math.round(((chapter.startMs - start) / 1000) * this.frameRate);
+      if (atFrame < 0 || existing.has(atFrame)) continue;
+      if (imported.some((candidate) => Math.abs(candidate.atFrame - atFrame) < 1)) continue;
+      imported.push({
+        id: crypto.randomUUID(),
+        title: chapter.title.trim() || t("Capítulo {number}", { number: imported.length + 1 }),
+        atFrame,
+        thumbnail: null,
+      });
+    }
+    if (imported.length === 0) return 0;
+    episode.chapters = [...episode.chapters, ...imported].sort((a, b) => a.atFrame - b.atFrame);
+    if (!episode.chapters.some((chapter) => chapter.atFrame === 0)) {
+      episode.chapters.unshift({
+        id: crypto.randomUUID(),
+        title: t("Inicio"),
+        atFrame: 0,
+        thumbnail: null,
+      });
+    }
+    this.clampChapterActions(episodeId, episode);
+    this.touch();
+    return imported.length;
   }
 
   moveEpisode(episodeId: string, delta: number): void {
@@ -1812,11 +1884,13 @@ class ProjectStore {
           video: null,
           audio: [],
           subtitleStreams: 0,
+          subtitleTracks: [],
+          chapters: [],
         },
         proxy: null,
         importedAt: new Date().toISOString(),
       };
-      project.assets = [...project.assets, background];
+      project.assets = [...project.assets, background!];
     }
     const menu: Menu_Serialize = {
       id: crypto.randomUUID(),
@@ -1824,7 +1898,7 @@ class ProjectStore {
       role: "root",
       placement: { kind: "vmgm" },
       canvas,
-      background: { kind: "static", asset: background.id },
+      background: { kind: "static", asset: background!.id },
       scaleMode: "cover",
       dimPercent: 0,
       blurPx: 0,
@@ -1886,6 +1960,7 @@ class ProjectStore {
     this.renderLogs = [];
     this.renderError = null;
     this.renderSummary = null;
+    this.renderVerification = null;
     this.burnProgress = null;
     this.burnReport = null;
     this.burnError = null;
@@ -1991,18 +2066,27 @@ class ProjectStore {
 
   async refreshRecentProjects(): Promise<void> {
     this.recentProjectsBusy = true;
+    this.recentProjectsError = null;
     try {
       this.recentProjects = await unwrap(commands.recentProjectsList(12));
-    } catch {
-      this.recentProjects = [];
+    } catch (cause) {
+      // Keep the last known-good list: an empty list would falsely suggest
+      // that the user never opened a project.
+      this.recentProjectsError = messageOf(cause);
     } finally {
       this.recentProjectsBusy = false;
     }
   }
 
   async forgetRecentProject(path: string): Promise<void> {
+    this.recentProjectsError = null;
+    const previous = this.recentProjects;
+    this.recentProjects = previous.filter((recent) => recent.filePath !== path);
     try {
       await unwrap(commands.recentProjectForget(path));
+    } catch (cause) {
+      this.recentProjects = previous;
+      this.recentProjectsError = messageOf(cause);
     } finally {
       await this.refreshRecentProjects();
     }
@@ -2010,10 +2094,12 @@ class ProjectStore {
 
   async refreshJobHistory(): Promise<void> {
     this.jobHistoryBusy = true;
+    this.jobHistoryError = null;
     try {
       this.jobHistory = await unwrap(commands.jobHistoryList(20));
-    } catch {
-      this.jobHistory = [];
+    } catch (cause) {
+      // Preserve the previous history instead of showing an empty list.
+      this.jobHistoryError = messageOf(cause);
     } finally {
       this.jobHistoryBusy = false;
     }

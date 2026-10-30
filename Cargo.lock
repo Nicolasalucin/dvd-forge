@@ -727,7 +727,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dvdforge-avchd"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "dvdforge-toolchain",
@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-burn"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "dvdforge-toolchain",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-burn",
  "dvdforge-domain",
@@ -766,13 +766,14 @@ dependencies = [
  "dvdforge-project",
  "dvdforge-render",
  "dvdforge-toolchain",
+ "dvdforge-verify",
  "serde_json",
  "tokio",
 ]
 
 [[package]]
 name = "dvdforge-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -785,6 +786,7 @@ dependencies = [
  "dvdforge-render",
  "dvdforge-store",
  "dvdforge-toolchain",
+ "dvdforge-verify",
  "serde",
  "serde_json",
  "sha2",
@@ -800,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-domain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -810,7 +812,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-dvd"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "dvdforge-project",
@@ -821,14 +823,14 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-hdmv"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "dvdforge-iso"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dvdforge-toolchain",
@@ -839,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-jobs"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "serde",
@@ -848,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-media"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "dvdforge-toolchain",
@@ -860,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-menu"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "dvdforge-toolchain",
@@ -871,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-plan"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-avchd",
  "dvdforge-domain",
@@ -882,7 +884,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-project"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-domain",
  "serde",
@@ -892,7 +894,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-render"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dvdforge-avchd",
  "dvdforge-domain",
@@ -906,6 +908,7 @@ dependencies = [
  "dvdforge-project",
  "dvdforge-store",
  "dvdforge-toolchain",
+ "dvdforge-verify",
  "hex",
  "image",
  "serde",
@@ -918,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-store"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "hex",
@@ -932,14 +935,27 @@ dependencies = [
 
 [[package]]
 name = "dvdforge-testkit"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "dvdforge-toolchain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "specta",
+]
+
+[[package]]
+name = "dvdforge-verify"
+version = "0.3.0"
+dependencies = [
+ "dvdforge-domain",
+ "hex",
+ "libmkiso",
+ "serde",
+ "sha2",
+ "specta",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

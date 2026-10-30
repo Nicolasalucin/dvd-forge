@@ -26,9 +26,9 @@ pub use compiler::{
 };
 pub use m2ts::m2ts_from_pes_packets;
 pub use opcodes::{
-    jump_object, jump_title, play_playlist, play_playlist_mark, set_audio_stream, set_gpr,
-    set_subtitle_stream, HdmvCommand, OP_JUMP_OBJECT, OP_JUMP_TITLE, OP_NOP, OP_PLAY_PLAYLIST,
-    OP_PLAY_PLAYLIST_PM, OP_SET_GPR, OP_SET_STREAM,
+    decode_command, jump_object, jump_title, play_playlist, play_playlist_mark, set_audio_stream,
+    set_gpr, set_subtitle_stream, HdmvCommand, OP_JUMP_OBJECT, OP_JUMP_TITLE, OP_NOP,
+    OP_PLAY_PLAYLIST, OP_PLAY_PLAYLIST_PM, OP_SET_GPR, OP_SET_STREAM,
 };
 pub use palette::{Palette, PaletteEntry};
 pub use pes::{pes_packets_from_segments, PesError, IG_PID, IG_STREAM_ID};

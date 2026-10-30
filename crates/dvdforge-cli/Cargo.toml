@@ -19,5 +19,6 @@ dvdforge-plan = { path = "../dvdforge-plan" }
 dvdforge-project = { path = "../dvdforge-project" }
 dvdforge-render = { path = "../dvdforge-render" }
 dvdforge-toolchain = { path = "../dvdforge-toolchain" }
+dvdforge-verify = { path = "../dvdforge-verify" }
 serde_json.workspace = true
 tokio.workspace = true

@@ -26,10 +26,16 @@ export async function compositeProjectMenus(
   for (const menu of project.menus) {
     if (menu.buttons.length === 0) continue;
     try {
-      const backgroundUrl = await previewForAsset(project, menu.background.asset, shared);
+      const backgroundUrl = await previewForAsset(
+        project,
+        menu.background.asset,
+        shared,
+        warnings,
+        true,
+      );
       for (const button of menu.buttons) {
         if (!button.thumbnail) continue;
-        await previewForAsset(project, button.thumbnail.asset, shared);
+        await previewForAsset(project, button.thumbnail.asset, shared, warnings, false);
       }
       const motion =
         menu.background.kind === "videoLoop" ||
@@ -65,6 +71,7 @@ export async function compositeProjectMenus(
         URL.revokeObjectURL(exported.selectUrl);
       }
     } catch (cause) {
+      if (cause instanceof RequiredPreviewError) throw cause;
       warnings.push(
         t("No se pudo componer «{menu}»: {error}", {
           menu: menu.name,
@@ -76,17 +83,28 @@ export async function compositeProjectMenus(
   return warnings;
 }
 
+class RequiredPreviewError extends Error {}
+
 async function previewForAsset(
   project: Project_Serialize,
   assetId: string,
   source: MenuPreviewSource,
-): Promise<string | null> {
+  warnings: string[],
+  required: boolean,
+): Promise<string> {
   const cached = source.previewUrls[assetId];
   if (cached) return cached;
   const frame = source.framePaths[assetId];
   const asset = project.assets.find((item) => item.id === assetId);
   let path = frame ?? (asset ? assetPath(asset) : null);
-  if (!path) return null;
+  if (!path) {
+    const message = t("No se encontró la imagen o el vídeo del asset {asset}.", {
+      asset: asset?.displayName ?? assetId,
+    });
+    if (required) throw new RequiredPreviewError(message);
+    warnings.push(message);
+    return "";
+  }
   try {
     if (!frame && asset?.kind === "video") {
       // A video file is never a readable image: extract the poster frame the
@@ -101,8 +119,14 @@ async function previewForAsset(
     const preview = await unwrap(commands.readImageDataUrl(path));
     source.previewUrls[assetId] = preview;
     return preview;
-  } catch {
-    return null;
+  } catch (cause) {
+    const message = t("No se pudo cargar «{asset}»: {error}", {
+      asset: asset?.displayName ?? assetId,
+      error: messageOf(cause),
+    });
+    if (required) throw new RequiredPreviewError(message);
+    warnings.push(message);
+    return "";
   }
 }
 

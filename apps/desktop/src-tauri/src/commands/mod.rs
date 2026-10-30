@@ -6,6 +6,7 @@ pub mod project;
 pub mod render;
 pub mod store;
 pub mod system;
+pub mod verify;
 
 pub use burn::{burn_cancel, burn_list_devices, burn_start};
 pub use media::{
@@ -18,3 +19,4 @@ pub use project::{project_new, project_open, project_save, startup_project_path}
 pub use render::{render_cancel, render_start};
 pub use store::{job_history_list, recent_project_forget, recent_projects_list};
 pub use system::{open_folder, tools_doctor};
+pub use verify::verify_iso;
