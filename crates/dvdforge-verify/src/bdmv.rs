@@ -8,6 +8,7 @@ pub(crate) fn verify(reader: &UdfReader<'_>, checks: &mut CheckList) {
     check_playlists(reader, checks);
     check_clips(reader, checks);
     check_streams(reader, checks);
+    check_pgs_display_sets(reader, checks);
 }
 
 fn check_index(reader: &UdfReader<'_>, checks: &mut CheckList) {
@@ -364,6 +365,20 @@ fn check_streams(reader: &UdfReader<'_>, checks: &mut CheckList) {
         );
     }
 
+    if has_audio {
+        checks.pass(
+            "BDMV-AUDIO-STREAM",
+            "El PMT declara al menos un stream de audio (AC-3/DTS/LPCM/DTS-HD).".to_string(),
+        );
+    } else {
+        warn_with(
+            checks,
+            "BDMV-AUDIO-STREAM",
+            "No se encontró un stream de audio en el PMT inspeccionado.".to_string(),
+            "BDMV/STREAM",
+            None,
+        );
+    }
     let has_ig = pmt_streams.contains(&0x91);
     let has_pgs = pmt_streams.contains(&0x90);
     if has_ig {
@@ -401,6 +416,218 @@ fn check_streams(reader: &UdfReader<'_>, checks: &mut CheckList) {
             "BDMV/STREAM",
             None,
         );
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PgsSegment {
+    kind: u8,
+    pts: u32,
+}
+
+fn check_pgs_display_sets(reader: &UdfReader<'_>, checks: &mut CheckList) {
+    let streams = paths_with_prefix(reader, "BDMV/STREAM/");
+    let mut inspected = 0usize;
+    let mut display_sets = 0usize;
+    let mut chronological = true;
+    let mut last_pts = 0u32;
+    for path in streams.iter().filter(|path| path.ends_with(".m2ts")) {
+        let Ok(prefix) = read_prefix(reader, path, 1024 * 1024) else {
+            continue;
+        };
+        let Some(pid) = pgs_pid(&prefix) else {
+            continue;
+        };
+        let segments = pgs_segments(&prefix, pid);
+        if segments.is_empty() {
+            continue;
+        }
+        inspected += 1;
+        let mut has_pcs = false;
+        let mut has_object = false;
+        let mut has_end = false;
+        for segment in &segments {
+            if segment.kind == 0x16 {
+                if has_pcs && has_end {
+                    display_sets += 1;
+                }
+                has_pcs = true;
+                has_object = false;
+                has_end = false;
+            } else if segment.kind == 0x15 {
+                has_object = true;
+            } else if segment.kind == 0x80 {
+                has_end = true;
+                if has_pcs && has_object {
+                    display_sets += 1;
+                    has_pcs = false;
+                    has_object = false;
+                }
+            }
+            if segment.pts < last_pts {
+                chronological = false;
+            }
+            last_pts = segment.pts;
+        }
+        if has_pcs && has_end && has_object {
+            display_sets += 1;
+        }
+    }
+    if inspected == 0 {
+        checks.skip(
+            "BDMV-PGS-DS",
+            "Sin datos PGS en el primer MiB; no se puede validar el display set.".to_string(),
+        );
+        return;
+    }
+    if display_sets > 0 {
+        checks.pass(
+            "BDMV-PGS-DS",
+            format!("{display_sets} display sets PGS con PCS/ODS/END en {inspected} streams."),
+        );
+    } else {
+        checks.skip(
+            "BDMV-PGS-DS",
+            "El PID PGS no contiene display sets completos en el prefijo inspeccionado."
+                .to_string(),
+        );
+        return;
+    }
+    if chronological {
+        checks.pass(
+            "BDMV-PGS-TS",
+            "Los PTS/DTS de los segmentos PGS son monotónicos.".to_string(),
+        );
+    } else {
+        warn_with(
+            checks,
+            "BDMV-PGS-TS",
+            "Los PTS/DTS de los segmentos PGS retroceden.".to_string(),
+            "BDMV/STREAM",
+            None,
+        );
+    }
+}
+
+fn pgs_pid(prefix: &[u8]) -> Option<u16> {
+    for offset in (0..prefix.len().saturating_sub(191)).step_by(192) {
+        let packet = &prefix[offset + 4..offset + 192];
+        if packet.len() < 188 || packet[0] != 0x47 {
+            continue;
+        }
+        let pusi = packet[1] & 0x40 != 0;
+        if !pusi {
+            continue;
+        }
+        let adaptation = (packet[3] >> 4) & 0x03;
+        let mut payload = 4;
+        if adaptation == 3 {
+            payload += 1 + packet[4] as usize;
+        } else if adaptation == 2 {
+            continue;
+        }
+        if payload >= packet.len() {
+            continue;
+        }
+        let pointer = packet[payload] as usize;
+        let section = payload + 1 + pointer;
+        if section + 12 > packet.len() || packet[section] != 0x02 {
+            continue;
+        }
+        let program_info =
+            (((packet[section + 10] & 0x0f) as usize) << 8) | packet[section + 11] as usize;
+        let mut cursor = section + 12 + program_info;
+        let end = (section
+            + 3
+            + ((((packet[section + 1] & 0x0f) as usize) << 8) | packet[section + 2] as usize))
+            .min(packet.len());
+        while cursor + 5 <= end {
+            let stream_type = packet[cursor];
+            let pid = (((packet[cursor + 1] & 0x1f) as u16) << 8) | packet[cursor + 2] as u16;
+            if stream_type == 0x90 {
+                return Some(pid);
+            }
+            let info_len =
+                (((packet[cursor + 3] & 0x0f) as usize) << 8) | packet[cursor + 4] as usize;
+            cursor += 5 + info_len;
+        }
+        return None;
+    }
+    None
+}
+
+fn pgs_segments(prefix: &[u8], pid: u16) -> Vec<PgsSegment> {
+    let mut segments = Vec::new();
+    let mut current = Vec::new();
+    let mut pts = 0u32;
+    for offset in (0..prefix.len().saturating_sub(191)).step_by(192) {
+        let packet = &prefix[offset + 4..offset + 192];
+        if packet.len() < 188 || packet[0] != 0x47 {
+            continue;
+        }
+        let packet_pid = (((packet[1] & 0x1f) as u16) << 8) | packet[2] as u16;
+        if packet_pid != pid {
+            continue;
+        }
+        let pusi = packet[1] & 0x40 != 0;
+        let adaptation = (packet[3] >> 4) & 0x03;
+        let mut start = 4;
+        if adaptation == 3 {
+            start += 1 + packet[4] as usize;
+        } else if adaptation == 2 {
+            continue;
+        }
+        if start >= packet.len() {
+            continue;
+        }
+        if pusi {
+            if !current.is_empty() {
+                append_segments(&current, pts, &mut segments);
+            }
+            let payload = &packet[start..];
+            if payload.len() < 9 || payload[..3] != [0, 0, 1] {
+                current.clear();
+                continue;
+            }
+            pts = decode_pts(payload);
+            let header_len = payload[8] as usize;
+            let data = 9 + header_len;
+            current = if data <= payload.len() {
+                payload[data..].to_vec()
+            } else {
+                Vec::new()
+            };
+        } else {
+            current.extend_from_slice(&packet[start..]);
+        }
+    }
+    if !current.is_empty() {
+        append_segments(&current, pts, &mut segments);
+    }
+    segments
+}
+
+fn decode_pts(pes: &[u8]) -> u32 {
+    if pes.len() < 14 || pes[7] & 0x80 == 0 {
+        return 0;
+    }
+    ((u32::from(pes[9] >> 1) & 0x07) << 30)
+        | (u32::from(pes[10]) << 22)
+        | ((u32::from(pes[11]) >> 1) << 15)
+        | (u32::from(pes[12]) << 7)
+        | (u32::from(pes[13]) >> 1)
+}
+
+fn append_segments(data: &[u8], pts: u32, segments: &mut Vec<PgsSegment>) {
+    let mut cursor = 0usize;
+    while cursor + 3 <= data.len() {
+        let kind = data[cursor];
+        let length = u16::from_be_bytes([data[cursor + 1], data[cursor + 2]]) as usize;
+        if cursor + 3 + length > data.len() {
+            break;
+        }
+        segments.push(PgsSegment { kind, pts });
+        cursor += 3 + length;
     }
 }
 

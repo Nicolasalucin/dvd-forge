@@ -26,6 +26,7 @@ import {
   type OpticalDevice,
   type Project_Serialize,
   type RecentProject_Serialize,
+  type SubtitleStyle_Serialize,
   type SubtitleTrack_Serialize,
   type ToolchainReport,
   type VerifyReport_Serialize,
@@ -53,6 +54,24 @@ export type LayoutKind = "grid2" | "grid3" | "list" | "direct" | "clear";
 
 const NTSC_RATE: FrameRate = { num: 30_000, den: 1_001 };
 const PAL_RATE: FrameRate = { num: 25, den: 1 };
+
+function defaultSubtitleStyle(): SubtitleStyle_Serialize {
+  return {
+    fontFamily: "sans-serif",
+    fontPath: null,
+    fontWeight: 400,
+    italic: false,
+    fontSizePercent: 4.5,
+    outlinePercent: 0.18,
+    shadowOffsetPercent: 0.12,
+    fillColor: "#FFFFFF",
+    outlineColor: "#000000",
+    shadowColor: "#000000A0",
+    alignment: "bottomCenter",
+    safeAreaPercent: 5,
+    maxLines: 3,
+  };
+}
 const AVCHD_BUDGET = {
   targetFillPpm: 990_000,
   headerMarginPpm: 30_000,
@@ -768,6 +787,7 @@ class ProjectStore {
         isForced: stream.forced,
         isDefault: stream.default,
         bitmap: stream.bitmap,
+        style: defaultSubtitleStyle(),
       })),
       encodingPriority: "medium",
       postAction: "returnToMenu",
@@ -979,6 +999,7 @@ class ProjectStore {
       isForced: false,
       isDefault: episode.subtitles.length === 0,
       bitmap: false,
+      style: defaultSubtitleStyle(),
     };
     episode.subtitles = [...episode.subtitles, track];
     this.touch();

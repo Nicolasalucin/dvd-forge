@@ -20,6 +20,8 @@ pub(crate) fn verify(reader: &UdfReader<'_>, size: u64, checks: &mut CheckList) 
     check_layer_break(reader, size, &cells, checks);
     check_region(reader, checks);
     check_vob(reader, checks);
+    check_spu_packets(reader, checks);
+    check_audio_packets(reader, checks);
 }
 
 fn check_ifo_bup(reader: &UdfReader<'_>, checks: &mut CheckList) {
@@ -250,6 +252,85 @@ fn check_vob(reader: &UdfReader<'_>, checks: &mut CheckList) {
         );
     } else {
         checks.pass("DVD-VOB", format!("{} VOB encontrados.", vobs.len()));
+    }
+}
+
+fn check_spu_packets(reader: &UdfReader<'_>, checks: &mut CheckList) {
+    let vobs: Vec<String> = paths_with_prefix(reader, "VIDEO_TS/")
+        .into_iter()
+        .filter(|path| path.ends_with(".VOB"))
+        .collect();
+    for vob in vobs {
+        let Ok(prefix) = crate::read_prefix(reader, &vob, 1024 * 1024) else {
+            continue;
+        };
+        let mut cursor = 0usize;
+        while cursor + 9 < prefix.len() {
+            if prefix[cursor..cursor + 4] != [0x00, 0x00, 0x01, 0xBD] {
+                cursor += 1;
+                continue;
+            }
+            let packet_length =
+                u16::from_be_bytes([prefix[cursor + 4], prefix[cursor + 5]]) as usize;
+            let header_length = prefix[cursor + 7] as usize;
+            let data = cursor + 8 + header_length;
+            if data + 5 > prefix.len() {
+                break;
+            }
+            let substream = prefix[data];
+            if (0x20..=0x3F).contains(&substream) {
+                let spu = data + 1;
+                let spu_length = u16::from_be_bytes([prefix[spu], prefix[spu + 1]]) as usize;
+                let control = u16::from_be_bytes([prefix[spu + 2], prefix[spu + 3]]) as usize;
+                if spu_length > 4 && control >= 4 && control < spu_length {
+                    checks.pass(
+                        "DVD-SPU-SEQ",
+                        "Paquete SPU con longitud y control_offset coherentes.".to_string(),
+                    );
+                    checks.pass(
+                        "DVD-SPU-PALETTE",
+                        "Secuencia de control SPU alcanzable dentro del paquete.".to_string(),
+                    );
+                    return;
+                }
+            }
+            cursor += 4 + packet_length.max(3);
+        }
+    }
+}
+
+fn check_audio_packets(reader: &UdfReader<'_>, checks: &mut CheckList) {
+    let vobs: Vec<String> = paths_with_prefix(reader, "VIDEO_TS/")
+        .into_iter()
+        .filter(|path| path.ends_with(".VOB"))
+        .collect();
+    for vob in vobs {
+        let Ok(prefix) = crate::read_prefix(reader, &vob, 1024 * 1024) else {
+            continue;
+        };
+        let mut cursor = 0usize;
+        while cursor + 9 < prefix.len() {
+            if prefix[cursor..cursor + 4] != [0x00, 0x00, 0x01, 0xBD] {
+                cursor += 1;
+                continue;
+            }
+            let packet_length =
+                u16::from_be_bytes([prefix[cursor + 4], prefix[cursor + 5]]) as usize;
+            let header_length = prefix[cursor + 7] as usize;
+            let data = cursor + 8 + header_length;
+            if data >= prefix.len() {
+                break;
+            }
+            let substream = prefix[data];
+            if (0x80..=0x8F).contains(&substream) || (0xA0..=0xA7).contains(&substream) {
+                checks.pass(
+                    "DVD-AUDIO-STREAM",
+                    "El VOB contiene un substream de audio DVD (AC-3/DTS/LPCM).".to_string(),
+                );
+                return;
+            }
+            cursor += 4 + packet_length.max(3);
+        }
     }
 }
 

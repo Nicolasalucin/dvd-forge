@@ -163,6 +163,7 @@ async fn renders_fixture_with_external_subtitle_to_iso() {
         is_forced: false,
         is_default: true,
         bitmap: false,
+        style: Default::default(),
     }];
     let project_dir = root.join("fixtures/projects");
     let output = std::env::temp_dir().join(format!(

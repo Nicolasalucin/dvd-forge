@@ -586,6 +586,51 @@ fn avchd_subtitle_tracks<'a>(
         .collect()
 }
 
+fn native_subtitle_style(
+    track: &dvdforge_domain::SubtitleTrack,
+    project_dir: &Path,
+) -> dvdforge_subtitle::SubtitleStyle {
+    let source = &track.style;
+    let defaults = dvdforge_subtitle::SubtitleStyle::default();
+    dvdforge_subtitle::SubtitleStyle {
+        font_family: source.font_family.clone(),
+        font_path: source
+            .font_path
+            .as_deref()
+            .map(|path| resolve_project_path(project_dir, path)),
+        font_weight: source.font_weight,
+        italic: source.italic,
+        font_size_percent: source.font_size_percent,
+        outline_percent: source.outline_percent,
+        shadow_offset_percent: source.shadow_offset_percent,
+        fill_color: dvdforge_subtitle::parse_color(&source.fill_color)
+            .unwrap_or(defaults.fill_color),
+        outline_color: dvdforge_subtitle::parse_color(&source.outline_color)
+            .unwrap_or(defaults.outline_color),
+        shadow_color: dvdforge_subtitle::parse_color(&source.shadow_color)
+            .unwrap_or(defaults.shadow_color),
+        alignment: match source.alignment {
+            dvdforge_domain::SubtitleAlignment::BottomCenter => {
+                dvdforge_subtitle::SubtitleAlignment::BottomCenter
+            }
+            dvdforge_domain::SubtitleAlignment::BottomLeft => {
+                dvdforge_subtitle::SubtitleAlignment::BottomLeft
+            }
+            dvdforge_domain::SubtitleAlignment::BottomRight => {
+                dvdforge_subtitle::SubtitleAlignment::BottomRight
+            }
+            dvdforge_domain::SubtitleAlignment::TopCenter => {
+                dvdforge_subtitle::SubtitleAlignment::TopCenter
+            }
+            dvdforge_domain::SubtitleAlignment::Center => {
+                dvdforge_subtitle::SubtitleAlignment::Center
+            }
+        },
+        safe_area_percent: source.safe_area_percent,
+        max_lines: source.max_lines,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn build_avchd_subtitle_configs(
     project: &Project,
@@ -601,7 +646,6 @@ async fn build_avchd_subtitle_configs(
     let work_dir = output_dir
         .join("subtitles")
         .join(format!("episode-{:02}", episode.number));
-    let style = dvdforge_subtitle::SubtitleStyle::default();
     for (index, track) in avchd_subtitle_tracks(project, episode).iter().enumerate() {
         if project.is_pgs_track(episode, track) {
             configs.push(AvchdSubtitleConfig {
@@ -669,6 +713,7 @@ async fn build_avchd_subtitle_configs(
         }
         std::fs::create_dir_all(&work_dir)?;
         let sup_path = work_dir.join(format!("track-{index:02}.sup"));
+        let style = native_subtitle_style(track, project_dir);
         let options = dvdforge_subtitle::RasterOptions {
             width,
             height,
@@ -715,6 +760,116 @@ async fn extract_embedded_subtitle(
     }
     String::from_utf8(output.stdout)
         .map_err(|error| RenderError::Menu(format!("subtítulo no UTF-8: {error}")))
+}
+
+fn target_audio_channels(audio: &dvdforge_domain::EpisodeAudio, fallback: u8) -> u8 {
+    match audio.mastering.channel_mode {
+        dvdforge_domain::ChannelMode::Stereo | dvdforge_domain::ChannelMode::DownmixStereo => 2,
+        dvdforge_domain::ChannelMode::Surround51 | dvdforge_domain::ChannelMode::Upmix51 => 6,
+        dvdforge_domain::ChannelMode::Source => fallback,
+    }
+}
+
+fn audio_copy_codec(
+    audio: &dvdforge_domain::EpisodeAudio,
+    probe_audio: Option<&dvdforge_domain::AudioStreamInfo>,
+) -> Option<dvdforge_avchd::AvchdAudioCodec> {
+    if !audio.mastering.passthrough || audio.gain_db.abs() > 0.01 || audio.delay_ms != 0 {
+        return None;
+    }
+    if audio.mastering.loudness.is_some()
+        || !matches!(
+            audio.mastering.channel_mode,
+            dvdforge_domain::ChannelMode::Source
+        )
+        || audio_pre_filter(audio).is_some()
+    {
+        return None;
+    }
+    let requested = audio.mastering.codec?;
+    let probe = probe_audio?;
+    let source = probe.codec.to_ascii_lowercase();
+    match requested {
+        dvdforge_domain::AudioCodec::Ac3 if source == "ac3" => {
+            Some(dvdforge_avchd::AvchdAudioCodec::Ac3)
+        }
+        dvdforge_domain::AudioCodec::Dts if source == "dts" || source.starts_with("dts") => {
+            Some(dvdforge_avchd::AvchdAudioCodec::Dts)
+        }
+        dvdforge_domain::AudioCodec::Lpcm if source.starts_with("pcm_") => {
+            Some(dvdforge_avchd::AvchdAudioCodec::Lpcm)
+        }
+        _ => None,
+    }
+}
+
+fn avchd_audio_configs(
+    episode: &Episode,
+    project: &Project,
+    probe: &dvdforge_domain::MediaProbe,
+    duration_ms: u64,
+) -> (
+    Vec<AvchdAudioConfig>,
+    Vec<(String, dvdforge_avchd::AvchdAudioCodec)>,
+) {
+    let mut configs = Vec::new();
+    let mut layout = Vec::new();
+    if episode.audio.is_empty() {
+        if let Some(audio) = probe.audio.first() {
+            let language = audio.language.clone().unwrap_or_else(|| "und".to_string());
+            configs.push(AvchdAudioConfig {
+                source_stream: audio.index,
+                bitrate_kbps: project.disc.audio.ac3_kbps,
+                channels: project.disc.audio.channels.clamp(1, 6),
+                sample_rate: 48_000,
+                pre_filter: None,
+                gain_db: 0.0,
+                delay_ms: 0,
+                duration_ms,
+                language: language.clone(),
+                copy: false,
+                codec: dvdforge_avchd::AvchdAudioCodec::Ac3,
+                default: true,
+                commentary: false,
+            });
+            layout.push((language, dvdforge_avchd::AvchdAudioCodec::Ac3));
+        }
+        return (configs, layout);
+    }
+    for audio in &episode.audio {
+        let probe_audio = probe
+            .audio
+            .iter()
+            .find(|stream| stream.index == audio.source_stream);
+        let copy_codec = audio_copy_codec(audio, probe_audio);
+        let codec = copy_codec.unwrap_or(dvdforge_avchd::AvchdAudioCodec::Ac3);
+        let channels = if copy_codec.is_some() {
+            probe_audio.map(|stream| stream.channels).unwrap_or(2)
+        } else {
+            u16::from(target_audio_channels(audio, audio.format.channels()))
+        };
+        configs.push(AvchdAudioConfig {
+            source_stream: audio.source_stream,
+            bitrate_kbps: audio.ac3_kbps,
+            channels: (channels.clamp(1, 6)) as u8,
+            sample_rate: 48_000,
+            pre_filter: if copy_codec.is_some() {
+                None
+            } else {
+                audio_pre_filter(audio)
+            },
+            gain_db: audio.gain_db,
+            delay_ms: audio.delay_ms,
+            duration_ms,
+            language: audio.language.clone(),
+            copy: copy_codec.is_some(),
+            codec,
+            default: audio.default,
+            commentary: audio.commentary,
+        });
+        layout.push((audio.language.clone(), codec));
+    }
+    (configs, layout)
 }
 
 fn audio_pre_filter(audio: &dvdforge_domain::EpisodeAudio) -> Option<String> {
@@ -1322,7 +1477,7 @@ async fn render_avchd_project(
     let mut episode_start_ms: HashMap<EpisodeId, u64> = HashMap::new();
     let mut episode_fps: HashMap<EpisodeId, FrameRate> = HashMap::new();
     let mut timeline_ms = 0u64;
-    let mut language = "und".to_string();
+    let mut audio_layout: Option<Vec<(String, dvdforge_avchd::AvchdAudioCodec)>> = None;
     let cache = match Store::open_default() {
         Ok(store) => Some(store),
         Err(error) => {
@@ -1374,39 +1529,16 @@ async fn render_avchd_project(
             .map(|entry| entry.video_kbps)
             .unwrap_or(plan.video_kbps)
             .clamp(1, max_video_cap);
-        let audio = episode
-            .audio
-            .first()
-            .map(|audio| AvchdAudioConfig {
-                source_stream: audio.source_stream,
-                bitrate_kbps: audio.ac3_kbps,
-                channels: audio.format.channels().clamp(1, 6),
-                sample_rate: 48_000,
-                pre_filter: audio_pre_filter(audio),
-                gain_db: audio.gain_db,
-                delay_ms: audio.delay_ms,
-                duration_ms,
-            })
-            .or_else(|| {
-                probe.audio.first().map(|audio| AvchdAudioConfig {
-                    source_stream: audio.index,
-                    bitrate_kbps: project.disc.audio.ac3_kbps,
-                    channels: project.disc.audio.channels.clamp(1, 6),
-                    sample_rate: 48_000,
-                    pre_filter: None,
-                    gain_db: 0.0,
-                    delay_ms: 0,
-                    duration_ms,
-                })
-            });
-        if language == "und" {
-            if let Some(audio) = episode.audio.first() {
-                language = audio.language.clone();
-            } else if let Some(audio) = probe.audio.first() {
-                if let Some(value) = &audio.language {
-                    language = value.clone();
-                }
+        let (audio_configs, current_audio_layout) =
+            avchd_audio_configs(episode, &project, probe, duration_ms);
+        match &audio_layout {
+            None => audio_layout = Some(current_audio_layout),
+            Some(existing) if existing != &current_audio_layout => {
+                return Err(RenderError::Author(
+                    "Las pistas de audio no tienen el mismo orden e idiomas en todos los episodios; AVCHD no puede concatenar layouts distintos.".to_string(),
+                ));
             }
+            Some(_) => {}
         }
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
@@ -1555,7 +1687,7 @@ async fn render_avchd_project(
             } else {
                 dvdforge_avchd::AVCHD_MAX_VIDEO_KBPS
             },
-            audio,
+            audios: audio_configs,
             subtitles: native_subtitles,
             trim: episode.trim,
             trim_start_ms: episode.trim_start_ms,
@@ -1682,6 +1814,8 @@ async fn render_avchd_project(
     } else {
         dvdforge_avchd::AVCHD_MAX_VIDEO_KBPS
     };
+    let audio_layout = audio_layout.unwrap_or_default();
+    let subtitle_track_base = 2 + audio_layout.len() as u32;
     let meta_path = output_dir.join("meta").join("avchd.meta");
     let meta_subtitles: Vec<AvchdMetaSubtitle<'_>> = if pgs_enabled {
         pgs_layout
@@ -1692,7 +1826,7 @@ async fn render_avchd_project(
                     .enumerate()
                     .map(|(index, language)| AvchdMetaSubtitle {
                         source: "combined.mkv",
-                        track: 3 + index as u32,
+                        track: subtitle_track_base + index as u32,
                         language,
                     })
                     .collect()
@@ -1701,16 +1835,30 @@ async fn render_avchd_project(
     } else {
         Vec::new()
     };
+    let meta_audios: Vec<dvdforge_avchd::AvchdMetaAudio<'_>> = audio_layout
+        .iter()
+        .enumerate()
+        .map(
+            |(index, (language, codec))| dvdforge_avchd::AvchdMetaAudio {
+                source: "combined.mkv",
+                track: 2 + index as u32,
+                language,
+                codec: *codec,
+            },
+        )
+        .collect();
+    let native_audio_languages: Vec<&str> = audio_layout
+        .iter()
+        .map(|(language, _)| language.as_str())
+        .collect();
     write_meta(
         &meta_path,
         &AvchdMetaRequest {
             video: "combined.mkv",
-            audio: Some("combined.mkv"),
+            audios: &meta_audios,
             video_track: 1,
-            audio_track: 2,
             fps: config.frame_rate,
             chapters: &chapters,
-            language: &language,
             capacity: project.disc.capacity,
             maxrate_kbps,
             vbv_bufsize_kbps,
@@ -1754,7 +1902,7 @@ async fn render_avchd_project(
                 output_dir: &bdmv_dir,
                 duration_ms: timeline_ms.max(1),
                 chapters_ms: &chapters,
-                audio_language: &language,
+                audio_languages: &native_audio_languages,
                 subtitles: &native_subtitles,
             })
             .await
@@ -2322,7 +2470,7 @@ fn audio_encode_config(
     AudioEncodeConfig {
         source_stream: audio.source_stream,
         bitrate_kbps: audio.ac3_kbps,
-        channels: audio.format.channels(),
+        channels: target_audio_channels(audio, audio.format.channels()),
         sample_rate: 48_000,
         pre_filter: audio_pre_filter(audio),
         gain_db: audio.gain_db,
@@ -2507,7 +2655,7 @@ async fn mux_episode_subtitles(
             TvStandard::Pal => (720, 576),
             TvStandard::Ntsc => (720, 480),
         };
-        let style = dvdforge_subtitle::SubtitleStyle::default();
+        let style = native_subtitle_style(track, context.project_dir);
         let assets = dvdforge_subtitle::render_spumux_assets(
             &parsed.cues,
             &dvdforge_subtitle::RasterOptions {
@@ -4446,5 +4594,83 @@ mod tests {
             .windows(3)
             .any(|window| window == [0x00, 0x00, 0x01]));
         assert!(!compiled.pes_packets.is_empty());
+    }
+
+    #[test]
+    fn mastering_filter_combines_loudness_and_upmix() {
+        let audio = dvdforge_domain::EpisodeAudio {
+            source_stream: 1,
+            source_path: None,
+            language: "eng".to_string(),
+            label: "English".to_string(),
+            gain_db: 0.0,
+            ac3_kbps: 448,
+            delay_ms: 0,
+            format: dvdforge_domain::AudioFormat::Ac3Stereo,
+            default: true,
+            commentary: false,
+            mastering: dvdforge_domain::AudioMastering {
+                loudness: Some(dvdforge_domain::LoudnessTarget {
+                    target_lufs: -16.0,
+                    true_peak_db: -1.5,
+                    lra: 11.0,
+                }),
+                channel_mode: dvdforge_domain::ChannelMode::Upmix51,
+                codec: None,
+                passthrough: false,
+            },
+        };
+        let filter = audio_pre_filter(&audio).expect("filter");
+        assert!(
+            filter.starts_with("loudnorm=I=-16.00:TP=-1.50:LRA=11.00"),
+            "{filter}"
+        );
+        assert!(filter.contains("pan=5.1"), "{filter}");
+        assert_eq!(target_audio_channels(&audio, 2), 6);
+    }
+
+    #[test]
+    fn pass_through_requires_matching_codec_and_no_filters() {
+        let mut audio = dvdforge_domain::EpisodeAudio {
+            source_stream: 1,
+            source_path: None,
+            language: "eng".to_string(),
+            label: "English".to_string(),
+            gain_db: 0.0,
+            ac3_kbps: 768,
+            delay_ms: 0,
+            format: dvdforge_domain::AudioFormat::Ac3Surround51,
+            default: true,
+            commentary: false,
+            mastering: dvdforge_domain::AudioMastering {
+                loudness: None,
+                channel_mode: dvdforge_domain::ChannelMode::Source,
+                codec: Some(dvdforge_domain::AudioCodec::Dts),
+                passthrough: true,
+            },
+        };
+        let probe = dvdforge_domain::AudioStreamInfo {
+            index: 1,
+            codec: "dts".to_string(),
+            channels: 6,
+            sample_rate: 48_000,
+            bitrate_bps: Some(768_000),
+            language: Some("eng".to_string()),
+            title: None,
+            default: true,
+            commentary: false,
+        };
+        assert_eq!(
+            audio_copy_codec(&audio, Some(&probe)),
+            Some(dvdforge_avchd::AvchdAudioCodec::Dts)
+        );
+        audio.gain_db = 3.0;
+        assert_eq!(audio_copy_codec(&audio, Some(&probe)), None);
+        audio.gain_db = 0.0;
+        audio.mastering.codec = Some(dvdforge_domain::AudioCodec::Lpcm);
+        assert_eq!(audio_copy_codec(&audio, Some(&probe)), None);
+        audio.mastering.codec = Some(dvdforge_domain::AudioCodec::Dts);
+        audio.mastering.passthrough = false;
+        assert_eq!(audio_copy_codec(&audio, Some(&probe)), None);
     }
 }

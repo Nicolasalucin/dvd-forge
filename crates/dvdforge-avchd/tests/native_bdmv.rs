@@ -105,7 +105,7 @@ async fn native_movie_with_pgs_is_verifiable() {
             output_dir: &bdmv_root,
             duration_ms: 2_000,
             chapters_ms: &[0, 1_000],
-            audio_language: "eng",
+            audio_languages: &["eng"],
             subtitles: &[NativeMovieSubtitle {
                 path: None,
                 language: "spa",
@@ -133,7 +133,15 @@ async fn native_movie_with_pgs_is_verifiable() {
         "{:?}",
         verified.checks
     );
-    for id in ["BDMV-M2TS", "BDMV-PGS", "BDMV-MPLS", "BDMV-CLPI"] {
+    for id in [
+        "BDMV-M2TS",
+        "BDMV-PGS",
+        "BDMV-PGS-DS",
+        "BDMV-PGS-TS",
+        "BDMV-AUDIO-STREAM",
+        "BDMV-MPLS",
+        "BDMV-CLPI",
+    ] {
         assert!(
             verified.checks.iter().any(|check| check.id == id
                 && check.status == dvdforge_verify::report::CheckStatus::Pass),
@@ -143,6 +151,83 @@ async fn native_movie_with_pgs_is_verifiable() {
     }
     let _ = std::fs::remove_dir_all(root);
 }
+#[tokio::test]
+async fn native_movie_keeps_multiple_audio_tracks() {
+    let ffmpeg = resolve_binary("ffmpeg");
+    if ffmpeg.components().count() == 1 || !ffmpeg.is_file() {
+        eprintln!("FFmpeg is unavailable; skipping native BDMV multi-audio test");
+        return;
+    }
+    let root = temp_root("multi-audio");
+    let combined = root.join("combined.mkv");
+    run(
+        &ffmpeg,
+        &[
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x180:rate=24000/1001:duration=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=880:duration=2",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-map",
+            "2:a:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "ac3",
+            "-metadata:s:a:0",
+            "language=eng",
+            "-metadata:s:a:1",
+            "language=spa",
+            combined.to_str().unwrap(),
+        ],
+    );
+    let bdmv_root = root.join("avchd");
+    let report = NativeBdmvMuxer::new(&ffmpeg)
+        .mux_movie(&NativeMovieRequest {
+            video: &combined,
+            output_dir: &bdmv_root,
+            duration_ms: 2_000,
+            chapters_ms: &[0],
+            audio_languages: &["eng", "spa"],
+            subtitles: &[],
+        })
+        .await
+        .expect("native movie");
+    let audio: Vec<_> = report
+        .streams
+        .iter()
+        .filter(|stream| matches!(stream.stream_type, 0x81 | 0x82 | 0x83 | 0x86))
+        .collect();
+    assert_eq!(audio.len(), 2, "{:?}", report.streams);
+    assert!(audio
+        .iter()
+        .any(|stream| stream.language.as_deref() == Some("eng")));
+    assert!(audio
+        .iter()
+        .any(|stream| stream.language.as_deref() == Some("spa")));
+    check_bd_info(&bdmv_root);
+    let _ = std::fs::remove_dir_all(root);
+}
+
 #[tokio::test]
 async fn native_menu_ig_is_verifiable() {
     use dvdforge_hdmv::{
@@ -192,7 +277,7 @@ async fn native_menu_ig_is_verifiable() {
             output_dir: &bdmv_root,
             duration_ms: 2_000,
             chapters_ms: &[0],
-            audio_language: "eng",
+            audio_languages: &["eng"],
             subtitles: &[],
         })
         .await

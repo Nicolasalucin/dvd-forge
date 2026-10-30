@@ -1164,6 +1164,8 @@ export type SubpictureSpec_Serialize = {
 	selectOpacity: number,
 };
 
+export type SubtitleAlignment = "bottomCenter" | "bottomLeft" | "bottomRight" | "topCenter" | "center";
+
 export type SubtitleStreamInfo = SubtitleStreamInfo_Serialize | SubtitleStreamInfo_Deserialize;
 
 export type SubtitleStreamInfo_Deserialize = {
@@ -1186,6 +1188,40 @@ export type SubtitleStreamInfo_Serialize = {
 	bitmap: boolean,
 };
 
+export type SubtitleStyle = SubtitleStyle_Serialize | SubtitleStyle_Deserialize;
+
+export type SubtitleStyle_Deserialize = {
+	fontFamily?: string,
+	fontPath?: string | null,
+	fontWeight?: number,
+	italic?: boolean,
+	fontSizePercent?: number | null,
+	outlinePercent?: number | null,
+	shadowOffsetPercent?: number | null,
+	fillColor?: string,
+	outlineColor?: string,
+	shadowColor?: string,
+	alignment?: SubtitleAlignment,
+	safeAreaPercent?: number,
+	maxLines?: number,
+};
+
+export type SubtitleStyle_Serialize = {
+	fontFamily: string,
+	fontPath: string | null,
+	fontWeight: number,
+	italic: boolean,
+	fontSizePercent: number | null,
+	outlinePercent: number | null,
+	shadowOffsetPercent: number | null,
+	fillColor: string,
+	outlineColor: string,
+	shadowColor: string,
+	alignment: SubtitleAlignment,
+	safeAreaPercent: number,
+	maxLines: number,
+};
+
 export type SubtitleTrack = SubtitleTrack_Serialize | SubtitleTrack_Deserialize;
 
 export type SubtitleTrack_Deserialize = {
@@ -1199,6 +1235,7 @@ export type SubtitleTrack_Deserialize = {
 	isDefault?: boolean,
 	/**  PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR. */
 	bitmap?: boolean,
+	style?: SubtitleStyle_Deserialize,
 };
 
 export type SubtitleTrack_Serialize = {
@@ -1212,6 +1249,7 @@ export type SubtitleTrack_Serialize = {
 	isDefault: boolean,
 	/**  PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR. */
 	bitmap: boolean,
+	style: SubtitleStyle_Serialize,
 };
 
 export type TextAlign = "left" | "center" | "right";

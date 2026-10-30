@@ -690,6 +690,99 @@ fn default_ac3_kbps() -> u16 {
     192
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum SubtitleAlignment {
+    #[default]
+    BottomCenter,
+    BottomLeft,
+    BottomRight,
+    TopCenter,
+    Center,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SubtitleStyle {
+    #[serde(default = "default_subtitle_font")]
+    pub font_family: String,
+    #[serde(default)]
+    pub font_path: Option<String>,
+    #[serde(default = "default_subtitle_weight")]
+    pub font_weight: u16,
+    #[serde(default)]
+    pub italic: bool,
+    #[serde(default = "default_subtitle_size")]
+    pub font_size_percent: f32,
+    #[serde(default = "default_subtitle_outline")]
+    pub outline_percent: f32,
+    #[serde(default = "default_subtitle_shadow")]
+    pub shadow_offset_percent: f32,
+    #[serde(default = "default_subtitle_fill")]
+    pub fill_color: String,
+    #[serde(default = "default_subtitle_outline_color")]
+    pub outline_color: String,
+    #[serde(default = "default_subtitle_shadow_color")]
+    pub shadow_color: String,
+    #[serde(default)]
+    pub alignment: SubtitleAlignment,
+    #[serde(default = "default_subtitle_safe_area")]
+    pub safe_area_percent: u8,
+    #[serde(default = "default_subtitle_max_lines")]
+    pub max_lines: u8,
+}
+
+impl Default for SubtitleStyle {
+    fn default() -> Self {
+        Self {
+            font_family: default_subtitle_font(),
+            font_path: None,
+            font_weight: default_subtitle_weight(),
+            italic: false,
+            font_size_percent: default_subtitle_size(),
+            outline_percent: default_subtitle_outline(),
+            shadow_offset_percent: default_subtitle_shadow(),
+            fill_color: default_subtitle_fill(),
+            outline_color: default_subtitle_outline_color(),
+            shadow_color: default_subtitle_shadow_color(),
+            alignment: SubtitleAlignment::BottomCenter,
+            safe_area_percent: default_subtitle_safe_area(),
+            max_lines: default_subtitle_max_lines(),
+        }
+    }
+}
+
+fn default_subtitle_font() -> String {
+    "sans-serif".to_string()
+}
+fn default_subtitle_weight() -> u16 {
+    400
+}
+fn default_subtitle_size() -> f32 {
+    4.5
+}
+fn default_subtitle_outline() -> f32 {
+    0.18
+}
+fn default_subtitle_shadow() -> f32 {
+    0.12
+}
+fn default_subtitle_fill() -> String {
+    "#FFFFFF".to_string()
+}
+fn default_subtitle_outline_color() -> String {
+    "#000000".to_string()
+}
+fn default_subtitle_shadow_color() -> String {
+    "#000000A0".to_string()
+}
+fn default_subtitle_safe_area() -> u8 {
+    5
+}
+fn default_subtitle_max_lines() -> u8 {
+    3
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SubtitleTrack {
@@ -708,6 +801,8 @@ pub struct SubtitleTrack {
     /// PGS/VobSub/DVB bitmap subtitles cannot be converted to SRT without OCR.
     #[serde(default)]
     pub bitmap: bool,
+    #[serde(default)]
+    pub style: SubtitleStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, specta::Type)]
@@ -1560,6 +1655,7 @@ mod tests {
             is_forced: false,
             is_default: false,
             bitmap: true,
+            style: SubtitleStyle::default(),
         }
     }
 

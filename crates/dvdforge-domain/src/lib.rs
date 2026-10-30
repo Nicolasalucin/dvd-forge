@@ -36,5 +36,6 @@ pub use project::{
     DiscCapacity, DiscConfig, DvdProfile, DvdVideoConfig, EncodeOverride, EncodingPriority,
     Episode, EpisodeAudio, FirstPlay, H264Level, LayerBreakMode, LoudnessTarget, MediaAsset,
     MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction, Project, ProxyInfo,
-    SubtitleStreamInfo, SubtitleTrack, VideoConfig, VideoScaleMode, VideoStreamInfo,
+    SubtitleAlignment, SubtitleStreamInfo, SubtitleStyle, SubtitleTrack, VideoConfig,
+    VideoScaleMode, VideoStreamInfo,
 };

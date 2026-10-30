@@ -54,10 +54,11 @@ de alta definición, sin duplicar el trabajo creativo.
 - Los subtítulos DVD se generan desde PNG nativos de cuatro colores y se
   autorizan con XML `<spu>` de Spumux, conservando fuente, color y alineación.
 - **Masterización de audio**: `loudnorm` EBU R128 opcional, conversión estéreo/
-  5.1, ganancia/retardo por pista, preferencia de códec y metadatos de paso
-  directo.
-- Nueva crate `dvdforge-subtitle` con rasterizado 1080p acotado y pruebas de
-  parser, PGS y Spumux.
+  5.1, ganancia/retardo por pista, paso directo DTS/LPCM/AC-3 y AVCHD multi-audio.
+- **Verificador**: display sets/PTS PGS, streams de audio BDMV y paquetes/paleta
+  SPU de DVD.
+- Nueva crate `dvdforge-subtitle` con estilos por pista persistidos, rasterizado
+  1080p acotado y pruebas de parser, PGS y Spumux.
 
 ## Correcciones de v0.4.1
 

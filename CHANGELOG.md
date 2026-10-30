@@ -14,6 +14,9 @@
 - Added font resolution through `fontdb` with explicit project-relative font
   paths, deterministic font fingerprints, safe-area layout, outline/shadow,
   forced cues and bounded 1080p rasterization.
+- Persisted `SubtitleTrack.style` (font, size, outline/shadow, colors,
+  alignment, safe area, max lines) with schema defaults and regenerated IPC
+  bindings; DVD and AVCHD render each track with its own style.
 
 ### Audio mastering
 
@@ -21,7 +24,13 @@
   5.1 channel modes, explicit up/downmix matrices, codec preference and
   pass-through metadata.
 - DVD and AVCHD apply loudness/channel pre-filters, gain and delay in one
-  `-af` chain; the AVCHD encoder now honors per-track bitrate and channel layout.
+  `-af`/`-filter:a:N` chain; the AVCHD encoder now honors per-track bitrate and
+  channel layout.
+- AVCHD supports multiple audio tracks end to end: FFmpeg per-stream mapping,
+  tsMuxeR meta lines, native PMT/MPLS/CLPI descriptors and language registration.
+- DTS/LPCM/AC-3 pass-through is selected when `AudioMastering` has no active
+  filters and the probed source codec matches; otherwise AC-3 re-encoding is
+  used.
 - Mastering fields and measured target values are included in the render cache
   key; `ENCODER_REV` was bumped.
 
@@ -29,6 +38,9 @@
 
 - Added parser, layout, PGS, four-color Spumux and FFmpeg PGS smoke coverage.
 - Validated generated PGS with FFmpeg and Spumux output with DVDAuthor 0.7.2.
+- Added verifier checks `BDMV-PGS-DS`, `BDMV-PGS-TS`,
+  `BDMV-AUDIO-STREAM`, `DVD-SPU-SEQ` and `DVD-SPU-PALETTE`.
+- Added native multi-audio BDMV and tsMuxeR meta/argument tests.
 - Preserved v0.4.1 audio warning fixes and all existing i686/native BDMV tests.
 
 ## 0.4.1 — 2026-10-30

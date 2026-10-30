@@ -316,9 +316,15 @@ mod tests {
             .add_bytes("VIDEO_TS/VTS_01_0.IFO", vts.clone())
             .unwrap();
         image.add_bytes("VIDEO_TS/VTS_01_0.BUP", vts).unwrap();
-        image
-            .add_bytes("VIDEO_TS/VTS_01_0.VOB", vec![0u8; 100 * 2048])
-            .unwrap();
+        let mut vob = vec![0u8; 100 * 2048];
+        vob[..4].copy_from_slice(&[0x00, 0x00, 0x01, 0xBD]);
+        vob[4..6].copy_from_slice(&0x0010u16.to_be_bytes());
+        vob[6] = 0x80;
+        vob[7] = 0;
+        vob[8] = 0x20;
+        vob[9..11].copy_from_slice(&0x0008u16.to_be_bytes());
+        vob[11..13].copy_from_slice(&0x0004u16.to_be_bytes());
+        image.add_bytes("VIDEO_TS/VTS_01_0.VOB", vob).unwrap();
         let options = UdfOptions {
             revision: UdfRevision::V102,
             partition: UdfPartition::Physical,
@@ -342,6 +348,10 @@ mod tests {
             .checks
             .iter()
             .any(|check| check.id == "DVD-IFO-BUP" && check.status == report::CheckStatus::Pass));
+        assert!(report
+            .checks
+            .iter()
+            .any(|check| check.id == "DVD-SPU-SEQ" && check.status == report::CheckStatus::Pass));
 
         let bad = root.join("bad.iso");
         dvd_image(&bad, true);

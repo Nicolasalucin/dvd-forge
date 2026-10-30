@@ -71,7 +71,7 @@ pub struct NativeMovieRequest<'a> {
     pub output_dir: &'a Path,
     pub duration_ms: u64,
     pub chapters_ms: &'a [u64],
-    pub audio_language: &'a str,
+    pub audio_languages: &'a [&'a str],
     pub subtitles: &'a [NativeMovieSubtitle<'a>],
 }
 
@@ -156,7 +156,7 @@ impl NativeBdmvMuxer {
             "-map".to_string(),
             "0:v:0".to_string(),
             "-map".to_string(),
-            "0:a:0".to_string(),
+            "0:a?".to_string(),
         ]);
         if request
             .subtitles
@@ -188,7 +188,7 @@ impl NativeBdmvMuxer {
         run_stage(&self.ffmpeg, &args, "m2ts nativo", None).await?;
 
         let source_packets = source_packet_count(&stream_path)?;
-        let streams = resolve_streams(&stream_path, request.audio_language, request.subtitles)?;
+        let streams = resolve_streams(&stream_path, request.audio_languages, request.subtitles)?;
         let in_time = BDAV_START_45K;
         let out_time = in_time
             .checked_add(u32::try_from(request.duration_ms.saturating_mul(45)).unwrap_or(u32::MAX))
@@ -449,17 +449,24 @@ fn read_pmt_prefix(path: &Path) -> Result<Vec<u8>, AvchdError> {
 
 fn resolve_streams(
     path: &Path,
-    audio_language: &str,
+    audio_languages: &[&str],
     subtitles: &[NativeMovieSubtitle<'_>],
 ) -> Result<Vec<NativeStream>, AvchdError> {
     let prefix = read_pmt_prefix(path)?;
     let pmt = parse_pmt_from_m2ts_prefix(&prefix).map_err(native_error)?;
     let mut streams = Vec::with_capacity(pmt.len());
     let mut subtitle_index = 0usize;
+    let mut audio_index = 0usize;
     for stream in pmt {
         let language = match stream.stream_type {
             0x1B => None,
-            0x81 => Some(normalize_language(audio_language)),
+            0x81 | 0x82 | 0x83 | 0x86 => {
+                let language = audio_languages
+                    .get(audio_index)
+                    .map(|language| normalize_language(language));
+                audio_index += 1;
+                language
+            }
             dvdforge_hdmv::bdmv::PMT_STREAM_TYPE_PGS => {
                 let language = subtitles
                     .get(subtitle_index)

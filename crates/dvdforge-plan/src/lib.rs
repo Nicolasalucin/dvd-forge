@@ -431,20 +431,15 @@ fn calculate_avchd_plan(
                 episode: episode.id,
             });
         }
-        if episode.audio.len() > 1 {
-            warnings.push(Diagnostic::warning(
-                "W_AVCHD_MULTI_AUDIO",
-                format!(
-                    "El episodio {} tiene varias pistas de audio; AVCHD usará la primera.",
-                    episode.number
-                ),
-            ));
-        }
-        let audio_kbps = episode
-            .audio
-            .first()
-            .map(|audio| audio.ac3_kbps as u32)
-            .unwrap_or(project.disc.audio.ac3_kbps as u32);
+        let audio_kbps = if episode.audio.is_empty() {
+            project.disc.audio.ac3_kbps as u32
+        } else {
+            episode
+                .audio
+                .iter()
+                .map(|audio| audio.ac3_kbps as u32)
+                .sum()
+        };
         let audio_bytes = bytes_for(duration_ms, audio_kbps);
         audio_total = audio_total.saturating_add(audio_bytes);
         total_duration_ms = total_duration_ms.saturating_add(duration_ms);

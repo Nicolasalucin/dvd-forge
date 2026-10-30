@@ -73,6 +73,23 @@ pub fn config_errors(config: &AvchdVideoConfig) -> Vec<Diagnostic> {
         .collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AvchdAudioCodec {
+    Ac3,
+    Dts,
+    Lpcm,
+}
+
+impl AvchdAudioCodec {
+    pub const fn meta_name(self) -> &'static str {
+        match self {
+            Self::Ac3 => "A_AC3",
+            Self::Dts => "A_DTS",
+            Self::Lpcm => "A_LPCM",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AvchdAudioConfig {
     pub source_stream: u32,
@@ -83,6 +100,13 @@ pub struct AvchdAudioConfig {
     pub gain_db: f32,
     pub delay_ms: i32,
     pub duration_ms: u64,
+    pub language: String,
+    /// Stream-copy an already compatible DTS/LPCM/AC-3 stream.
+    pub copy: bool,
+    /// Codec declared in the tsMuxeR meta for copy or AC-3 encode.
+    pub codec: AvchdAudioCodec,
+    pub default: bool,
+    pub commentary: bool,
 }
 
 /// One bitmap subtitle track passed through to the H.264/AC-3 MKV. Only
@@ -110,7 +134,7 @@ pub struct AvchdEncodeRequest {
     pub video_kbps: u32,
     pub maxrate_kbps: u32,
     pub vbv_bufsize_kbps: u32,
-    pub audio: Option<AvchdAudioConfig>,
+    pub audios: Vec<AvchdAudioConfig>,
     pub subtitles: Vec<AvchdSubtitleConfig>,
     pub trim: Option<FrameRange>,
     pub trim_start_ms: Option<u64>,
@@ -171,7 +195,10 @@ impl AvchdEncodeRequest {
                 "la duración AVCHD no puede ser cero".to_string(),
             ));
         }
-        if let Some(audio) = &self.audio {
+        for audio in &self.audios {
+            if audio.copy {
+                continue;
+            }
             if !matches!(audio.bitrate_kbps, 192 | 224 | 256 | 320 | 384 | 448) {
                 return Err(AvchdError::InvalidConfig(format!(
                     "bitrate AC-3 no soportado: {} kbps",
@@ -306,6 +333,34 @@ fn push_file_input(args: &mut Vec<String>, path: &Path) {
     ]);
 }
 
+fn audio_filter_chain(audio: &AvchdAudioConfig) -> Option<String> {
+    let mut filters = Vec::new();
+    if let Some(pre_filter) = &audio.pre_filter {
+        if !pre_filter.trim().is_empty() {
+            filters.push(pre_filter.clone());
+        }
+    }
+    if audio.gain_db.abs() > 0.01 {
+        filters.push(format!("volume={:.3}dB", audio.gain_db));
+    }
+    if audio.delay_ms > 0 {
+        filters.push(format!("adelay={}:all=1", audio.delay_ms));
+    } else if audio.delay_ms < 0 {
+        let mut filter = format!(
+            "atrim=start={:.3},asetpts=PTS-STARTPTS",
+            audio.delay_ms.unsigned_abs() as f64 / 1000.0
+        );
+        if audio.duration_ms > 0 {
+            filter.push_str(&format!(
+                ",apad=whole_dur={:.3}",
+                audio.duration_ms as f64 / 1000.0
+            ));
+        }
+        filters.push(filter);
+    }
+    (!filters.is_empty()).then(|| filters.join(","))
+}
+
 pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     let mut args = vec!["-hide_banner".to_string(), "-y".to_string()];
     if request.trim_start_ms.is_some() || request.trim_end_ms.is_some() {
@@ -320,7 +375,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         args.push(format_seconds(trim.start, request.fps));
     }
     push_file_input(&mut args, &request.input);
-    if request.audio.is_none() {
+    if request.audios.is_empty() {
         args.extend([
             "-f".to_string(),
             "lavfi".to_string(),
@@ -329,7 +384,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         ]);
     }
     let mut external_inputs = Vec::new();
-    let mut next_input = if request.audio.is_none() {
+    let mut next_input = if request.audios.is_empty() {
         2usize
     } else {
         1usize
@@ -459,20 +514,12 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     }
 
     args.extend(["-map".to_string(), "0:v:0".to_string()]);
-    let channels = request
-        .audio
-        .as_ref()
-        .map(|audio| audio.channels)
-        .unwrap_or(2);
-    let audio_kbps = request
-        .audio
-        .as_ref()
-        .map(|audio| audio.bitrate_kbps)
-        .unwrap_or(AVCHD_DEFAULT_AUDIO_KBPS);
-    if let Some(audio) = &request.audio {
-        args.extend(["-map".to_string(), format!("0:{}", audio.source_stream)]);
-    } else {
+    if request.audios.is_empty() {
         args.extend(["-map".to_string(), "1:a:0".to_string()]);
+    } else {
+        for audio in &request.audios {
+            args.extend(["-map".to_string(), format!("0:{}", audio.source_stream)]);
+        }
     }
     let mut external_cursor = 0usize;
     for subtitle in &request.subtitles {
@@ -485,45 +532,48 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         };
         args.extend(["-map".to_string(), source]);
     }
-    let mut audio_filters = Vec::new();
-    if let Some(audio) = &request.audio {
-        if let Some(pre_filter) = &audio.pre_filter {
-            if !pre_filter.trim().is_empty() {
-                audio_filters.push(pre_filter.clone());
+    if request.audios.is_empty() {
+        args.extend([
+            "-c:a".to_string(),
+            "ac3".to_string(),
+            "-b:a".to_string(),
+            format!("{AVCHD_DEFAULT_AUDIO_KBPS}k"),
+            "-ar".to_string(),
+            "48000".to_string(),
+            "-ac".to_string(),
+            "2".to_string(),
+        ]);
+    } else {
+        for (index, audio) in request.audios.iter().enumerate() {
+            if audio.copy {
+                args.extend([format!("-c:a:{index}"), "copy".to_string()]);
+            } else {
+                args.extend([
+                    format!("-c:a:{index}"),
+                    "ac3".to_string(),
+                    format!("-b:a:{index}"),
+                    format!("{}k", audio.bitrate_kbps),
+                    format!("-ar:a:{index}"),
+                    audio.sample_rate.to_string(),
+                    format!("-ac:a:{index}"),
+                    audio.channels.to_string(),
+                ]);
+                if let Some(filters) = audio_filter_chain(audio) {
+                    args.extend([format!("-filter:a:{index}"), filters]);
+                }
+            }
+            args.extend([
+                format!("-metadata:s:a:{index}"),
+                format!("language={}", normalize_language(&audio.language)),
+            ]);
+            if audio.default {
+                args.extend([format!("-disposition:a:{index}"), "default".to_string()]);
+            }
+            if audio.commentary {
+                args.extend([format!("-disposition:a:{index}"), "comment".to_string()]);
             }
         }
-        if audio.gain_db.abs() > 0.01 {
-            audio_filters.push(format!("volume={:.3}dB", audio.gain_db));
-        }
-        if audio.delay_ms > 0 {
-            audio_filters.push(format!("adelay={}:all=1", audio.delay_ms));
-        } else if audio.delay_ms < 0 {
-            let mut filter = format!(
-                "atrim=start={:.3},asetpts=PTS-STARTPTS",
-                audio.delay_ms.unsigned_abs() as f64 / 1000.0
-            );
-            if audio.duration_ms > 0 {
-                filter.push_str(&format!(
-                    ",apad=whole_dur={:.3}",
-                    audio.duration_ms as f64 / 1000.0
-                ));
-            }
-            audio_filters.push(filter);
-        }
     }
-    if !audio_filters.is_empty() {
-        args.extend(["-af".to_string(), audio_filters.join(",")]);
-    }
-    args.extend([
-        "-c:a".to_string(),
-        "ac3".to_string(),
-        "-b:a".to_string(),
-        format!("{audio_kbps}k"),
-        "-ar".to_string(),
-        "48000".to_string(),
-        "-ac".to_string(),
-        channels.to_string(),
-    ]);
     if request.subtitles.is_empty() {
         args.push("-sn".to_string());
     } else {
@@ -806,16 +856,22 @@ pub struct AvchdMetaSubtitle<'a> {
     pub language: &'a str,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct AvchdMetaAudio<'a> {
+    pub source: &'a str,
+    pub track: u32,
+    pub language: &'a str,
+    pub codec: AvchdAudioCodec,
+}
+
 #[derive(Debug, Clone)]
 pub struct AvchdMetaRequest<'a> {
     pub video: &'a str,
-    pub audio: Option<&'a str>,
+    pub audios: &'a [AvchdMetaAudio<'a>],
     pub video_track: u32,
-    pub audio_track: u32,
     pub fps: FrameRate,
     /// Chapter start timestamps in milliseconds, relative to the final track.
     pub chapters: &'a [u64],
-    pub language: &'a str,
     pub capacity: DiscCapacity,
     pub maxrate_kbps: u32,
     pub vbv_bufsize_kbps: u32,
@@ -853,11 +909,13 @@ pub fn build_meta(request: &AvchdMetaRequest<'_>) -> String {
         request.video_track,
         request.fps.as_f64()
     ));
-    if let Some(audio) = request.audio {
-        let language = normalize_language(request.language);
+    for audio in request.audios {
         meta.push_str(&format!(
-            "A_AC3, {audio}, track={}, lang={language}\n",
-            request.audio_track
+            "{}, {}, track={}, lang={}\n",
+            audio.codec.meta_name(),
+            audio.source,
+            audio.track,
+            normalize_language(audio.language)
         ));
     }
     if let Some(graphics) = request.interactive_graphics {
@@ -1066,7 +1124,7 @@ mod tests {
             video_kbps: 8_000,
             maxrate_kbps: 24_000,
             vbv_bufsize_kbps: 24_000,
-            audio: Some(AvchdAudioConfig {
+            audios: vec![AvchdAudioConfig {
                 source_stream: 1,
                 bitrate_kbps: 192,
                 channels: 2,
@@ -1075,7 +1133,12 @@ mod tests {
                 gain_db: 0.0,
                 delay_ms: 0,
                 duration_ms: 0,
-            }),
+                language: "eng".to_string(),
+                copy: false,
+                codec: AvchdAudioCodec::Ac3,
+                default: true,
+                commentary: false,
+            }],
             subtitles: Vec::new(),
             trim: None,
             trim_start_ms: None,
@@ -1102,7 +1165,7 @@ mod tests {
         assert!(args.contains("-profile:v high"));
         assert!(args.contains("-level:v 4.1"));
         assert!(args.contains("-f matroska"));
-        assert!(args.contains("-c:a ac3"));
+        assert!(args.contains("-c:a:0 ac3"));
     }
 
     #[test]
@@ -1149,29 +1212,93 @@ mod tests {
     }
 
     #[test]
+    fn multiple_audio_tracks_are_mapped_and_copied_per_stream() {
+        let mut request = request();
+        request.audios.push(AvchdAudioConfig {
+            source_stream: 2,
+            bitrate_kbps: 768,
+            channels: 6,
+            sample_rate: 48_000,
+            pre_filter: None,
+            gain_db: 0.0,
+            delay_ms: 0,
+            duration_ms: 0,
+            language: "spa".to_string(),
+            copy: true,
+            codec: AvchdAudioCodec::Dts,
+            default: false,
+            commentary: false,
+        });
+        let args = build_encode_args(&request).join(" ");
+        assert!(args.contains("-map 0:1"), "{args}");
+        assert!(args.contains("-map 0:2"), "{args}");
+        assert!(args.contains("-c:a:0 ac3"), "{args}");
+        assert!(args.contains("-c:a:1 copy"), "{args}");
+        assert!(args.contains("-metadata:s:a:1 language=spa"), "{args}");
+        let audio = [
+            AvchdMetaAudio {
+                source: "combined.mkv",
+                track: 2,
+                language: "eng",
+                codec: AvchdAudioCodec::Ac3,
+            },
+            AvchdMetaAudio {
+                source: "combined.mkv",
+                track: 3,
+                language: "spa",
+                codec: AvchdAudioCodec::Dts,
+            },
+        ];
+        let meta = build_meta(&AvchdMetaRequest {
+            video: "combined.mkv",
+            audios: &audio,
+            video_track: 1,
+            fps: FrameRate::FPS_23_976,
+            chapters: &[0],
+            capacity: DiscCapacity::Dvd5,
+            maxrate_kbps: 24_000,
+            vbv_bufsize_kbps: 24_000,
+            interactive_graphics: None,
+            subtitles: &[],
+        });
+        assert!(
+            meta.contains("A_AC3, combined.mkv, track=2, lang=eng"),
+            "{meta}"
+        );
+        assert!(
+            meta.contains("A_DTS, combined.mkv, track=3, lang=spa"),
+            "{meta}"
+        );
+    }
+
+    #[test]
     fn audio_gain_and_delay_are_applied() {
         let mut request = request();
-        if let Some(audio) = &mut request.audio {
+        if let Some(audio) = request.audios.first_mut() {
             audio.gain_db = 3.0;
             audio.delay_ms = 250;
         }
         let args = build_encode_args(&request).join(" ");
         assert!(
-            args.contains("-af volume=3.000dB,adelay=250:all=1"),
+            args.contains("-filter:a:0 volume=3.000dB,adelay=250:all=1"),
             "{args}"
         );
     }
 
     #[test]
     fn meta_contains_pgs_passthrough_tracks() {
+        let audio = [AvchdMetaAudio {
+            source: "combined.mkv",
+            track: 2,
+            language: "eng",
+            codec: AvchdAudioCodec::Ac3,
+        }];
         let meta = build_meta(&AvchdMetaRequest {
             video: "combined.mkv",
-            audio: Some("combined.mkv"),
+            audios: &audio,
             video_track: 1,
-            audio_track: 2,
             fps: FrameRate::FPS_23_976,
             chapters: &[0],
-            language: "eng",
             capacity: DiscCapacity::Bd25,
             maxrate_kbps: 38_000,
             vbv_bufsize_kbps: 35_000,
@@ -1190,14 +1317,18 @@ mod tests {
 
     #[test]
     fn meta_contains_avchd_header_and_sorted_chapters() {
+        let audio = [AvchdMetaAudio {
+            source: "combined.mkv",
+            track: 2,
+            language: "spa",
+            codec: AvchdAudioCodec::Ac3,
+        }];
         let meta = build_meta(&AvchdMetaRequest {
             video: "combined.mkv",
-            audio: Some("combined.mkv"),
+            audios: &audio,
             video_track: 1,
-            audio_track: 2,
             fps: FrameRate::FPS_23_976,
             chapters: &[20_000, 0, 20_000, 5_000],
-            language: "spa",
             capacity: DiscCapacity::Dvd5,
             maxrate_kbps: 24_000,
             vbv_bufsize_kbps: 24_000,
@@ -1228,14 +1359,18 @@ mod tests {
             ("und", "und"),
             ("unknown", "und"),
         ] {
+            let audio = [AvchdMetaAudio {
+                source: "combined.mkv",
+                track: 2,
+                language: input,
+                codec: AvchdAudioCodec::Ac3,
+            }];
             let meta = build_meta(&AvchdMetaRequest {
                 video: "combined.mkv",
-                audio: Some("combined.mkv"),
+                audios: &audio,
                 video_track: 1,
-                audio_track: 2,
                 fps: FrameRate::FPS_23_976,
                 chapters: &chapters,
-                language: input,
                 capacity: DiscCapacity::Bd25,
                 maxrate_kbps: 24_000,
                 vbv_bufsize_kbps: 30_000,
@@ -1251,14 +1386,18 @@ mod tests {
 
     #[test]
     fn meta_injects_blu_ray_header_and_interactive_graphics() {
+        let audio = [AvchdMetaAudio {
+            source: "combined.mkv",
+            track: 2,
+            language: "spa",
+            codec: AvchdAudioCodec::Ac3,
+        }];
         let meta = build_meta(&AvchdMetaRequest {
             video: "combined.mkv",
-            audio: Some("combined.mkv"),
+            audios: &audio,
             video_track: 1,
-            audio_track: 2,
             fps: FrameRate::FPS_23_976,
             chapters: &[0],
-            language: "spa",
             capacity: DiscCapacity::Bd25,
             maxrate_kbps: 38_000,
             vbv_bufsize_kbps: 35_000,

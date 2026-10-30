@@ -54,9 +54,11 @@ work.
 - **DVD subtitles** are authored from native four-color PNGs through Spumux
   `<spu>` XML, preserving fonts, colors, alignment and safe areas.
 - **Audio mastering**: optional EBU R128 `loudnorm`, stereo/5.1 conversion,
-  per-track gain/delay, codec preference and pass-through metadata.
+  per-track gain/delay, DTS/LPCM/AC-3 pass-through and multi-audio AVCHD.
+- **Verifier**: PGS display-set/timestamp checks, BDMV audio-stream checks and
+  DVD SPU packet/palette checks.
 - New `dvdforge-subtitle` crate with bounded 1080p rasterization, deterministic
-  font fingerprints and parser/PGS/Spumux tests.
+  font fingerprints, persisted per-track styles and parser/PGS/Spumux tests.
 
 ## v0.4.1 bug-fix release
 

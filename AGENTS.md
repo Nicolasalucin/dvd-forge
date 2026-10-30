@@ -127,7 +127,8 @@ Smart Render Cache v2:
 - It runs automatically after render and before burn. `Fail` blocks burning;
   `Warn` is surfaced to the user.
 - Checks are stable IDs (`UDF-AVDP`, `UDF-TAG266`, `BDMV-MOBJ`, `DVD-PGC`,
-  `DVD-LAYER-BREAK`, etc.). Keep IDs stable for UI and tests.
+  `DVD-LAYER-BREAK`, `BDMV-PGS-DS`, `BDMV-PGS-TS`, `BDMV-AUDIO-STREAM`,
+  `DVD-SPU-SEQ`, `DVD-SPU-PALETTE`, etc.). Keep IDs stable for UI and tests.
 - Do not add writes, temp files or mutation to the verifier.
 
 ### 5. Tauri/Svelte IPC
@@ -153,6 +154,11 @@ Smart Render Cache v2:
 - `AudioMastering` (loudnorm/channel mode/codec/passthrough) and per-track gain,
   delay and format must feed one `-af`/`-filter:a:N` chain. Keep mastering
   fields in `audio_params_hash` and bump `ENCODER_REV` when arguments change.
+- AVCHD audio is a vector end to end: FFmpeg per-stream args, tsMuxeR meta,
+  native PMT/MPLS/CLPI and language registration must all agree. Pass-through
+  is only legal for an unfiltered, codec-matching source; otherwise re-encode.
+- Subtitle style is persisted on `SubtitleTrack.style`; native DVD/AVCHD
+  rendering must use it rather than a global default.
 
 ### 7. Domain/project compatibility
 
