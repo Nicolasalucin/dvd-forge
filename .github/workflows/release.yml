@@ -25,11 +25,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bundles: appimage,deb
             desktop: true
+            cli_archive: dvdforge-cli-x86_64-unknown-linux-gnu.tar.gz
           - name: linux-i686
             arch: i686
             target: i686-unknown-linux-gnu
             bundles: none
             desktop: false
+            cli_archive: dvdforge-cli-i686-unknown-linux.tar.gz
 
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +91,7 @@ jobs:
           cp "target/${{ matrix.target }}/release/dvdforge-cli" \
              "target/${{ matrix.target }}/release/dvdforge-cli-${{ matrix.target }}"
           tar -C "target/${{ matrix.target }}/release" -czf \
-             "artifacts/dvdforge-cli-${{ matrix.target }}.tar.gz" "dvdforge-cli"
+             "artifacts/${{ matrix.cli_archive }}" "dvdforge-cli"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
