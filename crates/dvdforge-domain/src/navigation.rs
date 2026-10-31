@@ -18,6 +18,15 @@ pub enum NavDirection {
 impl NavDirection {
     pub const ALL: [Self; 4] = [Self::Up, Self::Down, Self::Left, Self::Right];
 
+    pub const fn opposite(self) -> Self {
+        match self {
+            Self::Up => Self::Down,
+            Self::Down => Self::Up,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
+
     pub const fn label(self) -> &'static str {
         match self {
             Self::Up => "up",
@@ -92,6 +101,7 @@ pub struct NavigationGraph {
     pub edges: Vec<NavEdge>,
     pub default_focus: Option<ButtonId>,
     pub policy: NavPolicy,
+    pub route_hash: String,
     pub warnings: Vec<Diagnostic>,
 }
 
@@ -159,6 +169,7 @@ pub fn resolve_navigation(
             edges: Vec::new(),
             default_focus: None,
             policy: policy.clone(),
+            route_hash: route_hash(&[]),
             warnings,
         };
     }
@@ -234,17 +245,114 @@ pub fn resolve_navigation(
         }
     }
 
+    normalize_symmetry(&nodes, &mut edges, &mut warnings);
     if let Some(focus) = resolved_default {
         mark_unreachable(&nodes, &edges, focus, &mut warnings);
     }
 
+    let route_hash = route_hash(&edges);
     NavigationGraph {
         menu_id,
         nodes,
         edges,
         default_focus: resolved_default,
         policy: policy.clone(),
+        route_hash,
         warnings,
+    }
+}
+
+fn route_hash(edges: &[NavEdge]) -> String {
+    let mut entries: Vec<String> = edges
+        .iter()
+        .map(|edge| {
+            format!(
+                "{}:{}:{}:{:?}",
+                edge.from, edge.direction as u8, edge.to, edge.source
+            )
+        })
+        .collect();
+    entries.sort();
+    let mut hasher = sha2::Sha256::new();
+    for entry in entries {
+        hasher.update(entry.as_bytes());
+        hasher.update([0]);
+    }
+    use sha2::Digest;
+    hex::encode(hasher.finalize())
+}
+
+fn normalize_symmetry(nodes: &[NavNode], edges: &mut Vec<NavEdge>, warnings: &mut Vec<Diagnostic>) {
+    let ids: HashSet<ButtonId> = nodes.iter().map(|node| node.button).collect();
+    let snapshot = edges.clone();
+    let mut additions = Vec::new();
+    for edge in snapshot {
+        if edge.from == edge.to
+            || !matches!(edge.direction, NavDirection::Right | NavDirection::Down)
+        {
+            continue;
+        }
+        let reverse_index = edges.iter().position(|candidate| {
+            candidate.from == edge.to && candidate.direction == edge.direction.opposite()
+        });
+        match reverse_index {
+            Some(index) if edges[index].to == edge.from => {}
+            Some(index)
+                if edges[index].source == EdgeSource::Manual
+                    && edge.source == EdgeSource::Manual =>
+            {
+                warnings.push(
+                    Diagnostic::error(
+                        "E_NAV_ROUTE_CONFLICT",
+                        "Dos overrides manuales apuntan en direcciones opuestas a botones distintos.",
+                    )
+                    .with_entity(format!("button:{}", edge.from)),
+                );
+            }
+            Some(index) if edges[index].source == EdgeSource::Manual => {
+                warnings.push(
+                    Diagnostic::warning(
+                        "W_NAV_ROUTE_APPROX",
+                        "El override manual impide una simetría perfecta con este botón.",
+                    )
+                    .with_entity(format!("button:{}", edge.from)),
+                );
+            }
+            Some(index) => {
+                edges[index].to = edge.from;
+                edges[index].source = EdgeSource::Forced;
+                warnings.push(
+                    Diagnostic::warning(
+                        "W_NAV_ROUTE_APPROX",
+                        "Se ajustó el vecino inverso para mantener la simetría del D-Pad.",
+                    )
+                    .with_entity(format!("button:{}", edge.from)),
+                );
+            }
+            None => additions.push(NavEdge {
+                from: edge.to,
+                direction: edge.direction.opposite(),
+                to: edge.from,
+                source: EdgeSource::Forced,
+            }),
+        }
+    }
+    for addition in additions {
+        let from = addition.from;
+        if ids.contains(&from)
+            && !edges
+                .iter()
+                .any(|edge| edge.from == from && edge.direction == addition.direction)
+        {
+            edges.push(addition);
+            warnings.push(
+                Diagnostic::warning(
+                    "W_NAV_ROUTE_APPROX",
+                    "Se añadió un vecino forzado para mantener la simetría del D-Pad.",
+                )
+                .with_entity(format!("button:{from}")),
+            );
+        }
     }
 }
 
@@ -501,6 +609,43 @@ mod tests {
     }
 
     #[test]
+    fn randomized_rectangles_are_deterministic_and_well_formed() {
+        let mut state = 0x9E37_79B9_u64;
+        let buttons: Vec<MenuButton> = (0..24)
+            .map(|index| {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let x = ((state >> 16) % 20) as f64 * 32.0;
+                let y = ((state >> 32) % 10) as f64 * 32.0;
+                let mut current = button(index + 1, x, y);
+                current.rect = LogicalRect::new(x, y, 120.0, 60.0);
+                current
+            })
+            .collect();
+        let first = resolve_navigation(
+            MenuId::from_u128(7),
+            &canvas(),
+            &buttons,
+            &NavPolicy::default(),
+            None,
+        );
+        for _ in 0..10 {
+            let next = resolve_navigation(
+                MenuId::from_u128(7),
+                &canvas(),
+                &buttons,
+                &NavPolicy::default(),
+                None,
+            );
+            assert_eq!(first.route_hash, next.route_hash);
+        }
+        let ids: std::collections::HashSet<_> = buttons.iter().map(|button| button.id).collect();
+        assert!(first
+            .edges
+            .iter()
+            .all(|edge| ids.contains(&edge.from) && ids.contains(&edge.to)));
+    }
+
+    #[test]
     fn grid_navigation_matches_geometry() {
         let graph = resolve_navigation(
             MenuId::from_u128(99),
@@ -577,6 +722,41 @@ mod tests {
             let edge = graph.edge(ButtonId::from_u128(1), direction).expect("edge");
             assert_eq!(edge.to, ButtonId::from_u128(1));
             assert_eq!(edge.source, EdgeSource::SelfLoop);
+        }
+    }
+
+    #[test]
+    fn route_hash_is_stable_and_symmetric() {
+        let buttons = grid();
+        let first = resolve_navigation(
+            MenuId::from_u128(99),
+            &canvas(),
+            &buttons,
+            &NavPolicy::default(),
+            None,
+        );
+        for _ in 0..50 {
+            let next = resolve_navigation(
+                MenuId::from_u128(99),
+                &canvas(),
+                &buttons,
+                &NavPolicy::default(),
+                None,
+            );
+            assert_eq!(first.route_hash, next.route_hash);
+        }
+        for edge in &first.edges {
+            if edge.from == edge.to {
+                continue;
+            }
+            let reverse = first
+                .edges
+                .iter()
+                .find(|candidate| {
+                    candidate.from == edge.to && candidate.direction == edge.direction.opposite()
+                })
+                .expect("reverse edge");
+            assert_eq!(reverse.to, edge.from);
         }
     }
 

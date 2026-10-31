@@ -249,6 +249,9 @@ Targets: `apps/desktop/src/lib/components/studio/`, `stores/project.svelte.ts`,
 
 ## 3. v0.6.0 — Menu Designer 2.0, Templates, Motion Thumbnails, D-Pad Router
 
+> Estado: implementado para v0.6.0 (plantillas, paginación, transiciones,
+> router determinista, checks y smoke tests; verificado localmente).
+
 ### 3.1 Objective
 
 Turn the menu editor from a manual button grid into a deterministic design

@@ -6,6 +6,7 @@
 
 pub mod bdmv;
 pub mod dvd;
+pub mod menu;
 pub mod report;
 pub mod stream;
 pub mod udf;

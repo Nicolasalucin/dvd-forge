@@ -23,9 +23,10 @@ pub use ids::{AssetId, ButtonId, ChapterId, EpisodeId, JobId, MenuId, PlanId, Pr
 pub use language::{LanguageCode, LanguageInfo};
 pub use menu::{
     ButtonAction, ButtonMotionConfig, ButtonShapeMask, ButtonStyleKind, ImageItem, Menu, MenuAudio,
-    MenuBackground, MenuButton, MenuItem, MenuPlacement, MenuRole, MenuScaleMode, MenuTiming,
-    MotionMenuConfig, NavOverride, ShapeItem, SubpictureColor, SubpicturePalette, SubpictureSpec,
-    TextAlign, TextItem, ThumbnailSpec, VideoThumbnailItem,
+    MenuBackground, MenuButton, MenuItem, MenuPlacement, MenuRole, MenuScaleMode, MenuTemplateId,
+    MenuTemplatePage, MenuTiming, MenuTransition, MotionMenuConfig, NavOverride, ShapeItem,
+    SubpictureColor, SubpicturePalette, SubpictureSpec, TextAlign, TextItem, ThumbnailSpec,
+    TransitionEasing, VideoThumbnailItem,
 };
 pub use navigation::{
     resolve_navigation, EdgeSource, NavDirection, NavEdge, NavNode, NavPolicy, NavigationGraph,

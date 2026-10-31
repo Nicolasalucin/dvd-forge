@@ -45,6 +45,21 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## v0.6.0 highlights
+
+- **Menu Designer 2.0**: five curated templates, automatic multi-page
+  pagination and non-destructive application that preserves episode targets,
+  custom buttons, assets and menu settings.
+- **Motion and transitions**: looped button clips and pre-rendered intro-to-menu
+  transition clips with duration/easing, deterministic FFmpeg filtergraphs and
+  cache invalidation.
+- **D-Pad routing**: deterministic spatial routing with manual overrides,
+  symmetry/reachability diagnostics and a stable `routeHash` shared by DVD,
+  HDMV and the remote simulator.
+- **Verification**: new `BDMV-IG-BUTTONS`, `BDMV-IG-NAV`,
+  `BDMV-MOTION-THUMB` and `DVD-SPU-BUTTONS` checks, plus DVD/BD multipage and
+  transition end-to-end smoke tests.
+
 ## v0.5.0 highlights
 
 - **Native subtitle engine**: SRT/ASS/SSA/WebVTT parsing and `ab_glyph`

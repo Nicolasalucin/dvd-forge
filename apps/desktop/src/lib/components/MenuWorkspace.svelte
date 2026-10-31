@@ -4,6 +4,7 @@
   import { commands } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
   import CanvasStage from "../editor/CanvasStage.svelte";
+  import TemplateGallery from "./TemplateGallery.svelte";
   import { projectStore } from "../stores/project.svelte";
 
   let busy = $state(false);
@@ -228,6 +229,7 @@
   <div class="flex min-h-0 flex-1 flex-col p-3">
     {#if menu}
       <div class="flex min-h-0 flex-1 flex-col gap-2">
+        <TemplateGallery />
         <CanvasStage
           {menu}
           backgroundColor={projectStore.menuBackgroundColor}

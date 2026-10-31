@@ -15,7 +15,7 @@ DVD Forge is a Rust + Tauri v2 + Svelte 5 optical authoring studio for:
 
 The desktop app and CLI share the same render pipeline in `dvdforge-render`.
 
-> Roadmap: [ROADMAP.md](ROADMAP.md) is the authoritative v0.5.0–v1.0.0 plan.
+> Roadmap: [ROADMAP.md](ROADMAP.md) is the authoritative v0.6.0–v1.0.0 plan.
 > New check IDs and diagnostic codes proposed there are reserved before
 > implementation; keep this file's invariants and the roadmap in sync.
 
@@ -26,7 +26,7 @@ crates/
   dvdforge-domain/       Pure models, validation, geometry, menus, diagnostics
   dvdforge-project/      Project JSON load/save/validate (schema v1)
   dvdforge-media/        FFprobe adapter: streams, tags, chapters, dispositions
-  dvdforge-menu/         SPU/menu layer rasterization, Spumux/TextSub XML
+  dvdforge-menu/         SPU/menu layer rasterization, templates, Spumux/TextSub XML
   dvdforge-subtitle/     Native SRT/ASS/VTT parsing, ab_glyph rasterizer, PGS/SPU
   dvdforge-plan/         Bitrate planning, DVD-9 ECC layer-break sector math
   dvdforge-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
@@ -128,7 +128,8 @@ Smart Render Cache v2:
   `Warn` is surfaced to the user.
 - Checks are stable IDs (`UDF-AVDP`, `UDF-TAG266`, `BDMV-MOBJ`, `DVD-PGC`,
   `DVD-LAYER-BREAK`, `BDMV-PGS-DS`, `BDMV-PGS-TS`, `BDMV-AUDIO-STREAM`,
-  `DVD-SPU-SEQ`, `DVD-SPU-PALETTE`, etc.). Keep IDs stable for UI and tests.
+  `DVD-SPU-SEQ`, `DVD-SPU-PALETTE`, `BDMV-IG-BUTTONS`, `BDMV-IG-NAV`,
+  `BDMV-MOTION-THUMB`, `DVD-SPU-BUTTONS`, etc.). Keep IDs stable for UI and tests.
 - Do not add writes, temp files or mutation to the verifier.
 
 ### 5. Tauri/Svelte IPC
@@ -175,6 +176,14 @@ Smart Render Cache v2:
 - HDMV DTS is kept equal to PTS until menu playback is validated on hardware.
 - Menu clip timing fields (`out_ms`, `loop_duration_ms`) must be honored by the
   FFmpeg filter/argument builders.
+- Template metadata (`Menu.template`) is additive; applying a template must
+  never silently truncate episodes. Page 0 stays the VMGM root and later pages
+  are VTSM EpisodeSelect menus with ordinary Prev/Next GotoMenu buttons.
+- `Menu.transition` is a pre-rendered clip. It is concatenated before the menu
+  loop; subpicture/IG start and menu audio are delayed to the transition end.
+  Transition duration/easing and source SHA are part of the menu cache key. The
+  current FFmpeg matrix has no fade-curve option, so the boundary fade is linear
+  while easing metadata remains authoritative for future encoders.
 
 ### 8. HDMV
 

@@ -22,6 +22,7 @@ pub(crate) fn verify(reader: &UdfReader<'_>, size: u64, checks: &mut CheckList) 
     check_vob(reader, checks);
     check_spu_packets(reader, checks);
     check_audio_packets(reader, checks);
+    crate::menu::check_dvd_spu_buttons(reader, checks);
 }
 
 fn check_ifo_bup(reader: &UdfReader<'_>, checks: &mut CheckList) {

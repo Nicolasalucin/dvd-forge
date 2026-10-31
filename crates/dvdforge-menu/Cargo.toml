@@ -10,5 +10,10 @@ authors.workspace = true
 dvdforge-domain = { path = "../dvdforge-domain" }
 dvdforge-toolchain = { path = "../dvdforge-toolchain" }
 image.workspace = true
+serde.workspace = true
+specta.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+dvdforge-project = { path = "../dvdforge-project" }

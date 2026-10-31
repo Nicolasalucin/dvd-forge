@@ -61,7 +61,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 5;
+const ENCODER_REV: u32 = 6;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -975,6 +975,8 @@ struct MenuRenderInputs<'a> {
     background_sha: String,
     audio_sha: Option<String>,
     composited_labels_sha: Option<String>,
+    motion_sha: String,
+    transition_sha: Option<String>,
 }
 
 fn canonical_hash<T: Serialize>(value: &T) -> Result<String, RenderError> {
@@ -1048,6 +1050,40 @@ fn menu_background_sha(project: &Project, menu: &dvdforge_domain::Menu) -> Strin
         .unwrap_or_else(|| "missing".to_string())
 }
 
+fn menu_motion_sha(project: &Project, menu: &dvdforge_domain::Menu) -> String {
+    let mut hasher = Sha256::new();
+    let mut buttons: Vec<&dvdforge_domain::MenuButton> = menu.buttons.iter().collect();
+    buttons.sort_by_key(|button| button.id);
+    for button in buttons {
+        hasher.update(button.id.to_string().as_bytes());
+        if let Some(thumbnail) = &button.thumbnail {
+            if let Some(asset) = project.asset(thumbnail.asset) {
+                hasher.update(asset.sha256.as_bytes());
+            }
+            hasher.update(thumbnail.in_frame.to_be_bytes());
+            hasher.update(thumbnail.duration_frames.to_be_bytes());
+        }
+        if let Some(motion) = &button.motion_preview {
+            hasher.update(motion.source_start_ms.to_be_bytes());
+            hasher.update(motion.loop_duration_ms.to_be_bytes());
+        }
+        hasher.update([0xff]);
+    }
+    if let Some(transition) = &menu.transition {
+        hasher.update(transition.duration_ms.to_be_bytes());
+        hasher.update([match transition.easing {
+            dvdforge_domain::TransitionEasing::Linear => 1,
+            dvdforge_domain::TransitionEasing::EaseIn => 2,
+            dvdforge_domain::TransitionEasing::EaseOut => 3,
+            dvdforge_domain::TransitionEasing::EaseInOut => 4,
+        }]);
+        if let Some(asset) = project.asset(transition.asset) {
+            hasher.update(asset.sha256.as_bytes());
+        }
+    }
+    hex::encode(hasher.finalize())
+}
+
 fn menu_audio_sha(project: &Project, menu: &dvdforge_domain::Menu) -> Option<String> {
     menu.audio
         .as_ref()
@@ -1078,6 +1114,15 @@ fn menu_inputs_hash(
         background_sha: menu_background_sha(project, menu),
         audio_sha: menu_audio_sha(project, menu),
         composited_labels_sha: composited_labels_sha(composited_backgrounds, menu.id),
+        motion_sha: menu_motion_sha(project, menu),
+        transition_sha: menu.transition.as_ref().and_then(|transition| {
+            project.asset(transition.asset).map(|asset| {
+                format!(
+                    "{}:{}:{:?}",
+                    asset.sha256, transition.duration_ms, transition.easing
+                )
+            })
+        }),
     })
 }
 
@@ -1294,6 +1339,11 @@ fn compile_hd_menu(
         VideoConfig::Avchd(config) => config.frame_rate.as_f64(),
         VideoConfig::Dvd(_) => project.disc.standard.frame_rate().as_f64(),
     };
+    let menu_start_ms = menu
+        .transition
+        .as_ref()
+        .map(|transition| transition.duration_ms)
+        .unwrap_or(0);
     let menu = HdmvMenu {
         width,
         height,
@@ -1302,8 +1352,9 @@ fn compile_hd_menu(
         buttons,
         default_selected: Some(1),
     };
+    let menu_pts = pts_90k.saturating_add(menu_start_ms.saturating_mul(90));
     // Compile once; the concatenated PES and the debug M2TS derive from the packets.
-    let pes_packets = compile_ig_pes_packets(&menu, pts_90k).map_err(menu_error)?;
+    let pes_packets = compile_ig_pes_packets(&menu, menu_pts).map_err(menu_error)?;
     let pes = pes_packets.concat();
     let m2ts = m2ts_from_pes_packets(&pes_packets);
     Ok(CompiledHdMenu {
@@ -3192,6 +3243,11 @@ async fn render_menus(
             select_png: layers.select_png.clone(),
             buttons: compiled,
             force: menu.subpicture.force,
+            subpicture_start_ms: menu
+                .transition
+                .as_ref()
+                .map(|transition| transition.duration_ms)
+                .unwrap_or(0),
         };
         let xml_path = output.join("xml").join(format!("spumux-{}.xml", menu.id));
         write_spumux_xml(&request, &navigation, &xml_path)
@@ -3225,7 +3281,9 @@ async fn render_menus(
         // The CLI does not rasterize Konva text layers. A transparent overlay
         // still lets the motion encoder composite video backgrounds and
         // moving thumbnails; the subtitle masks provide the button artwork.
-        if labels_overlay.is_none() && (menu.motion_config.is_some() || video_background) {
+        if labels_overlay.is_none()
+            && (menu.motion_config.is_some() || video_background || menu.transition.is_some())
+        {
             let fallback = menu_dir.join("labels-transparent.png");
             write_transparent_overlay(
                 &fallback,
@@ -3234,8 +3292,10 @@ async fn render_menus(
             )?;
             labels_overlay = Some(fallback);
         }
-        let animated = (menu.motion_config.is_some() || video_background)
-            && (video_background || !motion_buttons.is_empty());
+        let has_transition = menu.transition.is_some();
+        let animated = has_transition
+            || ((menu.motion_config.is_some() || video_background)
+                && (video_background || !motion_buttons.is_empty()));
         let menu_video_kbps = if animated { 6_000 } else { 5_000 };
         let cache_key = if cache.is_some() {
             let inputs_hash = menu_inputs_hash(project, menu, composited_backgrounds)?;
@@ -3367,6 +3427,17 @@ async fn render_menus(
                         } else {
                             MenuScaleMode::Stretch
                         },
+                        transition: menu.transition.as_ref().and_then(|transition| {
+                            project
+                                .asset(transition.asset)
+                                .and_then(|asset| asset_path(project_dir, asset))
+                                .filter(|path| path.is_file())
+                                .map(|input| dvdforge_dvd::MotionMenuTransition {
+                                    input,
+                                    duration_ms: transition.duration_ms.max(1),
+                                    easing: transition.easing,
+                                })
+                        }),
                     },
                     menu.timing.duration_ms.max(1),
                     events,
@@ -3719,6 +3790,7 @@ struct MenuClipSpec {
     video: MenuClipVideo,
     audio: Option<MenuClipAudio>,
     overlays: Vec<MenuClipOverlay>,
+    transition: Option<MenuClipTransition>,
 }
 
 #[derive(Debug, Clone)]
@@ -3742,6 +3814,13 @@ enum MenuClipVideo {
         in_ms: u64,
         out_ms: Option<u64>,
     },
+}
+
+#[derive(Debug, Clone)]
+struct MenuClipTransition {
+    path: PathBuf,
+    duration_ms: u64,
+    easing: dvdforge_domain::TransitionEasing,
 }
 
 #[derive(Debug, Clone)]
@@ -3874,6 +3953,17 @@ fn build_menu_clip_spec(
             })
         })
         .collect();
+    let transition = menu.transition.as_ref().and_then(|transition| {
+        project
+            .asset(transition.asset)
+            .and_then(|asset| asset_path(project_dir, asset))
+            .filter(|path| path.is_file())
+            .map(|path| MenuClipTransition {
+                path,
+                duration_ms: transition.duration_ms.max(1),
+                easing: transition.easing,
+            })
+    });
     MenuClipSpec {
         width: format.width,
         height: format.height,
@@ -3885,6 +3975,7 @@ fn build_menu_clip_spec(
         video,
         audio,
         overlays,
+        transition,
     }
 }
 
@@ -4101,12 +4192,132 @@ pad={}:{}:(ow-iw)/2:(oh-ih)/2,setsar=1[ov{}]",
     )
 }
 
+async fn encode_menu_video_with_transition(
+    path: &Path,
+    spec: &MenuClipSpec,
+    duration_secs: f64,
+) -> Result<(), RenderError> {
+    let transition = spec
+        .transition
+        .as_ref()
+        .expect("transition checked by caller");
+    let rate = format!("{}/{}", spec.fps.num, spec.fps.den);
+    let level = if spec.capacity.is_blu_ray() {
+        "4.2"
+    } else {
+        "4.1"
+    };
+    let keyint = (spec.fps.as_f64().round() as u32).max(24);
+    let transition_secs = (transition.duration_ms as f64 / 1000.0).min(duration_secs - 0.1);
+    let background_secs = (duration_secs - transition_secs).max(0.1);
+    let mut command = Command::from(dvdforge_toolchain::background_command(resolve_binary(
+        "ffmpeg",
+    )));
+    command.args(["-hide_banner", "-loglevel", "error", "-y"]);
+    match &spec.video {
+        MenuClipVideo::Black => {
+            let filter = format!("color=c=black:s={}x{}:r={rate}", spec.width, spec.height);
+            command.args(["-f", "lavfi", "-i", &filter]);
+        }
+        MenuClipVideo::Image(image) => {
+            command.args(["-loop", "1", "-framerate", &rate]);
+            push_file_input(&mut command, image);
+        }
+        MenuClipVideo::Video {
+            path: source,
+            in_ms,
+            out_ms,
+        } => {
+            command.args(["-stream_loop", "-1"]);
+            if *in_ms > 0 {
+                command.args(["-ss", &format!("{:.3}", *in_ms as f64 / 1000.0)]);
+            }
+            push_file_input(&mut command, source);
+            if let Some(duration) = menu_video_clip_duration(*in_ms, *out_ms) {
+                command.args(["-t", &format!("{duration:.3}")]);
+            }
+        }
+    }
+    for overlay in &spec.overlays {
+        command.args(["-stream_loop", "-1"]);
+        if overlay.source_start_ms > 0 {
+            command.args([
+                "-ss",
+                &format!("{:.3}", overlay.source_start_ms as f64 / 1000.0),
+            ]);
+        }
+        push_file_input(&mut command, &overlay.path);
+    }
+    command.args(["-stream_loop", "-1"]);
+    push_file_input(&mut command, &transition.path);
+    let transition_input = spec.overlays.len() + 1;
+    let fit = format!(
+        "scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={rate},format=yuv420p",
+        spec.width, spec.height, spec.width, spec.height
+    );
+    // FFmpeg builds in the supported matrix expose fade without a curve
+    // option; easing metadata is preserved and the boundary remains a fade.
+    let _easing = transition.easing;
+    let fade_in = "fade=t=in:st=0:d=0.35".to_string();
+    let fade_out = format!(
+        "fade=t=out:st={:.3}:d=0.35",
+        (transition_secs - 0.35).max(0.0)
+    );
+    let mut filters = vec![
+        format!(
+            "[{transition_input}:v]{fit},trim=duration={transition_secs:.3},setpts=PTS-STARTPTS,{fade_in},{fade_out}[tr]"
+        ),
+        format!(
+            "[0:v]{fit},trim=duration={background_secs:.3},setpts=PTS-STARTPTS[bg]"
+        ),
+        "[tr][bg]concat=n=2:v=1:a=0[base]".to_string(),
+    ];
+    let mut current = "base".to_string();
+    for (index, overlay) in spec.overlays.iter().enumerate() {
+        filters.push(menu_overlay_filter(index + 1, overlay, &rate));
+        filters.push(format!(
+            "[{current}][ov{index}]overlay={}:{}:eof_action=repeat:shortest=0:enable='gte(t,{transition_secs:.3})'[v{index}]",
+            overlay.x, overlay.y
+        ));
+        current = format!("v{index}");
+    }
+    filters.push(format!("[{current}]null[out]"));
+    command.args(["-filter_complex", &filters.join(";")]);
+    command.args([
+        "-map",
+        "[out]",
+        "-t",
+        &format!("{duration_secs:.3}"),
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-profile:v",
+        "high",
+        "-level",
+        level,
+        "-pix_fmt",
+        "yuv420p",
+        "-x264-params",
+        &format!("profile=high:keyint={keyint}:min-keyint={keyint}:scenecut=0:open-gop=0:bluray-compat=1"),
+    ]);
+    if spec.interlaced {
+        command.args(["-flags", "+ildct+ilme", "-top", "1"]);
+    }
+    command.args(["-f", "h264"]).arg(path);
+    run_menu_ffmpeg(command, path, "video").await
+}
+
 async fn encode_menu_video(
     path: &Path,
     spec: &MenuClipSpec,
     duration_secs: f64,
 ) -> Result<(), RenderError> {
     let rate = format!("{}/{}", spec.fps.num, spec.fps.den);
+    if spec.transition.is_some() {
+        return encode_menu_video_with_transition(path, spec, duration_secs).await;
+    }
     let level = if spec.capacity.is_blu_ray() {
         "4.2"
     } else {
@@ -4250,6 +4461,9 @@ async fn encode_hd_menu_audio(
             "-t",
             &format!("{duration_secs:.3}"),
         ]);
+    }
+    if let Some(transition) = &spec.transition {
+        filters.push(format!("adelay={}:all=1", transition.duration_ms));
     }
     command.args(["-vn"]);
     if !filters.is_empty() {
@@ -4595,6 +4809,98 @@ mod tests {
             .windows(3)
             .any(|window| window == [0x00, 0x00, 0x01]));
         assert!(!compiled.pes_packets.is_empty());
+    }
+
+    #[test]
+    fn all_templates_compile_to_hdmv_ig_pes() {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/projects/minimal.json");
+        let mut project = dvdforge_project::load_project(path).expect("fixture");
+        let source = project.episodes[0].clone();
+        project.episodes = (0..6)
+            .map(|index| {
+                let mut episode = source.clone();
+                episode.id = dvdforge_domain::EpisodeId::new();
+                episode.number = (index + 1) as u16;
+                episode.title = format!("Episode {:02}", index + 1);
+                episode
+            })
+            .collect();
+        project.play_all.order = project.episodes.iter().map(|episode| episode.id).collect();
+        let root_id = project.root_menu;
+        project.menus.retain(|menu| menu.id == root_id);
+        project.menus[0].buttons.clear();
+        let project_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/projects");
+        for template in dvdforge_menu::templates::all_templates() {
+            let applied =
+                dvdforge_menu::templates::apply_template(&project, template.id).expect("template");
+            let mut candidate = project.clone();
+            candidate.menus = applied.menus;
+            candidate.root_menu = applied.root_menu;
+            let episode_marks = HashMap::new();
+            let chapter_marks = HashMap::new();
+            let menu_objects = HashMap::new();
+            let mut pages = 0usize;
+            for menu in candidate
+                .menus
+                .iter()
+                .filter(|menu| menu.template.is_some())
+            {
+                let compiled = compile_hd_menu(
+                    &candidate,
+                    &project_dir,
+                    menu,
+                    None,
+                    HdMenuLayout {
+                        width: 1280,
+                        height: 720,
+                        pts_90k: HDMV_MENU_PTS_90K,
+                    },
+                    &HdMenuContext {
+                        episode_marks: &episode_marks,
+                        chapter_marks: &chapter_marks,
+                        menu_objects: &menu_objects,
+                    },
+                )
+                .unwrap_or_else(|error| panic!("{}: {error:?}", template.name));
+                assert!(!compiled.pes_packets.is_empty(), "{}", template.name);
+                pages += 1;
+            }
+            assert!(pages > 0, "{} did not generate pages", template.name);
+        }
+    }
+
+    fn menu_fixture() -> (dvdforge_domain::Project, dvdforge_domain::Menu) {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/projects/minimal.json");
+        let project = dvdforge_project::load_project(path).expect("fixture");
+        let menu = project.menus[0].clone();
+        (project, menu)
+    }
+
+    #[test]
+    fn menu_cache_invalidates_motion_and_transition_changes() {
+        let (mut project, mut menu) = menu_fixture();
+        project.menus[0].motion_config = Some(dvdforge_domain::MotionMenuConfig::default());
+        let base = menu_inputs_hash(&project, &menu, None).expect("hash");
+        menu = project.menus[0].clone();
+        if let Some(button) = menu.buttons.first_mut() {
+            button.motion_preview = Some(dvdforge_domain::ButtonMotionConfig {
+                source_start_ms: 0,
+                loop_duration_ms: 2_000,
+            });
+        }
+        project.menus[0] = menu.clone();
+        let motion = menu_inputs_hash(&project, &menu, None).expect("motion hash");
+        assert_ne!(base, motion);
+        menu.transition = Some(dvdforge_domain::MenuTransition {
+            asset: project.episodes[0].video,
+            duration_ms: 1_500,
+            easing: dvdforge_domain::TransitionEasing::Linear,
+        });
+        project.menus[0] = menu.clone();
+        let transition = menu_inputs_hash(&project, &menu, None).expect("transition hash");
+        assert_ne!(motion, transition);
     }
 
     #[test]

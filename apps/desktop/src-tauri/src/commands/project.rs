@@ -82,6 +82,8 @@ pub fn project_new(
                 buttons: Vec::new(),
                 subpicture: SubpictureSpec::default(),
                 timing: MenuTiming::default(),
+                template: None,
+                transition: None,
             };
             (
                 DiscConfig {
@@ -163,6 +165,8 @@ pub fn project_new(
                 buttons: Vec::new(),
                 subpicture: SubpictureSpec::default(),
                 timing: MenuTiming::default(),
+                template: None,
+                transition: None,
             };
             (
                 DiscConfig {

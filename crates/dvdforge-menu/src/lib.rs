@@ -1,6 +1,8 @@
 //! Menu compiler façade: raster layer generation, subpicture validation and
 //! spumux XML construction.
 
+pub mod templates;
+
 pub use dvdforge_domain::geometry::{
     has_gap, normalize_rect, validate_layout, CanvasSpec, LogicalRect, PixelRect,
 };
@@ -72,6 +74,7 @@ pub struct MenuCompileRequest {
     pub select_png: PathBuf,
     pub buttons: Vec<CompiledButton>,
     pub force: bool,
+    pub subpicture_start_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -198,8 +201,9 @@ pub fn build_spumux_xml(
     let mut xml = String::new();
     xml.push_str("<subpictures>\n");
     xml.push_str("  <stream>\n");
+    let start = spumux_timestamp(request.subpicture_start_ms);
     xml.push_str(&format!(
-        "    <spu start=\"00:00:00.000\"{force} highlight=\"{highlight}\" select=\"{select}\">\n"
+        "    <spu start=\"{start}\"{force} highlight=\"{highlight}\" select=\"{select}\">\n"
     ));
     xml.push_str(&format!(
         "      <!-- colors: highlight={highlight_colors}, select={select_colors} -->\n"
@@ -753,6 +757,14 @@ fn fill_rect(image: &mut RgbaImage, rect: PixelRect, color: Rgba<u8>) {
     }
 }
 
+fn spumux_timestamp(milliseconds: u64) -> String {
+    let hours = milliseconds / 3_600_000;
+    let minutes = (milliseconds / 60_000) % 60;
+    let seconds = (milliseconds / 1_000) % 60;
+    let millis = milliseconds % 1_000;
+    format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}")
+}
+
 fn xml_escape(value: &str) -> String {
     value
         .replace('&', "&amp;")
@@ -907,6 +919,7 @@ mod tests {
             select_png: layers.select_png,
             buttons: buttons(),
             force: true,
+            subpicture_start_ms: 0,
         };
         let xml = build_spumux_xml(&request, &navigation()).expect("xml");
         assert!(xml.contains("x0=\"60\""));
@@ -1007,6 +1020,7 @@ mod tests {
             select_png: layers.select_png,
             buttons: buttons(),
             force: false,
+            subpicture_start_ms: 0,
         };
         let error = build_spumux_xml(&request, &navigation()).expect_err("must reject");
         assert!(matches!(error, MenuError::TooManyColors { .. }));

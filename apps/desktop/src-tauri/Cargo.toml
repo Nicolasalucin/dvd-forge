@@ -29,6 +29,7 @@ dvdforge-burn = { path = "../../../crates/dvdforge-burn" }
 dvdforge-domain = { path = "../../../crates/dvdforge-domain" }
 dvdforge-jobs = { path = "../../../crates/dvdforge-jobs" }
 dvdforge-media = { path = "../../../crates/dvdforge-media" }
+dvdforge-menu = { path = "../../../crates/dvdforge-menu" }
 dvdforge-plan = { path = "../../../crates/dvdforge-plan" }
 dvdforge-project = { path = "../../../crates/dvdforge-project" }
 dvdforge-render = { path = "../../../crates/dvdforge-render" }

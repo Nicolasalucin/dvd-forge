@@ -125,6 +125,13 @@ pub struct MotionButtonEncode {
 }
 
 #[derive(Debug, Clone)]
+pub struct MotionMenuTransition {
+    pub input: PathBuf,
+    pub duration_ms: u64,
+    pub easing: dvdforge_domain::TransitionEasing,
+}
+
+#[derive(Debug, Clone)]
 pub struct MotionMenuEncodeRequest {
     /// Fondo compuesto sin botones (PNG) o vídeo de fondo de menú.
     pub background: PathBuf,
@@ -143,6 +150,7 @@ pub struct MotionMenuEncodeRequest {
     pub dim_percent: u8,
     pub blur_px: u8,
     pub scale_mode: MenuScaleMode,
+    pub transition: Option<MotionMenuTransition>,
 }
 
 impl EncodeRequest {
@@ -790,6 +798,15 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
         .filter(|button| button.mask_png.is_some())
         .count();
     let audio_index = mask_base + mask_count;
+    let transition = request.transition.as_ref();
+    let transition_secs = transition
+        .map(|transition| {
+            (transition.duration_ms as f64 / 1000.0).min(request.duration_ms as f64 / 1000.0 - 0.1)
+        })
+        .unwrap_or(0.0)
+        .max(0.0);
+    let background_secs = (request.duration_ms as f64 / 1000.0 - transition_secs).max(0.1);
+    let transition_index = audio_index + 1;
 
     let mut args = vec!["-hide_banner".to_string(), "-y".to_string()];
     if request.background_is_video {
@@ -840,6 +857,10 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
             "anullsrc=r=48000:cl=stereo".to_string(),
         ]);
     }
+    if let Some(transition) = transition {
+        args.extend(["-stream_loop".to_string(), "-1".to_string()]);
+        push_file_input(&mut args, &transition.input);
+    }
 
     let mut filters = Vec::new();
     let scale = match request.scale_mode {
@@ -862,9 +883,17 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
         ));
     }
     background_chain.push_str(&format!(
-        ",trim=duration={duration},setpts=PTS-STARTPTS,fps={fps},format=yuv420p[bg]"
+        ",trim=duration={background_secs:.3},setpts=PTS-STARTPTS,fps={fps},format=yuv420p[bg]"
     ));
     filters.push(background_chain);
+    if let Some(transition) = transition {
+        let _easing = transition.easing;
+        filters.push(format!(
+            "[{transition_index}:v]{scale},setsar=1,trim=duration={transition_secs:.3},setpts=PTS-STARTPTS,fps={fps},format=yuv420p,fade=t=in:st=0:d=0.35,fade=t=out:st={:.3}:d=0.35[tr]",
+            (transition_secs - 0.35).max(0.0)
+        ));
+        filters.push("[tr][bg]concat=n=2:v=1:a=0[sequence]".to_string());
+    }
 
     let mut mask_index = mask_base;
     for (index, button) in request.buttons.iter().enumerate() {
@@ -893,21 +922,36 @@ pub fn build_motion_menu_args(request: &MotionMenuEncodeRequest) -> Vec<String> 
     }
 
     filters.push(format!("[{labels_index}:v]format=rgba[labels]"));
-    let mut current = "bg".to_string();
+    let mut current = if transition.is_some() {
+        "sequence".to_string()
+    } else {
+        "bg".to_string()
+    };
+    let enable = transition
+        .map(|_| format!(":enable='gte(t,{transition_secs:.3})'"))
+        .unwrap_or_default();
     for (index, button) in request.buttons.iter().enumerate() {
         let output = format!("overlay{index}");
         filters.push(format!(
-            "[{current}][btn{index}]overlay=x={}:y={}:shortest=0:format=auto[{output}]",
+            "[{current}][btn{index}]overlay=x={}:y={}:shortest=0:format=auto{enable}[{output}]",
             button.x, button.y
         ));
         current = output;
     }
     filters.push(format!(
-        "[{current}][labels]overlay=0:0:shortest=0:format=auto[composed]"
+        "[{current}][labels]overlay=0:0:shortest=0:format=auto{enable}[composed]"
     ));
     filters.push("[composed]format=yuv420p[vout]".to_string());
+    let audio_delay = if transition.is_some() {
+        format!(
+            ",adelay={}:all=1",
+            (transition_secs * 1000.0).round() as u64
+        )
+    } else {
+        String::new()
+    };
     filters.push(format!(
-        "[{audio_index}:a]atrim=duration={duration},asetpts=PTS-STARTPTS[aout]"
+        "[{audio_index}:a]atrim=duration={duration},asetpts=PTS-STARTPTS{audio_delay}[aout]"
     ));
 
     args.extend([
@@ -1397,6 +1441,7 @@ mod tests {
             dim_percent: 0,
             blur_px: 0,
             scale_mode: MenuScaleMode::Cover,
+            transition: None,
         }
     }
 

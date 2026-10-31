@@ -1,9 +1,11 @@
 use base64::Engine;
 use dvdforge_desktop::commands::{
-    burn_list_devices, menu_save_background, plan_calculate, project_new, project_open,
-    project_save, read_image_data_url,
+    burn_list_devices, menu_apply_template, menu_save_background, menu_templates, plan_calculate,
+    project_new, project_open, project_save, read_image_data_url,
 };
-use dvdforge_domain::{AspectRatio, AuthoringMode, AvchdResolution, FrameRate, TvStandard};
+use dvdforge_domain::{
+    AspectRatio, AuthoringMode, AvchdResolution, FrameRate, MenuTemplateId, TvStandard,
+};
 use dvdforge_project::load_project;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -52,6 +54,20 @@ fn project_save_and_open_round_trip() {
 }
 
 #[test]
+fn menu_templates_are_exposed_and_applied_through_tauri_commands() {
+    let templates = menu_templates();
+    assert_eq!(templates.len(), 5);
+    let project = load_project(fixture_path()).expect("fixture");
+    let result = menu_apply_template(project, MenuTemplateId::CinemaDark).expect("template");
+    assert!(result.menus.len() >= 2);
+    assert!(result.menus.iter().any(|menu| menu.id == result.root_menu));
+    assert!(result
+        .diagnostics
+        .iter()
+        .all(|diagnostic| diagnostic.severity != dvdforge_domain::Severity::Error));
+}
+
+#[test]
 fn plan_calculate_uses_the_fixture_metadata() {
     let project = load_project(fixture_path()).expect("fixture");
     let plan = plan_calculate(project).expect("plan");
@@ -65,6 +81,10 @@ fn plan_calculate_uses_the_fixture_metadata() {
 fn burn_list_devices_sees_the_physical_drive() {
     let devices = tauri::async_runtime::block_on(burn_list_devices())
         .expect("burn_list_devices debe responder");
+    if devices.is_empty() {
+        eprintln!("No hay unidad óptica conectada; se omite la comprobación física.");
+        return;
+    }
     assert!(
         devices.iter().any(|device| {
             device.vendor.contains("HL-DT-ST")

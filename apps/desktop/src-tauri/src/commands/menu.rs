@@ -1,5 +1,8 @@
 use base64::Engine;
-use dvdforge_domain::{ButtonId, Menu, NavigationGraph};
+use dvdforge_domain::{ButtonId, Menu, MenuTemplateId, NavigationGraph, Project};
+use dvdforge_menu::templates::{
+    all_templates, apply_template, MenuTemplateInfo, TemplateApplyResult,
+};
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -23,6 +26,21 @@ pub fn menu_navigation(menu: Menu, focus: Option<String>) -> NavigationGraph {
         .and_then(|value| value.trim().parse::<ButtonId>().ok())
         .or_else(|| menu.buttons.first().map(|button| button.id));
     menu.navigation(focus)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn menu_templates() -> Vec<MenuTemplateInfo> {
+    all_templates()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn menu_apply_template(
+    project: Project,
+    template: MenuTemplateId,
+) -> Result<TemplateApplyResult, String> {
+    apply_template(&project, template).map_err(|error| error.to_string())
 }
 
 #[tauri::command(async)]

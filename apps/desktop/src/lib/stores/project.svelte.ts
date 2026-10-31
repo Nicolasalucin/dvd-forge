@@ -21,6 +21,7 @@ import {
   type MediaKind,
   type MediaProbe_Serialize,
   type MenuButton_Serialize,
+  type MenuTemplateId,
   type Menu_Serialize,
   type MotionMenuConfig_Serialize,
   type OpticalDevice,
@@ -278,6 +279,7 @@ class ProjectStore {
   devices = $state<OpticalDevice[]>([]);
   busy = $state(false);
   error = $state<string | null>(null);
+  templateDiagnostics = $state<string[]>([]);
 
   menuBackgroundColor = $state("#0b1220");
   previewUrls = $state<Record<string, string>>({});
@@ -1244,6 +1246,22 @@ class ProjectStore {
     this.touch();
   }
 
+  setMenuTransition(assetId: string | null, durationMs = 1_500): void {
+    const menu = this.activeMenu;
+    if (!menu) return;
+    menu.transition = assetId
+      ? { asset: assetId, durationMs: Math.max(100, Math.round(durationMs)), easing: "linear" }
+      : null;
+    this.touch();
+  }
+
+  updateMenuTransition(patch: Partial<NonNullable<Menu_Serialize["transition"]>>): void {
+    const menu = this.activeMenu;
+    if (!menu?.transition) return;
+    menu.transition = { ...menu.transition, ...patch };
+    this.touch();
+  }
+
   setMenuAudio(assetId: string | null): void {
     const menu = this.activeMenu;
     if (!menu) return;
@@ -1605,6 +1623,33 @@ class ProjectStore {
     return true;
   }
 
+  async applyMenuTemplate(templateId: MenuTemplateId): Promise<boolean> {
+    const project = this.project;
+    if (!project) return false;
+    this.busy = true;
+    this.error = null;
+    this.templateDiagnostics = [];
+    try {
+      const result = await unwrap(commands.menuApplyTemplate(project, templateId));
+      project.menus = result.menus;
+      project.rootMenu = result.rootMenu;
+      this.selectedMenuId = result.rootMenu;
+      const root = result.menus.find((menu) => menu.id === result.rootMenu);
+      this.selectedButtonId = root?.buttons[0]?.id ?? null;
+      this.templateDiagnostics = result.diagnostics.map(
+        (diagnostic) => diagnostic.code + ": " + diagnostic.message,
+      );
+      this.plan = null;
+      this.touch();
+      return true;
+    } catch (cause) {
+      this.error = messageOf(cause);
+      return false;
+    } finally {
+      this.busy = false;
+    }
+  }
+
   /**
    * Keeps the play-all configuration aligned with the episode list and the
    * buttons that actually trigger it. Rust validation rejects stale episode
@@ -1944,6 +1989,8 @@ class ProjectStore {
         selectOpacity: 15,
       },
       timing: { durationMs: 30_000, loopPlayback: true },
+      template: null,
+      transition: null,
     };
     project.menus = [menu];
     project.rootMenu = menu.id;

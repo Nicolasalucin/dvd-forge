@@ -901,6 +901,13 @@
           {/if}
         </div>
 
+        {#if graph?.routeHash}
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
+            <p class="text-[10px] font-semibold text-slate-500">{t("Huella de rutas D-Pad")}</p>
+            <p class="mt-1 truncate font-mono text-[10px] text-cyan-300">{graph.routeHash.slice(0, 24)}…</p>
+          </div>
+        {/if}
+
         {#if warnings.length > 0}
           <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5">
             <p class="text-[10px] font-semibold text-amber-200">{t("Avisos de navegación")}</p>

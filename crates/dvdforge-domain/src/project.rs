@@ -1415,8 +1415,117 @@ fn validate_menu(project: &Project, menu: &Menu, diagnostics: &mut Vec<Diagnosti
                 "E_SUBPICTURE_OPACITY",
                 "La opacidad de highlight/select debe estar entre 0 y 15.",
             )
-            .with_entity(menu_entity),
+            .with_entity(menu_entity.clone()),
         );
+    }
+    if menu.buttons.len() > 36 {
+        diagnostics.push(
+            Diagnostic::warning(
+                "W_MENU_PAGE_OVERFLOW",
+                "La página supera 36 botones; la plantilla debe crear otra página.",
+            )
+            .with_entity(menu_entity.clone()),
+        );
+    }
+    if let Some(transition) = &menu.transition {
+        if project.asset(transition.asset).is_none() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_MOTION_THUMBNAIL_FALLBACK",
+                    "La transición de entrada referencia un clip inexistente; se omitirá el pre-roll.",
+                )
+                .with_entity(menu_entity.clone()),
+            );
+        }
+        if transition.duration_ms > menu.timing.duration_ms {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_INTRO_TRANSITION_TRUNCATED",
+                    "La transición dura más que el bucle del menú; se recortará al inicio del bucle.",
+                )
+                .with_entity(menu_entity.clone()),
+            );
+        }
+    }
+    if menu.buttons.iter().any(|button| {
+        button
+            .motion_preview
+            .as_ref()
+            .is_some_and(|motion| motion.loop_duration_ms < 1_000)
+    }) {
+        diagnostics.push(
+            Diagnostic::warning(
+                "W_MOTION_LOOP_SHORTENED",
+                "El bucle de un thumbnail dura menos de un segundo.",
+            )
+            .with_entity(menu_entity.clone()),
+        );
+    }
+    if menu.buttons.iter().any(|button| {
+        button
+            .motion_preview
+            .as_ref()
+            .zip(button.thumbnail.as_ref())
+            .is_some_and(|(_, thumbnail)| project.asset(thumbnail.asset).is_none())
+    }) {
+        diagnostics.push(
+            Diagnostic::warning(
+                "W_MOTION_THUMBNAIL_FALLBACK",
+                "Un thumbnail animado referencia un asset inexistente.",
+            )
+            .with_entity(menu_entity.clone()),
+        );
+    }
+    if let Some(page) = &menu.template {
+        if page.count == 0 || page.index >= page.count || page.episode_capacity == 0 {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_TEMPLATE_CAPACITY",
+                    "Los metadatos de paginación de la plantilla son inconsistentes.",
+                )
+                .with_entity(menu_entity.clone()),
+            );
+        }
+        let episode_buttons = menu
+            .buttons
+            .iter()
+            .filter(|button| matches!(button.action, ButtonAction::PlayEpisode { .. }))
+            .count();
+        if episode_buttons > page.episode_capacity as usize {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_TEMPLATE_CAPACITY",
+                    "La página contiene más episodios que la capacidad de su plantilla.",
+                )
+                .with_entity(menu_entity.clone()),
+            );
+        }
+    }
+    if menu.template.is_some() {
+        let missing = match &menu.background {
+            crate::menu::MenuBackground::Static { asset }
+            | crate::menu::MenuBackground::VideoLoop { asset, .. } => {
+                project.asset(*asset).is_none()
+            }
+        } || menu
+            .audio
+            .as_ref()
+            .is_some_and(|audio| project.asset(audio.asset).is_none())
+            || menu.buttons.iter().any(|button| {
+                button
+                    .thumbnail
+                    .as_ref()
+                    .is_some_and(|thumbnail| project.asset(thumbnail.asset).is_none())
+            });
+        if missing {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_TEMPLATE_ASSET_MISSING",
+                    "La plantilla referencia un asset que ya no existe en el proyecto.",
+                )
+                .with_entity(menu_entity),
+            );
+        }
     }
 }
 
@@ -1599,6 +1708,8 @@ mod tests {
                 buttons: vec![],
                 subpicture: SubpictureSpec::default(),
                 timing: MenuTiming::default(),
+                template: None,
+                transition: None,
             }],
             root_menu: menu_id,
             episodes: vec![Episode {

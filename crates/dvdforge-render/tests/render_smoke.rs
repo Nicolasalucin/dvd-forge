@@ -1,6 +1,6 @@
 use dvdforge_domain::{
-    ButtonMotionConfig, ButtonShapeMask, DiscCapacity, FrameRate, JobId, MotionMenuConfig,
-    SubtitleTrack, ThumbnailSpec,
+    ButtonMotionConfig, ButtonShapeMask, DiscCapacity, FrameRate, JobId, MenuTemplateId,
+    MenuTransition, MotionMenuConfig, SubtitleTrack, ThumbnailSpec, TransitionEasing,
 };
 use dvdforge_render::{render_project, render_project_with_layers};
 use image::Rgba;
@@ -367,5 +367,264 @@ async fn renders_menu_less_avchd_with_metadata_udf() {
     }
     assert!(metadata && mirror, "UDF sin Metadata File + Mirror");
     assert!(output.join("avchd/BDMV/index.bdmv").is_file());
+    let _ = std::fs::remove_dir_all(output);
+}
+
+#[tokio::test]
+#[ignore = "render de menú DVD con transición; requiere ffmpeg/dvdauthor/xorriso"]
+async fn renders_dvd_motion_transition() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let project_path = root.join("fixtures/projects/minimal.json");
+    let mut project = dvdforge_project::load_project(project_path).expect("fixture");
+    let menu = project.menus.first_mut().expect("menu");
+    let asset = project
+        .episodes
+        .first()
+        .map(|episode| episode.video)
+        .expect("episode");
+    menu.transition = Some(MenuTransition {
+        asset,
+        duration_ms: 1_500,
+        easing: TransitionEasing::EaseInOut,
+    });
+    menu.motion_config = Some(MotionMenuConfig::default());
+    if let Some(button) = menu.buttons.first_mut() {
+        button.motion_preview = Some(ButtonMotionConfig {
+            source_start_ms: 0,
+            loop_duration_ms: 2_000,
+        });
+    }
+    let project_dir = root.join("fixtures/projects");
+    let output = std::env::temp_dir().join(format!(
+        "dvdforge-render-transition-smoke-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&output);
+    let (sender, mut receiver) = mpsc::channel(128);
+    let render_output = output.clone();
+    let task =
+        tokio::spawn(
+            async move { render_project(project, project_dir, render_output, sender).await },
+        );
+    while receiver.recv().await.is_some() {}
+    let outcome = task.await.expect("task").expect("transition render");
+    assert!(PathBuf::from(&outcome.iso_path).is_file());
+    let report = dvdforge_verify::verify_iso(std::path::Path::new(&outcome.iso_path), false)
+        .expect("verify");
+    assert_ne!(
+        report.verdict,
+        dvdforge_verify::report::VerifyVerdict::Fail,
+        "{:?}",
+        report.checks
+    );
+    assert!(report
+        .checks
+        .iter()
+        .any(|check| check.id == "DVD-SPU-BUTTONS"
+            && check.status == dvdforge_verify::report::CheckStatus::Pass));
+    let _ = std::fs::remove_dir_all(output);
+}
+
+#[tokio::test]
+#[ignore = "render de menú BD-25 con transición; requiere ffmpeg/tsMuxeR/libbluray"]
+async fn renders_bd25_motion_transition() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let project_path = root.join("fixtures/projects/bd25-menu.json");
+    let mut project = dvdforge_project::load_project(project_path).expect("fixture");
+    let asset = project
+        .episodes
+        .first()
+        .map(|episode| episode.video)
+        .expect("episode");
+    let menu = project.menus.first_mut().expect("menu");
+    menu.transition = Some(MenuTransition {
+        asset,
+        duration_ms: 1_500,
+        easing: TransitionEasing::Linear,
+    });
+    menu.motion_config = Some(MotionMenuConfig::default());
+    if let Some(button) = menu.buttons.first_mut() {
+        button.motion_preview = Some(ButtonMotionConfig {
+            source_start_ms: 0,
+            loop_duration_ms: 2_000,
+        });
+    }
+    let project_dir = root.join("fixtures/projects");
+    let output = std::env::temp_dir().join(format!(
+        "dvdforge-render-bd-transition-smoke-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&output);
+    let (sender, mut receiver) = mpsc::channel(128);
+    let render_output = output.clone();
+    let task = tokio::spawn(async move {
+        dvdforge_render::render_project(project, project_dir, render_output, sender).await
+    });
+    while receiver.recv().await.is_some() {}
+    let outcome = task.await.expect("task").expect("bd transition render");
+    assert!(PathBuf::from(&outcome.iso_path).is_file());
+    let report = dvdforge_verify::verify_iso(std::path::Path::new(&outcome.iso_path), false)
+        .expect("verify");
+    assert_ne!(
+        report.verdict,
+        dvdforge_verify::report::VerifyVerdict::Fail,
+        "{:?}",
+        report.checks
+    );
+    for id in ["BDMV-IG-BUTTONS", "BDMV-IG-NAV", "BDMV-MOTION-THUMB"] {
+        assert!(
+            report.checks.iter().any(|check| check.id == id
+                && check.status == dvdforge_verify::report::CheckStatus::Pass),
+            "missing {id}: {:?}",
+            report.checks
+        );
+    }
+    let bdmv = output.join("avchd");
+    if let Ok(output) = std::process::Command::new("bd_info").arg(&bdmv).output() {
+        assert!(output.status.success(), "bd_info rejected {:?}", bdmv);
+    }
+    let _ = std::fs::remove_dir_all(output);
+}
+#[tokio::test]
+#[ignore = "render DVD multipágina con plantilla; requiere ffmpeg/dvdauthor/xorriso"]
+async fn renders_dvd_multipage_template() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut project = dvdforge_project::load_project(root.join("fixtures/projects/minimal.json"))
+        .expect("fixture");
+    let source = project.episodes[0].clone();
+    project.episodes = (0..12)
+        .map(|index| {
+            let mut episode = source.clone();
+            episode.id = dvdforge_domain::EpisodeId::new();
+            episode.number = (index + 1) as u16;
+            episode.title = format!("Episode {:02}", index + 1);
+            episode.trim_start_ms = Some(0);
+            episode.trim_end_ms = Some(3_000 + index as u64 * 100);
+            episode
+        })
+        .collect();
+    let applied =
+        dvdforge_menu::templates::apply_template(&project, MenuTemplateId::MultiPageTvGrid)
+            .expect("template");
+    project.menus = applied
+        .menus
+        .into_iter()
+        .filter(|menu| menu.template.is_some())
+        .collect();
+    project.root_menu = applied.root_menu;
+    project.play_all.order = project.episodes.iter().map(|episode| episode.id).collect();
+    let page_ids: Vec<_> = project.menus.iter().map(|menu| menu.id).collect();
+    for menu in &mut project.menus {
+        for button in &mut menu.buttons {
+            if let dvdforge_domain::ButtonAction::GotoMenu { menu: target } = button.action {
+                if !page_ids.contains(&target) {
+                    button.action = dvdforge_domain::ButtonAction::Noop;
+                }
+            }
+        }
+        menu.timing.duration_ms = 5_000;
+    }
+    let project_dir = root.join("fixtures/projects");
+    let output = std::env::temp_dir().join(format!(
+        "dvdforge-render-template-smoke-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&output);
+    let (sender, mut receiver) = mpsc::channel(256);
+    let render_output = output.clone();
+    let task = tokio::spawn(async move {
+        dvdforge_render::render_project(project, project_dir, render_output, sender).await
+    });
+    while receiver.recv().await.is_some() {}
+    let outcome = task.await.expect("task").expect("template render");
+    assert!(PathBuf::from(&outcome.iso_path).is_file());
+    let report = dvdforge_verify::verify_iso(std::path::Path::new(&outcome.iso_path), false)
+        .expect("verify");
+    assert_ne!(
+        report.verdict,
+        dvdforge_verify::report::VerifyVerdict::Fail,
+        "{:?}",
+        report.checks
+    );
+    assert!(report
+        .checks
+        .iter()
+        .any(|check| check.id == "DVD-SPU-BUTTONS"
+            && check.status == dvdforge_verify::report::CheckStatus::Pass));
+    let _ = std::fs::remove_dir_all(output);
+}
+
+#[tokio::test]
+#[ignore = "render BD-25 multipágina con plantilla; requiere ffmpeg/tsMuxeR/libbluray"]
+async fn renders_bd25_multipage_template() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut project = dvdforge_project::load_project(root.join("fixtures/projects/bd25-menu.json"))
+        .expect("fixture");
+    let source = project.episodes[0].clone();
+    project.episodes = (0..12)
+        .map(|index| {
+            let mut episode = source.clone();
+            episode.id = dvdforge_domain::EpisodeId::new();
+            episode.number = (index + 1) as u16;
+            episode.title = format!("Episode {:02}", index + 1);
+            episode.trim_start_ms = Some(0);
+            episode.trim_end_ms = Some(3_000 + index as u64 * 100);
+            episode
+        })
+        .collect();
+    let applied = dvdforge_menu::templates::apply_template(&project, MenuTemplateId::CinemaDark)
+        .expect("template");
+    project.menus = applied
+        .menus
+        .into_iter()
+        .filter(|menu| menu.template.is_some())
+        .collect();
+    project.root_menu = applied.root_menu;
+    project.play_all.order = project.episodes.iter().map(|episode| episode.id).collect();
+    let page_ids: Vec<_> = project.menus.iter().map(|menu| menu.id).collect();
+    for menu in &mut project.menus {
+        for button in &mut menu.buttons {
+            if let dvdforge_domain::ButtonAction::GotoMenu { menu: target } = button.action {
+                if !page_ids.contains(&target) {
+                    button.action = dvdforge_domain::ButtonAction::Noop;
+                }
+            }
+        }
+        menu.timing.duration_ms = 5_000;
+    }
+    let project_dir = root.join("fixtures/projects");
+    let output = std::env::temp_dir().join(format!(
+        "dvdforge-render-bd-template-smoke-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&output);
+    let (sender, mut receiver) = mpsc::channel(256);
+    let render_output = output.clone();
+    let task = tokio::spawn(async move {
+        dvdforge_render::render_project(project, project_dir, render_output, sender).await
+    });
+    while receiver.recv().await.is_some() {}
+    let outcome = task.await.expect("task").expect("bd template render");
+    assert!(PathBuf::from(&outcome.iso_path).is_file());
+    let report = dvdforge_verify::verify_iso(std::path::Path::new(&outcome.iso_path), false)
+        .expect("verify");
+    assert_ne!(
+        report.verdict,
+        dvdforge_verify::report::VerifyVerdict::Fail,
+        "{:?}",
+        report.checks
+    );
+    for id in ["BDMV-IG-BUTTONS", "BDMV-IG-NAV"] {
+        assert!(
+            report.checks.iter().any(|check| check.id == id
+                && check.status == dvdforge_verify::report::CheckStatus::Pass),
+            "missing {id}: {:?}",
+            report.checks
+        );
+    }
+    let bdmv = output.join("avchd");
+    if let Ok(result) = std::process::Command::new("bd_info").arg(&bdmv).output() {
+        assert!(result.status.success(), "bd_info rejected {:?}", bdmv);
+    }
     let _ = std::fs::remove_dir_all(output);
 }

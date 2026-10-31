@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.6.0 — 2026-10-31
+
+### Menu Designer 2.0
+
+- Added five curated templates: Cinema Dark, Multi-Page TV Series Grid,
+  Classic Criterion, Retro CRT and Minimalist.
+- Templates are defined in Rust (`dvdforge-menu::templates`) and exposed to the
+  desktop through `menu_templates` / `menu_apply_template`.
+- Non-destructive pagination: episodes are partitioned by template capacity,
+  page 0 stays the VMGM root, later pages are VTSM EpisodeSelect menus with
+  Prev/Next GotoMenu actions, and custom buttons/items/assets are preserved on
+  Extras pages.
+- Added `W_TEMPLATE_CAPACITY`, `W_MENU_PAGE_OVERFLOW` and
+  `W_TEMPLATE_ASSET_MISSING` validation diagnostics.
+- Added a template gallery and page-aware menu studio state.
+
+### Motion and transitions
+
+- Added `Menu.transition`: a pre-rendered intro clip with duration/easing
+  metadata rendered as a pre-roll before the menu loop.
+- DVD and HDMV menu clips concatenate the transition, fade at the boundary,
+  delay overlays and audio, and offset the SPU/IG start to the transition end.
+- Menu cache identity now includes motion/transition sources, durations and
+  easing; `ENCODER_REV` is 6.
+
+### Navigation
+
+- Added deterministic D-Pad symmetry normalization and reachability fallback,
+  with `E_NAV_ROUTE_CONFLICT` / `W_NAV_ROUTE_APPROX`.
+- Added a canonical `routeHash` to `NavigationGraph`; the simulator displays
+  the same route fingerprint used by DVD and HDMV authoring.
+
+### Verification
+
+- Added `BDMV-IG-BUTTONS`, `BDMV-IG-NAV` and `BDMV-MOTION-THUMB`.
+- Added `DVD-SPU-BUTTONS` for menu SPU/button structure.
+- Extended the smoke suite with DVD/BD multi-page template renders and DVD/BD
+  motion-transition renders; all ignored tests pass locally with `bd_info` and
+  `dvdforge-verify`.
+
 ## 0.5.0 — 2026-10-30
 
 ### Native subtitles

@@ -43,6 +43,8 @@ export const commands = {
 	 *  simulador del editor no duplique la heurística de dvdauthor.
 	 */
 	menuNavigation: (menu: Menu_Deserialize, focus: string | null) => __TAURI_INVOKE<NavigationGraph_Serialize>("menu_navigation", { menu, focus }),
+	menuTemplates: () => __TAURI_INVOKE<MenuTemplateInfo[]>("menu_templates"),
+	menuApplyTemplate: (project: Project_Deserialize, template: MenuTemplateId) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_template", { project, template })),
 	planCalculate: (project: Project_Deserialize) => typedError<BitratePlan_Serialize, string>(__TAURI_INVOKE("plan_calculate", { project })),
 	burnListDevices: () => typedError<OpticalDevice[], string>(__TAURI_INVOKE("burn_list_devices")),
 	renderStart: (project: Project_Deserialize, outputDir: string, hardwareEncoding: EncoderPreference, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, hardwareEncoding, channel })),
@@ -732,10 +734,6 @@ export type MediaProbe_Serialize = {
 	chapters: MediaChapter_Serialize[],
 };
 
-/**
- *  Visual menu definition. Rasterized layers are produced by the frontend and
- *  sent to the backend separately in `MenuCompileRequest`.
- */
 export type Menu = Menu_Serialize | Menu_Deserialize;
 
 export type MenuAudio = MenuAudio_Serialize | MenuAudio_Deserialize;
@@ -838,15 +836,50 @@ export type MenuRole = "root" | "episodeSelect" | "chapterSelect" | "submenu";
 
 export type MenuScaleMode = "cover" | "contain" | "stretch";
 
+/**
+ *  Visual menu definition. Rasterized layers are produced by the frontend and
+ *  sent to the backend separately in `MenuCompileRequest`.
+ */
+export type MenuTemplateId = "cinemaDark" | "multiPageTvGrid" | "classicCriterion" | "retroCrt" | "minimalist";
+
+export type MenuTemplateInfo = {
+	id: MenuTemplateId,
+	name: string,
+	description: string,
+	columns: number,
+	rows: number,
+	episodeCapacity: number,
+	thumbnail: boolean,
+	palette: SubpicturePalette,
+	fontFamily: string,
+};
+
+export type MenuTemplatePage = {
+	template: MenuTemplateId,
+	index: number,
+	count: number,
+	episodeCapacity: number,
+};
+
 export type MenuTiming = {
 	durationMs: number,
 	loopPlayback: boolean,
 };
 
-/**
- *  Visual menu definition. Rasterized layers are produced by the frontend and
- *  sent to the backend separately in `MenuCompileRequest`.
- */
+export type MenuTransition = MenuTransition_Serialize | MenuTransition_Deserialize;
+
+export type MenuTransition_Deserialize = {
+	asset: AssetId,
+	durationMs?: number,
+	easing?: TransitionEasing,
+};
+
+export type MenuTransition_Serialize = {
+	asset: AssetId,
+	durationMs: number,
+	easing: TransitionEasing,
+};
+
 export type Menu_Deserialize = {
 	id: MenuId,
 	name: string,
@@ -863,12 +896,10 @@ export type Menu_Deserialize = {
 	buttons?: MenuButton_Deserialize[],
 	subpicture?: SubpictureSpec_Deserialize,
 	timing?: MenuTiming,
+	template?: MenuTemplatePage | null,
+	transition?: MenuTransition_Deserialize | null,
 };
 
-/**
- *  Visual menu definition. Rasterized layers are produced by the frontend and
- *  sent to the backend separately in `MenuCompileRequest`.
- */
 export type Menu_Serialize = {
 	id: MenuId,
 	name: string,
@@ -885,6 +916,8 @@ export type Menu_Serialize = {
 	buttons: MenuButton_Serialize[],
 	subpicture: SubpictureSpec_Serialize,
 	timing: MenuTiming,
+	template: MenuTemplatePage | null,
+	transition: MenuTransition_Serialize | null,
 };
 
 export type MotionMenuConfig = MotionMenuConfig_Serialize | MotionMenuConfig_Deserialize;
@@ -958,6 +991,7 @@ export type NavigationGraph_Deserialize = {
 	edges: NavEdge[],
 	defaultFocus?: ButtonId | null,
 	policy: NavPolicy,
+	routeHash: string,
 	warnings: Diagnostic_Deserialize[],
 };
 
@@ -967,6 +1001,7 @@ export type NavigationGraph_Serialize = {
 	edges: NavEdge[],
 	defaultFocus: ButtonId | null,
 	policy: NavPolicy,
+	routeHash: string,
 	warnings: Diagnostic_Serialize[],
 };
 
@@ -1252,6 +1287,20 @@ export type SubtitleTrack_Serialize = {
 	style: SubtitleStyle_Serialize,
 };
 
+export type TemplateApplyResult = TemplateApplyResult_Serialize | TemplateApplyResult_Deserialize;
+
+export type TemplateApplyResult_Deserialize = {
+	menus: Menu_Deserialize[],
+	rootMenu: MenuId,
+	diagnostics: Diagnostic_Deserialize[],
+};
+
+export type TemplateApplyResult_Serialize = {
+	menus: Menu_Serialize[],
+	rootMenu: MenuId,
+	diagnostics: Diagnostic_Serialize[],
+};
+
 export type TextAlign = "left" | "center" | "right";
 
 export type TextItem = TextItem_Serialize | TextItem_Deserialize;
@@ -1339,6 +1388,8 @@ export type ToolchainReport_Serialize = {
 	warnings: string[],
 	hardwareEncoders: EncoderCapabilities_Serialize,
 };
+
+export type TransitionEasing = "linear" | "easeIn" | "easeOut" | "easeInOut";
 
 /**  Broadcast standard of the disc. */
 export type TvStandard = "ntsc" | "pal";

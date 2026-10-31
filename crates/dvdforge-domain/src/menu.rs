@@ -106,6 +106,49 @@ impl Default for MotionMenuConfig {
 
 /// Visual menu definition. Rasterized layers are produced by the frontend and
 /// sent to the backend separately in `MenuCompileRequest`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum MenuTemplateId {
+    CinemaDark,
+    MultiPageTvGrid,
+    ClassicCriterion,
+    RetroCrt,
+    Minimalist,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuTemplatePage {
+    pub template: MenuTemplateId,
+    pub index: u16,
+    pub count: u16,
+    pub episode_capacity: u16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum TransitionEasing {
+    #[default]
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MenuTransition {
+    pub asset: AssetId,
+    #[serde(default = "default_transition_ms")]
+    pub duration_ms: u64,
+    #[serde(default)]
+    pub easing: TransitionEasing,
+}
+
+fn default_transition_ms() -> u64 {
+    1_500
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Menu {
@@ -133,6 +176,10 @@ pub struct Menu {
     pub subpicture: SubpictureSpec,
     #[serde(default)]
     pub timing: MenuTiming,
+    #[serde(default)]
+    pub template: Option<MenuTemplatePage>,
+    #[serde(default)]
+    pub transition: Option<MenuTransition>,
 }
 
 impl Menu {

@@ -16,6 +16,10 @@
   const backgroundUrl = $derived(projectStore.backgroundPreviewUrl);
   const duration = $derived(motion?.durationMs ?? 15_000);
   const buttonMotion = $derived(selectedButton?.motionPreview ?? null);
+  const transition = $derived(menu?.transition ?? null);
+  const videoAssets = $derived(
+    (project?.assets ?? []).filter((asset) => asset.kind === "video"),
+  );
   const shapeMasks: Array<{ id: ButtonShapeMask; label: string }> = [
     { id: "rectangle", label: "Rectángulo" },
     { id: "roundedRect", label: "Bordes redondeados" },
@@ -325,6 +329,59 @@
             <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
               {t("El menú estático se muestra indefinidamente. Actívalo para definir un bucle con entrada/salida y música.")}
             </p>
+          {/if}
+        </div>
+
+        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Transición de entrada")}</h2>
+          <p class="mt-1 text-[9px] leading-4 text-slate-500">
+            {t("Clip pregrabado que se reproduce antes del bucle interactivo del menú raíz.")}
+          </p>
+          <label class="mt-2 block">
+            <span class="mb-0.5 block text-[9px] text-slate-500">{t("Clip")}</span>
+            <select
+              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+              value={transition?.asset ?? ""}
+              onchange={(event) => {
+                const value = event.currentTarget.value;
+                projectStore.setMenuTransition(value || null, transition?.durationMs ?? 1_500);
+              }}
+            >
+              <option value="">{t("Sin transición")}</option>
+              {#each videoAssets as asset}
+                <option value={asset.id}>{asset.displayName}</option>
+              {/each}
+            </select>
+          </label>
+          {#if transition}
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <label class="block">
+                <span class="mb-0.5 block text-[9px] text-slate-500">{t("Duración (ms)")}</span>
+                <input
+                  type="number"
+                  min="100"
+                  step="100"
+                  class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  value={transition.durationMs}
+                  onchange={(event) =>
+                    projectStore.updateMenuTransition({ durationMs: Math.max(100, Number(event.currentTarget.value)) })}
+                />
+              </label>
+              <label class="block">
+                <span class="mb-0.5 block text-[9px] text-slate-500">{t("Curva")}</span>
+                <select
+                  class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  value={transition.easing}
+                  onchange={(event) =>
+                    projectStore.updateMenuTransition({ easing: event.currentTarget.value as typeof transition.easing })}
+                >
+                  <option value="linear">Lineal</option>
+                  <option value="easeIn">Ease In</option>
+                  <option value="easeOut">Ease Out</option>
+                  <option value="easeInOut">Ease In Out</option>
+                </select>
+              </label>
+            </div>
           {/if}
         </div>
 

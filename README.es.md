@@ -45,6 +45,19 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## Novedades de v0.6.0
+
+- **Menu Designer 2.0**: cinco plantillas, paginación multipágina automática y
+  aplicación no destructiva que conserva episodios, botones, assets y ajustes.
+- **Movimiento y transiciones**: clips en bucle y transiciones pregrabadas de
+  entrada con duración/easing, filtergraphs deterministas y caché invalidable.
+- **Rutas D-Pad**: enrutado espacial determinista con overrides manuales,
+  diagnósticos de simetría/alcance y `routeHash` estable compartido por DVD,
+  HDMV y el simulador.
+- **Verificación**: nuevos checks `BDMV-IG-BUTTONS`, `BDMV-IG-NAV`,
+  `BDMV-MOTION-THUMB` y `DVD-SPU-BUTTONS`, con smoke tests DVD/BD de
+  multipágina y transiciones.
+
 ## Novedades de v0.5.0
 
 - **Motor nativo de subtítulos**: parseo SRT/ASS/SSA/WebVTT y rasterizado con

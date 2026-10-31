@@ -9,6 +9,7 @@ pub(crate) fn verify(reader: &UdfReader<'_>, checks: &mut CheckList) {
     check_clips(reader, checks);
     check_streams(reader, checks);
     check_pgs_display_sets(reader, checks);
+    crate::menu::check_bdmv_ig(reader, checks);
 }
 
 fn check_index(reader: &UdfReader<'_>, checks: &mut CheckList) {
