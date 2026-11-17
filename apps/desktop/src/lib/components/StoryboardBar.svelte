@@ -3,6 +3,20 @@
   import type { Episode_Serialize, Menu_Serialize } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { formatDuration } from "../utils/format";
+  import Icon from "../ui/Icon.svelte";
+
+  let dragFrom = $state<number | null>(null);
+  let dropAt = $state<number | null>(null);
+
+  function menuRoleShort(menu: Menu_Serialize): string {
+    return menu.role === "root"
+      ? t("Raíz")
+      : menu.role === "chapterSelect"
+        ? t("Capítulos")
+        : menu.role === "episodeSelect"
+          ? t("Episodios")
+          : t("Submenú");
+  }
 
   const project = $derived(projectStore.project);
   const episodes = $derived(projectStore.episodes);
@@ -75,189 +89,140 @@
   }
 </script>
 
-<footer class="flex h-[148px] shrink-0 border-t border-slate-800/80 bg-slate-950/85">
-  <div class="flex w-[218px] shrink-0 flex-col justify-between border-r border-slate-800/70 px-3 py-2">
-    <div>
-      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        {t("Secuencia")}
-      </p>
-      <p class="mt-0.5 text-[12px] font-medium text-slate-300">
-        {episodes.length} {t(episodes.length === 1 ? "episodio" : "episodios")} · {formatDuration(totalDuration)}
-      </p>
-      <div class="mt-1.5 flex max-h-[62px] flex-wrap gap-1 overflow-y-auto pr-0.5">
-        {#if project?.firstPlay}
+<footer class="flex h-[132px] shrink-0 border-t border-slate-800 bg-slate-900">
+  <div class="flex w-[232px] shrink-0 flex-col border-r border-slate-800">
+    <div class="flex h-8 shrink-0 items-center justify-between px-3">
+      <span class="ui-section-title">{t("Menús")}</span>
+      {#if project}
+        <button type="button" class="ui-btn ui-btn-sm ui-btn-ghost" onclick={addMenu} title={t("Añadir otra pantalla de menú (submenú) enlazada desde la actual")}>
+          <Icon name="add" size={13} />{t("Menú")}
+        </button>
+      {/if}
+    </div>
+    <ul class="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-1.5 pb-1.5">
+      {#if project?.firstPlay}
+        <li>
+          <button type="button" class="ui-row py-1" onclick={openFirstPlay} title={t("Inicio / Intro")}>
+            <Icon name="play" size={14} class="text-amber-300" />
+            <span class="truncate">{t("Inicio")}</span>
+            <span class="ui-chip ml-auto">{t("Intro")}</span>
+          </button>
+        </li>
+      {/if}
+      {#each menus as menu (menu.id)}
+        <li class="group/menu relative">
           <button
             type="button"
-            onclick={openFirstPlay}
-            class="max-w-full rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-left text-[11px] text-amber-200 transition hover:border-amber-400/60"
-            title={t("Inicio / Intro")}
+            class="ui-row py-1 pr-7"
+            aria-current={projectStore.selectedMenuId === menu.id}
+            onclick={() => projectStore.selectMenu(menu.id)}
+            ondblclick={() => renameMenu(menu)}
+            title={t("{menu} · doble clic para renombrar", { menu: menu.name })}
           >
-            <span class="block truncate font-semibold">{t("Inicio")}</span>
-            <span class="block text-[8px] text-amber-200/60">{t("Intro")}</span>
+            <Icon name="menu" size={14} class="text-slate-400" />
+            <span class="truncate">{menu.name}</span>
+            <span class="ml-auto shrink-0 text-[11px] text-slate-500">{menuRoleShort(menu)}</span>
           </button>
-        {/if}
-        {#each menus as menu}
-          <span class="group/menu relative inline-flex max-w-full">
+          {#if menu.id !== project?.rootMenu}
             <button
               type="button"
-              onclick={() => projectStore.selectMenu(menu.id)}
-              ondblclick={() => renameMenu(menu)}
-              class={`max-w-full rounded-md border px-1.5 py-0.5 text-left text-[11px] transition ${
-                projectStore.selectedMenuId === menu.id
-                  ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200"
-                  : "border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-300"
-              }`}
-              title={t("{menu} · doble clic para renombrar", { menu: menu.name })}
-            >
-              <span class="block max-w-[170px] truncate font-semibold">{menu.name}</span>
-              <span class="block max-w-[170px] truncate text-[8px] opacity-60">{menuRole(menu)}</span>
-            </button>
-            {#if menu.id !== project?.rootMenu}
-              <button
-                type="button"
-                onclick={(event) => removeMenu(menu, event)}
-                class="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-800 text-[8px] text-slate-300 hover:bg-rose-500/80 hover:text-white group-hover/menu:flex"
-                title={t("Eliminar pantalla de menú")}
-                aria-label={t("Eliminar pantalla de menú")}
-              >
-                ✕
-              </button>
-            {/if}
-          </span>
-        {/each}
-        {#if project}
-          <button
-            type="button"
-            onclick={addMenu}
-            class="rounded-md border border-dashed border-cyan-500/40 px-1.5 py-0.5 text-[11px] font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
-            title={t("Añadir otra pantalla de menú (submenú) enlazada desde la actual")}
-          >
-            {t("+ Pantalla de menú")}
-          </button>
-        {/if}
-        {#if isAvchd}
-          <span class="rounded-md border border-cyan-500/25 bg-cyan-500/5 px-1.5 py-0.5 text-[11px] text-cyan-200/70">
-            {t(menus.length > 0 ? "Blu-ray/AVCHD HD" : "AVCHD continuo")}
-          </span>
-        {/if}
-      </div>
-    </div>
-    <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-      <span>
-        {#if projectStore.plan}
-          <span class={projectStore.plan.feasible ? "text-emerald-300" : "text-rose-300"}>
-            {projectStore.planPercent.toFixed(1)}% {t("del disco")}
-          </span>
-        {:else}
-          {t("plan sin calcular")}
-        {/if}
-      </span>
-      <button
-        type="button"
-        onclick={addEpisode}
-        class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
-        title={t("Añadir episodio desde la biblioteca")}
-      >
-        {t("+ Episodio")}
-      </button>
-    </div>
+              onclick={(event) => removeMenu(menu, event)}
+              class="absolute right-1 top-1/2 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-rose-500/15 hover:text-rose-300 group-hover/menu:flex"
+              title={t("Eliminar pantalla de menú")}
+              aria-label={t("Eliminar pantalla de menú")}
+            ><Icon name="close" size={13} /></button>
+          {/if}
+        </li>
+      {/each}
+    </ul>
   </div>
 
-  <div class="flex min-w-0 flex-1 items-stretch gap-2 overflow-x-auto px-3 py-2">
-    {#if episodes.length === 0}
-      <div class="flex min-w-[260px] flex-1 items-center justify-center rounded-xl border border-dashed border-slate-800 px-4">
-        <p class="text-center text-[12px] leading-5 text-slate-500">
-          {t("La secuencia está vacía. Importa un vídeo y añádelo como episodio.")}
-        </p>
-      </div>
-    {:else}
-      {#each episodes as episode, index (episode.id)}
-        {@const selected = projectStore.selectedEpisode?.id === episode.id}
-        {@const preview = projectStore.episodePreview(episode)}
-        {@const duration = projectStore.episodeEffectiveDuration(episode)}
-        <div
-          role="button"
-          tabindex="0"
-          onclick={() => selectEpisode(episode)}
-          onkeydown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              selectEpisode(episode);
-            }
-          }}
-          class={`group relative flex w-[184px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-xl border text-left transition ${
-            selected
-              ? "border-cyan-500/60 bg-cyan-500/10 shadow-lg"
-              : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
-          }`}
+  <div class="flex min-w-0 flex-1 flex-col">
+    <div class="flex h-8 shrink-0 items-center gap-3 px-3">
+      <span class="ui-section-title">{t("Episodios")}</span>
+      <span class="text-[12px] text-slate-500">
+        {episodes.length} · {formatDuration(totalDuration)}
+        {#if projectStore.plan}
+          · <span class={projectStore.plan.feasible ? "text-slate-400" : "text-rose-300"}>{projectStore.planPercent.toFixed(1)}% {t("del disco")}</span>
+        {/if}
+      </span>
+      {#if episodes.length > 1}<span class="ui-hint ml-auto hidden lg:inline">{t("Arrastra para cambiar el orden")}</span>{/if}
+    </div>
+    <div class="flex min-h-0 flex-1 items-stretch gap-2 overflow-x-auto px-3 pb-2" role="list">
+      {#if episodes.length === 0}
+        <button
+          type="button"
+          onclick={addEpisode}
+          class="flex min-w-[280px] flex-1 items-center justify-center gap-2 rounded-md border border-dashed border-slate-700 text-[13px] text-slate-400 hover:border-slate-500 hover:text-slate-100"
         >
-          <div class="relative h-[64px] w-full overflow-hidden bg-slate-950">
-            {#if preview}
-              <img src={preview} alt="" class="h-full w-full object-cover" />
-            {:else}
-              <div class="flex h-full items-center justify-center text-lg text-slate-700">▷</div>
-            {/if}
-            <span class="absolute left-1 top-1 rounded bg-slate-950/85 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200">
-              E{episode.number}
-            </span>
-            {#if episode.chapters.length > 0}
-              <span class="absolute bottom-1 right-1 rounded bg-slate-950/85 px-1.5 py-0.5 text-[11px] text-slate-300">
-                {episode.chapters.length} cap.
-              </span>
-            {/if}
-            <span class="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-slate-950/85 px-1 py-0.5 text-[8px] text-slate-300">
-              <span class={`h-1.5 w-1.5 rounded-full ${priorityClass(episode.encodingPriority)}`}></span>
-              <span>A{episode.audio.length}</span>
-              <span>S{episode.subtitles.length}</span>
-            </span>
-          </div>
-          <div class="flex min-h-0 flex-1 flex-col justify-between p-1.5">
-            <p class="truncate text-[11px] font-semibold text-slate-200" title={episode.title}>
-              {episode.title}
-            </p>
-            <div class="mt-0.5 flex items-center justify-between gap-1">
-              <span class="font-mono text-[11px] text-slate-500">{formatDuration(duration)}</span>
-              <div class="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-                <button
-                  type="button"
-                  onclick={(event) => move(episode, -1, event)}
-                  disabled={index === 0}
-                  class="rounded px-1 text-[11px] text-slate-500 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25"
-                  title={t("Mover a la izquierda")}
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  onclick={(event) => move(episode, 1, event)}
-                  disabled={index === episodes.length - 1}
-                  class="rounded px-1 text-[11px] text-slate-500 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-25"
-                  title={t("Mover a la derecha")}
-                >
-                  ›
-                </button>
-                <button
-                  type="button"
-                  onclick={(event) => remove(episode, event)}
-                  class="rounded px-1 text-[11px] text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
-                  title={t("Eliminar episodio")}
-                >
-                  ✕
-                </button>
+          <Icon name="add" size={16} />{t("La secuencia está vacía. Importa un vídeo y añádelo como episodio.")}
+        </button>
+      {:else}
+        {#each episodes as episode, index (episode.id)}
+          {@const selected = projectStore.selectedEpisode?.id === episode.id}
+          {@const preview = projectStore.episodePreview(episode)}
+          {@const duration = projectStore.episodeEffectiveDuration(episode)}
+          <div
+            role="listitem"
+            draggable="true"
+            ondragstart={(event) => {
+              dragFrom = index;
+              event.dataTransfer?.setData("text/plain", episode.id);
+              if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+            }}
+            ondragover={(event) => {
+              if (dragFrom === null) return;
+              event.preventDefault();
+              dropAt = index;
+            }}
+            ondragleave={() => (dropAt = dropAt === index ? null : dropAt)}
+            ondrop={(event) => {
+              event.preventDefault();
+              if (dragFrom !== null && dragFrom !== index) projectStore.moveEpisode(episodes[dragFrom].id, index - dragFrom);
+              dragFrom = null;
+              dropAt = null;
+            }}
+            ondragend={() => {
+              dragFrom = null;
+              dropAt = null;
+            }}
+            class={`group relative flex w-[150px] shrink-0 flex-col overflow-hidden rounded-md border ${
+              selected ? "border-cyan-500" : "border-slate-700 hover:border-slate-500"
+            } ${dropAt === index && dragFrom !== index ? "ring-2 ring-cyan-500/60" : ""} ${dragFrom === index ? "opacity-50" : ""}`}
+          >
+            <button type="button" class="flex min-h-0 flex-1 flex-col text-left" onclick={() => selectEpisode(episode)}>
+              <div class="relative aspect-video w-full overflow-hidden bg-black">
+                {#if preview}
+                  <img src={preview} alt="" class="h-full w-full object-cover" draggable="false" />
+                {:else}
+                  <div class="flex h-full items-center justify-center text-slate-600"><Icon name="film" size={18} /></div>
+                {/if}
+                <span class="absolute left-1 top-1 rounded bg-black/70 px-1 font-mono text-[11px] text-[#fff]">{episode.number}</span>
+                <span class="absolute bottom-1 right-1 rounded bg-black/70 px-1 font-mono text-[11px] text-[#fff]">{formatDuration(duration)}</span>
+                {#if episode.chapters.length > 0}
+                  <span class="absolute bottom-1 left-1 rounded bg-black/70 px-1 text-[11px] text-[#fff]">{t("{count} cap.", { count: episode.chapters.length })}</span>
+                {/if}
               </div>
-            </div>
+              <p class="truncate px-1.5 py-1 text-[12px] text-slate-100" title={episode.title}>{episode.title}</p>
+            </button>
+            <button
+              type="button"
+              onclick={(event) => remove(episode, event)}
+              class="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded bg-black/70 text-[#fff] hover:bg-rose-600 group-hover:flex"
+              title={t("Eliminar episodio")}
+              aria-label={t("Eliminar episodio")}
+            ><Icon name="close" size={13} /></button>
           </div>
-        </div>
-      {/each}
-      <button
-        type="button"
-        onclick={addEpisode}
-        class="flex w-[74px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-800 text-slate-600 transition hover:border-cyan-500/40 hover:text-cyan-300"
-        title={t("Añadir episodio desde la biblioteca")}
-      >
-        <span class="text-lg leading-none">+</span>
-        <span class="text-[11px]">{t("Añadir")}</span>
-      </button>
-    {/if}
+        {/each}
+        <button
+          type="button"
+          onclick={addEpisode}
+          class="flex w-[72px] shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-slate-700 text-[12px] text-slate-400 hover:border-slate-500 hover:text-slate-100"
+          title={t("Añadir episodio desde la biblioteca")}
+        >
+          <Icon name="add" size={16} />{t("Añadir")}
+        </button>
+      {/if}
+    </div>
   </div>
 </footer>

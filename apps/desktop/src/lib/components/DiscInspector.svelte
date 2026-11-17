@@ -78,7 +78,7 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
   <button type="button" aria-label={t("Cerrar")} class="absolute inset-0 cursor-default bg-slate-950/80" onclick={() => !working && onclose()}></button>
   <div
-    class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-950"
+    class="ui-dialog max-h-[90vh] w-full max-w-2xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="inspector-title"
@@ -92,8 +92,8 @@
 
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4 text-sm text-slate-200">
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-cyan-500" onclick={pickImage} disabled={working}>{t("Abrir ISO…")}</button>
-        <button type="button" class="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-cyan-500" onclick={pickFolder} disabled={working}>{t("Abrir carpeta…")}</button>
+        <button type="button" class="ui-btn" onclick={pickImage} disabled={working}>{t("Abrir ISO…")}</button>
+        <button type="button" class="ui-btn" onclick={pickFolder} disabled={working}>{t("Abrir carpeta…")}</button>
         {#if working}<span class="self-center text-xs text-slate-400">{t("Leyendo…")}</span>{/if}
       </div>
 
@@ -148,10 +148,10 @@
     </div>
 
     <footer class="flex justify-end gap-2 border-t border-slate-800 px-5 py-3">
-      <button type="button" class="rounded-md px-3 py-1.5 text-sm text-slate-300 hover:text-white" onclick={onclose} disabled={working}>{t("Cerrar")}</button>
+      <button type="button" class="ui-btn ui-btn-ghost" onclick={onclose} disabled={working}>{t("Cerrar")}</button>
       <button
         type="button"
-        class="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+        class="ui-btn ui-btn-primary"
         onclick={importTitles}
         disabled={working || !importable || !projectStore.project}
       >{t("Importar como episodios…")}</button>

@@ -102,7 +102,7 @@
   <section class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl">
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
-        <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-400">{t("Diagnóstico")}</p>
+        <p class="ui-section-title">{t("Diagnóstico")}</p>
         <h2 class="mt-1 text-lg font-semibold text-white">{t("Toolchain del sistema")}</h2>
         <p class="mt-0.5 text-[12px] text-slate-500">
           {t("Comprueba las herramientas externas que usan DVD, AVCHD y Blu-ray.")}
@@ -111,7 +111,7 @@
       <button
         type="button"
         onclick={onClose}
-        class="rounded-lg border border-slate-800 px-2 py-1 text-xs text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
+        class="ui-btn ui-btn-sm"
       >
         ✕
       </button>
@@ -140,7 +140,7 @@
 
         <div class="space-y-1.5">
           {#each report.tools as tool (tool.id)}
-            <div class="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
+            <div class="rounded-lg border border-slate-800 px-3 py-2">
               <div class="flex items-center justify-between gap-2">
                 <div class="flex min-w-0 items-center gap-2">
                   <span
@@ -150,7 +150,7 @@
                   ></span>
                   <span class="truncate text-[12px] font-semibold text-slate-200">{tool.name}</span>
                   {#if tool.required}
-                    <span class="rounded border border-slate-700 px-1 py-0.5 text-[8px] uppercase tracking-wider text-slate-500">
+                    <span class="ui-section-title px-1 py-0.5">
                       {t("requerida")}
                     </span>
                   {/if}
@@ -163,17 +163,17 @@
                 <p class="mt-1 truncate font-mono text-[11px] text-slate-600" title={tool.path}>{tool.path}</p>
               {/if}
               {#if tool.error}
-                <p class="mt-1 text-[11px] leading-4 text-amber-200/80">{localizeToolMessage(tool.error)}</p>
+                <p class="mt-1 text-[12px] leading-5 text-amber-200/80">{localizeToolMessage(tool.error)}</p>
               {/if}
               {#if tool.detail && !tool.error}
-                <p class="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">{tool.detail}</p>
+                <p class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">{tool.detail}</p>
               {/if}
             </div>
           {/each}
         </div>
 
-        <div class="mt-4 rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div class="mt-4 rounded-lg border border-slate-800 px-3 py-2">
+          <p class="ui-section-title">
             {t("Aceleración por hardware")}
           </p>
           {#if report.hardwareEncoders?.h264?.length}
@@ -227,7 +227,7 @@
             {/each}
             {#each manual as option (option.tool)}
               {#if option.hint}
-                <p class="text-[11px] leading-4 text-slate-400">
+                <p class="text-[12px] leading-5 text-slate-400">
                   {option.tool}: <code class="rounded bg-slate-900 px-1 py-0.5 text-cyan-200">{option.hint}</code>
                 </p>
               {/if}
@@ -242,8 +242,8 @@
         {/if}
         {#if report.warnings.length > 0}
           <div class="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-amber-200/80">{t("Avisos")}</p>
-            <ul class="mt-1 space-y-0.5 text-[11px] leading-4 text-amber-100/70">
+            <p class="ui-section-title">{t("Avisos")}</p>
+            <ul class="mt-1 space-y-0.5 text-[12px] leading-5 text-amber-100/70">
               {#each report.warnings as warning}
                 <li>· {localizeToolWarning(warning)}</li>
               {/each}
@@ -260,14 +260,14 @@
         type="button"
         onclick={() => void projectStore.refreshToolsDoctor()}
         disabled={projectStore.toolsBusy}
-        class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
+        class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
       >
         {projectStore.toolsBusy ? t("Comprobando…") : t("Volver a comprobar")}
       </button>
       <button
         type="button"
         onclick={onClose}
-        class="rounded-lg bg-cyan-500 px-3 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400"
+        class="ui-btn ui-btn-primary"
       >
         {t("Cerrar")}
       </button>

@@ -132,7 +132,7 @@
       {step.icon}
     </div>
     <div class="min-w-0 flex-1">
-      <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-300/80">
+      <p class="ui-section-title">
         {t("Guía · paso {current} de {total}", { current: index + 1, total: steps.length })}
       </p>
       <h2 id="guide-title" class="mt-0.5 text-base font-semibold text-white">{t(step.title)}</h2>
@@ -148,7 +148,7 @@
         <button
           type="button"
           onclick={step.action.run}
-          class="mt-3 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-3 py-1.5 text-[12px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+          class="ui-btn mt-3"
         >
           {t(step.action.label)} →
         </button>
@@ -157,14 +157,14 @@
     <button
       type="button"
       onclick={finish}
-      class="rounded-md px-1.5 text-sm text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+      class="ui-btn ui-btn-ghost"
       title={t("Cerrar la guía")}
       aria-label={t("Cerrar la guía")}
     >
       ✕
     </button>
   </div>
-  <div class="flex items-center justify-between gap-2 border-t border-slate-800 bg-slate-900/60 px-4 py-2.5">
+  <div class="flex items-center justify-between gap-2 border-t border-slate-800 px-4 py-2.5">
     <div class="flex gap-1" aria-hidden="true">
       {#each steps as _, dot}
         <button
@@ -190,7 +190,7 @@
         <button
           type="button"
           onclick={finish}
-          class="rounded-lg bg-cyan-500 px-3 py-1 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400"
+          class="ui-btn ui-btn-sm ui-btn-primary"
         >
           {t("¡Entendido!")}
         </button>

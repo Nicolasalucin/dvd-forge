@@ -4,16 +4,14 @@
   import { messageOf } from "../api/client";
   import { projectStore } from "../stores/project.svelte";
   import { t } from "../i18n/index.svelte";
+  import Icon from "../ui/Icon.svelte";
+
+  let { onapplied }: { onapplied?: () => void } = $props();
 
   let templates = $state<MenuTemplateInfo[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let applying = $state<string | null>(null);
-  // Open while the menu is empty (that is when templates help most); folded
-  // once it has buttons so the canvas gets the space. The user can toggle.
-  let userOpen = $state<boolean | null>(null);
-  const menuEmpty = $derived((projectStore.activeMenu?.buttons.length ?? 0) === 0);
-  const open = $derived(userOpen ?? menuEmpty);
 
   onMount(() => {
     void load();
@@ -35,6 +33,7 @@
     error = null;
     const ok = await projectStore.applyMenuTemplate(id as MenuTemplateInfo["id"]);
     if (!ok) error = projectStore.error;
+    else onapplied?.();
     applying = null;
   }
 
@@ -47,6 +46,7 @@
     error = null;
     const ok = await projectStore.applyChapterMenus();
     if (!ok) error = projectStore.error;
+    else onapplied?.();
     applying = null;
   }
 
@@ -55,71 +55,62 @@
   }
 </script>
 
-<section class="shrink-0 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-  <div class={`flex items-center justify-between gap-2 ${open ? "mb-2" : ""}`}>
-    <button
-      type="button"
-      class="flex min-w-0 flex-1 items-center gap-2 text-left"
-      onclick={() => (userOpen = !open)}
-      aria-expanded={open}
-    >
-      <span class="text-[11px] text-slate-500" aria-hidden="true">{open ? "▾" : "▸"}</span>
+<section class="flex min-h-0 flex-col">
+  <div class="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
     <div>
-      <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Plantillas de menú")}</p>
-      <p class="mt-0.5 text-[12px] text-slate-400">{t("Aplicación no destructiva con paginación automática.")}</p>
+      <p class="ui-title">{t("Plantillas de menú")}</p>
+      <p class="ui-hint">{t("Aplicación no destructiva con paginación automática.")}</p>
     </div>
-    </button>
-    <button
-      type="button"
-      class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-cyan-500/60 hover:text-cyan-200"
-      onclick={load}
-      disabled={loading}
-    >{t("Recargar")}</button>
     {#if hasChapters}
       <button
         type="button"
-        class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 hover:border-cyan-500/60 hover:text-cyan-200"
+        class="ui-btn ui-btn-sm"
         onclick={makeScenes}
         disabled={applying !== null || !projectStore.project}
         title={t("Crea un menú con un botón por capítulo para cada episodio")}
-      >{t("Menús de escenas")}</button>
+      ><Icon name="layers" size={14} />{t("Menús de escenas")}</button>
     {/if}
   </div>
-  {#if open}
-  {#if error}<p class="mb-2 rounded bg-rose-500/10 px-2 py-1 text-[11px] text-rose-200">{error}</p>{/if}
-  {#if loading}
-    <p class="text-[12px] text-slate-500">{t("Cargando plantillas…")}</p>
-  {:else}
-    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-      {#each templates as template (template.id)}
-        <button
-          type="button"
-          class="group rounded-lg border border-slate-800 bg-slate-950/70 p-2 text-left transition hover:border-cyan-500/60"
-          onclick={() => apply(template.id)}
-          disabled={applying !== null || !projectStore.project}
-        >
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-[12px] font-semibold text-slate-200">{template.name}</span>
-            <span class="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-slate-400">{template.columns}x{template.rows}</span>
-          </div>
-          <p class="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">{t(template.description)}</p>
-          <div class="mt-2 flex items-center gap-1">
-            {#each template.palette.colors as color}
-              <span class="h-3 w-3 rounded-sm border border-white/10" style={"background:" + swatch(color.rgb)}></span>
-            {/each}
-            <span class="ml-auto text-[11px] text-slate-500">{t("{count} por página", { count: template.episodeCapacity })}</span>
-          </div>
-          {#if applying === template.id}<p class="mt-1 text-[11px] text-cyan-300">{t("Aplicando…")}</p>{/if}
-        </button>
-      {/each}
-    </div>
-    {#if projectStore.templateDiagnostics.length > 0}
-      <ul class="mt-2 space-y-1">
-        {#each projectStore.templateDiagnostics as diagnostic}
-          <li class="rounded bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">{t(diagnostic)}</li>
+  {#if error}<p class="mx-3 mb-2 rounded-md bg-rose-500/10 px-2.5 py-1.5 text-[12px] text-rose-200" role="alert">{error}</p>{/if}
+  <div class="min-h-0 overflow-y-auto px-3 pb-3">
+    {#if loading}
+      <p class="ui-hint">{t("Cargando plantillas…")}</p>
+    {:else}
+      <div class="grid grid-cols-2 gap-2 lg:grid-cols-3">
+        {#each templates as template (template.id)}
+          <button
+            type="button"
+            class="rounded-md border border-slate-700 p-2 text-left hover:border-cyan-500 disabled:opacity-50"
+            onclick={() => apply(template.id)}
+            disabled={applying !== null || !projectStore.project}
+          >
+            <div
+              class="grid h-14 gap-1 rounded p-1.5"
+              style={`background:${swatch(template.palette.colors[0]?.rgb ?? [16, 16, 20])}; grid-template-columns: repeat(${Math.min(template.columns, 4)}, 1fr)`}
+            >
+              {#each Array(Math.min(template.columns * template.rows, 8)) as _, index}
+                <span
+                  class="rounded-sm"
+                  style={`background:${swatch(template.palette.colors[index === 0 ? 2 : 1]?.rgb ?? [90, 90, 100])}; opacity:${index === 0 ? 1 : 0.55}`}
+                ></span>
+              {/each}
+            </div>
+            <div class="mt-1.5 flex items-center justify-between gap-2">
+              <span class="truncate text-[12px] font-medium text-slate-100">{template.name}</span>
+              <span class="ui-chip font-mono">{template.columns}×{template.rows}</span>
+            </div>
+            <p class="mt-0.5 line-clamp-2 text-[12px] leading-5 text-slate-500">{t(template.description)}</p>
+            {#if applying === template.id}<p class="mt-1 text-[11px] text-cyan-300">{t("Aplicando…")}</p>{/if}
+          </button>
         {/each}
-      </ul>
+      </div>
+      {#if projectStore.templateDiagnostics.length > 0}
+        <ul class="mt-2 space-y-1">
+          {#each projectStore.templateDiagnostics as diagnostic}
+            <li class="rounded bg-amber-500/10 px-2 py-1 text-[12px] text-amber-200">{t(diagnostic)}</li>
+          {/each}
+        </ul>
+      {/if}
     {/if}
-  {/if}
-  {/if}
+  </div>
 </section>

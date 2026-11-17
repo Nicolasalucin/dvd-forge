@@ -81,7 +81,7 @@
     onclick={() => !working && onclose()}
   ></button>
   <div
-    class="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-950"
+    class="ui-dialog max-h-[90vh] w-full max-w-xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="slideshow-title"
@@ -97,7 +97,7 @@
       <label class="flex flex-col gap-1">
         <span class="text-xs text-slate-400">{t("Título del episodio")}</span>
         <input
-          class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm outline-none focus:border-cyan-500"
+          class="ui-input"
           bind:value={title}
         />
       </label>
@@ -108,7 +108,7 @@
         </span>
         <button
           type="button"
-          class="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-cyan-500"
+          class="ui-btn"
           onclick={pickImages}
           disabled={working}
         >{t("Añadir fotos…")}</button>
@@ -120,9 +120,9 @@
             <li class="flex items-center gap-2 border-b border-slate-800/70 px-2.5 py-1 last:border-0">
               <span class="w-6 text-right text-xs tabular-nums text-slate-500">{index + 1}</span>
               <span class="min-w-0 flex-1 truncate text-xs" title={image}>{basename(image)}</span>
-              <button type="button" class="px-1 text-xs text-slate-400 hover:text-white" aria-label={t("Subir")} onclick={() => move(index, -1)} disabled={index === 0}>↑</button>
-              <button type="button" class="px-1 text-xs text-slate-400 hover:text-white" aria-label={t("Bajar")} onclick={() => move(index, 1)} disabled={index === images.length - 1}>↓</button>
-              <button type="button" class="px-1 text-xs text-slate-400 hover:text-rose-300" aria-label={t("Quitar")} onclick={() => (images = images.filter((_, i) => i !== index))}>✕</button>
+              <button type="button" class="ui-btn ui-btn-ghost" aria-label={t("Subir")} onclick={() => move(index, -1)} disabled={index === 0}>↑</button>
+              <button type="button" class="ui-btn ui-btn-ghost" aria-label={t("Bajar")} onclick={() => move(index, 1)} disabled={index === images.length - 1}>↓</button>
+              <button type="button" class="ui-btn ui-btn-danger" aria-label={t("Quitar")} onclick={() => (images = images.filter((_, i) => i !== index))}>✕</button>
             </li>
           {/each}
         </ol>
@@ -132,12 +132,12 @@
         <label class="flex flex-col gap-1">
           <span class="text-xs text-slate-400">{t("Segundos por foto")}</span>
           <input type="number" min="1" max="60" step="0.5" bind:value={seconds}
-            class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm outline-none focus:border-cyan-500" />
+            class="ui-input" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-xs text-slate-400">{t("Fundido (segundos)")}</span>
           <input type="number" min="0" max="3" step="0.25" bind:value={fade}
-            class="rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-sm outline-none focus:border-cyan-500" />
+            class="ui-input" />
         </label>
       </div>
 
@@ -147,9 +147,9 @@
         </span>
         <div class="flex shrink-0 gap-2">
           {#if music}
-            <button type="button" class="rounded-md px-2 py-1.5 text-xs text-slate-400 hover:text-white" onclick={() => (music = null)} disabled={working}>{t("Quitar")}</button>
+            <button type="button" class="ui-btn ui-btn-ghost" onclick={() => (music = null)} disabled={working}>{t("Quitar")}</button>
           {/if}
-          <button type="button" class="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-cyan-500" onclick={pickMusic} disabled={working}>{t("Elegir música…")}</button>
+          <button type="button" class="ui-btn" onclick={pickMusic} disabled={working}>{t("Elegir música…")}</button>
         </div>
       </div>
 
@@ -159,10 +159,10 @@
     </div>
 
     <footer class="flex justify-end gap-2 border-t border-slate-800 px-5 py-3">
-      <button type="button" class="rounded-md px-3 py-1.5 text-sm text-slate-300 hover:text-white" onclick={onclose} disabled={working}>{t("Cancelar")}</button>
+      <button type="button" class="ui-btn ui-btn-ghost" onclick={onclose} disabled={working}>{t("Cancelar")}</button>
       <button
         type="button"
-        class="rounded-md bg-cyan-500 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+        class="ui-btn ui-btn-primary"
         onclick={create}
         disabled={!canCreate}
       >{working ? t("Creando…") : t("Crear y añadir")}</button>

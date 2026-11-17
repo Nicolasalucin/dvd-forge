@@ -311,10 +311,10 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Mapa de navegación")}</span>
+      <span class="ui-section-title">{t("Mapa de navegación")}</span>
       <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
         {nodes.length} {t("nodos")} · {edges.length} {t("saltos")}
       </span>
@@ -330,7 +330,7 @@
   </div>
 
   <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
-    <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-950/70">
+    <div class="min-h-0 flex-1 overflow-auto rounded-lg border border-slate-800">
       {#if nodes.length === 0}
         <div class="flex h-full items-center justify-center p-8 text-center text-xs text-slate-500">
           {t("Crea un proyecto DVD-Video para ver el flujo de la máquina virtual.")}
@@ -370,10 +370,10 @@
                 selected?.id === node.id
                   ? "border-cyan-400/80 bg-cyan-500/15"
                   : node.kind === "episode"
-                    ? "border-slate-700 bg-slate-900/90 hover:border-cyan-500/50"
+                    ? "border-slate-700 bg-slate-900/90 hover:border-slate-500"
                     : node.kind === "firstPlay"
                       ? "border-amber-500/40 bg-amber-500/10 hover:border-amber-400/70"
-                      : "border-slate-700 bg-slate-900/90 hover:border-cyan-500/50"
+                      : "border-slate-700 bg-slate-900/90 hover:border-slate-500"
               }`}
               style={`left: ${node.x}px; top: ${node.y}px; width: ${node.width}px;`}
             >
@@ -393,9 +393,9 @@
       {/if}
     </div>
 
-    <div class="shrink-0 rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
+    <div class="shrink-0 rounded-lg border border-slate-800 p-2.5">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Nodo")}</span>
+        <span class="ui-section-title">{t("Nodo")}</span>
         {#if selected}
           <span class="truncate text-[12px] font-semibold text-slate-100">{selected.title}</span>
           <span class="truncate text-[11px] text-slate-500">{selected.subtitle}</span>
@@ -405,7 +405,7 @@
           <button
             type="button"
             onclick={openSelected}
-            class="ml-auto rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+            class="ui-btn ui-btn-sm ml-auto"
           >
             {t("Abrir")}
           </button>

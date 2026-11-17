@@ -118,14 +118,14 @@
   function warningClass(severity: string): string {
     if (severity === "error") return "border-rose-500/30 bg-rose-500/10 text-rose-200";
     if (severity === "warning") return "border-amber-500/25 bg-amber-500/5 text-amber-100";
-    return "border-slate-800 bg-slate-900/50 text-slate-400";
+    return "border-slate-800 text-slate-400";
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Calidad VBR")}</span>
+      <span class="ui-section-title">{t("Calidad VBR")}</span>
       {#if plan}
         <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
           {plan.videoKbps.toLocaleString(i18n.locale)} kbps {t("promedio")}
@@ -155,9 +155,9 @@
 
   <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_310px]">
     <div class="flex min-w-0 flex-col gap-3">
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+      <div class="rounded-lg border border-slate-800 p-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+          <h2 class="ui-section-title">
             {t("Curva de asignación")}{isAvchd ? "" : t(" · 2 pasadas")}
           </h2>
           <div class="flex items-center gap-3 text-[11px] text-slate-500">
@@ -249,9 +249,9 @@
         {/if}
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+      <div class="rounded-lg border border-slate-800 p-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+          <h2 class="ui-section-title">
             {t("Prioridad por episodio")}
           </h2>
           <span class="text-[11px] text-slate-500">
@@ -262,7 +262,7 @@
           {#each episodes as episode (episode.id)}
             {@const planned = plan?.perEpisode.find((entry) => entry.episode === episode.id)}
             {@const priority = priorityOf(episode.id)}
-            <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/50 px-2 py-1.5">
+            <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 px-2 py-1.5">
               <span class="font-mono text-[11px] text-cyan-300">E{episode.number}</span>
               <span class="min-w-0 flex-1 truncate text-[11px] text-slate-300">{episode.title}</span>
               <span class="font-mono text-[11px] text-slate-500">
@@ -295,11 +295,11 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Diagnósticos")}</h2>
+      <div class="rounded-lg border border-slate-800 p-3">
+        <h2 class="ui-section-title">{t("Diagnósticos")}</h2>
         <div class="mt-2 space-y-1.5">
           {#each plan?.warnings ?? [] as warning (warning.code + warning.message)}
-            <div class={`rounded-lg border px-2 py-1.5 text-[11px] leading-4 ${warningClass(warning.severity)}`}>
+            <div class={`rounded-lg border px-2 py-1.5 text-[12px] leading-5 ${warningClass(warning.severity)}`}>
               <span class="font-mono text-[11px] opacity-70">{warning.code}</span>
               <span class="ml-1">{localizeDiagnostic(warning)}</span>
             </div>
@@ -319,8 +319,8 @@
     </div>
 
     <aside class="flex min-h-0 flex-col gap-2">
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Presupuesto")}</h2>
+      <div class="rounded-lg border border-slate-800 p-3">
+        <h2 class="ui-section-title">{t("Presupuesto")}</h2>
         <dl class="mt-2 space-y-1 text-[11px]">
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Disco")}</dt>
@@ -355,8 +355,8 @@
         </dl>
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Corte de capa")}</h2>
+      <div class="rounded-lg border border-slate-800 p-3">
+        <h2 class="ui-section-title">{t("Corte de capa")}</h2>
         {#if plan?.layerBreakSector !== null && plan?.layerBreakSector !== undefined}
           <dl class="mt-2 space-y-1 text-[11px]">
             <div class="flex justify-between gap-2">
@@ -376,18 +376,18 @@
               <dd class="font-mono text-slate-300">{formatBytes(plan.layerBreakSector * 2048)}</dd>
             </div>
           </dl>
-          <p class="mt-2 text-[11px] leading-4 text-slate-500">
+          <p class="mt-2 text-[12px] leading-5 text-slate-500">
             {t("Alineado a bloques ECC de 16 sectores. La autoría ajusta el corte de capa al PGC más cercano durante la grabación.")}
           </p>
         {:else}
-          <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
+          <p class="mt-1.5 text-[12px] leading-5 text-slate-500">
             {t("Selecciona DVD-9 para calcular el punto de cambio de capa PTP/OTP.")}
           </p>
         {/if}
       </div>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Codificación")}</h2>
+      <div class="rounded-lg border border-slate-800 p-3">
+        <h2 class="ui-section-title">{t("Codificación")}</h2>
         <dl class="mt-2 space-y-1 text-[11px]">
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Perfil")}</dt>

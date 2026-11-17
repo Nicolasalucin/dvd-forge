@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ui } from "../ui/state.svelte";
+  import * as actions from "../actions";
+  import Icon from "../ui/Icon.svelte";
+  import type { IconName } from "../ui/icons";
   import { t } from "../i18n/index.svelte";
-  import { open } from "@tauri-apps/plugin-dialog";
   import type { ButtonStyleKind, MediaAsset_Serialize, MediaKind } from "../api/bindings";
   import { commands } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
@@ -32,11 +33,57 @@
     }),
   );
 
-  const tabs = [
-    { id: "media" as const, label: "Medios", icon: "▣" },
-    { id: "layouts" as const, label: "Plantillas", icon: "▦" },
-    { id: "styles" as const, label: "Estilos", icon: "✦" },
+  const tabs: Array<{ id: "media" | "layouts" | "styles"; label: string; icon: IconName }> = [
+    { id: "media", label: "Medios", icon: "film" },
+    { id: "layouts", label: "Diseños", icon: "menu" },
+    { id: "styles", label: "Estilos", icon: "layers" },
   ];
+
+  type KindFilter = "all" | "video" | "audio" | "image";
+  const kindFilters: Array<{ id: KindFilter; label: string }> = [
+    { id: "all", label: "Todo" },
+    { id: "video", label: "Vídeo" },
+    { id: "audio", label: "Audio" },
+    { id: "image", label: "Imagen" },
+  ];
+  let kindFilter = $state<KindFilter>("all");
+  let menuFor = $state<string | null>(null);
+  const visibleAssets = $derived(
+    assets.filter((asset) => kindFilter === "all" || asset.kind === kindFilter),
+  );
+
+  $effect(() => {
+    if (!menuFor) return;
+    const close = () => (menuFor = null);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  });
+
+  interface RowAction {
+    label: string;
+    icon: IconName;
+    run: () => unknown;
+    disabled?: boolean;
+    hint?: string;
+  }
+
+  /** Actions offered in the "⋯" menu of a media row. */
+  function secondaryActions(asset: MediaAsset_Serialize): RowAction[] {
+    const list: RowAction[] = [];
+    if (!noMenus && (asset.kind === "image" || asset.kind === "video")) {
+      list.push({
+        label: t("Usar como miniatura del botón"),
+        icon: "photo",
+        run: () => setButtonThumbnail(asset),
+        disabled: !selectedButton,
+        hint: selectedButton ? "" : t("Selecciona un botón del menú para asignarle una miniatura."),
+      });
+    }
+    if (asset.kind === "image") list.push({ label: t("Usar como fondo del menú"), icon: "menu", run: () => setBackground(asset) });
+    if (asset.kind === "video") list.push({ label: t("Usar como fondo animado"), icon: "film", run: () => setVideoBackground(asset) });
+    if (asset.kind === "audio") list.push({ label: t("Usar como música del menú"), icon: "music", run: () => setMusic(asset) });
+    return list;
+  }
 
   const layouts: Array<{
     kind: LayoutKind;
@@ -66,35 +113,17 @@
 
 
   async function importMedia() {
-    if (!project) return;
-    const selected = await open({
-      multiple: true,
-      filters: [
-        {
-          name: t("Vídeo, audio e imagen"),
-          extensions: [
-            "mp4", "mkv", "mov", "avi", "webm", "mpg", "mpeg",
-            "mp3", "wav", "flac", "ogg", "ac3",
-            "png", "jpg", "jpeg", "webp",
-          ],
-        },
-        { name: t("Todos los archivos"), extensions: ["*"] },
-      ],
-    });
-    if (!selected) return;
-    const paths = Array.isArray(selected) ? selected : [selected];
     busy = true;
     localError = null;
-    notice = null;
     try {
-      const count = await projectStore.importMedia(paths);
-      notice = t("{count} archivo(s) importados.", { count });
+      await actions.importMedia();
     } catch (cause) {
       localError = messageOf(cause);
     } finally {
       busy = false;
     }
   }
+
 
   function addEpisode(asset: MediaAsset_Serialize) {
     const existing = projectStore.episodeForAsset(asset.id);
@@ -224,269 +253,235 @@
   }
 </script>
 
-<aside class="flex min-h-0 w-[300px] shrink-0 flex-col border-r border-slate-800/80 bg-slate-950/70">
-  <div class="flex shrink-0 items-center gap-1 border-b border-slate-800/80 p-2">
+<aside class="ui-panel w-[280px] shrink-0 border-r border-slate-800">
+  <div class="ui-tabs shrink-0" role="tablist">
     {#each tabs as tab}
       <button
         type="button"
+        role="tab"
+        aria-selected={projectStore.mediaTab === tab.id}
         onclick={() => (projectStore.mediaTab = tab.id)}
-        class={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-[12px] font-semibold transition ${
-          projectStore.mediaTab === tab.id
-            ? "bg-slate-800 text-white"
-            : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"
-        }`}
       >
-        <span class="text-xs">{tab.icon}</span>
-        {t(tab.label)}
+        <Icon name={tab.icon} size={15} />{t(tab.label)}
       </button>
     {/each}
     <button
       type="button"
+      class="ml-auto"
       onclick={() => (projectStore.leftCollapsed = true)}
-      class="shrink-0 rounded-lg border border-slate-800 px-1.5 py-1.5 text-[11px] text-slate-500 transition hover:border-slate-700 hover:text-slate-200"
       title={t("Ocultar biblioteca")}
+      aria-label={t("Ocultar biblioteca")}
     >
-      «
+      <span class="rotate-180"><Icon name="chevronRight" size={14} /></span>
     </button>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto p-3">
-    {#if localError || notice}
-      <div
-        class={`mb-3 rounded-lg border px-2.5 py-2 text-[12px] leading-5 ${
-          localError
-            ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-        }`}
-      >
-        {localError ?? notice}
-      </div>
-    {/if}
+  {#if localError || notice}
+    <div
+      class={`mx-3 mt-2 rounded-md px-2.5 py-1.5 text-[12px] leading-5 ${
+        localError ? "bg-rose-500/10 text-rose-200" : "bg-emerald-500/10 text-emerald-200"
+      }`}
+      role={localError ? "alert" : "status"}
+    >
+      {localError ?? notice}
+    </div>
+  {/if}
 
-    {#if projectStore.mediaTab === "media"}
+  {#if projectStore.mediaTab === "media"}
+    <div class="shrink-0 space-y-2 px-3 pb-2 pt-3">
       <div class="flex items-center gap-2">
-        <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus:border-cyan-500/60"
-          placeholder={t("Buscar medios…")}
-          bind:value={search}
-        />
-        <button
-          type="button"
-          onclick={importMedia}
-          disabled={busy || !project}
-          class="shrink-0 rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-50"
-        >
-          {busy ? "…" : t("+ Importar")}
-        </button>
-        <button
-          type="button"
-          onclick={() => (ui.inspector = true)}
-          disabled={busy || !project}
-          title={t("Inspeccionar o importar un disco")}
-          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
-        >
-          {t("Disco")}
-        </button>
-        <button
-          type="button"
-          onclick={() => (ui.slideshow = true)}
-          disabled={busy || !project}
-          title={t("Presentación de fotos")}
-          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
-        >
-          {t("Fotos")}
+        <div class="relative min-w-0 flex-1">
+          <span class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500"><Icon name="search" size={14} /></span>
+          <input class="ui-input pl-7" placeholder={t("Buscar medios…")} bind:value={search} aria-label={t("Buscar medios…")} />
+        </div>
+        <button type="button" class="ui-btn ui-btn-primary" onclick={importMedia} disabled={busy || !project} title={t("Importar medios (Ctrl+I)")}>
+          <Icon name="import" size={15} />{t("Importar")}
         </button>
       </div>
+      <div class="ui-seg" role="group" aria-label={t("Tipo de medio")}>
+        {#each kindFilters as filter}
+          <button type="button" aria-pressed={kindFilter === filter.id} onclick={() => (kindFilter = filter.id)}>
+            {t(filter.label)}
+          </button>
+        {/each}
+      </div>
+    </div>
 
-
+    <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
       {#if !project}
-        <p class="mt-8 px-2 text-center text-xs leading-5 text-slate-500">
-          {t("Crea o abre un proyecto para importar medios.")}
-        </p>
-      {:else if assets.length === 0}
-        <div class="mt-8 rounded-xl border border-dashed border-slate-800 px-3 py-8 text-center">
-          <p class="text-xs font-medium text-slate-300">{t("Sin medios")}</p>
-          <p class="mt-1 text-[12px] leading-5 text-slate-500">
-            {t("Importa vídeo, audio o imágenes para empezar.")}
-          </p>
+        <p class="ui-empty">{t("Crea o abre un proyecto para importar medios.")}</p>
+      {:else if visibleAssets.length === 0}
+        <div class="ui-empty">
+          <Icon name="import" size={28} class="text-slate-500" />
+          <p class="text-slate-300">{assets.length === 0 ? t("Sin medios") : t("Nada coincide con la búsqueda")}</p>
+          <p class="ui-hint">{t("Importa vídeo, audio o imágenes, o arrástralos a la ventana.")}</p>
         </div>
       {:else}
-        <ul class="mt-3 space-y-2">
-          {#each assets as asset}
+        <ul class="space-y-0.5">
+          {#each visibleAssets as asset (asset.id)}
             {@const episode = projectStore.episodeForAsset(asset.id)}
             {@const preview = projectStore.previewForAsset(asset.id)}
-            <li class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-              <div class="flex gap-2.5">
-                <div class="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+            <li class="group relative">
+              <div
+                class="ui-row pr-1"
+                role="button"
+                tabindex="0"
+                ondblclick={() => asset.kind === "video" && addEpisode(asset)}
+                onkeydown={(event) => event.key === "Enter" && asset.kind === "video" && addEpisode(asset)}
+                title={asset.kind === "video" ? t("Doble clic para añadirlo como episodio") : asset.displayName}
+              >
+                <div class="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-black">
                   {#if preview}
                     <img src={preview} alt="" class="h-full w-full object-cover" />
                   {:else}
-                    <span class="text-lg text-slate-600">
-                      {asset.kind === "video" ? "▷" : asset.kind === "audio" ? "♫" : "▧"}
-                    </span>
+                    <Icon name={asset.kind === "video" ? "film" : asset.kind === "audio" ? "music" : asset.kind === "image" ? "photo" : "text"} size={16} class="text-slate-500" />
                   {/if}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-[12px] font-semibold text-slate-200" title={asset.displayName}>
-                    {basename(asset.displayName)}
-                  </p>
-                  <p class="mt-0.5 truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>
-                  <div class="mt-1 flex items-center gap-1.5">
-                    <span class="rounded-full border border-slate-700 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-slate-400">
-                      {kindLabel(asset.kind)}
-                    </span>
-                    {#if episode}
-                      <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300">
-                        E{episode.number}
-                      </span>
-                    {/if}
-                  </div>
+                  <p class="truncate text-[13px] text-slate-100">{basename(asset.displayName)}</p>
+                  <p class="truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>
                 </div>
-              </div>
-
-              <div class="mt-2 flex flex-wrap gap-1.5">
                 {#if asset.kind === "video"}
-                  <button
-                    type="button"
-                    onclick={() => addEpisode(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
-                  >
-                    {episode ? t("Seleccionar episodio") : t("+ Episodio")}
-                  </button>
+                  {#if episode}
+                    <button type="button" class="ui-chip ui-chip-accent" onclick={() => addEpisode(asset)} title={t("Seleccionar episodio")}>E{episode.number}</button>
+                  {:else}
+                    <button type="button" class="ui-btn ui-btn-sm" onclick={() => addEpisode(asset)} title={t("Añadir como episodio")}>
+                      <Icon name="add" size={14} />{t("Añadir")}
+                    </button>
+                  {/if}
                 {/if}
-                {#if !noMenus && (asset.kind === "image" || asset.kind === "video")}
+                {#if secondaryActions(asset).length > 0}
                   <button
                     type="button"
-                    onclick={() => setButtonThumbnail(asset)}
-                    disabled={!selectedButton}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
-                  >
-                    {t("Miniatura")}
-                  </button>
-                {/if}
-                {#if asset.kind === "image"}
-                  <button
-                    type="button"
-                    onclick={() => setBackground(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
-                  >
-                    {t("Fondo")}
-                  </button>
-                {/if}
-                {#if asset.kind === "video"}
-                  <button
-                    type="button"
-                    onclick={() => setVideoBackground(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
-                  >
-                    {t("Fondo vídeo")}
-                  </button>
-                {/if}
-                {#if asset.kind === "audio"}
-                  <button
-                    type="button"
-                    onclick={() => setMusic(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
-                  >
-                    {t("Música menú")}
-                  </button>
+                    class="ui-btn ui-btn-sm ui-btn-ghost ui-btn-icon"
+                    aria-label={t("Más acciones")}
+                    aria-haspopup="menu"
+                    aria-expanded={menuFor === asset.id}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      menuFor = menuFor === asset.id ? null : asset.id;
+                    }}
+                  >⋯</button>
                 {/if}
               </div>
+              {#if menuFor === asset.id}
+                <div class="row-menu absolute right-1 top-full z-30 mt-0.5 w-56 rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl" role="menu">
+                  {#each secondaryActions(asset) as action}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+                      disabled={action.disabled}
+                      title={action.hint ?? ""}
+                      onclick={() => {
+                        menuFor = null;
+                        void action.run();
+                      }}
+                    >
+                      <Icon name={action.icon} size={15} class="text-slate-400" />{action.label}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
       {/if}
-    {:else if projectStore.mediaTab === "layouts"}
-      <p class="px-1 text-[12px] leading-5 text-slate-500">
-        {t("Genera una composición completa a partir de los episodios y ajusta después en el lienzo.")}
-      </p>
-      <div class="mt-3 space-y-2">
+    </div>
+  {:else if projectStore.mediaTab === "layouts"}
+    <div class="min-h-0 flex-1 overflow-y-auto p-3">
+      <p class="ui-hint">{t("Genera una composición completa a partir de los episodios y ajusta después en el lienzo.")}</p>
+      <div class="mt-3 grid grid-cols-2 gap-2">
         {#each layouts as layout}
           <button
             type="button"
             onclick={() => applyLayout(layout.kind)}
             disabled={noMenus}
-            class="group w-full rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 text-left transition hover:border-cyan-500/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            class="rounded-md border border-slate-700 p-2 text-left hover:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <div class="flex items-center gap-2.5">
-              <div class="grid h-10 w-14 shrink-0 grid-rows-2 gap-0.5 rounded-md border border-slate-700 bg-slate-950 p-1">
-                <div class="grid grid-cols-2 gap-0.5">
-                  <span class="rounded-sm bg-cyan-500/25"></span>
-                  <span class="rounded-sm bg-slate-700"></span>
-                  <span class="rounded-sm bg-slate-700"></span>
-                  <span class="rounded-sm bg-cyan-500/15"></span>
-                </div>
-                <div class={`grid gap-0.5 ${layout.preview}`}>
-                  <span class="rounded-sm bg-slate-700/80"></span>
-                  <span class="rounded-sm bg-slate-700/50"></span>
-                </div>
+            <div class="grid h-14 grid-rows-2 gap-1 rounded bg-slate-950 p-1.5">
+              <div class={`grid gap-1 ${layout.preview}`}>
+                <span class="rounded-sm bg-cyan-500/30"></span>
+                <span class="rounded-sm bg-slate-700"></span>
               </div>
-              <div class="min-w-0">
-                <p class="text-[12px] font-semibold text-slate-200">{t(layout.title)}</p>
-                <p class="mt-0.5 text-[11px] text-slate-500">{t(layout.hint)}</p>
+              <div class={`grid gap-1 ${layout.preview}`}>
+                <span class="rounded-sm bg-slate-700"></span>
+                <span class="rounded-sm bg-slate-700/60"></span>
               </div>
             </div>
+            <p class="mt-1.5 text-[12px] font-medium text-slate-100">{t(layout.title)}</p>
+            <p class="text-[11px] text-slate-500">{t(layout.hint)}</p>
           </button>
         {/each}
       </div>
       {#if noMenus && isAvchd}
-        <p class="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-2 text-[11px] leading-5 text-cyan-100/80">
+        <p class="ui-hint mt-3">
           {t("Este disco no tiene menú (reproducción continua). Crea una pantalla de menú desde la barra inferior para usar los diseños.")}
         </p>
       {/if}
-    {:else}
-      <p class="px-1 text-[12px] leading-5 text-slate-500">
+    </div>
+  {:else}
+    <div class="min-h-0 flex-1 overflow-y-auto p-3">
+      <p class="ui-hint">
         {selectedButton
           ? t("Aplica un estilo a «{name}».", { name: selectedButton.name })
           : t("Selecciona un botón o crea uno nuevo con el estilo elegido.")}
       </p>
-      <div class="mt-3 space-y-2">
+      <div class="mt-3 grid grid-cols-2 gap-2">
         {#each styles as style}
           <button
             type="button"
             onclick={() => applyStyle(style.kind)}
             disabled={noMenus}
-            class={`w-full rounded-xl border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
-              selectedButton?.styleKind === style.kind
-                ? "border-cyan-500/60 bg-cyan-500/10"
-                : "border-slate-800 bg-slate-900/40 hover:border-cyan-500/40 hover:bg-slate-900"
+            aria-pressed={selectedButton?.styleKind === style.kind}
+            class={`rounded-md border p-2 text-left disabled:cursor-not-allowed disabled:opacity-40 ${
+              selectedButton?.styleKind === style.kind ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"
             }`}
           >
-            <div class="flex items-center gap-2.5">
-              <div class="flex h-9 w-16 shrink-0 items-center justify-center rounded-md border border-slate-700 bg-slate-950">
-                {#if style.kind === "thumbnailCard"}
-                  <span class="h-6 w-10 rounded-sm border border-slate-600 bg-slate-700"></span>
-                {:else if style.kind === "playBadge"}
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[11px] text-slate-950">▶</span>
-                {:else if style.kind === "glassPill"}
-                  <span class="h-4 w-11 rounded-full border border-white/30 bg-white/10"></span>
-                {:else if style.kind === "classicFrame"}
-                  <span class="h-5 w-12 rounded-sm border-2 border-slate-400/70 bg-slate-800"></span>
-                {:else if style.kind === "textOnly"}
-                  <span class="text-[11px] font-semibold text-slate-300">{t("Texto")}</span>
-                {:else}
-                  <span class="h-4 w-12 border-l-2 border-cyan-400/70 bg-slate-900/30"></span>
-                {/if}
-              </div>
-              <div class="min-w-0">
-                <p class="text-[12px] font-semibold text-slate-200">{t(style.title)}</p>
-                <p class="mt-0.5 text-[11px] text-slate-500">{t(style.hint)}</p>
-              </div>
+            <div class="flex h-12 items-center justify-center rounded bg-slate-950">
+              {#if style.kind === "thumbnailCard"}
+                <span class="h-7 w-12 rounded-sm border border-slate-500 bg-slate-700"></span>
+              {:else if style.kind === "playBadge"}
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-900"><Icon name="play" size={12} /></span>
+              {:else if style.kind === "glassPill"}
+                <span class="h-5 w-14 rounded-full border border-white/30 bg-white/10"></span>
+              {:else if style.kind === "classicFrame"}
+                <span class="h-6 w-14 rounded-sm border-2 border-slate-400 bg-slate-800"></span>
+              {:else if style.kind === "textOnly"}
+                <span class="text-[13px] font-semibold text-slate-200">{t("Texto")}</span>
+              {:else}
+                <span class="h-5 w-14 rounded-sm border border-dashed border-cyan-400"></span>
+              {/if}
             </div>
+            <p class="mt-1.5 text-[12px] font-medium text-slate-100">{t(style.title)}</p>
+            <p class="text-[11px] text-slate-500">{t(style.hint)}</p>
           </button>
         {/each}
       </div>
       {#if !selectedButton && !noMenus}
         <button
           type="button"
+          class="ui-btn mt-3 w-full"
           onclick={() => {
             if (!projectStore.addButton("classicFrame")) localError = projectStore.error;
           }}
-          class="mt-3 w-full rounded-lg border border-slate-700 px-2.5 py-2 text-[12px] font-medium text-slate-200 transition hover:border-cyan-500/60"
         >
-          {t("+ Añadir botón clásico")}
+          <Icon name="add" size={15} />{t("Añadir botón clásico")}
         </button>
       {/if}
-    {/if}
-  </div>
+    </div>
+  {/if}
 </aside>
+
+<style>
+  .row-menu {
+    transform-origin: top right;
+    animation: row-menu-in 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @keyframes row-menu-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+</style>

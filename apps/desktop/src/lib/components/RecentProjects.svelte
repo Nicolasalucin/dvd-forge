@@ -54,7 +54,7 @@
     </p>
   {:else}
     {#each projectStore.recentProjects as recent (recent.id)}
-      <div class="group flex items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/60 px-2 py-1.5">
+      <div class="group flex items-center gap-2 rounded-lg border border-slate-800/80 px-2 py-1.5">
         <button
           type="button"
           onclick={() => void open(recent.filePath)}

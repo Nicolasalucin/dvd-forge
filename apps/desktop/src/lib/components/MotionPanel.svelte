@@ -89,10 +89,10 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú animado")}</span>
+      <span class="ui-section-title">{t("Menú animado")}</span>
       {#if menu}
         <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
           {menu.name}
@@ -118,7 +118,7 @@
           <button
             type="button"
             onclick={enableMotion}
-            class="rounded-md bg-cyan-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
+            class="ui-btn ui-btn-sm ui-btn-primary"
           >
             {t("Activar menú animado")}
           </button>
@@ -168,9 +168,9 @@
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Línea de tiempo del menú")}</h2>
+            <h2 class="ui-section-title">{t("Línea de tiempo del menú")}</h2>
             <span class="font-mono text-[11px] text-cyan-300">{formatDuration(duration)}</span>
           </div>
           <div class="relative mt-2 h-24 overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
@@ -208,9 +208,9 @@
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="ui-section-title">
               {t("Botones de vídeo")} · {menu.buttons.length}
             </h2>
             <span class="text-[11px] text-slate-500">{t("máscara + fragmento en bucle")}</span>
@@ -222,7 +222,7 @@
                 onclick={() => (projectStore.selectedButtonId = button.id)}
                 class={`rounded-lg border p-2 text-left transition ${
                   selectedButton?.id === button.id
-                    ? "border-cyan-500/60 bg-cyan-500/10"
+                    ? "border-cyan-500 bg-cyan-500/15"
                     : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
                 }`}
               >
@@ -256,11 +256,11 @@
       </div>
 
       <aside class="flex min-h-0 flex-col gap-2">
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Bucle del menú")}</h2>
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Bucle del menú")}</h2>
           {#if motion}
             <div class="mt-2 space-y-2">
-              <label class="block">
+              <label class="ui-label">
                 <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                   <span>{t("Duración")}</span>
                   <span class="font-mono">{formatDuration(duration)}</span>
@@ -286,30 +286,30 @@
                 />
               </label>
               <div class="grid grid-cols-2 gap-2">
-                <label class="block">
-                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Entrada (ms)")}</span>
+                <label class="ui-label">
+                  <span class="ui-label">{t("Entrada (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="50"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm w-full font-mono"
                     value={motion.fadeInMs}
                     onchange={(event) => setNumber("fadeInMs", Number(event.currentTarget.value))}
                   />
                 </label>
-                <label class="block">
-                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Salida (ms)")}</span>
+                <label class="ui-label">
+                  <span class="ui-label">{t("Salida (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="50"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm w-full font-mono"
                     value={motion.fadeOutMs}
                     onchange={(event) => setNumber("fadeOutMs", Number(event.currentTarget.value))}
                   />
                 </label>
               </div>
-              <label class="block">
+              <label class="ui-label">
                 <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                   <span>{t("Volumen de música")}</span>
                   <span class="font-mono">{Math.round((motion.audioVolume ?? 1) * 100)}%</span>
@@ -326,21 +326,21 @@
               </label>
             </div>
           {:else}
-            <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
+            <p class="mt-1.5 text-[12px] leading-5 text-slate-500">
               {t("El menú estático se muestra indefinidamente. Actívalo para definir un bucle con entrada/salida y música.")}
             </p>
           {/if}
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Transición de entrada")}</h2>
-          <p class="mt-1 text-[11px] leading-4 text-slate-500">
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Transición de entrada")}</h2>
+          <p class="mt-1 text-[12px] leading-5 text-slate-500">
             {t("Clip pregrabado que se reproduce antes del bucle interactivo del menú raíz.")}
           </p>
           <label class="mt-2 block">
-            <span class="mb-0.5 block text-[11px] text-slate-500">{t("Clip")}</span>
+            <span class="ui-label">{t("Clip")}</span>
             <select
-              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="ui-input ui-input-sm w-full"
               value={transition?.asset ?? ""}
               onchange={(event) => {
                 const value = event.currentTarget.value;
@@ -355,22 +355,22 @@
           </label>
           {#if transition}
             <div class="mt-2 grid grid-cols-2 gap-2">
-              <label class="block">
-                <span class="mb-0.5 block text-[11px] text-slate-500">{t("Duración (ms)")}</span>
+              <label class="ui-label">
+                <span class="ui-label">{t("Duración (ms)")}</span>
                 <input
                   type="number"
                   min="100"
                   step="100"
-                  class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="ui-input ui-input-sm w-full font-mono"
                   value={transition.durationMs}
                   onchange={(event) =>
                     projectStore.updateMenuTransition({ durationMs: Math.max(100, Number(event.currentTarget.value)) })}
                 />
               </label>
-              <label class="block">
-                <span class="mb-0.5 block text-[11px] text-slate-500">{t("Curva")}</span>
+              <label class="ui-label">
+                <span class="ui-label">{t("Curva")}</span>
                 <select
-                  class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="ui-input ui-input-sm w-full"
                   value={transition.easing}
                   onchange={(event) =>
                     projectStore.updateMenuTransition({ easing: event.currentTarget.value as typeof transition.easing })}
@@ -386,13 +386,13 @@
         </div>
 
         {#if selectedButton}
-          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Botón seleccionado")}</h2>
+          <div class="rounded-lg border border-slate-800 p-3">
+            <h2 class="ui-section-title">{t("Botón seleccionado")}</h2>
             <p class="mt-1 truncate text-[12px] font-medium text-slate-200">{selectedButton.name}</p>
             <label class="mt-2 block">
-              <span class="mb-0.5 block text-[11px] text-slate-500">{t("Máscara de forma")}</span>
+              <span class="ui-label">{t("Máscara de forma")}</span>
               <select
-                class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                class="ui-input ui-input-sm w-full"
                 value={selectedButton.shapeMask}
                 onchange={(event) =>
                   setShape(selectedButton, event.currentTarget.value as ButtonShapeMask)}
@@ -413,13 +413,13 @@
             </label>
             {#if buttonMotion}
               <div class="mt-2 grid grid-cols-2 gap-2">
-                <label class="block">
-                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Inicio (ms)")}</span>
+                <label class="ui-label">
+                  <span class="ui-label">{t("Inicio (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="100"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm w-full font-mono"
                     value={buttonMotion.sourceStartMs}
                     onchange={(event) =>
                       setButtonMotion(
@@ -429,13 +429,13 @@
                       )}
                   />
                 </label>
-                <label class="block">
-                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Bucle (ms)")}</span>
+                <label class="ui-label">
+                  <span class="ui-label">{t("Bucle (ms)")}</span>
                   <input
                     type="number"
                     min="500"
                     step="500"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm w-full font-mono"
                     value={buttonMotion.loopDurationMs}
                     onchange={(event) =>
                       setButtonMotion(
@@ -450,9 +450,9 @@
           </div>
         {/if}
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Salida")}</h2>
-          <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Salida")}</h2>
+          <p class="mt-1.5 text-[12px] leading-5 text-slate-500">
             {t("La duración del menú se sincroniza con el proyecto. La composición combina el fondo, la música y los fragmentos de vídeo de los botones.")}
           </p>
         </div>

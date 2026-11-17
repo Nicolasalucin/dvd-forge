@@ -343,10 +343,10 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex min-w-0 items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Edición")}</span>
+      <span class="ui-section-title">{t("Edición")}</span>
       {#if episode}
         <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
           E{episode.number}
@@ -362,7 +362,7 @@
         <button
           type="button"
           onclick={resetTrim}
-          class="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
+          class="ui-btn ui-btn-sm"
         >
           {t("Restablecer")}
         </button>
@@ -406,13 +406,13 @@
               {/if}
               <div class="relative max-w-md rounded-xl border border-amber-500/30 bg-slate-950/90 p-4 text-center shadow-xl">
                 <p class="text-xs font-semibold text-amber-200">{t("Vista previa de vídeo no disponible")}</p>
-                <p class="mt-1 text-[11px] leading-4 text-slate-400">{playbackSupport.detail}</p>
+                <p class="mt-1 text-[12px] leading-5 text-slate-400">{playbackSupport.detail}</p>
                 {#if playbackSupport.installHint}
-                  <code class="mt-2 block break-words rounded-md bg-black/40 px-2 py-1 text-left text-[11px] leading-4 text-cyan-200">
+                  <code class="mt-2 block break-words rounded-md bg-black/40 px-2 py-1 text-left text-[12px] leading-5 text-cyan-200">
                     {playbackSupport.installHint}
                   </code>
                 {/if}
-                <p class="mt-2 text-[11px] leading-4 text-slate-500">
+                <p class="mt-2 text-[12px] leading-5 text-slate-500">
                   {t("Puedes recortar, añadir capítulos y capturar fotogramas igualmente.")}
                 </p>
               </div>
@@ -457,7 +457,7 @@
                 onclick={captureThumbnail}
                 disabled={!sourcePath}
                 title={t("Usar este fotograma como miniatura del episodio en los menús")}
-                class="ml-1 flex h-6 items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
+                class="ui-btn ui-btn-sm ml-1"
               >
                 📸 {t("Miniatura")}
               </button>
@@ -466,7 +466,7 @@
                 onclick={toggleVideoFullscreen}
                 disabled={!videoSrc}
                 title={videoFullscreen ? t("Salir de pantalla completa") : t("Pantalla completa del vídeo")}
-                class="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-slate-700 text-[12px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
+                class="ui-btn ui-btn-sm ml-1"
               >
                 {videoFullscreen ? "⤡" : "⛶"}
               </button>
@@ -474,7 +474,7 @@
           {/if}
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="mb-1.5 flex items-center justify-between text-[11px] text-slate-500">
             <span>{t("Entrada")} <span class="font-mono text-cyan-300">{formatMs(startMs)}</span></span>
             <span class="font-mono text-slate-200">{formatMs(currentTimeMs)}</span>
@@ -530,14 +530,14 @@
             <button
               type="button"
               onclick={markStart}
-              class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
+              class="ui-btn ui-btn-sm"
             >
               {t("Marcar inicio")}
             </button>
             <button
               type="button"
               onclick={markEnd}
-              class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
+              class="ui-btn ui-btn-sm"
             >
               {t("Marcar fin")}
             </button>
@@ -548,10 +548,10 @@
         </div>
 
         <div class="grid gap-2 sm:grid-cols-2">
-          <label class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Escalado")}</span>
+          <label class="rounded-xl border border-slate-800 p-2.5">
+            <span class="ui-section-title mb-1 block">{t("Escalado")}</span>
             <select
-              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="ui-input w-full"
               value={episode.scaleMode}
               onchange={(event) => setScaleMode((event.currentTarget as HTMLSelectElement).value as VideoScaleMode)}
             >
@@ -561,10 +561,10 @@
             </select>
             <span class="mt-1 block text-[11px] text-slate-600">{scaleHint}</span>
           </label>
-          <label class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Pista de audio")}</span>
+          <label class="rounded-xl border border-slate-800 p-2.5">
+            <span class="ui-section-title mb-1 block">{t("Pista de audio")}</span>
             <select
-              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="ui-input w-full"
               value={episode.audio[0]?.sourceStream ?? 0}
               onchange={(event) => setAudio(Number((event.currentTarget as HTMLSelectElement).value))}
             >
@@ -577,15 +577,15 @@
       </div>
 
       <aside class="flex min-h-0 flex-col gap-2">
-        <div class="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-800 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="ui-section-title">
               {t("Capítulos")} · {episode.chapters.length}
             </h2>
             <button
               type="button"
               onclick={addChapter}
-              class="rounded-md bg-cyan-500 px-2 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
+              class="ui-btn ui-btn-sm ui-btn-primary"
             >
               {t("+ Añadir")}
             </button>
@@ -594,28 +594,28 @@
             <button
               type="button"
               onclick={() => autoChapters("5min")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
             >
               {t("Cada 5 min")}
             </button>
             <button
               type="button"
               onclick={() => autoChapters("10min")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
             >
               {t("Cada 10 min")}
             </button>
             <button
               type="button"
               onclick={() => autoChapters("quarters")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
             >
               {t("4 partes")}
             </button>
             <button
               type="button"
               onclick={importChapters}
-              class="rounded-md border border-cyan-500/40 px-1.5 py-0.5 text-[11px] text-cyan-200 transition hover:border-cyan-400"
+              class="ui-btn ui-btn-sm"
             >
               {t("Importar del archivo")}
             </button>

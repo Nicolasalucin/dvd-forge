@@ -79,3 +79,125 @@ button:not(:disabled):active {
 .on-accent {
   color: #ffffff;
 }
+
+/*
+ * Kinodisc design system: compact desktop controls shared by every screen.
+ * Sizes: controls 32 px (sm 28 px), text 13 px, labels 12 px, radius 6 px.
+ */
+@layer components {
+  .ui-panel {
+    @apply flex min-h-0 flex-col bg-slate-900;
+  }
+  .ui-panel-header {
+    @apply flex h-9 shrink-0 items-center justify-between gap-2 border-b border-slate-800 px-3;
+  }
+  .ui-title {
+    @apply text-[13px] font-semibold text-slate-100;
+  }
+  .ui-section {
+    @apply space-y-2 border-b border-slate-800 px-3 py-3;
+  }
+  .ui-section-title {
+    @apply text-[12px] font-semibold text-slate-300;
+  }
+  .ui-label {
+    @apply mb-1 block text-[12px] text-slate-400;
+  }
+  .ui-hint {
+    @apply text-[12px] leading-5 text-slate-500;
+  }
+  .ui-input {
+    @apply h-8 w-full min-w-0 rounded-md border border-slate-700 bg-slate-950 px-2.5 text-[13px] text-slate-100 outline-none placeholder:text-slate-500 hover:border-slate-600 focus:border-cyan-500;
+  }
+  .ui-input-sm {
+    @apply h-7 px-2 text-[12px];
+  }
+  textarea.ui-input {
+    @apply h-auto py-1.5;
+  }
+  .ui-btn {
+    @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-3 text-[13px] text-slate-200 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .ui-btn-sm {
+    @apply h-7 px-2 text-[12px];
+  }
+  .ui-btn-icon {
+    @apply w-8 px-0;
+  }
+  .ui-btn-primary {
+    @apply border-transparent bg-cyan-500 font-semibold hover:border-transparent hover:bg-cyan-400;
+    color: #ffffff;
+  }
+  .ui-btn-primary:hover {
+    color: #ffffff;
+  }
+  .ui-btn-ghost {
+    @apply border-transparent bg-transparent text-slate-300 hover:border-transparent hover:bg-slate-800;
+  }
+  .ui-btn-danger {
+    @apply text-rose-300 hover:border-rose-500/60 hover:bg-rose-500/10 hover:text-rose-200;
+  }
+  .ui-seg {
+    @apply flex h-8 overflow-hidden rounded-md border border-slate-700 bg-slate-950;
+  }
+  .ui-seg > button {
+    @apply flex-1 px-2.5 text-[12px] text-slate-400 hover:text-slate-100;
+  }
+  .ui-seg > button + button {
+    @apply border-l border-slate-700;
+  }
+  .ui-seg > button[aria-pressed="true"] {
+    @apply bg-slate-700 text-slate-50;
+  }
+  .ui-row {
+    @apply flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] text-slate-200 hover:bg-slate-800;
+  }
+  .ui-row[aria-selected="true"],
+  .ui-row[aria-current="true"] {
+    @apply bg-cyan-500/15 text-slate-50;
+  }
+  .ui-chip {
+    @apply inline-flex h-5 items-center gap-1 rounded bg-slate-800 px-1.5 text-[11px] text-slate-300;
+  }
+  .ui-chip-accent {
+    @apply bg-cyan-500/15 text-cyan-300;
+  }
+  .ui-tabs {
+    @apply flex items-stretch gap-0.5 border-b border-slate-800 px-2;
+  }
+  .ui-tabs > button {
+    @apply -mb-px flex h-9 items-center gap-1.5 border-b-2 border-transparent px-2.5 text-[13px] text-slate-400 hover:text-slate-100;
+  }
+  .ui-tabs > button[aria-selected="true"] {
+    @apply border-cyan-500 text-slate-50;
+  }
+  .ui-empty {
+    @apply flex flex-col items-center justify-center gap-2 px-4 py-10 text-center text-[13px] text-slate-400;
+  }
+  .ui-backdrop {
+    @apply absolute inset-0 cursor-default bg-black/50;
+  }
+  .ui-dialog {
+    @apply relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-xl;
+    animation: ui-dialog-in 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .ui-dialog-header {
+    @apply flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4;
+  }
+  .ui-dialog-footer {
+    @apply flex shrink-0 items-center justify-end gap-2 border-t border-slate-800 px-5 py-3;
+  }
+  .ui-check {
+    @apply h-4 w-4 accent-cyan-500;
+  }
+  .ui-meter {
+    @apply h-1.5 overflow-hidden rounded-full bg-slate-800;
+  }
+}
+
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}

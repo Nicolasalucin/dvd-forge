@@ -543,7 +543,7 @@
       <button
         type="button"
         onclick={goBack}
-        class="absolute left-2 top-2 rounded-lg bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:bg-slate-900"
+        class="ui-btn ui-btn-sm ui-btn-ghost absolute left-2 top-2"
       >
         {t("← Menú")}
       </button>
@@ -553,7 +553,7 @@
         </span>
       {/if}
     </div>
-    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+    <div class="rounded-lg border border-slate-800 p-3">
       <div class="flex items-center gap-2">
         <button
           type="button"
@@ -625,28 +625,28 @@
       <button
         type="button"
         onclick={goRoot}
-        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="ui-btn ui-btn-sm ui-btn-ghost"
       >
         {t("Menú raíz")}
       </button>
       <button
         type="button"
         onclick={goTitle}
-        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="ui-btn ui-btn-sm ui-btn-ghost"
       >
         {t("Título")}
       </button>
       <button
         type="button"
         onclick={goBack}
-        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="ui-btn ui-btn-sm ui-btn-ghost"
       >
         {t("Volver")}
       </button>
       <button
         type="button"
         onclick={toggleTvFullscreen}
-        class="rounded-lg border border-white/15 px-2 py-1 text-[11px] text-slate-300 transition hover:bg-white/10"
+        class="ui-btn ui-btn-sm"
         title={t("Salir de pantalla completa")}
       >
         ⤡
@@ -655,10 +655,10 @@
   </div>
 {/snippet}
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Simulador")}</span>
+      <span class="ui-section-title">{t("Simulador")}</span>
       {#if currentMenu}
         <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
           {currentMenu.name}
@@ -679,7 +679,7 @@
       <button
         type="button"
         onclick={toggleTvFullscreen}
-        class="rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+        class="ui-btn ui-btn-sm"
         title={t("Televisor a pantalla completa")}
       >
         {tvFullscreen ? "⤡ TV" : "⛶ TV"}
@@ -687,7 +687,7 @@
       <button
         type="button"
         onclick={refreshGraph}
-        class="rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+        class="ui-btn ui-btn-sm"
       >
         {t("Refrescar grafo")}
       </button>
@@ -709,9 +709,9 @@
   {#if playbackSupport && !playbackSupport.supported}
     <div class="mx-3 mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[12px] text-amber-100">
       <p class="font-semibold">{t("Reproducción de vídeo no disponible")}</p>
-      <p class="mt-0.5 text-[11px] leading-4 text-amber-100/80">{playbackSupport.detail}</p>
+      <p class="mt-0.5 text-[12px] leading-5 text-amber-100/80">{playbackSupport.detail}</p>
       {#if playbackSupport.installHint}
-        <code class="mt-1 block break-words text-[11px] leading-4 text-cyan-200">{playbackSupport.installHint}</code>
+        <code class="mt-1 block break-words text-[12px] leading-5 text-cyan-200">{playbackSupport.installHint}</code>
       {/if}
       <p class="mt-1 text-[11px] text-amber-100/60">
         {t("Los menús, el foco y la navegación siguen funcionando.")}
@@ -721,12 +721,12 @@
 
   {#if isContinuousAvchd}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div bind:this={tvStageAvchd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-black">
+      <div bind:this={tvStageAvchd} class="relative flex min-h-0 flex-1 flex-col gap-2">
         <div class="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black p-2 shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
           {:else}
-            <div class="flex flex-1 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/50 p-6 text-center">
+            <div class="flex flex-1 items-center justify-center rounded-lg border border-slate-800 p-6 text-center">
               <div class="max-w-md">
                 <p class="text-sm font-semibold text-cyan-100">{t("Reproducción continua AVCHD")}</p>
                 <p class="mt-2 text-xs leading-5 text-slate-500">
@@ -746,8 +746,8 @@
         </div>
         {#if tvFullscreen}{@render tvRemoteOverlay()}{/if}
       </div>
-      <aside class="flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+      <aside class="flex min-h-0 flex-col rounded-xl border border-slate-800 p-3">
+        <h2 class="ui-section-title">
           {t("Episodios")} · {episodes.length}
         </h2>
         <ul class="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
@@ -777,7 +777,7 @@
     </div>
   {:else if currentMenu}
     <div class="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(0,1fr)_260px]">
-      <div bind:this={tvStageDvd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-black">
+      <div bind:this={tvStageDvd} class="relative flex min-h-0 flex-1 flex-col gap-2">
         <div class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
@@ -812,8 +812,8 @@
       <aside class="flex min-h-0 flex-col gap-2 overflow-y-auto pr-0.5">
         <div class="rounded-[1.75rem] border border-slate-700/80 bg-slate-800 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-300">{t("Mando")}</h2>
-            <span class="rounded-full border border-slate-700 px-2 py-0.5 text-[8px] uppercase tracking-wider text-slate-500">
+            <h2 class="ui-section-title">{t("Mando")}</h2>
+            <span class="ui-section-title px-2 py-0.5">
               {discLabel}
             </span>
           </div>
@@ -863,7 +863,7 @@
             <button
               type="button"
               onclick={goRoot}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
               title={t("Ir al menú raíz")}
             >
               {t("Menú raíz")}
@@ -871,7 +871,7 @@
             <button
               type="button"
               onclick={goTitle}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
               title={t("Ir al menú de títulos")}
             >
               {t("Título")}
@@ -879,7 +879,7 @@
             <button
               type="button"
               onclick={goBack}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
               title={t("Volver")}
             >
               {t("Volver")}
@@ -887,8 +887,8 @@
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Foco")}</h2>
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Foco")}</h2>
           {#if focusButton}
             <p class="mt-1.5 truncate text-xs font-medium text-slate-200">{focusButton.name}</p>
             <p class="mt-0.5 text-[11px] text-slate-500">{actionLabel(focusButton.action.kind)}</p>
@@ -903,7 +903,7 @@
         </div>
 
         {#if graph?.routeHash}
-          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
+          <div class="rounded-lg border border-slate-800 p-2.5">
             <p class="text-[11px] font-semibold text-slate-500">{t("Huella de rutas D-Pad")}</p>
             <p class="mt-1 truncate font-mono text-[11px] text-cyan-300">{graph.routeHash.slice(0, 24)}…</p>
           </div>
@@ -914,7 +914,7 @@
             <p class="text-[11px] font-semibold text-amber-200">{t("Avisos de navegación")}</p>
             <ul class="mt-1 space-y-1">
               {#each warnings as warning}
-                <li class="text-[11px] leading-4 text-amber-100/70">{localizeDiagnostic(warning)}</li>
+                <li class="text-[12px] leading-5 text-amber-100/70">{localizeDiagnostic(warning)}</li>
               {/each}
             </ul>
           </div>

@@ -113,10 +113,10 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
+<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Pistas del episodio")}</span>
+      <span class="ui-section-title">{t("Pistas del episodio")}</span>
       {#if episode}
         <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
           E{episode.number} · {episode.title}
@@ -140,9 +140,9 @@
   {:else}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_250px]">
       <div class="flex min-w-0 flex-col gap-3">
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Línea de tiempo")}</h2>
+            <h2 class="ui-section-title">{t("Línea de tiempo")}</h2>
             <div class="flex items-center gap-2 text-[11px] text-slate-500">
               <span class="rounded border border-slate-800 px-1.5 py-0.5">E{episode.number}</span>
               <span class="font-mono text-cyan-300">{formatDuration(duration)}</span>
@@ -205,14 +205,14 @@
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="flex items-center justify-between gap-2">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="ui-section-title">
               {t("Audio")} · {episode.audio.length}
             </h2>
             <div class="flex items-center gap-1">
               <select
-                class="rounded-md border border-slate-800 bg-slate-950 px-1.5 py-1 text-[11px] text-slate-300 outline-none focus:border-cyan-500/60"
+                class="ui-input ui-input-sm"
                 bind:value={audioToAdd}
                 disabled={availableAudio.length === 0}
               >
@@ -227,7 +227,7 @@
                 type="button"
                 onclick={addAudio}
                 disabled={availableAudio.length === 0}
-                class="rounded-md bg-cyan-500 px-2 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-40"
+                class="ui-btn ui-btn-sm ui-btn-primary"
               >
                 {t("+ Audio")}
               </button>
@@ -236,7 +236,7 @@
 
           <div class="mt-2 space-y-2">
             {#each episode.audio as track, index (index)}
-              <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-2">
+              <div class="rounded-lg border border-slate-800 p-2">
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[11px] text-amber-200">
                     A{index + 1}
@@ -248,7 +248,7 @@
                     <span class="rounded bg-fuchsia-500/15 px-1 py-0.5 text-[8px] font-bold text-fuchsia-200">COM</span>
                   {/if}
                   <input
-                    class="min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm min-w-0 flex-1"
                     value={track.label}
                     aria-label={t("Etiqueta de audio")}
                     oninput={(event) =>
@@ -263,7 +263,7 @@
                     />
                   </div>
                   <select
-                    class="rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[11px] text-slate-300 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm"
                     value={track.format}
                     onchange={(event) => setFormat(index, event.currentTarget.value as AudioFormat)}
                   >
@@ -271,7 +271,7 @@
                     <option value="ac3Surround51">{t("AC-3 5.1")}</option>
                   </select>
                   <select
-                    class="rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[11px] text-slate-300 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm"
                     value={track.ac3Kbps}
                     onchange={(event) => setAudioBitrate(index, Number(event.currentTarget.value))}
                   >
@@ -298,7 +298,7 @@
                   </button>
                 </div>
                 <div class="mt-1.5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_82px]">
-                  <label class="block">
+                  <label class="ui-label">
                     <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                       <span>{t("Desfase")}</span>
                       <span class="font-mono">{track.delayMs > 0 ? "+" : ""}{track.delayMs} ms</span>
@@ -313,12 +313,12 @@
                       class="w-full accent-cyan-400"
                     />
                   </label>
-                  <label class="block">
-                    <span class="mb-0.5 block text-[11px] text-slate-500">{t("Exacto")}</span>
+                  <label class="ui-label">
+                    <span class="ui-label">{t("Exacto")}</span>
                     <input
                       type="number"
                       step="10"
-                      class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                      class="ui-input ui-input-sm w-full font-mono"
                       value={track.delayMs}
                       onchange={(event) => setAudioDelay(index, Number(event.currentTarget.value))}
                     />
@@ -334,23 +334,23 @@
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+        <div class="rounded-lg border border-slate-800 p-3">
           <div class="flex items-center justify-between gap-2">
-            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="ui-section-title">
               {t("Subtítulos")} · {episode.subtitles.length}
             </h2>
             <div class="flex items-center gap-1">
               <button
                 type="button"
                 onclick={addSubtitleFile}
-                class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
+                class="ui-btn ui-btn-sm"
               >
                 {t("+ .srt")}
               </button>
               <button
                 type="button"
                 onclick={addEmptySubtitle}
-                class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
+                class="ui-btn ui-btn-sm"
               >
                 {t("+ Pista")}
               </button>
@@ -358,13 +358,13 @@
           </div>
           <div class="mt-2 space-y-2">
             {#each episode.subtitles as track, index (index)}
-              <div class="rounded-lg border border-slate-800 bg-slate-950/60 p-2">
+              <div class="rounded-lg border border-slate-800 p-2">
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="rounded bg-violet-500/15 px-1.5 py-0.5 font-mono text-[11px] text-violet-200">
                     S{index + 1}
                   </span>
                   <input
-                    class="min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="ui-input ui-input-sm min-w-0 flex-1"
                     value={track.label}
                     aria-label={t("Etiqueta de subtítulo")}
                     oninput={(event) =>
@@ -412,7 +412,7 @@
                   {track.sourcePath ? basename(track.sourcePath) : `stream interno ${track.sourceStream}`}
                 </p>
                 <div class="mt-1.5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_82px]">
-                  <label class="block">
+                  <label class="ui-label">
                     <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                       <span>{t("Desfase")}</span>
                       <span class="font-mono">{track.delayMs > 0 ? "+" : ""}{track.delayMs} ms</span>
@@ -427,12 +427,12 @@
                       class="w-full accent-violet-400"
                     />
                   </label>
-                  <label class="block">
-                    <span class="mb-0.5 block text-[11px] text-slate-500">{t("Exacto")}</span>
+                  <label class="ui-label">
+                    <span class="ui-label">{t("Exacto")}</span>
                     <input
                       type="number"
                       step="10"
-                      class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-violet-500/60"
+                      class="ui-input ui-input-sm w-full font-mono"
                       value={track.delayMs}
                       onchange={(event) => setSubtitleDelay(index, Number(event.currentTarget.value))}
                     />
@@ -450,8 +450,8 @@
       </div>
 
       <aside class="flex min-h-0 flex-col gap-2">
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Resumen")}</h2>
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Resumen")}</h2>
           <dl class="mt-2 space-y-1 text-[11px]">
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Episodio")}</dt>
@@ -475,9 +475,9 @@
             </div>
           </dl>
           <label class="mt-2 block">
-            <span class="mb-1 block text-[11px] text-slate-500">{t("Escalado del vídeo")}</span>
+            <span class="ui-label">{t("Escalado del vídeo")}</span>
             <select
-              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="ui-input ui-input-sm w-full"
               value={episode.scaleMode}
               onchange={(event) =>
                 projectStore.setEpisodeScaleMode(
@@ -492,15 +492,15 @@
           </label>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Compatibilidad")}</h2>
-          <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Compatibilidad")}</h2>
+          <p class="mt-1.5 text-[12px] leading-5 text-slate-500">
             {t("DVD-Video admite hasta 8 pistas de audio y 32 subimágenes; AVCHD y Blu-ray priorizan la primera pista AC-3. Mantén una pista como predeterminada y usa desfases de ±10 s para corregir desincronizaciones.")}
           </p>
         </div>
 
-        <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Rutas de origen")}</h2>
+        <div class="rounded-lg border border-slate-800 p-3">
+          <h2 class="ui-section-title">{t("Rutas de origen")}</h2>
           <ul class="mt-1.5 space-y-1 text-[11px] text-slate-500">
             <li class="truncate" title={asset?.displayName ?? ""}>{t("Vídeo")}: {asset?.displayName ?? "—"}</li>
             {#each episode.subtitles as track, index (index)}

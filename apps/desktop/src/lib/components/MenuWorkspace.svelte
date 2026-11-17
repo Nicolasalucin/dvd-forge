@@ -5,6 +5,16 @@
   import { messageOf, unwrap } from "../api/client";
   import CanvasStage from "../editor/CanvasStage.svelte";
   import TemplateGallery from "./TemplateGallery.svelte";
+  import Icon from "../ui/Icon.svelte";
+
+  // Templates open in a drop-down so the canvas keeps the space.
+  let templatesOpen = $state((projectStore.activeMenu?.buttons.length ?? 0) === 0);
+  $effect(() => {
+    if (!templatesOpen) return;
+    const close = () => (templatesOpen = false);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  });
   import { projectStore } from "../stores/project.svelte";
 
   let busy = $state(false);
@@ -165,115 +175,93 @@
 
 <svelte:window onkeydown={onCanvasKey} />
 
-<section class="flex min-h-0 flex-1 flex-col bg-black">
-  <div class="flex flex-wrap items-center gap-2 border-b border-slate-800/70 px-3 py-2">
-    <div class="flex min-w-0 items-center gap-2">
-      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú")}</span>
-      {#if menus.length > 1}
-        <select
-          class="max-w-[180px] rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
-          value={menu?.id ?? ""}
-          onchange={(event) => {
-            const id = (event.currentTarget as HTMLSelectElement).value;
-            if (id) projectStore.selectMenu(id);
-          }}
-        >
-          {#each menus as item}
-            <option value={item.id}>{item.name}</option>
-          {/each}
-        </select>
-      {:else}
-        <span class="truncate text-[12px] font-medium text-slate-300">{menu?.name ?? "—"}</span>
-      {/if}
-      {#if menu}
-        <span class="hidden rounded-full border border-slate-800 px-2 py-0.5 font-mono text-[11px] text-slate-500 sm:inline">
-          {menu.canvas.width}×{menu.canvas.height}
-        </span>
-      {/if}
-    </div>
+<section class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+  <div class="flex h-9 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-slate-800 bg-slate-900 px-2">
+    {#if menus.length > 1}
+      <select
+        class="ui-input ui-input-sm w-44"
+        value={menu?.id ?? ""}
+        aria-label={t("Menú")}
+        onchange={(event) => {
+          const id = (event.currentTarget as HTMLSelectElement).value;
+          if (id) projectStore.selectMenu(id);
+        }}
+      >
+        {#each menus as item}
+          <option value={item.id}>{item.name}</option>
+        {/each}
+      </select>
+    {:else}
+      <span class="max-w-44 truncate px-1 text-[13px] font-medium text-slate-100">{menu?.name ?? "—"}</span>
+    {/if}
+    {#if menu}
+      <span class="ui-chip font-mono">{menu.canvas.width}×{menu.canvas.height}</span>
+      <span class="mx-1 h-5 w-px bg-slate-800"></span>
+      <button type="button" class="ui-btn ui-btn-sm ui-btn-primary" onclick={addButton} title={t("Añadir un botón al menú")}>
+        <Icon name="add" size={14} />{t("Botón")}
+      </button>
+      <button
+        type="button"
+        class="ui-btn ui-btn-sm"
+        aria-expanded={templatesOpen}
+        onclick={(event) => {
+          event.stopPropagation();
+          templatesOpen = !templatesOpen;
+        }}
+      >
+        <Icon name="layers" size={14} /><span class="hidden lg:inline">{t("Plantillas")}</span><Icon name="chevronDown" size={12} />
+      </button>
+      <button type="button" class="ui-btn ui-btn-sm" onclick={pickBackground} disabled={busy} title={t("Imagen de fondo")}>
+        <Icon name="photo" size={14} /><span class="hidden 2xl:inline">{t("Fondo")}</span>
+      </button>
+      <button type="button" class="ui-btn ui-btn-sm" onclick={pickMusic} disabled={busy} title={t("Música del menú")}>
+        <Icon name="music" size={14} /><span class="hidden 2xl:inline">{t("Música")}</span>
+      </button>
 
-    <div class="ml-auto flex flex-wrap items-center gap-1.5">
-      {#if menu}
-        <label class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-400">
-          {t("Fondo")}
-          <input
-            type="color"
-            class="h-4 w-6 cursor-pointer border-0 bg-transparent p-0"
-            bind:value={projectStore.menuBackgroundColor}
-          />
-        </label>
-        <button
-          type="button"
-          onclick={pickBackground}
-          disabled={busy}
-          class="rounded-lg border border-slate-800 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
-        >
-          {t("Imagen…")}
-        </button>
-        <button
-          type="button"
-          onclick={pickMusic}
-          disabled={busy}
-          class="rounded-lg border border-slate-800 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
-        >
-          {t("Música…")}
-        </button>
-        <span class="mx-1 h-5 w-px bg-slate-800"></span>
-        <div class="flex rounded-lg border border-slate-800 bg-slate-900 p-0.5">
+      <div class="ml-auto flex items-center gap-1.5">
+        <div class="ui-seg h-7" role="group" aria-label={t("Estado de los botones")}>
           {#each previewStates as state}
-            <button
-              type="button"
-              onclick={() => (projectStore.previewState = state.id)}
-              class={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold transition ${
-                projectStore.previewState === state.id
-                  ? "bg-slate-700 text-white"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
-            >
+            <button type="button" aria-pressed={projectStore.previewState === state.id} onclick={() => (projectStore.previewState = state.id)}>
               {t(state.label)}
             </button>
           {/each}
         </div>
         <button
           type="button"
+          class="ui-btn ui-btn-sm ui-btn-icon"
+          class:ui-btn-ghost={!projectStore.showSafeAreas}
+          aria-pressed={projectStore.showSafeAreas}
           onclick={() => (projectStore.showSafeAreas = !projectStore.showSafeAreas)}
-          class={`rounded-lg border px-2 py-1 text-[11px] transition ${
-            projectStore.showSafeAreas
-              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-              : "border-slate-800 text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          {t("Área segura")}
-        </button>
+          title={t("Área segura de TV")}
+          aria-label={t("Área segura de TV")}
+        ><Icon name="layers" size={15} /></button>
         <button
           type="button"
+          class="ui-btn ui-btn-sm ui-btn-icon"
+          class:ui-btn-ghost={!projectStore.showNavigation}
+          aria-pressed={projectStore.showNavigation}
           onclick={() => (projectStore.showNavigation = !projectStore.showNavigation)}
-          class={`rounded-lg border px-2 py-1 text-[11px] transition ${
-            projectStore.showNavigation
-              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-              : "border-slate-800 text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          {t("Guías nav")}
-        </button>
-        <button
-          type="button"
-          onclick={addButton}
-          class="rounded-lg bg-cyan-500 px-2 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
-        >
-          {t("+ Botón")}
-        </button>
-      {/if}
-    </div>
+          title={t("Guías de navegación del mando")}
+          aria-label={t("Guías de navegación del mando")}
+        ><Icon name="remote" size={15} /></button>
+      </div>
+    {/if}
   </div>
+
+    {#if templatesOpen}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="templates-pop absolute left-2 top-9 z-30 mt-1 w-[min(720px,calc(100%-1rem))] max-h-[70vh] overflow-hidden rounded-md border border-slate-700 bg-slate-900 shadow-xl"
+        onpointerdown={(event) => event.stopPropagation()}
+      >
+        <TemplateGallery onapplied={() => (templatesOpen = false)} />
+      </div>
+    {/if}
 
   {#if localError || notice}
     <div
-      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${
-        localError
-          ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-      }`}
+      class={`mx-3 mt-2 rounded-md px-3 py-1.5 text-[12px] ${localError ? "bg-rose-500/10 text-rose-200" : "bg-emerald-500/10 text-emerald-200"}`}
+      role={localError ? "alert" : "status"}
     >
       {localError ?? notice}
     </div>
@@ -281,53 +269,58 @@
 
   <div class="flex min-h-0 flex-1 flex-col p-3">
     {#if menu}
-      <div class="flex min-h-0 flex-1 flex-col gap-2">
-        <TemplateGallery />
-        <CanvasStage
-          {menu}
-          backgroundColor={projectStore.menuBackgroundColor}
-          backgroundUrl={projectStore.backgroundPreviewUrl}
-          thumbnails={projectStore.thumbnailPreviewUrls}
-          selectedButtonId={projectStore.selectedButtonId}
-          focusButtonId={projectStore.selectedButtonId}
-          previewState={projectStore.previewState}
-          showSafeAreas={projectStore.showSafeAreas}
-          showNavigation={projectStore.showNavigation}
-          onSelect={(id) => (projectStore.selectedButtonId = id)}
-          onChange={(id, rect) => {
-            const accepted = projectStore.updateButtonRect(id, rect);
-            if (!accepted) localError = t("El botón se solapa o no respeta los 4 px de separación.");
-            else localError = null;
-            return accepted;
-          }}
-        />
-        <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-500">
-          <span>
-            {t("Arrastra para mover · tiradores para redimensionar · coordenadas pares y separación mínima de 4 px.")}
-            {t("Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.")}
-          </span>
-          <span>
-            {menu.buttons.length} {t(menu.buttons.length === 1 ? "botón" : "botones")} ·
-            {t(menu.audio ? "música activa" : "sin música")}
-          </span>
-        </div>
-      </div>
+      <CanvasStage
+        {menu}
+        backgroundColor={projectStore.menuBackgroundColor}
+        backgroundUrl={projectStore.backgroundPreviewUrl}
+        thumbnails={projectStore.thumbnailPreviewUrls}
+        selectedButtonId={projectStore.selectedButtonId}
+        focusButtonId={projectStore.selectedButtonId}
+        previewState={projectStore.previewState}
+        showSafeAreas={projectStore.showSafeAreas}
+        showNavigation={projectStore.showNavigation}
+        onSelect={(id) => (projectStore.selectedButtonId = id)}
+        onChange={(id, rect) => {
+          const accepted = projectStore.updateButtonRect(id, rect);
+          if (!accepted) localError = t("El botón se solapa o no respeta los 4 px de separación.");
+          else localError = null;
+          return accepted;
+        }}
+      />
     {:else}
-      <div class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-800 text-center">
-        <div>
-          <p class="text-sm font-medium text-slate-300">{t("No hay un menú activo")}</p>
-          <p class="mt-1 text-xs text-slate-500">
-            {t("Añade un menú al proyecto o abre la pestaña Menú desde un proyecto Blu-ray/AVCHD.")}
-          </p>
-        </div>
+      <div class="ui-empty flex-1 rounded-lg border border-dashed border-slate-700">
+        <Icon name="menu" size={28} class="text-slate-500" />
+        <p class="text-slate-200">{t("No hay un menú activo")}</p>
+        <p class="ui-hint">{t("Añade un menú al proyecto o abre la pestaña Menú desde un proyecto Blu-ray/AVCHD.")}</p>
       </div>
     {/if}
   </div>
 
-  {#if selected}
-    <div class="shrink-0 border-t border-slate-800/70 px-3 py-1.5 text-[11px] text-slate-500">
-      {t("Seleccionado:")} <span class="font-medium text-slate-300">{selected.name}</span>
-      · {t(styleLabel(selected.styleKind))} · {t(actionLabel(selected.action.kind))}
+  {#if menu}
+    <div class="flex h-7 shrink-0 items-center gap-3 border-t border-slate-800 bg-slate-900 px-3 text-[12px] text-slate-400">
+      {#if selected}
+        <span class="truncate">
+          <span class="text-slate-200">{selected.name}</span> · {t(styleLabel(selected.styleKind))} · {t(actionLabel(selected.action.kind))}
+        </span>
+      {:else}
+        <span>{menu.buttons.length} {t(menu.buttons.length === 1 ? "botón" : "botones")} · {t(menu.audio ? "música activa" : "sin música")}</span>
+      {/if}
+      <span class="ml-auto hidden truncate text-slate-500 xl:inline" title={t("Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.")}>
+        {t("Flechas mueven · [ ] cambian de botón · Supr borra · Ctrl+D duplica")}
+      </span>
     </div>
   {/if}
 </section>
+
+<style>
+  .templates-pop {
+    transform-origin: top left;
+    animation: templates-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @keyframes templates-in {
+    from {
+      opacity: 0;
+      transform: scale(0.98) translateY(-2px);
+    }
+  }
+</style>

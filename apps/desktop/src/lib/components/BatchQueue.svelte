@@ -175,7 +175,7 @@
     class="absolute inset-0 cursor-default bg-slate-950/80"
   ></button>
   <div
-    class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl"
+    class="ui-dialog max-h-[90vh] w-full max-w-2xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="batch-title"
@@ -191,7 +191,7 @@
         type="button"
         onclick={onClose}
         disabled={running}
-        class="rounded-lg border border-slate-800 px-2 py-1 text-xs text-slate-400 transition hover:text-slate-200 disabled:opacity-40"
+        class="ui-btn ui-btn-sm"
         aria-label={t("Cerrar")}
       >
         ✕
@@ -203,7 +203,7 @@
         type="button"
         onclick={addCurrent}
         disabled={running || !projectStore.project}
-        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="ui-btn"
       >
         {t("+ Proyecto actual")}
       </button>
@@ -211,7 +211,7 @@
         type="button"
         onclick={addFiles}
         disabled={running}
-        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="ui-btn"
       >
         {t("+ Añadir proyectos…")}
       </button>
@@ -219,7 +219,7 @@
         type="button"
         onclick={clearFinished}
         disabled={running}
-        class="rounded-lg px-3 py-1.5 text-[12px] text-slate-400 transition hover:text-slate-200 disabled:opacity-40"
+        class="ui-btn ui-btn-ghost"
       >
         {t("Quitar terminados")}
       </button>
@@ -233,7 +233,7 @@
       {:else}
         <ol class="space-y-1.5">
           {#each items as item, index (item.path)}
-            <li class="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2">
+            <li class="flex items-center gap-2 rounded-lg border border-slate-800 px-3 py-2">
               <span class="w-5 text-right font-mono text-[11px] text-slate-500">{index + 1}</span>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-[12px] font-medium text-slate-200" title={item.path}>{item.name}</p>
@@ -269,7 +269,7 @@
         <button
           type="button"
           onclick={stop}
-          class="rounded-lg border border-rose-500/50 px-3 py-1.5 text-[12px] font-semibold text-rose-200 transition hover:bg-rose-500/10"
+          class="ui-btn ui-btn-danger"
         >
           {t("Detener")}
         </button>
@@ -278,7 +278,7 @@
           type="button"
           onclick={runQueue}
           disabled={pending === 0}
-          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+          class="ui-btn ui-btn-primary"
         >
           {t("Generar todo")}
         </button>

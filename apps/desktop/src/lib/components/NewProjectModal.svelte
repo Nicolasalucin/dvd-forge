@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "../ui/Icon.svelte";
   import { t } from "../i18n/index.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import type {
@@ -62,8 +63,23 @@
 
   let name = $state(t("Mi DVD"));
   let mode = $state<AuthoringMode>("dvdVideo");
-  let standard = $state<TvStandard>("ntsc");
-  let aspect = $state<AspectRatio>("fourThree");
+  // PAL or NTSC from the system region (es-AR, es-ES, pt-PT... use PAL).
+  const PAL_REGIONS = new Set([
+    "AR", "UY", "PY", "ES", "PT", "GB", "IE", "FR", "DE", "IT", "NL", "BE", "LU", "AT", "CH",
+    "DK", "SE", "NO", "FI", "IS", "PL", "CZ", "SK", "HU", "RO", "BG", "GR", "HR", "SI", "RS",
+    "TR", "RU", "UA", "AU", "NZ", "ZA", "IN", "CN", "HK", "SG", "MY", "ID", "IL", "EG", "SA", "AE",
+  ]);
+  function defaultStandard(): TvStandard {
+    const tags = [...(navigator.languages ?? []), navigator.language].filter(Boolean);
+    for (const tag of tags) {
+      const region = tag.split(/[-_]/)[1]?.toUpperCase();
+      if (region) return PAL_REGIONS.has(region) ? "pal" : "ntsc";
+    }
+    return "ntsc";
+  }
+
+  let standard = $state<TvStandard>(defaultStandard());
+  let aspect = $state<AspectRatio>("sixteenNine");
   let resolution = $state<AvchdResolution>("720p");
   let fpsKey = $state("23.976");
   let busy = $state(false);
@@ -144,12 +160,11 @@
     class="absolute inset-0 cursor-default bg-slate-950/80"
   ></button>
 
-  <div class="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl">
-    <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
+  <div class="ui-dialog max-h-[92vh] w-full max-w-2xl">
+    <header class="ui-dialog-header">
       <div>
-        <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-400">{t("Kinodisc")}</p>
-        <h2 class="mt-1 text-lg font-semibold text-white">{t("Nuevo proyecto")}</h2>
-        <p class="mt-0.5 text-[12px] text-slate-500">
+        <h2 class="text-[16px] font-semibold text-slate-50">{t("Nuevo proyecto")}</h2>
+        <p class="ui-hint mt-0.5">
           {t("Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.")}
         </p>
       </div>
@@ -157,15 +172,14 @@
         type="button"
         onclick={onClose}
         disabled={busy}
-        class="rounded-lg border border-slate-800 px-2 py-1 text-xs text-slate-400 transition hover:border-slate-700 hover:text-slate-200 disabled:opacity-40"
-      >
-        ✕
-      </button>
+        class="ui-btn ui-btn-sm ui-btn-ghost ui-btn-icon"
+        aria-label={t("Cerrar")}
+      ><Icon name="close" size={15} /></button>
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
       {#if localError}
-        <div class="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200">
+        <div class="mb-3 rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200" role="alert">
           {localError}
         </div>
       {/if}
@@ -175,39 +189,43 @@
           type="button"
           onclick={() => (mode = "dvdVideo")}
           disabled={busy}
-          class={`rounded-xl border p-3 text-left transition ${
-            mode === "dvdVideo"
-              ? "border-cyan-500/60 bg-cyan-500/10"
-              : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+          aria-pressed={mode === "dvdVideo"}
+          class={`flex gap-3 rounded-md border p-3 text-left ${
+            mode === "dvdVideo" ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"
           }`}
         >
-          <span class="text-sm font-semibold text-white">{t("DVD-Video universal")}</span>
-          <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">
+          <Icon name="disc" size={22} class={mode === "dvdVideo" ? "text-cyan-400" : "text-slate-400"} />
+          <span class="min-w-0">
+          <span class="block text-[14px] font-semibold text-slate-50">{t("DVD-Video universal")}</span>
+          <span class="mt-0.5 block text-[12px] leading-5 text-slate-400">
             {t("Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.")}
+          </span>
           </span>
         </button>
         <button
           type="button"
           onclick={() => (mode = "avchd")}
           disabled={busy}
-          class={`rounded-xl border p-3 text-left transition ${
-            mode === "avchd"
-              ? "border-cyan-500/60 bg-cyan-500/10"
-              : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+          aria-pressed={mode === "avchd"}
+          class={`flex gap-3 rounded-md border p-3 text-left ${
+            mode === "avchd" ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"
           }`}
         >
-          <span class="text-sm font-semibold text-white">{t("Blu-ray / AVCHD (alta definición)")}</span>
-          <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">
+          <Icon name="film" size={22} class={mode === "avchd" ? "text-cyan-400" : "text-slate-400"} />
+          <span class="min-w-0">
+          <span class="block text-[14px] font-semibold text-slate-50">{t("Blu-ray / AVCHD (alta definición)")}</span>
+          <span class="mt-0.5 block text-[12px] leading-5 text-slate-400">
             {t("Imagen HD con menús. Necesita reproductor Blu-ray, PS3/PS4/PS5 o similar.")}
+          </span>
           </span>
         </button>
       </div>
 
       <div class="mt-4 space-y-3">
-        <label class="block">
-          <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Nombre")}</span>
+        <label class="ui-label">
+          <span class="mb-1 block">{t("Nombre")}</span>
           <input
-            class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/60"
+            class="ui-input w-full"
             bind:value={name}
             placeholder={t("Mi DVD")}
             disabled={busy}
@@ -216,10 +234,10 @@
 
         {#if mode === "dvdVideo"}
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
-              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Estándar")}</span>
+            <label class="ui-label">
+              <span class="mb-1 block">{t("Estándar")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
+                class="ui-input w-full"
                 bind:value={standard}
                 disabled={busy}
               >
@@ -227,10 +245,10 @@
                 <option value="pal">{t("PAL · 720×576 (Europa, Argentina, Australia…)")}</option>
               </select>
             </label>
-            <label class="block">
-              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Aspecto")}</span>
+            <label class="ui-label">
+              <span class="mb-1 block">{t("Aspecto")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
+                class="ui-input w-full"
                 bind:value={aspect}
                 disabled={busy}
               >
@@ -241,10 +259,10 @@
           </div>
         {:else}
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
-              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Resolución")}</span>
+            <label class="ui-label">
+              <span class="mb-1 block">{t("Resolución")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
+                class="ui-input w-full"
                 bind:value={resolution}
                 disabled={busy}
               >
@@ -255,10 +273,10 @@
                 <option value="576i">{t("576i · 720×576")}</option>
               </select>
             </label>
-            <label class="block">
-              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
+            <label class="ui-label">
+              <span class="mb-1 block">{t("Velocidad")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
+                class="ui-input w-full"
                 value={effectiveFpsKey}
                 onchange={(event) => (fpsKey = event.currentTarget.value)}
                 disabled={busy}
@@ -270,27 +288,28 @@
             </label>
           </div>
           {#if resolution === "1080p" && (effectiveFpsKey === "25" || effectiveFpsKey === "29.97")}
-            <p class="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] leading-4 text-emerald-100/80">
+            <p class="flex gap-2 text-[12px] leading-5 text-slate-400"><Icon name="check" size={15} class="mt-0.5 text-emerald-400" />
               {t("Ideal para TV y video casero. Se graba como PsF (imagen progresiva en señal 1080i), compatible con todos los reproductores Blu-ray.")}
             </p>
           {:else if resolution === "1080p" && (effectiveFpsKey === "50" || effectiveFpsKey === "59.94")}
-            <p class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] leading-4 text-amber-100/80">
+            <p class="flex gap-2 text-[12px] leading-5 text-slate-400"><Icon name="warning" size={15} class="mt-0.5 text-amber-400" />
               {t("Máxima fluidez (deportes, videojuegos, cámaras modernas). Es AVCHD 2.0: funciona en PS3/PS4/PS5 y reproductores actuales, pero algunos Blu-ray antiguos no lo reproducen.")}
             </p>
           {/if}
-          <p class="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[11px] leading-4 text-cyan-100/80">
-            {t("AVCHD/Blu-ray usa H.264, AC-3 y menús HDMV Interactive Graphics. Puedes elegir BD-25 o BD-50 en la cabecera para habilitar el authoring Blu-ray nativo.")}
+          <p class="flex gap-2 text-[12px] leading-5 text-slate-400">
+            <Icon name="info" size={15} class="mt-0.5 text-cyan-400" />
+            {t("Para un Blu-ray elige BD-25 o BD-50 en la barra del disco después de crear el proyecto.")}
           </p>
         {/if}
       </div>
     </div>
 
-    <footer class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-5 py-3">
+    <footer class="ui-dialog-footer justify-between">
       <button
         type="button"
         onclick={openProject}
         disabled={busy}
-        class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="ui-btn"
       >
         {t("Abrir proyecto…")}
       </button>
@@ -299,7 +318,7 @@
           type="button"
           onclick={onClose}
           disabled={busy}
-          class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-slate-700 disabled:opacity-40"
+          class="ui-btn"
         >
           {t("Cancelar")}
         </button>
@@ -307,7 +326,7 @@
           type="button"
           onclick={createProject}
           disabled={busy}
-          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
+          class="ui-btn ui-btn-primary"
         >
           {busy ? t("Creando…") : t("Crear proyecto")}
         </button>

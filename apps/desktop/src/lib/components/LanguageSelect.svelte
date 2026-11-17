@@ -45,7 +45,7 @@
       open = !open;
       query = "";
     }}
-    class="flex w-full items-center justify-between gap-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-left text-[11px] text-slate-200 outline-none transition hover:border-cyan-500/50 disabled:opacity-50"
+    class="flex w-full items-center justify-between gap-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-left text-[11px] text-slate-200 outline-none transition hover:border-slate-500 disabled:opacity-50"
     aria-haspopup="listbox"
     aria-expanded={open}
     title={selected}
@@ -56,7 +56,7 @@
   {#if open}
     <div class="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-slate-700 bg-slate-950 p-1.5 shadow-xl">
       <input
-        class="w-full rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-cyan-500/60"
+        class="ui-input ui-input-sm w-full"
         placeholder={t("Buscar idioma…")}
         bind:value={query}
       />

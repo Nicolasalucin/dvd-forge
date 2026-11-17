@@ -71,7 +71,7 @@
     </p>
   {:else}
     {#each projectStore.jobHistory as job (job.id)}
-      <div class="rounded-xl border border-slate-800/80 bg-slate-900/60 px-2.5 py-2">
+      <div class="rounded-lg border border-slate-800/80 px-2.5 py-2">
         <div class="flex items-center justify-between gap-2">
           <span class="min-w-0 truncate text-[12px] font-semibold text-slate-200">{job.projectName}</span>
           <span class={`shrink-0 rounded-full border px-1.5 py-0.5 text-[11px] ${statusClass(job.status)}`}>
@@ -89,13 +89,13 @@
           {/if}
         </div>
         {#if job.logSummary}
-          <p class="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500">{job.logSummary}</p>
+          <p class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">{job.logSummary}</p>
         {/if}
         {#if job.isoPath}
           <button
             type="button"
             onclick={() => void openIso(job.isoPath)}
-            class="mt-1.5 truncate rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+            class="mt-1.5 truncate rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 transition hover:border-slate-500 hover:text-white"
             title={job.isoPath}
           >
             {t("Abrir ISO")}
