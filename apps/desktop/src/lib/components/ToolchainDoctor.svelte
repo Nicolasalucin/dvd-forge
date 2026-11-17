@@ -18,6 +18,31 @@
 
   const report = $derived(projectStore.toolsReport);
 
+  /** The Rust probe reports in Spanish; show it in the interface language. */
+  function localizeToolMessage(message: string): string {
+    const run = /^no se pudo ejecutar: (.*)$/s.exec(message);
+    if (run) return t("no se pudo ejecutar: {error}", { error: run[1] });
+    const code = /^el comando terminó con código (.*) y no mostró un banner reconocible$/.exec(message);
+    if (code) return t("el comando terminó con código {code} y no mostró un banner reconocible", { code: code[1] });
+    return t(message);
+  }
+
+  /** Report warnings are "<tool>: <message>" or the "no version" sentence. */
+  function localizeToolWarning(warning: string): string {
+    const version = /^(.+?) se encontró en (.+) pero no se pudo extraer una versión\.$/.exec(warning);
+    if (version) {
+      return t("{tool} se encontró en {path} pero no se pudo extraer una versión.", {
+        tool: version[1],
+        path: version[2],
+      });
+    }
+    const separator = warning.indexOf(": ");
+    if (separator > 0) {
+      return `${warning.slice(0, separator)}: ${localizeToolMessage(warning.slice(separator + 2))}`;
+    }
+    return t(warning);
+  }
+
   let options = $state<ToolInstallOption[]>([]);
   let installing = $state<string | null>(null);
   let installNotice = $state<string | null>(null);
@@ -138,7 +163,7 @@
                 <p class="mt-1 truncate font-mono text-[9px] text-slate-600" title={tool.path}>{tool.path}</p>
               {/if}
               {#if tool.error}
-                <p class="mt-1 text-[10px] leading-4 text-amber-200/80">{tool.error}</p>
+                <p class="mt-1 text-[10px] leading-4 text-amber-200/80">{localizeToolMessage(tool.error)}</p>
               {/if}
               {#if tool.detail && !tool.error}
                 <p class="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500">{tool.detail}</p>
@@ -220,7 +245,7 @@
             <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">{t("Avisos")}</p>
             <ul class="mt-1 space-y-0.5 text-[10px] leading-4 text-amber-100/70">
               {#each report.warnings as warning}
-                <li>· {warning}</li>
+                <li>· {localizeToolWarning(warning)}</li>
               {/each}
             </ul>
           </div>
@@ -237,7 +262,7 @@
         disabled={projectStore.toolsBusy}
         class="rounded-lg border border-slate-800 px-3 py-1.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
       >
-        {projectStore.toolsBusy ? "Comprobando…" : "Volver a comprobar"}
+        {projectStore.toolsBusy ? t("Comprobando…") : t("Volver a comprobar")}
       </button>
       <button
         type="button"

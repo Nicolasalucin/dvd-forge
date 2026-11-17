@@ -929,6 +929,12 @@ export const ja: Dictionary = {
   "Reproductor DVD antiguo": "古い DVD プレーヤー",
   "Cargando…": "読み込み中…",
   "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.": "キーボード: 矢印で移動（Shift で高速）· [ ] でボタン切替 · Delete で削除 · Esc で選択解除。",
+  "no se encontró en recursos empaquetados, rutas del sistema ni PATH": "同梱リソース、システムフォルダー、PATH のいずれにも見つかりません",
+  "no se pudo ejecutar: {error}": "実行できませんでした: {error}",
+  "el comando terminó con código {code} y no mostró un banner reconocible": "コマンドはコード {code} で終了し、識別できる表示がありませんでした",
+  "Comprobando…": "確認中…",
+  "Volver a comprobar": "再確認",
+  "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} は {path} にありますが、バージョンを読み取れませんでした。",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

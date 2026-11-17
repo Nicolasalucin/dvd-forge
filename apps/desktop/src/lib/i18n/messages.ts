@@ -773,6 +773,12 @@ export const es: Dictionary = {
   "Reproductor DVD antiguo": "Reproductor DVD antiguo",
   "Cargando…": "Cargando…",
   "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.": "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.",
+  "no se encontró en recursos empaquetados, rutas del sistema ni PATH": "no se encontró en recursos empaquetados, rutas del sistema ni PATH",
+  "no se pudo ejecutar: {error}": "no se pudo ejecutar: {error}",
+  "el comando terminó con código {code} y no mostró un banner reconocible": "el comando terminó con código {code} y no mostró un banner reconocible",
+  "Comprobando…": "Comprobando…",
+  "Volver a comprobar": "Volver a comprobar",
+  "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} se encontró en {path} pero no se pudo extraer una versión.",
 };
 
 export const en: Dictionary = {
@@ -1636,4 +1642,10 @@ export const en: Dictionary = {
   "Reproductor DVD antiguo": "Older DVD player",
   "Cargando…": "Loading…",
   "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.": "Keyboard: arrows move (Shift = faster) · [ ] switch button · Delete removes · Esc deselects.",
+  "no se encontró en recursos empaquetados, rutas del sistema ni PATH": "not found in bundled resources, system folders or PATH",
+  "no se pudo ejecutar: {error}": "could not run: {error}",
+  "el comando terminó con código {code} y no mostró un banner reconocible": "the command exited with code {code} and did not show a recognisable banner",
+  "Comprobando…": "Checking…",
+  "Volver a comprobar": "Check again",
+  "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} was found at {path} but its version could not be read.",
 };

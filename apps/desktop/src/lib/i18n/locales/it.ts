@@ -929,6 +929,12 @@ export const it: Dictionary = {
   "Reproductor DVD antiguo": "Lettore DVD vecchio",
   "Cargando…": "Caricamento…",
   "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.": "Tastiera: frecce per spostare (Maiusc = più veloce) · [ ] cambiano pulsante · Canc elimina · Esc deseleziona.",
+  "no se encontró en recursos empaquetados, rutas del sistema ni PATH": "non trovato nelle risorse incluse, nelle cartelle di sistema né nel PATH",
+  "no se pudo ejecutar: {error}": "impossibile eseguire: {error}",
+  "el comando terminó con código {code} y no mostró un banner reconocible": "il comando è terminato con codice {code} senza mostrare un'intestazione riconoscibile",
+  "Comprobando…": "Verifica in corso…",
+  "Volver a comprobar": "Ricontrolla",
+  "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} è stato trovato in {path} ma non è stato possibile leggerne la versione.",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {

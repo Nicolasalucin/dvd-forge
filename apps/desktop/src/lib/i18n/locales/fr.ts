@@ -930,6 +930,12 @@ export const fr: Dictionary = {
   "Reproductor DVD antiguo": "Ancien lecteur DVD",
   "Cargando…": "Chargement…",
   "Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.": "Clavier : flèches pour déplacer (Maj = plus vite) · [ ] changent de bouton · Suppr supprime · Échap désélectionne.",
+  "no se encontró en recursos empaquetados, rutas del sistema ni PATH": "introuvable dans les ressources fournies, les dossiers système ou le PATH",
+  "no se pudo ejecutar: {error}": "impossible d'exécuter : {error}",
+  "el comando terminó con código {code} y no mostró un banner reconocible": "la commande s'est terminée avec le code {code} sans afficher d'identification reconnaissable",
+  "Comprobando…": "Vérification…",
+  "Volver a comprobar": "Vérifier à nouveau",
+  "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} a été trouvé dans {path} mais sa version n'a pas pu être lue.",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
