@@ -246,10 +246,35 @@ jobs:
             artifacts/*.tar.gz
             target/${{ matrix.target }}/release/bundle/dmg/*.dmg
 
+  freebsd:
+    name: FreeBSD x86_64 (CLI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build the CLI in a FreeBSD VM
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y rust
+          run: |
+            cargo build --release --locked -p kinodisc-cli
+            ./target/release/kinodisc-cli --version
+            mkdir -p artifacts
+            tar -C target/release -czf artifacts/kinodisc-cli-x86_64-unknown-freebsd.tar.gz kinodisc-cli
+
+      - name: Upload FreeBSD artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kinodisc-freebsd-x86_64
+          if-no-files-found: error
+          path: artifacts/*.tar.gz
+
   release:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows, macos]
+    needs: [linux, windows, macos, freebsd]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -274,6 +299,7 @@ jobs:
             -name '*.zip' \
           \) -exec cp -v {} release/ \;
           test -f release/kinodisc-cli-i686-unknown-linux.tar.gz
+          test -f release/kinodisc-cli-x86_64-unknown-freebsd.tar.gz
           test -f release/kinodisc-cli-i686-pc-windows-msvc.zip
           test "$(find release -name '*.dmg' | wc -l)" -ge 2
           test "$(find release \( -name '*.AppImage' -o -name '*.deb' \) | wc -l)" -ge 1

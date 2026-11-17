@@ -122,7 +122,8 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y rust
+            pkg install -y rust ffmpeg dvdauthor
           run: |
             cargo check --workspace --exclude kinodisc-desktop
-            cargo test -p kinodisc-burn -p kinodisc-toolchain
+            # The whole headless workspace, not only burn/toolchain (1.1).
+            cargo test --workspace --exclude kinodisc-desktop
