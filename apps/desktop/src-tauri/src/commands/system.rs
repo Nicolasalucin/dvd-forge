@@ -79,6 +79,10 @@ pub fn system_fonts() -> Vec<String> {
 pub fn open_folder(path: String) -> Result<(), String> {
     let requested = std::path::PathBuf::from(&path);
     let target = resolve_folder_target(&requested);
+    // Folders only: never hand a file or URL to the system opener.
+    if target.exists() && !target.is_dir() {
+        return Err("Solo se pueden abrir carpetas.".to_string());
+    }
     if !target.exists() {
         return Err(format!(
             "La carpeta todavía no existe: {}",

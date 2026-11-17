@@ -854,6 +854,18 @@ async fn preview_lock(key: &str) -> Arc<tokio::sync::Mutex<()>> {
 #[specta::specta]
 pub fn read_image_data_url(path: String) -> Result<String, String> {
     let resolved = resolve_media_path(&path)?;
+    // Only image files: this command must not become a generic file reader.
+    let extension = resolved
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !matches!(
+        extension.as_str(),
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif"
+    ) {
+        return Err("Solo se pueden leer imágenes (PNG, JPEG, WebP, BMP o GIF).".to_string());
+    }
     if !resolved.is_file() {
         return Err(format!(
             "La imagen no existe o no es accesible: {}",

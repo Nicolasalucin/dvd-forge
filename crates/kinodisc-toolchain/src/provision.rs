@@ -86,6 +86,113 @@ pub struct ProvisionReport {
     pub license: String,
     /// `false` when a verified copy was already installed (no download).
     pub downloaded: bool,
+    /// SHA-256 of every installed file, checked before a tool is launched.
+    #[serde(default)]
+    pub file_hashes: Vec<FileHash>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FileHash {
+    pub file: String,
+    pub sha256: String,
+}
+
+/// True when every file recorded in `report` is still byte-identical.
+fn files_unchanged(directory: &Path, report: &ProvisionReport) -> bool {
+    !report.file_hashes.is_empty()
+        && report.file_hashes.iter().all(|entry| {
+            sha256_file(&directory.join(&entry.file))
+                .map(|(_, hash)| hash == entry.sha256)
+                .unwrap_or(false)
+        })
+}
+
+/// Uncached core of [`is_trusted_binary`]: `name` in `directory` is trusted
+/// when a provenance record lists it with unchanged hashes and no
+/// unrecorded shared library sits in the folder.
+fn folder_trusts(directory: &Path, name: &str) -> bool {
+    let reports: Vec<ProvisionReport> = fs::read_dir(directory)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".provenance.json")
+        })
+        .filter_map(|entry| fs::read(entry.path()).ok())
+        .filter_map(|bytes| serde_json::from_slice::<ProvisionReport>(&bytes).ok())
+        .collect();
+    let recorded = |file: &str| {
+        reports.iter().any(|report| {
+            report
+                .file_hashes
+                .iter()
+                .any(|entry| entry.file.eq_ignore_ascii_case(file))
+        })
+    };
+    // Windows loads DLLs from the program's folder first: an unrecorded DLL
+    // next to our tools (DLL planting) makes the whole folder untrusted.
+    let planted_library = fs::read_dir(directory)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .any(|file| {
+            let lower = file.to_ascii_lowercase();
+            (lower.ends_with(".dll") || lower.ends_with(".so") || lower.ends_with(".dylib"))
+                && !recorded(&file)
+        });
+    !planted_library
+        && reports.iter().any(|report| {
+            report
+                .file_hashes
+                .iter()
+                .any(|entry| entry.file.eq_ignore_ascii_case(name))
+                && files_unchanged(directory, report)
+        })
+}
+
+/// Whether `binary` may be launched. Files outside the per-user toolchain
+/// folder are not ours to vouch for (PATH, portable folder) and pass. Files
+/// inside it must be listed in a provenance record with an unchanged
+/// SHA-256 — a tampered or unknown file there is refused, so malware cannot
+/// drop a fake ffmpeg.exe or DLL into the folder Kinodisc trusts. Results
+/// are cached per process (hashing ~100 MB once is fine, every launch is not).
+pub fn is_trusted_binary(binary: &Path) -> bool {
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    static CACHE: Mutex<Option<HashMap<PathBuf, bool>>> = Mutex::new(None);
+    let Some(directory) = user_toolchain_dir() else {
+        return true;
+    };
+    let Ok(canonical_dir) = fs::canonicalize(&directory) else {
+        return true;
+    };
+    let Ok(canonical) = fs::canonicalize(binary) else {
+        return true;
+    };
+    if canonical.parent() != Some(canonical_dir.as_path()) {
+        return true;
+    }
+    if let Ok(cache) = CACHE.lock() {
+        if let Some(verdict) = cache.as_ref().and_then(|map| map.get(&canonical)) {
+            return *verdict;
+        }
+    }
+    let name = canonical
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let verdict = folder_trusts(&canonical_dir, &name);
+    if let Ok(mut cache) = CACHE.lock() {
+        cache
+            .get_or_insert_with(HashMap::new)
+            .insert(canonical, verdict);
+    }
+    verdict
 }
 
 pub fn current_platform() -> String {
@@ -155,6 +262,24 @@ fn sha256_file(path: &Path) -> std::io::Result<(u64, String)> {
     Ok((total, hex::encode(hasher.finalize())))
 }
 
+/// Absolute path of an OS-provided helper (curl/tar ship in System32 since
+/// Windows 10 1803), so a planted `tar.exe` next to the app or on a
+/// user-controlled PATH entry cannot be picked up. Other systems use PATH.
+fn system_tool(name: &str) -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            let candidate = PathBuf::from(root)
+                .join("System32")
+                .join(format!("{name}.exe"));
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+    PathBuf::from(name)
+}
+
 /// Archive entries must be relative and must not climb out of the target.
 pub fn archive_entry_is_safe(entry: &str) -> bool {
     let normalized = entry.replace('\\', "/");
@@ -171,11 +296,14 @@ fn provenance_path(directory: &Path, download: &ToolDownload) -> PathBuf {
 fn already_installed(directory: &Path, download: &ToolDownload) -> Option<ProvisionReport> {
     let report: ProvisionReport =
         serde_json::from_slice(&fs::read(provenance_path(directory, download)).ok()?).ok()?;
+    // A pre-1.0 record has no per-file hashes: reinstall so every file is
+    // covered by a verified hash.
     let complete = report.sha256 == download.sha256
         && download
             .files
             .iter()
-            .all(|file| directory.join(file).is_file());
+            .all(|file| directory.join(file).is_file())
+        && files_unchanged(directory, &report);
     complete.then_some(ProvisionReport {
         downloaded: false,
         ..report
@@ -201,6 +329,12 @@ pub fn provision(
     let directory = user_toolchain_dir()
         .ok_or_else(|| ProvisionError::Download("no se encontró la carpeta de usuario".into()))?;
     fs::create_dir_all(&directory)?;
+    // Only the user may write where Kinodisc keeps the programs it runs.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?;
+    }
     if let Some(report) = already_installed(&directory, download) {
         return Ok(report);
     }
@@ -220,7 +354,7 @@ fn install(
 ) -> Result<ProvisionReport, ProvisionError> {
     let archive = staging.join("download.zip");
     // Download (curl follows redirects and fails on HTTP errors).
-    let mut child = crate::background_command("curl")
+    let mut child = crate::background_command(system_tool("curl"))
         .args([
             "--location",
             "--fail",
@@ -262,7 +396,10 @@ fn install(
     }
 
     // List entries, refuse traversal, find the wanted executables.
-    let listing = run(Command::new("tar").arg("-tf").arg(&archive), "tar")?;
+    let listing = run(
+        Command::new(system_tool("tar")).arg("-tf").arg(&archive),
+        "tar",
+    )?;
     if !listing.status.success() {
         return Err(ProvisionError::Archive(
             "no se pudo leer el contenido del archivo".into(),
@@ -304,7 +441,7 @@ fn install(
     let extract_dir = staging.join("x");
     fs::create_dir_all(&extract_dir)?;
     let extracted = run(
-        Command::new("tar")
+        Command::new(system_tool("tar"))
             .arg("-xf")
             .arg(&archive)
             .arg("-C")
@@ -319,11 +456,15 @@ fn install(
         )));
     }
     let mut installed = Vec::new();
+    let mut file_hashes = Vec::new();
     for entry in &wanted {
         let source = extract_dir.join(entry);
-        let target = directory.join(leaf(entry));
+        let name = leaf(entry);
+        let target = directory.join(&name);
         let _ = fs::remove_file(&target);
         fs::rename(&source, &target).or_else(|_| fs::copy(&source, &target).map(|_| ()))?;
+        let (_, sha256) = sha256_file(&target)?;
+        file_hashes.push(FileHash { file: name, sha256 });
         installed.push(target.display().to_string());
     }
     let report = ProvisionReport {
@@ -335,6 +476,7 @@ fn install(
         url: download.url.to_string(),
         license: download.license.to_string(),
         downloaded: true,
+        file_hashes,
     };
     if let Ok(json) = serde_json::to_vec_pretty(&report) {
         fs::write(provenance_path(directory, download), json)?;
@@ -415,5 +557,58 @@ mod tests {
         assert!(matches!(error, ProvisionError::Checksum(_)), "{error}");
         assert!(!directory.join("ffmpeg.exe").exists());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn tampered_or_unknown_files_in_the_toolchain_are_refused() {
+        let base = std::env::temp_dir().join(format!("kinodisc-trust-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let previous = std::env::var_os("XDG_DATA_HOME");
+        std::env::set_var("XDG_DATA_HOME", &base);
+        let directory = user_toolchain_dir().unwrap();
+        fs::create_dir_all(&directory).unwrap();
+        let tool = directory.join("ffmpeg.exe");
+        fs::write(&tool, b"genuine").unwrap();
+        let (_, sha256) = sha256_file(&tool).unwrap();
+        let report = ProvisionReport {
+            tool: "ffmpeg".into(),
+            version: "1".into(),
+            directory: directory.display().to_string(),
+            files: vec![tool.display().to_string()],
+            sha256: "x".into(),
+            url: "x".into(),
+            license: "x".into(),
+            downloaded: true,
+            file_hashes: vec![FileHash {
+                file: "ffmpeg.exe".into(),
+                sha256,
+            }],
+        };
+        fs::write(
+            directory.join("ffmpeg.provenance.json"),
+            serde_json::to_vec(&report).unwrap(),
+        )
+        .unwrap();
+        assert!(is_trusted_binary(&tool));
+        // A file dropped into the folder without a record is refused.
+        let planted = directory.join("dvdauthor.exe");
+        fs::write(&planted, b"evil").unwrap();
+        assert!(!is_trusted_binary(&planted));
+        // An unrecorded DLL next to the tools poisons the folder.
+        fs::remove_file(&planted).unwrap();
+        assert!(folder_trusts(&directory, "ffmpeg.exe"));
+        fs::write(directory.join("version.dll"), b"evil").unwrap();
+        assert!(!folder_trusts(&directory, "ffmpeg.exe"));
+        fs::remove_file(directory.join("version.dll")).unwrap();
+        // Files elsewhere are not judged here.
+        assert!(is_trusted_binary(&base.join("elsewhere.exe")));
+        // Tampering is detected by the hash check itself.
+        fs::write(&tool, b"tampered").unwrap();
+        assert!(!files_unchanged(&directory, &report));
+        match previous {
+            Some(value) => std::env::set_var("XDG_DATA_HOME", value),
+            None => std::env::remove_var("XDG_DATA_HOME"),
+        }
+        let _ = fs::remove_dir_all(&base);
     }
 }

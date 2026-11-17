@@ -416,7 +416,9 @@ pub fn search_directories_with(
         push(root.join("toolchains").join(platform));
         push(root.join("toolchains").join(format!("{platform}-{arch}")));
     }
-    push(cwd.join("resources").join("toolchains").join(platform));
+    // Never search the current working directory: a project or download
+    // folder must not be able to plant a fake ffmpeg/dvdauthor.
+    let _ = cwd;
     match platform {
         "macos" => {
             push(PathBuf::from("/opt/homebrew/bin"));
@@ -472,7 +474,7 @@ pub fn find_binary_in_dirs(
         for name in binary_names {
             for file_name in platform_binary_candidates(name, platform) {
                 let candidate = directory.join(file_name);
-                if is_executable(&candidate) {
+                if is_executable(&candidate) && provision::is_trusted_binary(&candidate) {
                     return Some(candidate);
                 }
             }
@@ -916,8 +918,22 @@ mod tests {
         assert!(resource < custom);
         assert!(dirs.contains(&exe.join("bin")));
         assert!(dirs.contains(&exe.join("toolchain/windows-x86_64")));
-        assert!(dirs.contains(&cwd.join("resources/toolchains/windows")));
         assert_eq!(dirs.last(), Some(&PathBuf::from("/custom/bin")));
+    }
+
+    #[test]
+    fn current_directory_is_never_searched_for_tools() {
+        let cwd = Path::new("/downloads/untrusted-project");
+        let dirs = search_directories_with(
+            "windows",
+            "x86_64",
+            Some(Path::new("/program/kinodisc")),
+            cwd,
+            None,
+            None,
+            &[PathBuf::from("/usr/bin")],
+        );
+        assert!(!dirs.iter().any(|dir| dir.starts_with(cwd)), "{dirs:?}");
     }
 
     #[test]

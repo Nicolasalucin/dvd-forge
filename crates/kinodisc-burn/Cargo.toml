@@ -10,7 +10,6 @@ authors.workspace = true
 async-trait.workspace = true
 kinodisc-toolchain = { path = "../kinodisc-toolchain" }
 hex.workspace = true
-libc.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
@@ -22,3 +21,6 @@ tokio-util.workspace = true
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Storage_Imapi", "Win32_System_Com", "Win32_System_Ole"] }
 windows-core = "0.62.2"
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true

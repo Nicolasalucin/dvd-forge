@@ -12,4 +12,3 @@ kinodisc-hdmv = { path = "../kinodisc-hdmv" }
 fontdb.workspace = true
 image.workspace = true
 thiserror.workspace = true
-unicode-segmentation.workspace = true
