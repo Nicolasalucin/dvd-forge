@@ -7,6 +7,7 @@
 
 pub mod bdmv;
 pub mod compiler;
+pub mod episodes;
 pub mod m2ts;
 pub mod native;
 pub mod opcodes;

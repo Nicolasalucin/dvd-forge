@@ -269,18 +269,19 @@ pub fn build_playlist_mpls(spec: &NativePlaylist) -> Result<Vec<u8>, BdmvError> 
     } else {
         let count = u16::try_from(spec.marks.len())
             .map_err(|_| BdmvError::InvalidMpls("too many marks"))?;
-        let length = 8u32
-            .checked_add(u32::from(count) * 12)
+        // PlayListMark(): length, count, then 14 bytes per mark: reserved,
+        // mark_type (1 = entry mark), ref_to_PlayItem_id, mark_time_stamp,
+        // entry_ES_PID (0xFFFF = none) and duration.
+        let length = 2u32
+            .checked_add(u32::from(count) * 14)
             .ok_or(BdmvError::InvalidMpls("mark table overflow"))?;
         mpls.extend_from_slice(&length.to_be_bytes());
         mpls.extend_from_slice(&count.to_be_bytes());
-        mpls.extend_from_slice(&[0, 1]);
         for mark in &spec.marks {
-            mpls.extend_from_slice(&[0, 1, 0, 0, 1]);
+            mpls.extend_from_slice(&[0x00, 0x01, 0x00, 0x00]);
             mpls.extend_from_slice(&mark.to_be_bytes());
-            mpls.extend_from_slice(&[0xff, 0xff, 0, 0]);
+            mpls.extend_from_slice(&[0xff, 0xff, 0, 0, 0, 0]);
         }
-        mpls.extend_from_slice(&[0, 0, 0, 0]);
     }
     Ok(mpls)
 }
@@ -543,6 +544,16 @@ mod tests {
         assert_eq!(
             u32::from_be_bytes(mpls[mark_start..mark_start + 4].try_into().unwrap()),
             44
+        );
+        assert_eq!(mpls.len(), mark_start + 4 + 44);
+        let timeline = crate::episodes::read_mpls_timeline(&mpls).expect("timeline");
+        assert_eq!(
+            timeline.marks,
+            vec![
+                BDAV_START_45K,
+                BDAV_START_45K + 45_000,
+                BDAV_START_45K + 90_000
+            ]
         );
     }
 

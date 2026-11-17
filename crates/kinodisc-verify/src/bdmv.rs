@@ -6,6 +6,7 @@ pub(crate) fn verify(reader: &UdfReader<'_>, checks: &mut CheckList) {
     check_index(reader, checks);
     check_movie_object(reader, checks);
     check_playlists(reader, checks);
+    check_playlist_marks(reader, checks);
     check_clips(reader, checks);
     check_streams(reader, checks);
     check_pgs_display_sets(reader, checks);
@@ -132,6 +133,77 @@ fn check_movie_object(reader: &UdfReader<'_>, checks: &mut CheckList) {
         "BDMV-MOBJ",
         format!("{num_objects} MovieObjects, comandos de 12 bytes dentro de rango."),
     );
+}
+
+/// PlayListMark tables: 14 bytes per mark, inside the declared length, and
+/// (for single-PlayItem playlists) entry marks between IN and OUT time.
+/// A malformed table silently breaks chapter skipping on players.
+fn check_playlist_marks(reader: &UdfReader<'_>, checks: &mut CheckList) {
+    let mut marks = 0usize;
+    for path in paths_with_prefix(reader, "BDMV/PLAYLIST/") {
+        if !path.ends_with(".mpls") {
+            continue;
+        }
+        let Ok(bytes) = read_file(reader, &path, 16 * 1024 * 1024) else {
+            continue;
+        };
+        match playlist_mark_problem(&bytes) {
+            Ok(count) => marks += count,
+            Err(problem) => {
+                fail_with(checks, "BDMV-MARKS", problem, &path, None);
+                return;
+            }
+        }
+    }
+    checks.pass(
+        "BDMV-MARKS",
+        format!("{marks} marcas de capítulo con estructura válida y dentro de su PlayItem."),
+    );
+}
+
+pub(crate) fn playlist_mark_problem(bytes: &[u8]) -> Result<usize, String> {
+    let too_short = || "Tabla de marcas truncada.".to_string();
+    let list_pos = be32(bytes, 8).ok_or_else(too_short)? as usize;
+    let mark_pos = be32(bytes, 12).ok_or_else(too_short)? as usize;
+    if mark_pos == 0 {
+        return Ok(0);
+    }
+    let mark_len = be32(bytes, mark_pos).ok_or_else(too_short)? as usize;
+    if mark_len == 0 {
+        return Ok(0);
+    }
+    let count = be16(bytes, mark_pos + 4).ok_or_else(too_short)? as usize;
+    if mark_len != 2 + count * 14 || mark_pos + 4 + mark_len > bytes.len() {
+        return Err(format!(
+            "La tabla de marcas declara {mark_len} bytes para {count} marcas (se esperaban {}).",
+            2 + count * 14
+        ));
+    }
+    let items = be16(bytes, list_pos + 6).unwrap_or(0);
+    let range = (items == 1)
+        .then(|| {
+            let clip = list_pos + 12;
+            Some((be32(bytes, clip + 12)?, be32(bytes, clip + 16)?))
+        })
+        .flatten();
+    for index in 0..count {
+        let entry = mark_pos + 6 + index * 14;
+        let kind = bytes[entry + 1];
+        let time = be32(bytes, entry + 4).ok_or_else(too_short)?;
+        if kind != 1 && kind != 2 {
+            return Err(format!(
+                "La marca {index} tiene un tipo desconocido ({kind})."
+            ));
+        }
+        if let Some((in_time, out_time)) = range {
+            if kind == 1 && !(in_time..=out_time).contains(&time) {
+                return Err(format!(
+                    "La marca {index} ({time}) queda fuera del PlayItem ({in_time}–{out_time})."
+                ));
+            }
+        }
+    }
+    Ok(count)
 }
 
 fn check_playlists(reader: &UdfReader<'_>, checks: &mut CheckList) {
@@ -689,4 +761,48 @@ fn parse_pmt_streams(prefix: &[u8]) -> Vec<u8> {
     streams.sort_unstable();
     streams.dedup();
     streams
+}
+
+#[cfg(test)]
+mod mark_tests {
+    use super::playlist_mark_problem;
+
+    fn playlist(marks: &[(u8, u32)], declared: Option<u32>) -> Vec<u8> {
+        let mut bytes = vec![0u8; 58];
+        bytes[..8].copy_from_slice(b"MPLS0200");
+        bytes[8..12].copy_from_slice(&58u32.to_be_bytes());
+        // PlayList: length, reserved, 1 item, 0 subpaths, item(len, clip...).
+        let mut list = vec![0u8; 4 + 6 + 2 + 20];
+        list[6..8].copy_from_slice(&1u16.to_be_bytes());
+        list[10..12].copy_from_slice(&34u16.to_be_bytes());
+        let clip = 12;
+        list[clip + 12..clip + 16].copy_from_slice(&1000u32.to_be_bytes());
+        list[clip + 16..clip + 20].copy_from_slice(&5000u32.to_be_bytes());
+        let len = (list.len() - 4) as u32;
+        list[..4].copy_from_slice(&len.to_be_bytes());
+        bytes.extend_from_slice(&list);
+        let mark_pos = bytes.len() as u32;
+        bytes[12..16].copy_from_slice(&mark_pos.to_be_bytes());
+        let mark_len = declared.unwrap_or(2 + marks.len() as u32 * 14);
+        bytes.extend_from_slice(&mark_len.to_be_bytes());
+        bytes.extend_from_slice(&(marks.len() as u16).to_be_bytes());
+        for (kind, time) in marks {
+            bytes.extend_from_slice(&[0, *kind, 0, 0]);
+            bytes.extend_from_slice(&time.to_be_bytes());
+            bytes.extend_from_slice(&[0xFF, 0xFF, 0, 0, 0, 0]);
+        }
+        bytes
+    }
+
+    #[test]
+    fn mark_tables_are_checked() {
+        assert_eq!(
+            playlist_mark_problem(&playlist(&[(1, 1000), (1, 3000)], None)),
+            Ok(2)
+        );
+        // The pre-1.0 native writer declared 8 + 12 per mark.
+        assert!(playlist_mark_problem(&playlist(&[(1, 1000), (1, 3000)], Some(32))).is_err());
+        assert!(playlist_mark_problem(&playlist(&[(1, 9000)], None)).is_err());
+        assert!(playlist_mark_problem(&playlist(&[(7, 1000)], None)).is_err());
+    }
 }

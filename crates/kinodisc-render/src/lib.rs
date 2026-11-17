@@ -1392,12 +1392,15 @@ fn compile_hd_menu(
 
 fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<HdmvCommand> {
     match action {
-        ButtonAction::PlayEpisode { episode } => context
-            .episode_marks
-            .get(episode)
-            .copied()
-            .map(play_episode_at)
-            .unwrap_or_else(|| vec![set_gpr(0, 0), jump_title(1)]),
+        ButtonAction::PlayEpisode { episode } => match context.episode_objects.get(episode) {
+            Some((object, _)) => play_episode_object(*object, 0),
+            None => context
+                .episode_marks
+                .get(episode)
+                .copied()
+                .map(play_episode_at)
+                .unwrap_or_else(|| vec![set_gpr(0, 0), jump_title(1)]),
+        },
         ButtonAction::PlayAll => vec![set_gpr(0, 0), jump_title(1)],
         ButtonAction::GotoMenu { menu } => context
             .menu_objects
@@ -1408,6 +1411,16 @@ fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<Hdmv
             // valid HDMV title (1..=999), so keep the button inert instead.
             .unwrap_or_else(|| vec![HdmvCommand::new(kinodisc_hdmv::OP_NOP, 0, 0)]),
         ButtonAction::PlayFirstPlay => vec![set_gpr(0, 0), jump_title(1)],
+        ButtonAction::JumpTitleChapter { episode, chapter }
+            if context.episode_objects.contains_key(episode)
+                && context
+                    .chapter_marks
+                    .contains_key(&(*episode, *chapter as u16)) =>
+        {
+            let (object, first) = context.episode_objects[episode];
+            let mark = context.chapter_marks[&(*episode, *chapter as u16)];
+            play_episode_object(object, u32::from(mark.saturating_sub(first)))
+        }
         ButtonAction::JumpTitleChapter { episode, chapter } => context
             .chapter_marks
             .get(&(*episode, *chapter as u16))
@@ -1426,6 +1439,15 @@ fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<Hdmv
             vec![HdmvCommand::new(kinodisc_hdmv::OP_NOP, 0, 0)]
         }
     }
+}
+
+/// Plays one episode (its own playlist) from `relative_mark`; the episode
+/// object then returns to the menu or continues with the next episode.
+fn play_episode_object(object: u16, relative_mark: u32) -> Vec<HdmvCommand> {
+    vec![
+        set_gpr(kinodisc_hdmv::episodes::EPISODE_MARK_GPR, relative_mark),
+        jump_object(u32::from(object)),
+    ]
 }
 
 fn play_episode_at(mark: u16) -> Vec<HdmvCommand> {
@@ -2090,10 +2112,26 @@ async fn render_avchd_project(
             .collect();
         let width = menu_width.min(u16::MAX as u32) as u16;
         let height = menu_height.min(u16::MAX as u32) as u16;
+        // Per-episode playback: one playlist per episode (same clip, IN/OUT
+        // of the episode) and one MovieObject each, numbered after the menu
+        // objects. Built from the muxed 00000.mpls, so it works with both
+        // muxers; if that playlist cannot be read, buttons keep the old
+        // "play the movie from the episode mark" behaviour.
+        let episode_plan = plan_episode_playback(
+            &bdmv_dir.join("BDMV"),
+            &order,
+            &episode_marks,
+            base_object.saturating_add(menu_list.len() as u16),
+        );
+        let episode_objects: HashMap<EpisodeId, (u16, u16)> = episode_plan
+            .iter()
+            .map(|item| (item.episode, (item.object, item.first_mark)))
+            .collect();
         let context = HdMenuContext {
             episode_marks: &episode_marks,
             chapter_marks: &chapter_marks,
             menu_objects: &menu_objects,
+            episode_objects: &episode_objects,
         };
         let mut compiled_menus: Vec<(MenuId, String, CompiledHdMenu)> = Vec::new();
         let mut menu_ready = true;
@@ -2227,6 +2265,22 @@ async fn render_avchd_project(
             }
             if attached {
                 let root_object = *menu_objects.get(&project.root_menu).unwrap_or(&base_object);
+                if !episode_plan.is_empty() {
+                    attach_episode_playback(
+                        &bdmv_dir.join("BDMV"),
+                        &episode_plan,
+                        &project,
+                        root_object,
+                    )?;
+                    log(
+                        &events,
+                        format!(
+                            "{} episodios con playlist propia: cada uno vuelve al menú al terminar",
+                            episode_plan.len()
+                        ),
+                    )
+                    .await;
+                }
                 if let Some(native) = &native_muxer {
                     native
                         .set_root_menu(&bdmv_dir, root_object)
@@ -4028,6 +4082,10 @@ struct HdMenuContext<'a> {
     episode_marks: &'a HashMap<EpisodeId, u16>,
     chapter_marks: &'a HashMap<(EpisodeId, u16), u16>,
     menu_objects: &'a HashMap<kinodisc_domain::MenuId, u16>,
+    /// Per-episode MovieObject (plays only that episode, then returns) and
+    /// the episode's first mark in the full movie. Empty means the legacy
+    /// behaviour (play the movie from the episode's mark).
+    episode_objects: &'a HashMap<EpisodeId, (u16, u16)>,
 }
 
 #[derive(Debug, Clone)]
@@ -4792,6 +4850,106 @@ async fn run_menu_ffmpeg(
 /// streaming injector instead.
 const MAX_BUFFERED_BDMV_NAV_BYTES: u64 = 16 * 1024 * 1024;
 
+struct EpisodePlayback {
+    episode: EpisodeId,
+    object: u16,
+    first_mark: u16,
+    in_time: u32,
+    out_time: u32,
+}
+
+/// Episode ranges from the full movie playlist, in disc order.
+fn plan_episode_playback(
+    bdmv_root: &Path,
+    order: &[&kinodisc_domain::Episode],
+    episode_marks: &HashMap<EpisodeId, u16>,
+    first_object: u16,
+) -> Vec<EpisodePlayback> {
+    let Ok(mpls) = std::fs::read(bdmv_root.join("PLAYLIST/00000.mpls")) else {
+        return Vec::new();
+    };
+    let Ok(timeline) = kinodisc_hdmv::episodes::read_mpls_timeline(&mpls) else {
+        return Vec::new();
+    };
+    let mut plan = Vec::new();
+    for (index, episode) in order.iter().enumerate() {
+        let Some(&mark) = episode_marks.get(&episode.id) else {
+            return Vec::new();
+        };
+        let Some(&in_time) = timeline.marks.get(mark as usize) else {
+            return Vec::new();
+        };
+        let out_time = order
+            .get(index + 1)
+            .and_then(|next| episode_marks.get(&next.id))
+            .and_then(|next| timeline.marks.get(*next as usize).copied())
+            .unwrap_or(timeline.out_time);
+        if out_time <= in_time {
+            return Vec::new();
+        }
+        plan.push(EpisodePlayback {
+            episode: episode.id,
+            object: first_object.saturating_add(index as u16),
+            first_mark: mark,
+            in_time,
+            out_time,
+        });
+    }
+    plan
+}
+
+/// Writes one playlist and one MovieObject per planned episode. Runs after
+/// the menu objects were appended (object numbers are fixed by the plan).
+fn attach_episode_playback(
+    bdmv_root: &Path,
+    plan: &[EpisodePlayback],
+    project: &Project,
+    root_object: u16,
+) -> Result<(), RenderError> {
+    let menu_error = |error: kinodisc_hdmv::BdmvError| RenderError::Menu(error.to_string());
+    let movie = read_bdmv_file(&bdmv_root.join("PLAYLIST/00000.mpls"))?;
+    let movie_object_path = bdmv_root.join("MovieObject.bdmv");
+    let mut movie_object = read_bdmv_file(&movie_object_path)?;
+    for (index, item) in plan.iter().enumerate() {
+        let playlist = next_bdmv_number(&bdmv_root.join("PLAYLIST"), "mpls")?;
+        let bytes = kinodisc_hdmv::episodes::derive_range_mpls(&movie, item.in_time, item.out_time)
+            .map_err(menu_error)?;
+        let name = format!("{playlist:05}.mpls");
+        write_bdmv_file(&bdmv_root.join("PLAYLIST").join(&name), &bytes)?;
+        let backup = bdmv_root.join("BACKUP/PLAYLIST");
+        if backup.is_dir() {
+            write_bdmv_file(&backup.join(&name), &bytes)?;
+        }
+        let post = project
+            .episode(item.episode)
+            .map(|episode| episode.post_action)
+            .unwrap_or_default();
+        let after = match post {
+            kinodisc_domain::PostAction::NextEpisode => plan
+                .get(index + 1)
+                .map(|next| next.object)
+                .unwrap_or(root_object),
+            _ => root_object,
+        };
+        let (updated, object) =
+            kinodisc_hdmv::episodes::append_episode_object(&movie_object, playlist, after)
+                .map_err(menu_error)?;
+        if object != item.object {
+            return Err(RenderError::Menu(format!(
+                "el objeto de episodio esperado era {}, pero se creó {object}",
+                item.object
+            )));
+        }
+        movie_object = updated;
+    }
+    write_bdmv_file(&movie_object_path, &movie_object)?;
+    let backup = bdmv_root.join("BACKUP/MovieObject.bdmv");
+    if backup.is_file() {
+        write_bdmv_file(&backup, &movie_object)?;
+    }
+    Ok(())
+}
+
 fn read_bdmv_file(path: &Path) -> Result<Vec<u8>, RenderError> {
     let length = std::fs::metadata(path)
         .map_err(|error| RenderError::Menu(format!("no se pudo leer {}: {error}", path.display())))?
@@ -5020,6 +5178,7 @@ mod tests {
             episode_marks: &episode_marks,
             chapter_marks: &chapter_marks,
             menu_objects: &menu_objects,
+            episode_objects: &HashMap::new(),
         };
         let commands = hdmv_commands(&ButtonAction::PlayEpisode { episode }, &context);
         assert_eq!(commands.len(), 2);
@@ -5028,6 +5187,87 @@ mod tests {
         assert_eq!(commands[0].opcode(), kinodisc_hdmv::OP_SET_GPR);
         assert_eq!(commands[1].opcode(), kinodisc_hdmv::OP_JUMP_TITLE);
         assert_eq!(commands[1].dst, 1);
+    }
+
+    #[test]
+    fn episode_buttons_use_their_own_episode_object_when_available() {
+        let episode = EpisodeId::from_u128(7);
+        let mut episode_marks = HashMap::new();
+        episode_marks.insert(episode, 3);
+        let mut chapter_marks = HashMap::new();
+        chapter_marks.insert((episode, 2u16), 5u16);
+        let menu_objects = HashMap::new();
+        let mut episode_objects = HashMap::new();
+        episode_objects.insert(episode, (9u16, 3u16));
+        let context = HdMenuContext {
+            episode_marks: &episode_marks,
+            chapter_marks: &chapter_marks,
+            menu_objects: &menu_objects,
+            episode_objects: &episode_objects,
+        };
+        let gpr = kinodisc_hdmv::episodes::EPISODE_MARK_GPR as u32;
+        let play = hdmv_commands(&ButtonAction::PlayEpisode { episode }, &context);
+        assert_eq!(play[0].opcode(), kinodisc_hdmv::OP_SET_GPR);
+        assert_eq!((play[0].dst, play[0].src), (gpr, 0));
+        assert_eq!(play[1].opcode(), kinodisc_hdmv::OP_JUMP_OBJECT);
+        assert_eq!(play[1].dst, 9);
+        // Chapter 3 of the episode is mark 5 of the movie, mark 2 of the
+        // episode playlist.
+        let chapter = hdmv_commands(
+            &ButtonAction::JumpTitleChapter {
+                episode,
+                chapter: 2,
+            },
+            &context,
+        );
+        assert_eq!((chapter[0].dst, chapter[0].src), (gpr, 2));
+        assert_eq!(chapter[1].dst, 9);
+    }
+
+    #[test]
+    fn episode_playback_plan_splits_the_movie_at_episode_marks() {
+        use kinodisc_hdmv::native::{build_playlist_mpls, NativePlaylist, NativeStream};
+        let root =
+            std::env::temp_dir().join(format!("kinodisc-episode-plan-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("PLAYLIST")).unwrap();
+        let mpls = build_playlist_mpls(&NativePlaylist {
+            clip_id: 0,
+            in_time: 1_000,
+            out_time: 901_000,
+            streams: vec![NativeStream::video(0x1011)],
+            marks: vec![1_000, 200_000, 451_000, 600_000],
+            still_time: None,
+        })
+        .unwrap();
+        std::fs::write(root.join("PLAYLIST/00000.mpls"), mpls).unwrap();
+        let mut first: kinodisc_domain::Episode = serde_json::from_value(serde_json::json!({
+            "id": EpisodeId::from_u128(1), "number": 1, "title": "a",
+            "video": kinodisc_domain::AssetId::from_u128(1)
+        }))
+        .unwrap();
+        let mut second = first.clone();
+        second.id = EpisodeId::from_u128(2);
+        second.number = 2;
+        first.title = "uno".into();
+        let order = vec![&first, &second];
+        let mut marks = HashMap::new();
+        marks.insert(first.id, 0u16);
+        marks.insert(second.id, 2u16);
+        let plan = plan_episode_playback(&root, &order, &marks, 4);
+        assert_eq!(plan.len(), 2);
+        assert_eq!(
+            (plan[0].in_time, plan[0].out_time, plan[0].object),
+            (1_000, 451_000, 4)
+        );
+        assert_eq!(
+            (plan[1].in_time, plan[1].out_time, plan[1].object),
+            (451_000, 901_000, 5)
+        );
+        // Missing marks fall back to the legacy behaviour.
+        marks.remove(&second.id);
+        assert!(plan_episode_playback(&root, &order, &marks, 4).is_empty());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[tokio::test]
@@ -5082,6 +5322,7 @@ mod tests {
                 episode_marks: &episode_marks,
                 chapter_marks: &chapter_marks,
                 menu_objects: &menu_objects,
+                episode_objects: &HashMap::new(),
             },
         )
         .expect("ig stream");
@@ -5144,6 +5385,7 @@ mod tests {
                         episode_marks: &episode_marks,
                         chapter_marks: &chapter_marks,
                         menu_objects: &menu_objects,
+                        episode_objects: &HashMap::new(),
                     },
                 )
                 .unwrap_or_else(|error| panic!("{}: {error:?}", template.name));
