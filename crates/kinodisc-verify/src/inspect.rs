@@ -336,6 +336,10 @@ fn dvd_titles(
         return (plans, notes);
     }
     let tt_srpt = (be32(&vmg, 0xC4) as usize).saturating_mul(SECTOR as usize);
+    if tt_srpt >= vmg.len() {
+        notes.push("La tabla de títulos de VIDEO_TS.IFO está fuera del archivo.".to_string());
+        return (plans, notes);
+    }
     let title_count = be16(&vmg, tt_srpt) as usize;
     let mut vts_cache: std::collections::HashMap<u32, Vec<u8>> = std::collections::HashMap::new();
     for index in 0..title_count.min(99) {
@@ -360,6 +364,12 @@ fn dvd_titles(
             continue;
         }
         let pgcit = (be32(vts_ifo, 0xCC) as usize).saturating_mul(SECTOR as usize);
+        if pgcit >= vts_ifo.len() {
+            notes.push(format!(
+                "La tabla de PGC de VTS_{vts:02}_0.IFO está fuera del archivo."
+            ));
+            continue;
+        }
         let pgc_count = be16(vts_ifo, pgcit) as usize;
         let mut chosen = None;
         for pgc_index in 0..pgc_count.min(999) {
@@ -522,6 +532,11 @@ fn parse_mpls(bytes: &[u8], number: u32) -> Option<BdPlaylist> {
     }
     let list = be32(bytes, 8) as usize;
     let marks = be32(bytes, 12) as usize;
+    // Offsets past the end can only fail; rejecting them first also keeps
+    // every sum below from overflowing on 32-bit targets.
+    if list >= bytes.len() || marks >= bytes.len() {
+        return None;
+    }
     let items = be16(bytes, list + 6) as usize;
     let mut cursor = list + 10;
     let mut duration = 0u64;
@@ -815,5 +830,55 @@ mod tests {
             }
             let _ = parse_mpls(&bytes, 1);
         }
+    }
+
+    #[test]
+    fn random_control_files_never_panic() {
+        // xorshift: deterministic pseudo-random bytes, no extra dependency.
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let root =
+            std::env::temp_dir().join(format!("kinodisc-inspect-fuzz-{}", std::process::id()));
+        for round in 0..60 {
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(root.join("VIDEO_TS")).unwrap();
+            std::fs::create_dir_all(root.join("BDMV/PLAYLIST")).unwrap();
+            let mut blob = |len: usize, magic: &[u8]| {
+                let mut bytes: Vec<u8> = (0..len).map(|_| next() as u8).collect();
+                bytes[..magic.len()].copy_from_slice(magic);
+                bytes
+            };
+            let size = 64 + (round * 97) % 6000;
+            std::fs::write(
+                root.join("VIDEO_TS/VIDEO_TS.IFO"),
+                blob(size, b"DVDVIDEO-VMG"),
+            )
+            .unwrap();
+            std::fs::write(
+                root.join("VIDEO_TS/VTS_01_0.IFO"),
+                blob(size, b"DVDVIDEO-VTS"),
+            )
+            .unwrap();
+            std::fs::write(
+                root.join("VIDEO_TS/VTS_01_1.VOB"),
+                blob(size, &[0u8, 0, 1, 0xBA]),
+            )
+            .unwrap();
+            let _ = inspect(&root);
+            std::fs::remove_dir_all(root.join("VIDEO_TS")).unwrap();
+            std::fs::write(root.join("BDMV/index.bdmv"), blob(64, b"INDX0200")).unwrap();
+            std::fs::write(
+                root.join("BDMV/PLAYLIST/00000.mpls"),
+                blob(size, b"MPLS0200"),
+            )
+            .unwrap();
+            let _ = inspect(&root);
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
