@@ -71,9 +71,15 @@ jobs:
           autoreconf -fi -I m4
           # MSYS2 FreeType has no freetype-config; configure.ac requires it.
           mkdir -p ../shim
-          printf '#!/bin/sh
-case "$1" in --cflags) pkg-config --cflags freetype2;; --libs) pkg-config --libs freetype2;; --version) pkg-config --modversion freetype2;; esac
-' > ../shim/freetype-config
+          cat > ../shim/freetype-config <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            --cflags) pkg-config --cflags freetype2 ;;
+            --libs) pkg-config --libs freetype2 ;;
+            --version) pkg-config --modversion freetype2 ;;
+          esac
+          EOF
+          sed -i 's/^          //' ../shim/freetype-config
           chmod +x ../shim/freetype-config
           export PATH="$PWD/../shim:$PATH"
           ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { tail -80 config.log; exit 1; }
