@@ -96,16 +96,15 @@
     type="button"
     aria-label={t("Cerrar diagnóstico")}
     onclick={onClose}
-    class="absolute inset-0 cursor-default bg-slate-950/80"
+    class="ui-backdrop"
   ></button>
 
   <section class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl">
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
-        <p class="ui-section-title">{t("Diagnóstico")}</p>
-        <h2 class="mt-1 text-lg font-semibold text-white">{t("Toolchain del sistema")}</h2>
+        <h2 class="text-[16px] font-semibold text-slate-50">{t("Herramientas de disco")}</h2>
         <p class="mt-0.5 text-[12px] text-slate-500">
-          {t("Comprueba las herramientas externas que usan DVD, AVCHD y Blu-ray.")}
+          {t("Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.")}
         </p>
       </div>
       <button
@@ -145,7 +144,7 @@
                 <div class="flex min-w-0 items-center gap-2">
                   <span
                     class={`h-2 w-2 shrink-0 rounded-full ${
-                      tool.found ? "bg-emerald-400" : tool.required ? "bg-rose-400" : "bg-amber-400"
+                      tool.found ? "bg-emerald-500" : tool.required ? "bg-rose-500" : "bg-slate-500"
                     }`}
                   ></span>
                   <span class="truncate text-[12px] font-semibold text-slate-200">{tool.name}</span>
@@ -156,14 +155,14 @@
                   {/if}
                 </div>
                 <span class="font-mono text-[11px] text-slate-500">
-                  {tool.version ?? (tool.found ? t("versión desconocida") : t("no encontrada"))}
+                  {tool.version ?? (tool.found ? t("versión desconocida") : tool.required ? t("no encontrada") : t("opcional, no instalada"))}
                 </span>
               </div>
               {#if tool.path}
                 <p class="mt-1 truncate font-mono text-[11px] text-slate-600" title={tool.path}>{tool.path}</p>
               {/if}
               {#if tool.error}
-                <p class="mt-1 text-[12px] leading-5 text-amber-200/80">{localizeToolMessage(tool.error)}</p>
+                {#if tool.required}<p class="mt-1 text-[12px] leading-5 text-amber-200">{localizeToolMessage(tool.error)}</p>{/if}
               {/if}
               {#if tool.detail && !tool.error}
                 <p class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">{tool.detail}</p>

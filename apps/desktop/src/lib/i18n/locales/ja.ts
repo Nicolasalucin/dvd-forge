@@ -835,7 +835,6 @@ export const ja: Dictionary = {
   "¡Entendido!": "わかりました！",
   "¿Cómo funciona?": "使い方",
   "Con Kinodisc conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.": "Kinodisc なら、映画のようなメニュー付きのディスクを動画から作れます。5 つのステップを、このガイドが順番に案内します。",
-  "Puedes abrir esta guía cuando quieras con el botón ❓ Guía de arriba.": "このガイドは上部の ❓ ガイド ボタンからいつでも開けます。",
   "Todo se guarda en un archivo de proyecto; tus vídeos originales nunca se modifican.": "すべてはプロジェクトファイルに保存され、元の動画が変更されることはありません。",
   "DVD funciona en casi cualquier reproductor y consola. Blu-ray/AVCHD tiene imagen en alta definición (HD) y necesita un reproductor Blu-ray, PS3/PS4/PS5 o similar.": "DVD はほとんどのプレーヤーやゲーム機で再生できます。Blu-ray/AVCHD は高画質（HD）で、Blu-ray プレーヤーや PS3/PS4/PS5 などが必要です。",
   "¿Dudas? Elige DVD-Video: es el más compatible.": "迷ったら DVD-Video を選んでください。最も互換性があります。",
@@ -853,7 +852,6 @@ export const ja: Dictionary = {
   "Pulsa «Producir disco» (arriba a la derecha). Kinodisc prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.": "右上の「ディスクを作成」を押します。Kinodisc が ISO ファイルを作成し、ドライブがあればそのまま書き込めます。",
   "La barra de capacidad indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa (DVD-9 o BD-50).": "容量バーはディスクの使用量を示します。入りきらない場合は 2 層ディスク（DVD-9 または BD-50）を試してください。",
   "Antes de grabar, el disco se comprueba automáticamente para evitar discos defectuosos.": "書き込み前にディスクが自動でチェックされ、不良ディスクを防ぎます。",
-  "Si algo falla, el botón ⚕ Salud te dice qué herramienta falta (por ejemplo, FFmpeg).": "うまくいかないときは、⚕ 状態 ボタンで足りないツール（FFmpeg など）がわかります。",
   "Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.": "ディスクの種類を選んでください。迷ったら DVD-Video ならほとんどのプレーヤーで再生できます。",
   "Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.": "ほぼすべてのプレーヤー、ゲーム機、パソコンで再生できます。標準画質。",
   "Blu-ray / AVCHD (alta definición)": "Blu-ray / AVCHD（ハイビジョン）",
@@ -1106,6 +1104,10 @@ export const ja: Dictionary = {
   "Opacidad": "不透明度",
   "Posición y tamaño": "位置とサイズ",
   "Texto u objeto": "テキスト・オブジェクト",
+  "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.": "このガイドは F1 またはツールバーのヘルプボタンでいつでも開けます。",
+  "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "うまくいかない場合は、ステータスバーの「ツール」が不足しているもの (FFmpeg など) を示し、インストールします。",
+  "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Kinodisc が動画の変換とディスク作成に使うプログラムです。オプションのものは不要です。",
+  "opcional, no instalada": "オプション・未インストール",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

@@ -201,7 +201,7 @@
 
 <div
   bind:this={wrapper}
-  class="flex min-h-0 w-full flex-1 items-center justify-center rounded-lg bg-slate-950/30 p-2"
+  class="flex h-full min-h-0 w-full flex-1 items-center justify-center self-stretch rounded-lg p-2"
 >
   <div
     bind:this={container}

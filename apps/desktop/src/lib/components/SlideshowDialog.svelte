@@ -77,7 +77,7 @@
   <button
     type="button"
     aria-label={t("Cerrar")}
-    class="absolute inset-0 cursor-default bg-slate-950/80"
+    class="ui-backdrop"
     onclick={() => !working && onclose()}
   ></button>
   <div

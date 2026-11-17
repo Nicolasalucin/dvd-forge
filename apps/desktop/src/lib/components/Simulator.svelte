@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "../ui/Icon.svelte";
   import { t } from "../i18n/index.svelte";
   import { localizeDiagnostic } from "../i18n/diagnostics";
   import { onDestroy, onMount } from "svelte";
@@ -658,14 +659,14 @@
 <section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
   <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex items-center gap-2">
-      <span class="ui-section-title">{t("Simulador")}</span>
+      <span class="ui-title">{t("Vista previa")}</span>
       {#if currentMenu}
-        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
+        <span class="ui-chip">
           {currentMenu.name}
         </span>
       {/if}
       {#if isAvchd}
-        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
+        <span class="ui-chip ui-chip-accent">
           {t(isContinuousAvchd ? "AVCHD continuo" : "Blu-ray/AVCHD HD")}
         </span>
       {/if}
@@ -682,7 +683,7 @@
         class="ui-btn ui-btn-sm"
         title={t("Televisor a pantalla completa")}
       >
-        {tvFullscreen ? "⤡ TV" : "⛶ TV"}
+        <Icon name="film" size={14} />{tvFullscreen ? t("Salir de pantalla completa") : t("Pantalla completa")}
       </button>
       <button
         type="button"
@@ -722,7 +723,7 @@
   {#if isContinuousAvchd}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div bind:this={tvStageAvchd} class="relative flex min-h-0 flex-1 flex-col gap-2">
-        <div class="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black p-2 shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
+        <div class="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-[#202126] bg-black p-2 shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
           {:else}
@@ -778,7 +779,7 @@
   {:else if currentMenu}
     <div class="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(0,1fr)_260px]">
       <div bind:this={tvStageDvd} class="relative flex min-h-0 flex-1 flex-col gap-2">
-        <div class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
+        <div class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-[#202126] bg-black shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
           {:else}

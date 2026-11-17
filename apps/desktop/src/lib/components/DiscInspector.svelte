@@ -76,7 +76,7 @@
 <svelte:window {onkeydown} />
 
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <button type="button" aria-label={t("Cerrar")} class="absolute inset-0 cursor-default bg-slate-950/80" onclick={() => !working && onclose()}></button>
+  <button type="button" aria-label={t("Cerrar")} class="ui-backdrop" onclick={() => !working && onclose()}></button>
   <div
     class="ui-dialog max-h-[90vh] w-full max-w-2xl"
     role="dialog"

@@ -194,7 +194,7 @@
   <div class="flex h-9 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-slate-800 bg-slate-900 px-2">
     {#if menus.length > 1}
       <select
-        class="ui-input ui-input-sm w-44"
+        class="ui-input ui-input-sm w-44 shrink-0"
         value={menu?.id ?? ""}
         aria-label={t("Menú")}
         onchange={(event) => {
@@ -207,7 +207,7 @@
         {/each}
       </select>
     {:else}
-      <span class="max-w-44 truncate px-1 text-[13px] font-medium text-slate-100">{menu?.name ?? "—"}</span>
+      <span class="max-w-44 shrink-0 truncate px-1 text-[13px] font-medium text-slate-100">{menu?.name ?? "—"}</span>
     {/if}
     {#if menu}
       <span class="ui-chip font-mono">{menu.canvas.width}×{menu.canvas.height}</span>

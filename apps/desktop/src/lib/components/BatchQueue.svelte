@@ -172,7 +172,7 @@
     type="button"
     aria-label={t("Cerrar")}
     onclick={() => !running && onClose()}
-    class="absolute inset-0 cursor-default bg-slate-950/80"
+    class="ui-backdrop"
   ></button>
   <div
     class="ui-dialog max-h-[90vh] w-full max-w-2xl"

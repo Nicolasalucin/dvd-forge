@@ -838,7 +838,6 @@ export const fr: Dictionary = {
   "¡Entendido!": "Compris !",
   "¿Cómo funciona?": "Comment ça marche ?",
   "Con Kinodisc conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.": "Avec Kinodisc, vous transformez vos vidéos en un disque avec menu, comme ceux des films. Il y a 5 étapes et ce guide vous accompagne à chacune.",
-  "Puedes abrir esta guía cuando quieras con el botón ❓ Guía de arriba.": "Vous pouvez rouvrir ce guide à tout moment avec le bouton ❓ Guide en haut.",
   "Todo se guarda en un archivo de proyecto; tus vídeos originales nunca se modifican.": "Tout est enregistré dans un fichier de projet ; vos vidéos originales ne sont jamais modifiées.",
   "DVD funciona en casi cualquier reproductor y consola. Blu-ray/AVCHD tiene imagen en alta definición (HD) y necesita un reproductor Blu-ray, PS3/PS4/PS5 o similar.": "Le DVD fonctionne sur presque tous les lecteurs et consoles. Le Blu-ray/AVCHD offre une image haute définition (HD) et nécessite un lecteur Blu-ray, une PS3/PS4/PS5 ou équivalent.",
   "¿Dudas? Elige DVD-Video: es el más compatible.": "Un doute ? Choisissez DVD-Video : c'est le plus compatible.",
@@ -856,7 +855,6 @@ export const fr: Dictionary = {
   "Pulsa «Producir disco» (arriba a la derecha). Kinodisc prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.": "Cliquez sur « Produire le disque » (en haut à droite). Kinodisc prépare un fichier ISO et, si vous avez un graveur, peut le graver directement.",
   "La barra de capacidad indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa (DVD-9 o BD-50).": "La barre de capacité indique le remplissage du disque. S'il déborde, essayez un disque double couche (DVD-9 ou BD-50).",
   "Antes de grabar, el disco se comprueba automáticamente para evitar discos defectuosos.": "Avant la gravure, le disque est vérifié automatiquement pour éviter les disques défectueux.",
-  "Si algo falla, el botón ⚕ Salud te dice qué herramienta falta (por ejemplo, FFmpeg).": "En cas de problème, le bouton ⚕ Santé indique quel outil manque (par exemple FFmpeg).",
   "Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.": "Choisissez le type de disque. En cas de doute, le DVD-Video fonctionne sur presque tous les lecteurs.",
   "Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.": "Fonctionne sur presque tous les lecteurs, consoles et ordinateurs. Qualité standard.",
   "Blu-ray / AVCHD (alta definición)": "Blu-ray / AVCHD (haute définition)",
@@ -1107,6 +1105,10 @@ export const fr: Dictionary = {
   "Opacidad": "Opacité",
   "Posición y tamaño": "Position et taille",
   "Texto u objeto": "Texte ou objet",
+  "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.": "Ouvrez ce guide à tout moment avec F1 ou le bouton d'aide de la barre d'outils.",
+  "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "En cas de problème, « Outils » dans la barre d'état indique ce qui manque (par exemple FFmpeg) et l'installe.",
+  "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Programmes utilisés par Kinodisc pour convertir les vidéos et créer le disque. Les optionnels ne sont pas nécessaires.",
+  "opcional, no instalada": "facultatif, non installé",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

@@ -951,6 +951,10 @@ export const es: Dictionary = {
   "Opacidad": "Opacidad",
   "Posición y tamaño": "Posición y tamaño",
   "Texto u objeto": "Texto u objeto",
+  "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.": "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.",
+  "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.",
+  "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.",
+  "opcional, no instalada": "opcional, no instalada",
 };
 
 export const en: Dictionary = {
@@ -1735,7 +1739,6 @@ export const en: Dictionary = {
   "¡Entendido!": "Got it!",
   "¿Cómo funciona?": "How does it work?",
   "Con Kinodisc conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.": "Kinodisc turns your videos into a disc with a menu, just like a movie disc. There are 5 steps and this guide walks you through each one.",
-  "Puedes abrir esta guía cuando quieras con el botón ❓ Guía de arriba.": "You can open this guide at any time with the ❓ Guide button at the top.",
   "Todo se guarda en un archivo de proyecto; tus vídeos originales nunca se modifican.": "Everything is saved in a project file; your original videos are never changed.",
   "DVD funciona en casi cualquier reproductor y consola. Blu-ray/AVCHD tiene imagen en alta definición (HD) y necesita un reproductor Blu-ray, PS3/PS4/PS5 o similar.": "DVD plays on almost any player and console. Blu-ray/AVCHD has high-definition (HD) picture and needs a Blu-ray player, a PS3/PS4/PS5 or similar.",
   "¿Dudas? Elige DVD-Video: es el más compatible.": "Not sure? Choose DVD-Video: it is the most compatible.",
@@ -1753,7 +1756,6 @@ export const en: Dictionary = {
   "Pulsa «Producir disco» (arriba a la derecha). Kinodisc prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.": "Press “Produce disc” (top right). Kinodisc prepares an ISO file and, if you have a burner, can burn it directly.",
   "La barra de capacidad indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa (DVD-9 o BD-50).": "The capacity bar shows how full the disc is. If it is too full, try a dual-layer disc (DVD-9 or BD-50).",
   "Antes de grabar, el disco se comprueba automáticamente para evitar discos defectuosos.": "Before burning, the disc is checked automatically to avoid bad discs.",
-  "Si algo falla, el botón ⚕ Salud te dice qué herramienta falta (por ejemplo, FFmpeg).": "If something fails, the ⚕ Health button tells you which tool is missing (for example, FFmpeg).",
   "Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.": "Choose the disc type. If you are not sure, DVD-Video plays on almost any player.",
   "Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.": "Plays on almost every player, console and computer. Standard quality.",
   "Blu-ray / AVCHD (alta definición)": "Blu-ray / AVCHD (high definition)",
@@ -1992,4 +1994,8 @@ export const en: Dictionary = {
   "Opacidad": "Opacity",
   "Posición y tamaño": "Position and size",
   "Texto u objeto": "Text or object",
+  "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.": "Open this guide at any time with F1 or the help button on the toolbar.",
+  "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "If something fails, “Tools” in the status bar tells you what is missing (for example FFmpeg) and installs it.",
+  "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Programs Kinodisc uses to convert the videos and build the disc. Optional ones are not needed.",
+  "opcional, no instalada": "optional, not installed",
 };

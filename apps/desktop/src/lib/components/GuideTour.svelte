@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icon from "../ui/Icon.svelte";
+  import type { IconName } from "../ui/icons";
   import { t } from "../i18n/index.svelte";
   import { projectStore, type StudioMode } from "../stores/project.svelte";
 
@@ -10,7 +12,7 @@
   let { onClose, onNewProject }: Props = $props();
 
   interface Step {
-    icon: string;
+    icon: IconName;
     title: string;
     body: string;
     tips: string[];
@@ -31,16 +33,16 @@
 
   const steps: Step[] = [
     {
-      icon: "👋",
+      icon: "info",
       title: "Bienvenido a Kinodisc",
       body: "Con Kinodisc conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.",
       tips: [
-        "Puedes abrir esta guía cuando quieras con el botón ❓ Guía de arriba.",
+        "Puedes abrir esta guía cuando quieras con F1 o con el botón de ayuda de la barra de herramientas.",
         "Todo se guarda en un archivo de proyecto; tus vídeos originales nunca se modifican.",
       ],
     },
     {
-      icon: "💿",
+      icon: "disc",
       title: "1 · Elige el tipo de disco",
       body: "DVD funciona en casi cualquier reproductor y consola. Blu-ray/AVCHD tiene imagen en alta definición (HD) y necesita un reproductor Blu-ray, PS3/PS4/PS5 o similar.",
       tips: [
@@ -50,7 +52,7 @@
       action: { label: "Crear un proyecto nuevo", run: () => onNewProject() },
     },
     {
-      icon: "🎞",
+      icon: "film",
       title: "2 · Añade tus vídeos",
       body: "En el panel izquierdo (pestaña «Medios») pulsa «+ Importar» y elige tus vídeos. Después pulsa «+ Episodio» en cada uno para ponerlo en el disco.",
       tips: [
@@ -60,7 +62,7 @@
       action: { label: "Abrir Medios", run: () => goTo("trim", { mediaTab: "media" }) },
     },
     {
-      icon: "🎨",
+      icon: "menu",
       title: "3 · Diseña el menú",
       body: "En la pestaña Menú ves la pantalla que aparecerá en la tele. Lo más fácil: abre la pestaña «Plantillas» del panel izquierdo (o la galería debajo del menú) y elige una; Kinodisc crea un botón por episodio.",
       tips: [
@@ -71,7 +73,7 @@
       action: { label: "Ir al editor de menú", run: () => goTo("menu", { mediaTab: "layouts" }) },
     },
     {
-      icon: "🎮",
+      icon: "remote",
       title: "4 · Pruébalo con el mando",
       body: "El Simulador muestra el disco tal como funcionará en el reproductor. Usa las flechas del teclado y Enter, o el mando de la pantalla.",
       tips: [
@@ -81,13 +83,13 @@
       action: { label: "Abrir el simulador", run: () => goTo("simulator") },
     },
     {
-      icon: "🔥",
+      icon: "burn",
       title: "5 · Crea el disco",
       body: "Pulsa «Producir disco» (arriba a la derecha). Kinodisc prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.",
       tips: [
         "La barra de capacidad indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa (DVD-9 o BD-50).",
         "Antes de grabar, el disco se comprueba automáticamente para evitar discos defectuosos.",
-        "Si algo falla, el botón ⚕ Salud te dice qué herramienta falta (por ejemplo, FFmpeg).",
+        "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.",
       ],
       action: {
         label: "Abrir «Producir disco»",
@@ -122,20 +124,20 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div
-  class="fixed bottom-4 right-4 z-50 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-cyan-500/30 bg-slate-950/95 shadow-xl"
+  class="fixed bottom-4 right-4 z-50 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
   role="dialog"
   aria-modal="false"
   aria-labelledby="guide-title"
 >
   <div class="flex items-start gap-3 p-4">
-    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-2xl" aria-hidden="true">
-      {step.icon}
+    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400" aria-hidden="true">
+      <Icon name={step.icon} size={20} />
     </div>
     <div class="min-w-0 flex-1">
       <p class="ui-section-title">
         {t("Guía · paso {current} de {total}", { current: index + 1, total: steps.length })}
       </p>
-      <h2 id="guide-title" class="mt-0.5 text-base font-semibold text-white">{t(step.title)}</h2>
+      <h2 id="guide-title" class="mt-0.5 text-[15px] font-semibold text-slate-50">{t(step.title)}</h2>
       <p class="mt-1.5 text-[12px] leading-5 text-slate-300">{t(step.body)}</p>
       <ul class="mt-2 space-y-1">
         {#each step.tips as tip}

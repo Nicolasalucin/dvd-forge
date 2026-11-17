@@ -157,7 +157,7 @@
     aria-label={t("Cerrar")}
     onclick={onClose}
     disabled={busy}
-    class="absolute inset-0 cursor-default bg-slate-950/80"
+    class="ui-backdrop"
   ></button>
 
   <div class="ui-dialog max-h-[92vh] w-full max-w-2xl">

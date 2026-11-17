@@ -143,7 +143,7 @@
           {#if backgroundUrl}
             <img src={backgroundUrl} alt="" class="absolute inset-0 h-full w-full object-cover opacity-60" />
           {/if}
-          <div class="absolute inset-0 bg-slate-950/80 via-transparent to-slate-950/30"></div>
+          <div class="absolute inset-0 bg-slate-950/80"></div>
           {#if previewUrl}
             <div class="relative z-10 flex max-w-[72%] flex-col items-center gap-2">
               <div class="relative overflow-hidden rounded-lg border-2 border-cyan-400/60 shadow-xl">
