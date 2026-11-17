@@ -282,7 +282,7 @@ fn sha256_file(path: &Path) -> std::io::Result<(u64, String)> {
 /// Absolute path of an OS-provided helper (curl/tar ship in System32 since
 /// Windows 10 1803), so a planted `tar.exe` next to the app or on a
 /// user-controlled PATH entry cannot be picked up. Other systems use PATH.
-fn system_tool(name: &str) -> PathBuf {
+pub(crate) fn system_tool(name: &str) -> PathBuf {
     #[cfg(windows)]
     {
         if let Some(root) = std::env::var_os("SystemRoot") {

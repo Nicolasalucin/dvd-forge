@@ -1,5 +1,6 @@
 mod batch;
 mod bundle;
+mod chapters_cmd;
 mod inspect_cmd;
 mod render;
 mod scenes_cmd;
@@ -44,6 +45,7 @@ async fn main() -> ExitCode {
         "toolchain" => toolchain_cmd::run(&args[1..]),
         "split" => split_cmd::run(&args[1..]),
         "scenes" => scenes_cmd::run(&args[1..]),
+        "chapters" => chapters_cmd::run(&args[1..]).await,
         "inspect" => inspect_cmd::run(&args[1..]),
         "slideshow" => slideshow_cmd::run(&args[1..]).await,
         "version" | "--version" | "-V" => {
@@ -681,6 +683,9 @@ fn print_help() {
     println!("  kinodisc-cli probe <archivo|/dev/srX> [--json]");
     println!(
         "  kinodisc-cli scenes <project.json> [-o <salida.json>]   (menús de escenas por capítulo)"
+    );
+    println!(
+        "  kinodisc-cli chapters <project.json> --scenes [--sensitivity 0..1] [-o <salida.json>]   (capítulos en los cambios de escena)"
     );
     println!("  kinodisc-cli split <project.json> [--per-episode]   (un proyecto por disco)");
     println!("  kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--folder] [--no-probe]");

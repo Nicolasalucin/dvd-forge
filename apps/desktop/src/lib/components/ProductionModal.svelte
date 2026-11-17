@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { announceFinished } from "../ui/finish";
+  import { ui } from "../ui/state.svelte";
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
@@ -131,7 +133,15 @@
     projectStore.productionOpen = false;
   }
 
+  /** Runs the production, then announces the end (sound, taskbar, shutdown). */
   async function start() {
+    await run();
+    const failed =
+      cancelRequested || Boolean(projectStore.renderError || projectStore.burnError || localError);
+    await announceFinished(!failed);
+  }
+
+  async function run() {
     localError = null;
     cancelRequested = false;
     if (mode === "existing") {
@@ -397,6 +407,11 @@
           </select>
         </label>
       {/if}
+
+      <label class="mt-3 flex items-center gap-2 text-[13px] text-slate-300">
+        <input type="checkbox" class="ui-check" bind:checked={ui.shutdownWhenDone} disabled={busy && !ui.shutdownWhenDone} />
+        {t("Apagar la computadora al terminar")}
+      </label>
 
       {#if isAvchd && mode !== "existing"}
         <label class="mt-3 flex items-center justify-between gap-3 rounded-md border border-slate-700 px-3 py-2">

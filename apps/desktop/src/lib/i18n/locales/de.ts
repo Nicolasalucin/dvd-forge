@@ -1151,6 +1151,19 @@ export const de: Dictionary = {
   "Se volvieron a vincular {count} archivo(s).": "{count} Datei(en) neu verknüpft.",
   "Buscar archivo…": "Datei suchen…",
   "Buscar…": "Suchen…",
+  "La computadora se apagará": "Der Computer wird heruntergefahren",
+  "El trabajo terminó. Se apagará en {seconds} s.": "Die Arbeit ist fertig. Herunterfahren in {seconds} s.",
+  "Cancelar el apagado": "Herunterfahren abbrechen",
+  "Apagar la computadora al terminar": "Computer nach Abschluss herunterfahren",
+  "Apagar al terminar": "Danach herunterfahren",
+  "No se pudieron detectar las escenas: {error}": "Szenen konnten nicht erkannt werden: {error}",
+  "Pone un capítulo en cada cambio de escena": "Setzt bei jedem Szenenwechsel ein Kapitel",
+  "Buscando escenas…": "Szenen werden gesucht…",
+  "Por escenas": "Nach Szenen",
+  "{count} capítulos en los cambios de escena.": "{count} Kapitel an den Szenenwechseln.",
+  "Buscar actualizaciones al iniciar": "Beim Start nach Updates suchen",
+  "Abre la página de la versión nueva en el navegador": "Öffnet die Seite der neuen Version im Browser",
+  "Kinodisc {version} disponible": "Kinodisc {version} verfügbar",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {

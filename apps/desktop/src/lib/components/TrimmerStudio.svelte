@@ -287,6 +287,20 @@
     localError = null;
   }
 
+  let detectingScenes = $state(false);
+
+  async function detectScenes() {
+    if (!episode || detectingScenes) return;
+    detectingScenes = true;
+    localError = null;
+    try {
+      const count = await projectStore.sceneChapters(episode.id);
+      if (count !== null) notice = t("{count} capítulos en los cambios de escena.", { count });
+    } finally {
+      detectingScenes = false;
+    }
+  }
+
   function importChapters() {
     if (!episode) return;
     const count = projectStore.importMediaChapters(episode.id);
@@ -698,6 +712,15 @@
               class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
             >
               {t("4 partes")}
+            </button>
+            <button
+              type="button"
+              onclick={detectScenes}
+              disabled={detectingScenes}
+              title={t("Pone un capítulo en cada cambio de escena")}
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200 disabled:opacity-60"
+            >
+              {detectingScenes ? t("Buscando escenas…") : t("Por escenas")}
             </button>
             <button
               type="button"

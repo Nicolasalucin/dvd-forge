@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { announceFinished } from "../ui/finish";
+  import { ui } from "../ui/state.svelte";
   import { Channel } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
   import { commands, type JobEvent_Deserialize } from "../api/bindings";
@@ -130,6 +132,8 @@
     } finally {
       running = false;
     }
+    const failed = stopRequested || items.some((item) => item.status === "failed");
+    await announceFinished(!failed);
   }
 
   async function stop() {
@@ -264,7 +268,13 @@
     </div>
 
     <footer class="flex items-center justify-between gap-2 border-t border-slate-800 px-5 py-3">
-      <span class="text-[12px] text-slate-500">{t("{count} en espera", { count: pending })}</span>
+      <span class="flex items-center gap-3 text-[12px] text-slate-500">
+        {t("{count} en espera", { count: pending })}
+        <label class="flex items-center gap-1.5 text-slate-300">
+          <input type="checkbox" class="ui-check" bind:checked={ui.shutdownWhenDone} />
+          {t("Apagar al terminar")}
+        </label>
+      </span>
       {#if running}
         <button
           type="button"

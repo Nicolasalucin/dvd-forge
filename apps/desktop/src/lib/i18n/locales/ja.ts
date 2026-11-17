@@ -1151,6 +1151,19 @@ export const ja: Dictionary = {
   "Se volvieron a vincular {count} archivo(s).": "{count}個のファイルを再リンクしました。",
   "Buscar archivo…": "ファイルを探す…",
   "Buscar…": "探す…",
+  "La computadora se apagará": "コンピューターをシャットダウンします",
+  "El trabajo terminó. Se apagará en {seconds} s.": "作業が完了しました。{seconds} 秒後にシャットダウンします。",
+  "Cancelar el apagado": "シャットダウンを取り消す",
+  "Apagar la computadora al terminar": "完了したらコンピューターをシャットダウン",
+  "Apagar al terminar": "完了後にシャットダウン",
+  "No se pudieron detectar las escenas: {error}": "シーンを検出できませんでした: {error}",
+  "Pone un capítulo en cada cambio de escena": "シーンが変わるたびにチャプターを付けます",
+  "Buscando escenas…": "シーンを探しています…",
+  "Por escenas": "シーンごと",
+  "{count} capítulos en los cambios de escena.": "シーンの変わり目に{count}個のチャプターを付けました。",
+  "Buscar actualizaciones al iniciar": "起動時に更新を確認",
+  "Abre la página de la versión nueva en el navegador": "新しいバージョンのページをブラウザーで開きます",
+  "Kinodisc {version} disponible": "Kinodisc {version} が利用可能",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

@@ -23,6 +23,12 @@ class UiState {
   history = $state(false);
   recent = $state(false);
   notice = $state<string | null>(null);
+  /** "Shut down when done" for the current production or queue (never kept). */
+  shutdownWhenDone = $state(false);
+  /** Seconds left before shutting down; null when no countdown is running. */
+  shutdownCountdown = $state<number | null>(null);
+  /** A newer Kinodisc release (status bar notice), or null. */
+  update = $state<{ version: string; url: string } | null>(null);
   theme = $state<ThemePreference>(readTheme());
   fullscreen = $state(false);
 

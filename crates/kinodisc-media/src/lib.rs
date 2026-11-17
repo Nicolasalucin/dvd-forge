@@ -7,6 +7,8 @@
 use kinodisc_domain::{
     AudioStreamInfo, FrameRate, MediaChapter, MediaProbe, SubtitleStreamInfo, VideoStreamInfo,
 };
+pub mod scenes;
+
 use kinodisc_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use serde::Deserialize;
 use std::collections::HashMap;

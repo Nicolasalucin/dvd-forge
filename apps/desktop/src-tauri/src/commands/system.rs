@@ -100,14 +100,7 @@ pub fn open_folder(path: String) -> Result<(), String> {
             target.display()
         ));
     }
-    let command = if cfg!(target_os = "windows") {
-        "explorer"
-    } else if cfg!(target_os = "macos") {
-        "open"
-    } else {
-        "xdg-open"
-    };
-    let mut child = std::process::Command::new(command)
+    let mut child = std::process::Command::new(system_opener())
         .arg(&target)
         .spawn()
         .map_err(|error| error.to_string())?;
@@ -133,4 +126,108 @@ fn resolve_folder_target(requested: &std::path::Path) -> std::path::PathBuf {
     } else {
         requested.to_path_buf()
     }
+}
+
+/// Shuts the computer down ("Shut down when done" after a long production;
+/// the app shows a 60 s countdown with Cancel before calling this). Fixed
+/// arguments and absolute system paths only: a planted `shutdown` next to
+/// the app or on PATH is never run.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn system_shutdown() -> Result<(), String> {
+    let (program, args): (std::path::PathBuf, &[&str]) = shutdown_command()?;
+    if !program.is_file() {
+        return Err(format!("No se encontró {}.", program.display()));
+    }
+    let status = kinodisc_toolchain::background_command(&program)
+        .args(args)
+        .status()
+        .map_err(|error| error.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("El sistema rechazó el apagado (puede requerir permisos).".to_string())
+    }
+}
+
+fn shutdown_command() -> Result<(std::path::PathBuf, &'static [&'static str]), String> {
+    #[cfg(windows)]
+    {
+        let root = std::env::var_os("SystemRoot").ok_or("SystemRoot no está definido.")?;
+        let program = std::path::PathBuf::from(root)
+            .join("System32")
+            .join("shutdown.exe");
+        Ok((program, &["/s", "/t", "0"]))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Ok((
+            std::path::PathBuf::from("/usr/bin/osascript"),
+            &["-e", "tell application \"System Events\" to shut down"],
+        ))
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        // systemd hosts let the logged-in user power off through polkit.
+        for program in ["/usr/bin/systemctl", "/bin/systemctl"] {
+            if std::path::Path::new(program).is_file() {
+                return Ok((std::path::PathBuf::from(program), &["poweroff"]));
+            }
+        }
+        Err("Este sistema no permite apagar desde la aplicación.".to_string())
+    }
+}
+
+/// The OS "open with the default app" launcher, by absolute path where the
+/// system has a fixed one (a planted `explorer.exe` is never picked up).
+fn system_opener() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            let explorer = std::path::PathBuf::from(root).join("explorer.exe");
+            if explorer.is_file() {
+                return explorer;
+            }
+        }
+        std::path::PathBuf::from("explorer")
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::path::PathBuf::from("/usr/bin/open")
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::path::PathBuf::from("xdg-open")
+    }
+}
+
+/// Newer Kinodisc release, if any (one HTTPS request to GitHub, no data
+/// sent; the app calls it at most once a day and it can be turned off).
+#[tauri::command(async)]
+#[specta::specta]
+pub fn update_check() -> Result<Option<kinodisc_toolchain::update::UpdateInfo>, String> {
+    kinodisc_toolchain::update::check(env!("CARGO_PKG_VERSION"))
+}
+
+/// Opens an official release page in the browser. Any other URL is refused,
+/// so the update notice can never become a way to open arbitrary links.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn open_release_page(url: String) -> Result<(), String> {
+    let safe = url.starts_with(kinodisc_toolchain::update::RELEASES_PREFIX)
+        && url.len() < 200
+        && url
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || "/:._-".contains(ch));
+    if !safe {
+        return Err("Solo se pueden abrir las páginas de versiones de Kinodisc.".to_string());
+    }
+    let mut child = std::process::Command::new(system_opener())
+        .arg(&url)
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }

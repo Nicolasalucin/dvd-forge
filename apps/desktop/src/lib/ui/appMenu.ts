@@ -7,6 +7,7 @@
  * "\t" convention) and handled by the app's own keydown listener, so it
  * never fires twice; on macOS the menu registers real accelerators.
  */
+import { setUpdateChecks, updateChecksEnabled } from "./updates";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import * as actions from "../actions";
@@ -161,6 +162,15 @@ async function build(): Promise<void> {
     items: [
       await item("guide", t("Guía paso a paso"), () => (projectStore.guideOpen = true), shortcut("F1")),
       await separator(),
+      await CheckMenuItem.new({
+        id: "update-check",
+        text: t("Buscar actualizaciones al iniciar"),
+        checked: updateChecksEnabled(),
+        action: () => {
+          setUpdateChecks(!updateChecksEnabled());
+          void refreshAppMenu();
+        },
+      }),
       await item("about", t("Acerca de Kinodisc"), () => (ui.about = true)),
     ],
   });

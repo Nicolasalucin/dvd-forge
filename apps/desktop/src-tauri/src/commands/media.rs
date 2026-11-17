@@ -456,6 +456,39 @@ pub fn media_missing(paths: Vec<String>) -> Result<Vec<bool>, String> {
         .collect()
 }
 
+/// Chapter offsets (ms from the trim start, 0 first) at scene changes.
+/// `sensitivity` 0..1: higher finds more scenes. `max_chapters` is the
+/// disc's limit (99 on DVD, 999 on Blu-ray).
+#[tauri::command]
+#[specta::specta]
+pub async fn media_detect_scenes(
+    path: String,
+    sensitivity: f64,
+    min_gap_ms: u32,
+    start_ms: u32,
+    end_ms: Option<u32>,
+    max_chapters: u16,
+) -> Result<Vec<u32>, String> {
+    let resolved = resolve_media_path(&path)?;
+    let threshold = 0.6 - sensitivity.clamp(0.0, 1.0) * 0.45;
+    let chapters = kinodisc_media::scenes::detect_scenes(
+        resolved,
+        kinodisc_media::scenes::SceneOptions {
+            threshold,
+            min_gap_ms: u64::from(min_gap_ms.max(1_000)),
+            start_ms: u64::from(start_ms),
+            end_ms: end_ms.map(u64::from),
+            max_chapters: usize::from(max_chapters.clamp(1, 999)),
+        },
+    )
+    .await
+    .map_err(|error| error.to_string())?;
+    Ok(chapters
+        .into_iter()
+        .map(|offset| u32::try_from(offset).unwrap_or(u32::MAX))
+        .collect())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_probe_file(path: String) -> Result<MediaProbe, String> {

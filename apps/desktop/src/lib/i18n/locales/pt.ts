@@ -1085,6 +1085,19 @@ export const pt: Dictionary = {
   "Se volvieron a vincular {count} archivo(s).": "{count} arquivo(s) vinculados novamente.",
   "Buscar archivo…": "Procurar arquivo…",
   "Buscar…": "Procurar…",
+  "La computadora se apagará": "O computador será desligado",
+  "El trabajo terminó. Se apagará en {seconds} s.": "O trabalho terminou. Desligando em {seconds} s.",
+  "Cancelar el apagado": "Cancelar o desligamento",
+  "Apagar la computadora al terminar": "Desligar o computador ao terminar",
+  "Apagar al terminar": "Desligar ao terminar",
+  "No se pudieron detectar las escenas: {error}": "Não foi possível detectar as cenas: {error}",
+  "Pone un capítulo en cada cambio de escena": "Coloca um capítulo em cada mudança de cena",
+  "Buscando escenas…": "Procurando cenas…",
+  "Por escenas": "Por cenas",
+  "{count} capítulos en los cambios de escena.": "{count} capítulos nas mudanças de cena.",
+  "Buscar actualizaciones al iniciar": "Procurar atualizações ao iniciar",
+  "Abre la página de la versión nueva en el navegador": "Abre a página da nova versão no navegador",
+  "Kinodisc {version} disponible": "Kinodisc {version} disponível",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

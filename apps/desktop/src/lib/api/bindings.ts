@@ -34,6 +34,12 @@ export const commands = {
 	 *  Answers only "is it a file", never contents; at most 4096 paths.
 	 */
 	mediaMissing: (paths: string[]) => typedError<boolean[], string>(__TAURI_INVOKE("media_missing", { paths })),
+	/**
+	 *  Chapter offsets (ms from the trim start, 0 first) at scene changes.
+	 *  `sensitivity` 0..1: higher finds more scenes. `max_chapters` is the
+	 *  disc's limit (99 on DVD, 999 on Blu-ray).
+	 */
+	mediaDetectScenes: (path: string, sensitivity: number | null, minGapMs: number, startMs: number, endMs: number | null, maxChapters: number) => typedError<number[], string>(__TAURI_INVOKE("media_detect_scenes", { path, sensitivity, minGapMs, startMs, endMs, maxChapters })),
 	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
 	/**  Builds (or reuses) a photo slideshow video in the per-user cache. */
 	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
@@ -104,6 +110,23 @@ export const commands = {
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),
+	/**
+	 *  Shuts the computer down ("Shut down when done" after a long production;
+	 *  the app shows a 60 s countdown with Cancel before calling this). Fixed
+	 *  arguments and absolute system paths only: a planted `shutdown` next to
+	 *  the app or on PATH is never run.
+	 */
+	systemShutdown: () => typedError<null, string>(__TAURI_INVOKE("system_shutdown")),
+	/**
+	 *  Newer Kinodisc release, if any (one HTTPS request to GitHub, no data
+	 *  sent; the app calls it at most once a day and it can be turned off).
+	 */
+	updateCheck: () => typedError<UpdateInfo | null, string>(__TAURI_INVOKE("update_check")),
+	/**
+	 *  Opens an official release page in the browser. Any other URL is refused,
+	 *  so the update notice can never become a way to open arbitrary links.
+	 */
+	openReleasePage: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_release_page", { url })),
 	menuSaveBackground: (projectId: string, menuId: string, dataUrl: string) => typedError<string, string>(__TAURI_INVOKE("menu_save_background", { projectId, menuId, dataUrl })),
 	/**
 	 *  Guarda la capa transparente con textos, sombras e iconos que se superpone
@@ -1748,6 +1771,11 @@ export type TransitionEasing = "linear" | "easeIn" | "easeOut" | "easeInOut";
 
 /**  Broadcast standard of the disc. */
 export type TvStandard = "ntsc" | "pal";
+
+export type UpdateInfo = {
+	version: string,
+	url: string,
+};
 
 export type VerifyCheck = VerifyCheck_Serialize | VerifyCheck_Deserialize;
 

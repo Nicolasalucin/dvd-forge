@@ -3,6 +3,7 @@
   import { projectStore } from "../stores/project.svelte";
   import Icon from "../ui/Icon.svelte";
   import { ui } from "../ui/state.svelte";
+  import { openUpdate } from "../ui/updates";
   import { formatBytes, formatDuration } from "../utils/format";
 
   const project = $derived(projectStore.project);
@@ -50,6 +51,17 @@
     </span>
   {:else}
     <span class="flex-1">{t("Sin proyecto abierto")}</span>
+  {/if}
+  {#if ui.update}
+    <button
+      type="button"
+      class="flex shrink-0 items-center gap-1 text-cyan-300 hover:underline"
+      onclick={() => void openUpdate()}
+      title={t("Abre la página de la versión nueva en el navegador")}
+    >
+      <Icon name="import" size={14} />
+      {t("Kinodisc {version} disponible", { version: ui.update.version })}
+    </button>
   {/if}
   <button
     type="button"

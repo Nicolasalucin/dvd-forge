@@ -1562,6 +1562,43 @@ class ProjectStore {
     this.touch();
   }
 
+  /**
+   * Chapters at scene changes (FFmpeg scene score). The minimum gap follows
+   * the length (5–30 s) and the count the disc limit (99 DVD, 999 Blu-ray).
+   * Returns the number of chapters, or null when detection failed.
+   */
+  async sceneChapters(episodeId: string, sensitivity = 0.5): Promise<number | null> {
+    const project = this.project;
+    const episode = project?.episodes.find((item) => item.id === episodeId);
+    const asset = episode ? this.assetFor(episode.video) : null;
+    const path = asset ? this.assetPath(asset) : null;
+    if (!project || !episode || !path) return null;
+    const duration = this.episodeEffectiveDuration(episode);
+    const minGap = Math.round(Math.min(30_000, Math.max(5_000, duration / 8)));
+    const result = await commands.mediaDetectScenes(
+      path,
+      sensitivity,
+      minGap,
+      Math.round(episode.trimStartMs ?? 0),
+      episode.trimEndMs === null ? null : Math.round(episode.trimEndMs),
+      project.disc.mode === "dvdVideo" ? 99 : 999,
+    );
+    if (result.status === "error") {
+      this.error = t("No se pudieron detectar las escenas: {error}", { error: result.error });
+      return null;
+    }
+    if (this.project !== project) return null;
+    episode.chapters = result.data.map((offset, index) => ({
+      id: crypto.randomUUID(),
+      title: index === 0 ? t("Inicio") : t("Capítulo {number}", { number: index + 1 }),
+      atFrame: Math.round((offset / 1000) * this.frameRate),
+      thumbnail: null,
+    }));
+    this.clampChapterActions(episodeId, episode);
+    this.touch();
+    return episode.chapters.length;
+  }
+
   /** Imports FFprobe chapters into the active trim range. */
   importMediaChapters(episodeId: string): number {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);

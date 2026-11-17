@@ -18,6 +18,8 @@
   import { handleShortcut, refreshAppMenu } from "./lib/ui/appMenu";
   import Icon from "./lib/ui/Icon.svelte";
   import { applyTheme, ui } from "./lib/ui/state.svelte";
+  import { cancelShutdown } from "./lib/ui/finish";
+  import { checkForUpdates } from "./lib/ui/updates";
 
   // Screens and dialogs that are not visible at startup load on first use.
   const screens = {
@@ -61,6 +63,8 @@
 
   onMount(() => {
     applyTheme(ui.theme);
+    // Walkthrough/test builds never call the network.
+    if (import.meta.env.VITE_WALKTHROUGH !== "1") void checkForUpdates();
     projectStore.startAutosave();
     void projectStore.refreshToolsDoctor();
     void (async () => {
@@ -210,6 +214,26 @@
   {#if projectStore.guideOpen}
     <Lazy loader={screens.guide} props={{ onClose: () => (projectStore.guideOpen = false), onNewProject: () => (ui.newProject = true) }} />
   {/if}
+  {#if ui.shutdownCountdown !== null}
+    <!-- Above every other dialog (production, queue) that may still be open. -->
+    <div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div class="ui-backdrop"></div>
+      <div class="ui-dialog w-full max-w-[400px]" role="alertdialog" aria-modal="true" aria-labelledby="shutdown-title">
+        <div class="ui-dialog-header">
+          <h2 id="shutdown-title" class="ui-title">{t("La computadora se apagará")}</h2>
+        </div>
+        <div class="px-4 py-3">
+          <p class="text-[13px] text-slate-300">
+            {t("El trabajo terminó. Se apagará en {seconds} s.", { seconds: ui.shutdownCountdown })}
+          </p>
+        </div>
+        <div class="ui-dialog-footer">
+          <button type="button" class="ui-btn ui-btn-primary" onclick={cancelShutdown}>{t("Cancelar el apagado")}</button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   {#if ui.about}
     <Lazy loader={screens.about} props={{ onclose: () => (ui.about = false) }} />
   {/if}
