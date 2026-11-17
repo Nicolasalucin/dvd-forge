@@ -105,7 +105,7 @@ jobs:
           static inline uint16_t htons(uint16_t v) { return __builtin_bswap16(v); }
           static inline uint16_t ntohs(uint16_t v) { return __builtin_bswap16(v); }
           EOF
-          WINFLAGS="CPPFLAGS=-I$PWD/../winshim -include io.h -Dfsync=_commit
+          WINFLAGS="CPPFLAGS=-I$PWD/../winshim -include io.h -Dfsync=_commit"
           make -C src -j4 "$WINFLAGS" || make -C src "$WINFLAGS"
           make -C src install "$WINFLAGS"
 
