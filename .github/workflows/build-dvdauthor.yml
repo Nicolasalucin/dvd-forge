@@ -118,7 +118,12 @@ jobs:
           # debugging tools that use POSIX select()).
           make -C src -j4 "$WINFLAGS" dvdauthor.exe spumux.exe || make -C src "$WINFLAGS" dvdauthor.exe spumux.exe
           mkdir -p ../stage/bin
-          cp src/dvdauthor.exe src/spumux.exe ../stage/bin/
+          # libtool leaves small wrapper .exe files in src/; the real
+          # programs are in src/.libs/ when it links against shared libraries.
+          for exe in dvdauthor spumux; do
+            if [ -f "src/.libs/$exe.exe" ]; then cp "src/.libs/$exe.exe" ../stage/bin/; else cp "src/$exe.exe" ../stage/bin/; fi
+          done
+          ls -la src/.libs 2>/dev/null | head; ls -la ../stage/bin
 
       - name: Collect executables and DLLs
         run: |
@@ -136,7 +141,7 @@ jobs:
             done
           done
           cp src/COPYING dist/COPYING.dvdauthor.txt 2>/dev/null || true
-          printf 'dvdauthor %s (commit %s) built by GitHub Actions run %s\nSource: https://github.com/ldo/dvdauthor\nLicense: GPL-2.0-or-later\n' \
+          printf 'dvdauthor %s (source sha256 %s) built by GitHub Actions run %s\nSource: https://github.com/ldo/dvdauthor\nLicense: GPL-2.0-or-later\n' \
             "$DVDAUTHOR_TAG" "$DVDAUTHOR_SHA256" "$GITHUB_RUN_ID" > dist/README.txt
           ls -la dist
 
