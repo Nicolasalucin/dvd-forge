@@ -340,8 +340,12 @@ fn parse_cells(bytes: &[u8], iso_sectors: u64) -> Result<Vec<Cell>, String> {
         return Err("Cabecera VTS inválida.".to_string());
     }
     let vob_start = u64::from(be32(bytes, 0xC4).ok_or("VTS_VOB start fuera de rango")?);
-    let pgci = be32(bytes, 0xCC).ok_or("VTS_PGCI fuera de rango")? as usize * 2048;
-    if pgci + 8 > bytes.len() {
+    // Checked math: IFO fields are untrusted and usize is 32-bit on i686.
+    let pgci = usize::try_from(be32(bytes, 0xCC).ok_or("VTS_PGCI fuera de rango")?)
+        .ok()
+        .and_then(|sector| sector.checked_mul(2048))
+        .ok_or("VTS_PGCI fuera de rango")?;
+    if pgci.saturating_add(8) > bytes.len() {
         return Err("VTS_PGCI fuera del IFO.".to_string());
     }
     let pgc_count = be16(bytes, pgci).ok_or("número de PGC")? as usize;
@@ -351,15 +355,20 @@ fn parse_cells(bytes: &[u8], iso_sectors: u64) -> Result<Vec<Cell>, String> {
         if entry + 8 > bytes.len() {
             break;
         }
-        let pgc = pgci + be32(bytes, entry + 4).ok_or("offset de PGC")? as usize;
-        if pgc + 0xEC > bytes.len() {
+        let Some(pgc) = usize::try_from(be32(bytes, entry + 4).ok_or("offset de PGC")?)
+            .ok()
+            .and_then(|offset| pgci.checked_add(offset))
+        else {
+            continue;
+        };
+        if pgc.saturating_add(0xEC) > bytes.len() {
             continue;
         }
         let cell_count = bytes[pgc + 3] as usize;
         let table = pgc + be16(bytes, pgc + 0xE8).ok_or("offset de celdas")? as usize;
         for cell_index in 0..cell_count {
             let cell = table + cell_index * 0x18;
-            if cell + 0x18 > bytes.len() {
+            if cell.saturating_add(0x18) > bytes.len() {
                 return Err("tabla de celdas truncada.".to_string());
             }
             let category = bytes[cell];
