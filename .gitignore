@@ -20,3 +20,6 @@ apps/desktop/node_modules/
 apps/desktop/dist/
 apps/desktop/.svelte-kit/
 apps/desktop/src-tauri/gen/
+
+# Walkthrough screenshots can contain local paths; keep them local.
+docs/walkthroughs/img/
