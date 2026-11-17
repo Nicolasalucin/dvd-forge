@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.0.1 — 2026-11-17
+
+Fixes found by a full walkthrough of 1.0.0. Upgrading is recommended.
+
+### Fixes
+
+- **New projects can be produced again.** A project created in the app
+  failed with "Could not load «background.png»" because its empty starting
+  background was read as an image; the menu is now composed on its
+  background colour (and the empty background is never packaged).
+- **Interlaced videos** (camcorders, TV recordings) failed to encode with
+  FFmpeg 9, the version Kinodisc downloads: the removed `-top` option is
+  replaced by the `setfield` filter on DVD, AVCHD/Blu-ray and HD menus.
+- Templates no longer write their own name ("Retro CRT") as the menu title:
+  they use the project name, or the title you typed.
+- Vertical phone videos keep their side bars in the trimmer, the episode
+  strip and thumbnails, as they appear on the disc.
+- A recent project whose file was moved or deleted is marked "Not found"
+  with a remove button, instead of a raw system error shown twice.
+- Translated errors no longer append the Spanish original.
+- The episode thumbnail panel no longer shows an internal file name.
+
+### Performance
+
+- DVD encoding is about **5x faster** for the same quality: the first of
+  the two passes only gathers statistics now (it trial-encoded every frame
+  several times). A 1:50 project with four videos: 365 s → 66 s.
+- Cheap quality options for MPEG-2 (intra VLC table, more motion
+  predictors): about +0.35 dB on long discs. Previously encoded episodes are
+  re-encoded once.
+
 ## 1.0.0 — 2026-11-17
 
 DVD Forge is now **Kinodisc**: a redesigned, professional interface, many
