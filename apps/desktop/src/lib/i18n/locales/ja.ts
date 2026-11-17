@@ -1197,6 +1197,18 @@ export const ja: Dictionary = {
   "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "例：1回の撮影の分割ファイルや、同じ日のスマホ動画。",
   "Uniendo…": "結合中…",
   "Unir y añadir": "結合して追加",
+  "Excelente: la compresión no se nota": "非常に良い：圧縮は目立ちません",
+  "Muy buena: solo se nota mirando muy de cerca": "とても良い：ごく近くで見たときだけ分かります",
+  "Buena: puede notarse en escenas con mucho movimiento": "良い：動きの多い場面で分かることがあります",
+  "Se notará la compresión: usa un disco más grande o reparte en varios discos": "圧縮が目立ちます：大きいディスクを使うか複数枚に分けてください",
+  "Primero se tiene que calcular el plan del disco.": "先にディスクの計画を計算する必要があります。",
+  "Probar calidad": "画質をテスト",
+  "10 segundos codificados exactamente como en el disco, a {kbps} kbps.": "ディスクと同じ設定で10秒間を{kbps} kbpsでエンコードしました。",
+  "Codificando la muestra…": "サンプルをエンコード中…",
+  "Tarda unos segundos: usa el mismo codificador que el disco.": "数秒かかります（ディスクと同じエンコーダーを使用）。",
+  "Original": "元の映像",
+  "Comparar": "比較",
+  "Codifica 10 segundos como en el disco y los compara con el original": "ディスクと同じく10秒間をエンコードして元の映像と比べます",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

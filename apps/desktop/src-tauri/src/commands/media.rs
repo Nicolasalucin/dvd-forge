@@ -828,6 +828,39 @@ pub async fn join_create(
     kinodisc_render::join::build_join(&request, &cache).await
 }
 
+/// Encodes 10 s of an episode exactly as the disc will (bitrate from the
+/// plan) and measures it against the source. Only the latest sample is kept.
+#[tauri::command]
+#[specta::specta]
+pub async fn render_quality_sample(
+    project: kinodisc_domain::Project,
+    episode_id: String,
+    at_ms: u32,
+    video_kbps: u32,
+) -> Result<kinodisc_render::sample::QualitySample, String> {
+    let episode_id = episode_id
+        .parse::<kinodisc_domain::EpisodeId>()
+        .map_err(|_| "Episodio inválido.".to_string())?;
+    let project_dir = crate::context::project_dir().unwrap_or_else(|| PathBuf::from("."));
+    let root = cache_dir("quality-samples");
+    create_private_dir(&root).map_err(|error| error.to_string())?;
+    if let Ok(entries) = std::fs::read_dir(&root) {
+        for entry in entries.flatten() {
+            let _ = std::fs::remove_dir_all(entry.path());
+        }
+    }
+    let out_dir = root.join(uuid::Uuid::new_v4().simple().to_string());
+    kinodisc_render::sample::quality_sample(
+        &project,
+        &project_dir,
+        episode_id,
+        u64::from(at_ms),
+        video_kbps,
+        &out_dir,
+    )
+    .await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_extract_frame(

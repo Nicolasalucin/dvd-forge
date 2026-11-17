@@ -4,6 +4,7 @@
   import { t } from "../i18n/index.svelte";
   import { defaultVideoFilters, filtersAreNeutral, projectStore } from "../stores/project.svelte";
   import Icon from "../ui/Icon.svelte";
+  import QualityCompare from "./QualityCompare.svelte";
 
   interface Props {
     episode: Episode_Serialize;
@@ -33,6 +34,7 @@
   });
 
   let preview = $state<string | null>(null);
+  let comparing = $state(false);
   let previewBusy = $state(false);
   let detecting = $state(false);
   let error = $state<string | null>(null);
@@ -109,12 +111,29 @@
 <section class="rounded-xl border border-slate-800 p-2.5" aria-labelledby="picture-title">
   <div class="mb-2 flex items-center justify-between">
     <h3 id="picture-title" class="ui-section-title">{t("Imagen")}</h3>
-    {#if !neutral}
-      <button type="button" class="ui-btn ui-btn-sm ui-btn-ghost" onclick={() => set(defaultVideoFilters())}>
-        {t("Restablecer")}
+    <div class="flex items-center gap-1">
+      {#if !neutral}
+        <button type="button" class="ui-btn ui-btn-sm ui-btn-ghost" onclick={() => set(defaultVideoFilters())}>
+          {t("Restablecer")}
+        </button>
+      {/if}
+      <button
+        type="button"
+        class="ui-btn ui-btn-sm"
+        onclick={() => (comparing = true)}
+        title={t("Codifica 10 segundos como en el disco y los compara con el original")}
+      >
+        <Icon name="gauge" size={14} />{t("Probar calidad")}
       </button>
-    {/if}
+    </div>
   </div>
+  {#if comparing}
+    <QualityCompare
+      {episode}
+      atMs={Math.max(0, Math.round(timeMs - (episode.trimStartMs ?? 0)))}
+      onclose={() => (comparing = false)}
+    />
+  {/if}
 
   <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <div>
@@ -123,7 +142,7 @@
           <img src={preview} alt={t("Vista previa con los ajustes")} class="h-full w-full object-contain" />
         {/if}
         {#if previewBusy}
-          <span class="absolute right-1.5 top-1.5 rounded bg-slate-950/80 px-1.5 py-0.5 text-[11px] text-[#fff]">{t("Actualizando…")}</span>
+          <span class="absolute right-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-[#fff]">{t("Actualizando…")}</span>
         {/if}
       </div>
       <p class="ui-hint mt-1">{t("Así se verá en el disco, en el fotograma del cabezal.")}</p>

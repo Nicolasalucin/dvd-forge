@@ -544,7 +544,7 @@
       <button
         type="button"
         onclick={goBack}
-        class="absolute left-2 top-2 rounded-md bg-slate-950/80 px-2 py-1 text-[12px] font-medium text-[#fff] hover:bg-slate-950"
+        class="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-1 text-[12px] font-medium text-[#fff] hover:bg-black"
       >
         {t("← Menú")}
       </button>

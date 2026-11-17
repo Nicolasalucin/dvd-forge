@@ -3,6 +3,7 @@
 pub mod compose;
 pub mod join;
 pub mod picture;
+pub mod sample;
 pub mod slideshow;
 pub mod split;
 

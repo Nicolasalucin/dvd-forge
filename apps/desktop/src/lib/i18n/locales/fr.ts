@@ -1198,6 +1198,18 @@ export const fr: Dictionary = {
   "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "Par exemple, les parties d'un enregistrement ou les vidéos du téléphone d'une même journée.",
   "Uniendo…": "Jonction…",
   "Unir y añadir": "Joindre et ajouter",
+  "Excelente: la compresión no se nota": "Excellente : la compression ne se voit pas",
+  "Muy buena: solo se nota mirando muy de cerca": "Très bonne : visible seulement de très près",
+  "Buena: puede notarse en escenas con mucho movimiento": "Bonne : peut se voir dans les scènes très animées",
+  "Se notará la compresión: usa un disco más grande o reparte en varios discos": "La compression se verra : utilisez un disque plus grand ou plusieurs disques",
+  "Primero se tiene que calcular el plan del disco.": "Le plan du disque doit d'abord être calculé.",
+  "Probar calidad": "Tester la qualité",
+  "10 segundos codificados exactamente como en el disco, a {kbps} kbps.": "10 secondes encodées exactement comme sur le disque, à {kbps} kbps.",
+  "Codificando la muestra…": "Encodage de l'échantillon…",
+  "Tarda unos segundos: usa el mismo codificador que el disco.": "Cela prend quelques secondes : même encodeur que le disque.",
+  "Original": "Original",
+  "Comparar": "Comparer",
+  "Codifica 10 segundos como en el disco y los compara con el original": "Encode 10 secondes comme sur le disque et les compare à l'original",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

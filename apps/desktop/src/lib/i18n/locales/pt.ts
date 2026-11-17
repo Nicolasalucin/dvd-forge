@@ -1131,6 +1131,18 @@ export const pt: Dictionary = {
   "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "Por exemplo, as partes de uma filmagem ou os vídeos do celular de um mesmo dia.",
   "Uniendo…": "Unindo…",
   "Unir y añadir": "Unir e adicionar",
+  "Excelente: la compresión no se nota": "Excelente: a compressão não aparece",
+  "Muy buena: solo se nota mirando muy de cerca": "Muito boa: só aparece olhando muito de perto",
+  "Buena: puede notarse en escenas con mucho movimiento": "Boa: pode aparecer em cenas com muito movimento",
+  "Se notará la compresión: usa un disco más grande o reparte en varios discos": "A compressão vai aparecer: use um disco maior ou divida em vários discos",
+  "Primero se tiene que calcular el plan del disco.": "Primeiro é preciso calcular o plano do disco.",
+  "Probar calidad": "Testar qualidade",
+  "10 segundos codificados exactamente como en el disco, a {kbps} kbps.": "10 segundos codificados exatamente como no disco, a {kbps} kbps.",
+  "Codificando la muestra…": "Codificando a amostra…",
+  "Tarda unos segundos: usa el mismo codificador que el disco.": "Leva alguns segundos: usa o mesmo codificador do disco.",
+  "Original": "Original",
+  "Comparar": "Comparar",
+  "Codifica 10 segundos como en el disco y los compara con el original": "Codifica 10 segundos como no disco e compara com o original",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

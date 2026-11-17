@@ -641,7 +641,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
 
 pub const AVCHD_DEFAULT_AUDIO_KBPS: u16 = 192;
 
-fn build_filter(request: &AvchdEncodeRequest, spec: ResolutionSpec) -> String {
+pub fn build_filter(request: &AvchdEncodeRequest, spec: ResolutionSpec) -> String {
     let interlaced = if spec.interlaced { ":interl=1" } else { "" };
     let sar = sar_for(request.config.resolution, request.aspect);
     let fps = format!(

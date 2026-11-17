@@ -61,6 +61,11 @@ export const commands = {
 	 */
 	joinCreate: (request: JoinRequest) => typedError<JoinOutcome, string>(__TAURI_INVOKE("join_create", { request })),
 	/**
+	 *  Encodes 10 s of an episode exactly as the disc will (bitrate from the
+	 *  plan) and measures it against the source. Only the latest sample is kept.
+	 */
+	renderQualitySample: (project: Project_Deserialize, episodeId: string, atMs: number, videoKbps: number) => typedError<QualitySample, string>(__TAURI_INVOKE("render_quality_sample", { project, episodeId, atMs, videoKbps })),
+	/**
 	 *  Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 	 *  escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
 	 *  What is on a DVD/Blu-ray image or folder (read-only).
@@ -1452,6 +1457,18 @@ export type ProxyInfo = {
 	path: string,
 	width: number,
 	height: number,
+};
+
+export type QualitySample = {
+	/**  Average luma+chroma PSNR of the sample against the source. */
+	psnrDb: number | null,
+	videoKbps: number,
+	startMs: number | null,
+	seconds: number | null,
+	/**  PNG of the source frame (scaled like the disc). */
+	originalPng: string,
+	/**  PNG of the same frame after disc compression. */
+	discPng: string,
 };
 
 export type RecentProject = RecentProject_Serialize | RecentProject_Deserialize;
