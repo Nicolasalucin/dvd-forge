@@ -6,6 +6,35 @@
   import CanvasStage from "../editor/CanvasStage.svelte";
   import TemplateGallery from "./TemplateGallery.svelte";
   import Icon from "../ui/Icon.svelte";
+  import type { IconName } from "../ui/icons";
+
+  // Right-click menu on a canvas button.
+  let context = $state<{ x: number; y: number } | null>(null);
+  $effect(() => {
+    if (!context) return;
+    const close = () => (context = null);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("blur", close);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("blur", close);
+    };
+  });
+  type ContextEntry = { label: string; icon: IconName; run: () => unknown; hint?: string } | "separator";
+  const contextEntries: ContextEntry[] = [
+    { label: "Duplicar", icon: "duplicate", run: () => projectStore.duplicateSelectedButton(), hint: "Ctrl+D" },
+    { label: "Eliminar", icon: "trash", run: () => projectStore.deleteSelectedButton(), hint: "Supr" },
+    "separator",
+    { label: "Centrar horizontalmente", icon: "menu", run: () => projectStore.arrangeButtons("centerH") },
+    { label: "Centrar verticalmente", icon: "menu", run: () => projectStore.arrangeButtons("centerV") },
+    { label: "Traer al frente", icon: "layers", run: () => projectStore.restackSelectedButton("front") },
+    { label: "Enviar atrás", icon: "layers", run: () => projectStore.restackSelectedButton("back") },
+    "separator",
+    { label: "Alinear todos arriba", icon: "tracks", run: () => projectStore.arrangeButtons("alignTop") },
+    { label: "Alinear todos al centro", icon: "tracks", run: () => projectStore.arrangeButtons("alignMiddle") },
+    { label: "Distribuir en horizontal", icon: "tracks", run: () => projectStore.arrangeButtons("distributeH") },
+    { label: "Distribuir en vertical", icon: "tracks", run: () => projectStore.arrangeButtons("distributeV") },
+  ];
 
   // Templates open in a drop-down so the canvas keeps the space.
   let templatesOpen = $state((projectStore.activeMenu?.buttons.length ?? 0) === 0);
@@ -301,6 +330,12 @@
           projectStore.selectedButtonId = id;
           projectStore.selectedItemId = null;
         }}
+        onContextMenu={(_, x, y) => {
+          context = {
+            x: Math.min(x, window.innerWidth - 270),
+            y: Math.min(y, window.innerHeight - 380),
+          };
+        }}
         selectedItemId={projectStore.selectedItemId}
         onSelectItem={(id) => projectStore.selectItem(id)}
         onMoveItem={(id, rect) => projectStore.updateItem(id, { rect })}
@@ -336,7 +371,43 @@
   {/if}
 </section>
 
+{#if context}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="context-menu fixed z-50 w-64 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl"
+    style={`left:${context.x}px; top:${context.y}px`}
+    role="menu"
+    tabindex="-1"
+    onpointerdown={(event) => event.stopPropagation()}
+    oncontextmenu={(event) => event.preventDefault()}
+  >
+    {#each contextEntries as entry}
+      {#if entry === "separator"}
+        <div class="my-1 border-t border-slate-800"></div>
+      {:else}
+        <button
+          type="button"
+          role="menuitem"
+          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-slate-200 hover:bg-slate-800"
+          onclick={() => {
+            context = null;
+            void entry.run();
+          }}
+        >
+          <Icon name={entry.icon} size={14} class="text-slate-400" />
+          <span class="flex-1">{t(entry.label)}</span>
+          {#if entry.hint}<span class="text-[11px] text-slate-500">{t(entry.hint)}</span>{/if}
+        </button>
+      {/if}
+    {/each}
+  </div>
+{/if}
+
 <style>
+  .context-menu {
+    transform-origin: top left;
+    animation: templates-in 120ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
   .templates-pop {
     transform-origin: top left;
     animation: templates-in 160ms cubic-bezier(0.23, 1, 0.32, 1);

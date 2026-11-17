@@ -1108,6 +1108,18 @@ export const ja: Dictionary = {
   "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "うまくいかない場合は、ステータスバーの「ツール」が不足しているもの (FFmpeg など) を示し、インストールします。",
   "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Kinodisc が動画の変換とディスク作成に使うプログラムです。オプションのものは不要です。",
   "opcional, no instalada": "オプション・未インストール",
+  "Alinear todos al centro": "すべて中央揃え",
+  "Alinear todos arriba": "すべて上揃え",
+  "Centrar horizontalmente": "左右中央に配置",
+  "Centrar verticalmente": "上下中央に配置",
+  "Ctrl+D": "Ctrl+D",
+  "Distribuir en horizontal": "左右に均等配置",
+  "Distribuir en vertical": "上下に均等配置",
+  "Duplicar": "複製",
+  "Enviar atrás": "最背面へ",
+  "No se puede: los botones quedarían pegados o fuera del menú. Sepáralos un poco antes.": "できません。ボタンが重なるかメニューの外に出ます。先に少し離してください。",
+  "Supr": "Del",
+  "Traer al frente": "最前面へ",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

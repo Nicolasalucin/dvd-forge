@@ -25,6 +25,7 @@
       rect: { x: number; y: number; w: number; h: number },
     ) => boolean;
     onActivate?: (id: string) => void;
+    onContextMenu?: (id: string, x: number, y: number) => void;
     selectedItemId?: string | null;
     onSelectItem?: (id: string) => void;
     onMoveItem?: (id: string, rect: { x: number; y: number; w: number; h: number }) => void;
@@ -45,6 +46,7 @@
     onSelect,
     onChange,
     onActivate,
+    onContextMenu,
     selectedItemId = null,
     onSelectItem,
     onMoveItem,
@@ -155,6 +157,7 @@
         onSelect,
         onChange,
         onActivate,
+        onContextMenu,
       },
     });
   });

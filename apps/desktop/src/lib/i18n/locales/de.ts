@@ -1108,6 +1108,18 @@ export const de: Dictionary = {
   "Si algo falla, «Herramientas» en la barra de estado te dice qué falta (por ejemplo, FFmpeg) y lo instala.": "Wenn etwas fehlschlägt, zeigt „Werkzeuge“ in der Statusleiste, was fehlt (z. B. FFmpeg), und installiert es.",
   "Programas que Kinodisc usa para convertir los vídeos y crear el disco. Los opcionales no hacen falta.": "Programme, die Kinodisc zum Umwandeln der Videos und Erstellen der Disc nutzt. Optionale werden nicht benötigt.",
   "opcional, no instalada": "optional, nicht installiert",
+  "Alinear todos al centro": "Alle mittig ausrichten",
+  "Alinear todos arriba": "Alle oben ausrichten",
+  "Centrar horizontalmente": "Horizontal zentrieren",
+  "Centrar verticalmente": "Vertikal zentrieren",
+  "Ctrl+D": "Strg+D",
+  "Distribuir en horizontal": "Horizontal verteilen",
+  "Distribuir en vertical": "Vertikal verteilen",
+  "Duplicar": "Duplizieren",
+  "Enviar atrás": "In den Hintergrund",
+  "No se puede: los botones quedarían pegados o fuera del menú. Sepáralos un poco antes.": "Nicht möglich: Die Schaltflächen würden sich berühren oder das Menü verlassen. Erst etwas auseinanderziehen.",
+  "Supr": "Entf",
+  "Traer al frente": "In den Vordergrund",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {

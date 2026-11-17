@@ -14,6 +14,8 @@ export interface ButtonCallbacks {
     rect: { x: number; y: number; w: number; h: number },
   ) => boolean;
   onActivate?: (id: string) => void;
+  /** Right-click on a button (client coordinates for the menu). */
+  onContextMenu?: (id: string, x: number, y: number) => void;
 }
 
 export interface ButtonSyncOptions {
@@ -116,6 +118,8 @@ export class ButtonsLayer {
   private readonly transformer: Konva.Transformer;
   private readonly groups = new Map<string, Konva.Group>();
   private deferred: { menu: Menu_Serialize; options: ButtonSyncOptions } | null = null;
+  /** Smart-guide lines shown while dragging. */
+  private readonly guides = new Konva.Group({ listening: false });
 
   constructor() {
     this.layer = new Konva.Layer();
@@ -131,6 +135,23 @@ export class ButtonsLayer {
         newBox.width < 8 || newBox.height < 8 ? oldBox : newBox,
     });
     this.layer.add(this.transformer);
+    this.layer.add(this.guides);
+  }
+
+  private showGuides(lines: Guide[], width: number, height: number): void {
+    this.guides.destroyChildren();
+    for (const line of lines) {
+      this.guides.add(
+        new Konva.Line({
+          points: line.axis === "x" ? [line.at, 0, line.at, height] : [0, line.at, width, line.at],
+          stroke: "#ff4fd8",
+          strokeWidth: 1,
+          strokeScaleEnabled: false,
+          dash: [6, 4],
+        }),
+      );
+    }
+    this.guides.moveToTop();
   }
 
   sync(menu: Menu_Serialize, options: ButtonSyncOptions): void {
@@ -148,7 +169,7 @@ export class ButtonsLayer {
     this.transformer.nodes([]);
     this.transformer.visible(options.editable !== false);
     for (const child of this.layer.getChildren().slice()) {
-      if (child !== this.transformer) child.destroy();
+      if (child !== this.transformer && child !== this.guides) child.destroy();
     }
     this.groups.clear();
 
@@ -277,11 +298,23 @@ export class ButtonsLayer {
           options.callbacks.onSelect?.(button.id);
         });
         group.on("dragmove", () => {
-          const x = snap(group.x(), menu.canvas.width, width);
-          const y = snap(group.y(), menu.canvas.height, height);
+          const others = menu.buttons
+            .filter((item) => item.id !== button.id)
+            .map((item) => normalizeRect(item.rect, menu.canvas.width, menu.canvas.height));
+          const smart = smartSnap(group.x(), group.y(), width, height, others, menu.canvas.width, menu.canvas.height);
+          const x = snap(smart.x, menu.canvas.width, width);
+          const y = snap(smart.y, menu.canvas.height, height);
           group.position({ x, y });
+          this.showGuides(smart.guides, menu.canvas.width, menu.canvas.height);
+        });
+        group.on("contextmenu", (event) => {
+          event.evt.preventDefault();
+          event.cancelBubble = true;
+          options.callbacks.onSelect?.(button.id);
+          options.callbacks.onContextMenu?.(button.id, event.evt.clientX, event.evt.clientY);
         });
         group.on("dragend", () => {
+          this.guides.destroyChildren();
           const x = snap(group.x(), menu.canvas.width, width);
           const y = snap(group.y(), menu.canvas.height, height);
           group.position({ x, y });
@@ -630,4 +663,49 @@ function paletteColor(palette: SubpicturePalette, index: 0 | 1 | 2 | 3): string 
 function snap(value: number, limit: number, size: number): number {
   const max = Math.max(0, limit - size);
   return Math.min(max, Math.max(0, Math.round(value / 2) * 2));
+}
+
+interface Guide {
+  axis: "x" | "y";
+  at: number;
+}
+
+const SNAP_DISTANCE = 6;
+
+/**
+ * Snaps a dragged button's edges and centre to the other buttons' edges and
+ * centres and to the canvas centre, returning the guide lines to draw.
+ */
+function smartSnap(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  others: Array<{ x0: number; y0: number; x1: number; y1: number }>,
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number; guides: Guide[] } {
+  const xs = [canvasWidth / 2, ...others.flatMap((rect) => [rect.x0, (rect.x0 + rect.x1) / 2, rect.x1])];
+  const ys = [canvasHeight / 2, ...others.flatMap((rect) => [rect.y0, (rect.y0 + rect.y1) / 2, rect.y1])];
+  const best = (
+    edges: number[],
+    targets: number[],
+  ): { delta: number; at: number } | null => {
+    let found: { delta: number; at: number } | null = null;
+    for (const edge of edges) {
+      for (const target of targets) {
+        const delta = target - edge;
+        if (Math.abs(delta) <= SNAP_DISTANCE && (!found || Math.abs(delta) < Math.abs(found.delta))) {
+          found = { delta, at: target };
+        }
+      }
+    }
+    return found;
+  };
+  const guides: Guide[] = [];
+  const snapX = best([x, x + width / 2, x + width], xs);
+  const snapY = best([y, y + height / 2, y + height], ys);
+  if (snapX) guides.push({ axis: "x", at: snapX.at });
+  if (snapY) guides.push({ axis: "y", at: snapY.at });
+  return { x: x + (snapX?.delta ?? 0), y: y + (snapY?.delta ?? 0), guides };
 }

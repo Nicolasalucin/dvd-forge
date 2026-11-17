@@ -1894,6 +1894,85 @@ class ProjectStore {
     return true;
   }
 
+  /**
+   * Layout tools: centre the selected button, or align / distribute every
+   * button of the menu. Rejected (with a message) when buttons would touch,
+   * because DVD/HDMV highlights need 4 px between buttons.
+   */
+  arrangeButtons(
+    mode: "centerH" | "centerV" | "alignTop" | "alignMiddle" | "distributeH" | "distributeV",
+  ): boolean {
+    const menu = this.activeMenu;
+    if (!menu) return false;
+    const rects = new Map(
+      menu.buttons.map((button) => [
+        button.id,
+        { x: button.rect.x ?? 0, y: button.rect.y ?? 0, w: button.rect.w ?? 0, h: button.rect.h ?? 0 },
+      ]),
+    );
+    const even = (value: number) => Math.max(0, Math.round(value / 2) * 2);
+    const selected = this.selectedButtonId ? rects.get(this.selectedButtonId) : undefined;
+    if (mode === "centerH" || mode === "centerV") {
+      if (!selected) return false;
+      if (mode === "centerH") selected.x = even((menu.canvas.width - selected.w) / 2);
+      else selected.y = even((menu.canvas.height - selected.h) / 2);
+    } else {
+      const list = [...rects.values()];
+      if (list.length < 2) return false;
+      if (mode === "alignTop") {
+        const top = Math.min(...list.map((rect) => rect.y));
+        for (const rect of list) rect.y = even(top);
+      } else if (mode === "alignMiddle") {
+        const middle = list.reduce((sum, rect) => sum + rect.y + rect.h / 2, 0) / list.length;
+        for (const rect of list) rect.y = even(middle - rect.h / 2);
+      } else {
+        const horizontal = mode === "distributeH";
+        const sorted = [...list].sort((a, b) => (horizontal ? a.x - b.x : a.y - b.y));
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const span = horizontal ? last.x + last.w - first.x : last.y + last.h - first.y;
+        const used = sorted.reduce((sum, rect) => sum + (horizontal ? rect.w : rect.h), 0);
+        const gap = (span - used) / (sorted.length - 1);
+        let cursor = horizontal ? first.x : first.y;
+        for (const rect of sorted) {
+          if (horizontal) rect.x = even(cursor);
+          else rect.y = even(cursor);
+          cursor += (horizontal ? rect.w : rect.h) + gap;
+        }
+      }
+    }
+    // Validate: inside the canvas and 4 px apart.
+    const all = [...rects.values()];
+    const inside = all.every(
+      (rect) => rect.x + rect.w <= menu.canvas.width && rect.y + rect.h <= menu.canvas.height,
+    );
+    const apart = all.every((a, index) =>
+      all.slice(index + 1).every(
+        (b) => a.x + a.w + 4 <= b.x || b.x + b.w + 4 <= a.x || a.y + a.h + 4 <= b.y || b.y + b.h + 4 <= a.y,
+      ),
+    );
+    if (!inside || !apart) {
+      this.error = t("No se puede: los botones quedarían pegados o fuera del menú. Sepáralos un poco antes.");
+      return false;
+    }
+    for (const button of menu.buttons) {
+      const rect = rects.get(button.id);
+      if (rect) button.rect = { ...button.rect, ...rect };
+    }
+    this.touch();
+    return true;
+  }
+
+  /** Moves the selected button in front of / behind the others. */
+  restackSelectedButton(direction: "front" | "back"): void {
+    const menu = this.activeMenu;
+    const button = menu?.buttons.find((item) => item.id === this.selectedButtonId);
+    if (!menu || !button) return;
+    const levels = menu.buttons.map((item) => item.z);
+    button.z = direction === "front" ? Math.max(...levels) + 1 : Math.min(...levels) - 1;
+    this.touch();
+  }
+
   /** Copies the selected button next to it (new id, same action). */
   duplicateSelectedButton(): boolean {
     const menu = this.activeMenu;
