@@ -671,7 +671,8 @@ fn print_help() {
     println!("  kinodisc-cli doctor [--json] [--verbose]");
     println!("  kinodisc-cli plan <project.json> [-o <plan.json>] [--probe]");
     println!("  kinodisc-cli probe <archivo|/dev/srX> [--json]");
-    println!("  kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--avchd-folder] [--no-probe]");
+    println!("  kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--folder] [--no-probe]");
+    println!("      --folder  también escribe <dir>/disc con VIDEO_TS o BDMV (idéntico al ISO)");
     println!("  kinodisc-cli verify <iso> [--deep] [--json] [--strict]");
     println!("  kinodisc-cli devices [--json]");
     println!(

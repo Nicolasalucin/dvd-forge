@@ -5,12 +5,28 @@ use std::io::Write;
 use std::process::ExitCode;
 
 pub fn run(args: &[String]) -> ExitCode {
+    if args.first().map(String::as_str) == Some("install")
+        && args.get(1).map(String::as_str) == Some("all")
+    {
+        let missing = kinodisc_toolchain::provision::needs_install();
+        if missing.is_empty() {
+            println!("Todas las herramientas descargables ya están instaladas.");
+            return ExitCode::SUCCESS;
+        }
+        for download in missing {
+            let code = run(&["install".to_string(), download.id.to_string()]);
+            if code != ExitCode::SUCCESS {
+                return code;
+            }
+        }
+        return ExitCode::SUCCESS;
+    }
     let (Some(action), Some(tool)) = (args.first(), args.get(1)) else {
-        eprintln!("Uso: kinodisc-cli toolchain install <ffmpeg|ffprobe>");
+        eprintln!("Uso: kinodisc-cli toolchain install <all|ffmpeg|dvdauthor>");
         return ExitCode::FAILURE;
     };
     if action != "install" {
-        eprintln!("Uso: kinodisc-cli toolchain install <ffmpeg|ffprobe>");
+        eprintln!("Uso: kinodisc-cli toolchain install <all|ffmpeg|dvdauthor>");
         return ExitCode::FAILURE;
     }
     let Some(download) = download_for(tool) else {

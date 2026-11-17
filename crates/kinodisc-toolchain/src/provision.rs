@@ -98,6 +98,23 @@ pub struct FileHash {
     pub sha256: String,
 }
 
+/// Pinned downloads for this computer whose programs cannot be found (or
+/// were refused by the integrity check, e.g. a pre-1.0 install without
+/// per-file hashes) and should be installed before rendering.
+pub fn needs_install() -> Vec<&'static ToolDownload> {
+    let platform = current_platform();
+    DOWNLOADS
+        .iter()
+        .filter(|download| download.platform == platform)
+        .filter(|download| {
+            download.files.iter().any(|file| {
+                let stem = file.trim_end_matches(".exe");
+                crate::find_binary(stem).is_none()
+            })
+        })
+        .collect()
+}
+
 /// True when every file recorded in `report` is still byte-identical.
 fn files_unchanged(directory: &Path, report: &ProvisionReport) -> bool {
     !report.file_hashes.is_empty()

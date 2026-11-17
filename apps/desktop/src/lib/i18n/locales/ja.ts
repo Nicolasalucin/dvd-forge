@@ -935,6 +935,11 @@ export const ja: Dictionary = {
   "Comprobando…": "確認中…",
   "Volver a comprobar": "再確認",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} は {path} にありますが、バージョンを読み取れませんでした。",
+  "Carpeta del disco": "ディスクフォルダー",
+  "Carpeta del disco lista: {files} archivos, {size}": "ディスクフォルダーの準備完了: {files} ファイル、{size}",
+  "Creando la carpeta del disco": "ディスクフォルダーを作成中",
+  "Generar carpeta": "フォルダーを作成",
+  "VIDEO_TS o BDMV para reproductores, USB o Kodi": "プレーヤー、USB、Kodi 用の VIDEO_TS または BDMV",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

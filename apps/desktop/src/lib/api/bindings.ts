@@ -64,6 +64,12 @@ export const commands = {
 	 *  abortar la tarea no deja procesos ni un escritor bloqueado en segundo plano.
 	 */
 	renderCancel: () => typedError<null, string>(__TAURI_INVOKE("render_cancel")),
+	/**
+	 *  Copies a finished disc image into `<output_dir>/<folder_name>` as a
+	 *  VIDEO_TS/BDMV folder (byte-identical to the disc) and, when
+	 *  `remove_iso` is set, deletes the image afterwards.
+	 */
+	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),
@@ -88,7 +94,7 @@ export const commands = {
 	 *  Downloads, verifies (size + SHA-256) and installs a tool into the
 	 *  per-user toolchain folder, which is searched before PATH.
 	 */
-	toolchainInstall: (tool: string) => typedError<ProvisionReport, string>(__TAURI_INVOKE("toolchain_install", { tool })),
+	toolchainInstall: (tool: string) => typedError<ProvisionReport_Serialize, string>(__TAURI_INVOKE("toolchain_install", { tool })),
 	/**  Verifies a generated ISO before it is presented to the user or burned. */
 	verifyIso: (path: string, deep: boolean) => typedError<VerifyReport_Serialize, string>(__TAURI_INVOKE("verify_iso", { path, deep })),
 };
@@ -619,6 +625,11 @@ export type Episode_Serialize = {
 	videoMode: VideoEncodeMode,
 };
 
+export type FileHash = {
+	file: string,
+	sha256: string,
+};
+
 export type FirstPlay = FirstPlay_Serialize | FirstPlay_Deserialize;
 
 export type FirstPlay_Deserialize = {
@@ -637,6 +648,12 @@ export type FirstPlay_Serialize = {
 	targetMenu: MenuId,
 	skippable: boolean,
 	encodeOverride: EncodeOverride_Serialize | null,
+};
+
+export type FolderExport = {
+	folder: string,
+	files: number,
+	bytes: number | null,
 };
 
 /**  Half-open frame range: `[start, end)`. */
@@ -1202,7 +1219,10 @@ export type Project_Serialize = {
 };
 
 /**  Result of an installation, also written next to the binaries. */
-export type ProvisionReport = {
+export type ProvisionReport = ProvisionReport_Serialize | ProvisionReport_Deserialize;
+
+/**  Result of an installation, also written next to the binaries. */
+export type ProvisionReport_Deserialize = {
 	tool: string,
 	version: string,
 	directory: string,
@@ -1212,6 +1232,23 @@ export type ProvisionReport = {
 	license: string,
 	/**  `false` when a verified copy was already installed (no download). */
 	downloaded: boolean,
+	/**  SHA-256 of every installed file, checked before a tool is launched. */
+	fileHashes?: FileHash[],
+};
+
+/**  Result of an installation, also written next to the binaries. */
+export type ProvisionReport_Serialize = {
+	tool: string,
+	version: string,
+	directory: string,
+	files: string[],
+	sha256: string,
+	url: string,
+	license: string,
+	/**  `false` when a verified copy was already installed (no download). */
+	downloaded: boolean,
+	/**  SHA-256 of every installed file, checked before a tool is launched. */
+	fileHashes: FileHash[],
 };
 
 export type ProxyInfo = {

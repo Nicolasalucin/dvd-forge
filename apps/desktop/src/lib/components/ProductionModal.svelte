@@ -14,7 +14,7 @@
   import { projectStore } from "../stores/project.svelte";
   import { basename, formatBytes } from "../utils/format";
 
-  type ProductionMode = "iso" | "isoBurn" | "existing";
+  type ProductionMode = "iso" | "folder" | "isoBurn" | "existing";
 
   let mode = $state<ProductionMode>("iso");
   let outputDir = $state("");
@@ -68,7 +68,9 @@
         ? t("Grabar ISO")
         : mode === "isoBurn"
           ? t("Generar y grabar")
-          : t("Generar ISO"),
+          : mode === "folder"
+            ? t("Generar carpeta")
+            : t("Generar ISO"),
   );
   const modes: Array<{
     id: ProductionMode;
@@ -77,6 +79,7 @@
     icon: string;
   }> = [
     { id: "iso", title: "Solo ISO", hint: "Genera la imagen para guardarla o copiarla", icon: "◉" },
+    { id: "folder", title: "Carpeta del disco", hint: "VIDEO_TS o BDMV para reproductores, USB o Kodi", icon: "▦" },
     { id: "isoBurn", title: "ISO + grabar", hint: "Genera y envía el disco en un flujo", icon: "▷" },
     { id: "existing", title: "ISO existente", hint: "Graba una imagen ya generada", icon: "▤" },
   ];
@@ -167,6 +170,19 @@
       projectStore.renderPercent = 100;
       if (!projectStore.renderSummary) {
         projectStore.renderSummary = t("ISO generado en {seconds} s", { seconds: (outcome.elapsedMs / 1000).toFixed(1) });
+      }
+      if (mode === "folder") {
+        projectStore.renderStage = t("Creando la carpeta del disco");
+        const label = (current.disc.volumeLabel || current.name || "DISC").replace(/[^A-Za-z0-9 _-]/g, "_").trim();
+        const exported = await unwrap(
+          commands.renderExportFolder(outcome.isoPath, outputDir.trim(), label || "DISC", true),
+        );
+        projectStore.lastIso = exported.folder;
+        projectStore.renderStage = t("Listo");
+        projectStore.renderSummary = t("Carpeta del disco lista: {files} archivos, {size}", {
+          files: exported.files,
+          size: formatBytes(exported.bytes),
+        });
       }
       if (mode === "isoBurn") {
         if (cancelRequested) {
@@ -314,7 +330,7 @@
         </div>
       {/if}
 
-      <div class="grid gap-2 sm:grid-cols-3">
+      <div class="grid gap-2 sm:grid-cols-4">
         {#each modes as item}
           <button
             type="button"

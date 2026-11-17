@@ -92,6 +92,50 @@ pub fn render_cancel() -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderExport {
+    pub folder: String,
+    pub files: u32,
+    pub bytes: f64,
+}
+
+/// Copies a finished disc image into `<output_dir>/<folder_name>` as a
+/// VIDEO_TS/BDMV folder (byte-identical to the disc) and, when
+/// `remove_iso` is set, deletes the image afterwards.
+#[tauri::command]
+#[specta::specta]
+pub async fn render_export_folder(
+    iso_path: String,
+    output_dir: String,
+    folder_name: String,
+    remove_iso: bool,
+) -> Result<FolderExport, String> {
+    let iso = PathBuf::from(&iso_path);
+    if !iso.is_file() || !iso_path.to_ascii_lowercase().ends_with(".iso") {
+        return Err("No se encontró la imagen ISO generada.".to_string());
+    }
+    let name = kinodisc_verify::extract::safe_relative_path(folder_name.trim())
+        .filter(|path| path.components().count() == 1)
+        .unwrap_or_else(|| PathBuf::from("DISC"));
+    let destination = PathBuf::from(&output_dir).join(name);
+    let target = destination.clone();
+    let report = tokio::task::spawn_blocking(move || {
+        kinodisc_verify::extract::extract_iso(&iso, &target, &|| false)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| format!("No se pudo crear la carpeta del disco: {error}"))?;
+    if remove_iso {
+        let _ = std::fs::remove_file(&iso_path);
+    }
+    Ok(FolderExport {
+        folder: destination.display().to_string(),
+        files: report.files as u32,
+        bytes: report.bytes as f64,
+    })
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn render_start(

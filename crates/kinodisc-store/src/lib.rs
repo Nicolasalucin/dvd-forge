@@ -244,6 +244,19 @@ impl Store {
             );
             ",
         )?;
+        // DVD Forge ≤ 0.9 stored absolute paths below org.dvdforge.desktop;
+        // the folder is moved to org.kinodisc.app on first launch, so point
+        // cached blobs and thumbnails at the new location (no-op afterwards).
+        connection.execute_batch(
+            "
+            UPDATE artifact_cache_v2
+               SET artifact_path = REPLACE(artifact_path, 'org.dvdforge.desktop', 'org.kinodisc.app')
+             WHERE artifact_path LIKE '%org.dvdforge.desktop%';
+            UPDATE recent_projects
+               SET thumbnail_path = REPLACE(thumbnail_path, 'org.dvdforge.desktop', 'org.kinodisc.app')
+             WHERE thumbnail_path LIKE '%org.dvdforge.desktop%';
+            ",
+        )?;
         // Preserve old v1 rows for visibility. They intentionally will not be
         // hit by v2 keys because v1 did not record the canonical input hash.
         let has_v1: bool = connection.query_row(

@@ -779,6 +779,11 @@ export const es: Dictionary = {
   "Comprobando…": "Comprobando…",
   "Volver a comprobar": "Volver a comprobar",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} se encontró en {path} pero no se pudo extraer una versión.",
+  "Carpeta del disco": "Carpeta del disco",
+  "Carpeta del disco lista: {files} archivos, {size}": "Carpeta del disco lista: {files} archivos, {size}",
+  "Creando la carpeta del disco": "Creando la carpeta del disco",
+  "Generar carpeta": "Generar carpeta",
+  "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS o BDMV para reproductores, USB o Kodi",
 };
 
 export const en: Dictionary = {
@@ -1648,4 +1653,9 @@ export const en: Dictionary = {
   "Comprobando…": "Checking…",
   "Volver a comprobar": "Check again",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} was found at {path} but its version could not be read.",
+  "Carpeta del disco": "Disc folder",
+  "Carpeta del disco lista: {files} archivos, {size}": "Disc folder ready: {files} files, {size}",
+  "Creando la carpeta del disco": "Creating the disc folder",
+  "Generar carpeta": "Create folder",
+  "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS or BDMV for players, USB drives or Kodi",
 };

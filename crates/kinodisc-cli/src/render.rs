@@ -62,8 +62,14 @@ pub(crate) async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
             ));
         }
     }
-    if args.avchd_folder && project.disc.mode != AuthoringMode::Avchd {
-        return Err("--avchd-folder solo se aplica a proyectos AVCHD.".to_string());
+
+    let missing = kinodisc_toolchain::provision::needs_install();
+    if !missing.is_empty() {
+        let names: Vec<&str> = missing.iter().map(|download| download.id).collect();
+        return Err(format!(
+            "Faltan herramientas o hay que reinstalarlas tras actualizar: {}. Ejecuta `kinodisc-cli toolchain install all` (descarga verificada con SHA-256).",
+            names.join(", ")
+        ));
     }
 
     // Keep the CLI plan summary, but delegate every authoring step to the
@@ -157,14 +163,18 @@ pub(crate) async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
     let iso_bytes = std::fs::metadata(&iso_path)
         .map(|metadata| metadata.len())
         .unwrap_or(0);
+    // Folder output is extracted from the final image, so it is
+    // byte-identical to the disc (menus, IG streams and all).
     let folder_path = if args.avchd_folder {
-        let bdmv_dir = output.join("avchd");
-        if bdmv_dir.join("BDMV/index.bdmv").is_file() {
-            println!("Carpeta BDMV generada: {}", bdmv_dir.display());
-            Some(bdmv_dir)
-        } else {
-            None
-        }
+        let folder = output.join("disc");
+        let report = kinodisc_verify::extract::extract_iso(&iso_path, &folder, &|| false)
+            .map_err(|error| format!("No se pudo crear la carpeta del disco: {error}"))?;
+        println!(
+            "Carpeta del disco generada: {} ({} archivos)",
+            folder.display(),
+            report.files
+        );
+        Some(folder)
     } else {
         None
     };
@@ -205,7 +215,7 @@ fn parse_render_args(args: &[String]) -> Result<RenderArgs, String> {
                 output = PathBuf::from(value);
             }
             "--no-probe" => no_probe = true,
-            "--avchd-folder" => avchd_folder = true,
+            "--folder" | "--avchd-folder" => avchd_folder = true,
             "--mode" => {
                 index += 1;
                 let Some(value) = args.get(index) else {
@@ -233,7 +243,7 @@ fn parse_render_args(args: &[String]) -> Result<RenderArgs, String> {
     }
     Ok(RenderArgs {
         project: project.ok_or_else(|| {
-            "Uso: kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--avchd-folder] [--no-probe]"
+            "Uso: kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--folder] [--no-probe]"
                 .to_string()
         })?,
         output,

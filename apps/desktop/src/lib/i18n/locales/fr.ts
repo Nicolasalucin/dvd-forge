@@ -936,6 +936,11 @@ export const fr: Dictionary = {
   "Comprobando…": "Vérification…",
   "Volver a comprobar": "Vérifier à nouveau",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} a été trouvé dans {path} mais sa version n'a pas pu être lue.",
+  "Carpeta del disco": "Dossier du disque",
+  "Carpeta del disco lista: {files} archivos, {size}": "Dossier du disque prêt : {files} fichiers, {size}",
+  "Creando la carpeta del disco": "Création du dossier du disque",
+  "Generar carpeta": "Créer le dossier",
+  "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS ou BDMV pour lecteurs, clés USB ou Kodi",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
