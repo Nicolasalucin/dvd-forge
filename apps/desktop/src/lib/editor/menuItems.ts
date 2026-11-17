@@ -68,9 +68,6 @@ function drawText(context: CanvasRenderingContext2D, item: Item & { kind: "text"
   const lineHeight = size * 1.2;
   const top = rect.y + rect.h / 2 - ((lines.length - 1) * lineHeight) / 2;
   const x = item.align === "left" ? rect.x : item.align === "right" ? rect.x + rect.w : rect.x + rect.w / 2;
-  context.beginPath();
-  context.rect(rect.x, rect.y, rect.w, rect.h);
-  context.clip();
   lines.forEach((line, index) => context.fillText(line, x, top + index * lineHeight));
   context.restore();
 }

@@ -1061,6 +1061,12 @@ export const pt: Dictionary = {
   "Navegación con el mando": "Navegação com o controle",
   "Quitar miniatura": "Remover miniatura",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "Sem miniatura. Use a do episódio ou «⋯ › Usar como miniatura do botão» em Mídia.",
+  "Ajustes del disco": "Configurações do disco",
+  "Formato": "Formato",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "As alterações recalculam o espaço e a qualidade automaticamente.",
+  "Pantalla": "Tela",
+  "Región": "Região",
+  "Sistema de TV": "Sistema de TV",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

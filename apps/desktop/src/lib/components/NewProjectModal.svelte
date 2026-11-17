@@ -160,10 +160,10 @@
     class="ui-backdrop"
   ></button>
 
-  <div class="ui-dialog max-h-[92vh] w-full max-w-2xl">
+  <div class="ui-dialog max-h-[92vh] w-full max-w-2xl" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
     <header class="ui-dialog-header">
       <div>
-        <h2 class="text-[16px] font-semibold text-slate-50">{t("Nuevo proyecto")}</h2>
+        <h2 id="new-project-title" class="text-[16px] font-semibold text-slate-50">{t("Nuevo proyecto")}</h2>
         <p class="ui-hint mt-0.5">
           {t("Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.")}
         </p>

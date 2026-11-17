@@ -1128,6 +1128,12 @@ export const fr: Dictionary = {
   "Navegación con el mando": "Navigation à la télécommande",
   "Quitar miniatura": "Retirer la vignette",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "Pas de vignette. Utilisez celle de l'épisode ou « ⋯ › Utiliser comme vignette du bouton » dans Médias.",
+  "Ajustes del disco": "Réglages du disque",
+  "Formato": "Format",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "Les modifications recalculent l'espace et la qualité automatiquement.",
+  "Pantalla": "Écran",
+  "Región": "Région",
+  "Sistema de TV": "Système TV",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

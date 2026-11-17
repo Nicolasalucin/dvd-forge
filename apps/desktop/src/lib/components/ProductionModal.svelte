@@ -326,10 +326,10 @@
     class="ui-backdrop"
   ></button>
 
-  <div class="ui-dialog max-h-[92vh] w-full max-w-4xl">
+  <div class="ui-dialog max-h-[92vh] w-full max-w-4xl" role="dialog" aria-modal="true" aria-labelledby="production-title">
     <header class="ui-dialog-header">
       <div>
-        <h2 class="text-[16px] font-semibold text-slate-50">{t("Generar y grabar disco")}</h2>
+        <h2 id="production-title" class="text-[16px] font-semibold text-slate-50">{t("Generar y grabar disco")}</h2>
         <p class="ui-hint mt-0.5">
           {isBluRay ? "Blu-ray HDMV" : isAvchd ? "AVCHD HD" : t("DVD-Video interactivo")} ·
           {project?.episodes.length ?? 0}

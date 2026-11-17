@@ -977,6 +977,12 @@ export const es: Dictionary = {
   "Navegación con el mando": "Navegación con el mando",
   "Quitar miniatura": "Quitar miniatura",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.",
+  "Ajustes del disco": "Ajustes del disco",
+  "Formato": "Formato",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "Los cambios recalculan el espacio y la calidad automáticamente.",
+  "Pantalla": "Pantalla",
+  "Región": "Región",
+  "Sistema de TV": "Sistema de TV",
 };
 
 export const en: Dictionary = {
@@ -2039,4 +2045,10 @@ export const en: Dictionary = {
   "Navegación con el mando": "Remote navigation",
   "Quitar miniatura": "Remove thumbnail",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "No thumbnail. Use the episode's, or “⋯ › Use as button thumbnail” in Media.",
+  "Ajustes del disco": "Disc settings",
+  "Formato": "Format",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "Changes recalculate space and quality automatically.",
+  "Pantalla": "Screen",
+  "Región": "Region",
+  "Sistema de TV": "TV system",
 };

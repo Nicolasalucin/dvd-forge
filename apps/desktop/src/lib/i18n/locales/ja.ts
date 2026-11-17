@@ -1127,6 +1127,12 @@ export const ja: Dictionary = {
   "Navegación con el mando": "リモコンでの移動",
   "Quitar miniatura": "サムネイルを外す",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "サムネイルなし。エピソードのものを使うか、メディアで「⋯ › ボタンのサムネイルに使う」を選んでください。",
+  "Ajustes del disco": "ディスクの設定",
+  "Formato": "形式",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "変更すると容量と画質が自動で再計算されます。",
+  "Pantalla": "画面",
+  "Región": "リージョン",
+  "Sistema de TV": "テレビ方式",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

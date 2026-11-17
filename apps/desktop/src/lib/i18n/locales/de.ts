@@ -1127,6 +1127,12 @@ export const de: Dictionary = {
   "Navegación con el mando": "Navigation mit der Fernbedienung",
   "Quitar miniatura": "Vorschaubild entfernen",
   "Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.": "Kein Vorschaubild. Das der Folge nutzen oder „⋯ › Als Schaltflächen-Vorschaubild verwenden“ in Medien.",
+  "Ajustes del disco": "Disc-Einstellungen",
+  "Formato": "Format",
+  "Los cambios recalculan el espacio y la calidad automáticamente.": "Änderungen berechnen Platz und Qualität automatisch neu.",
+  "Pantalla": "Bildformat",
+  "Región": "Region",
+  "Sistema de TV": "TV-System",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
