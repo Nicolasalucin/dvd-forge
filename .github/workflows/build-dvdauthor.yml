@@ -176,7 +176,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="tools-dvdauthor-$DVDAUTHOR_TAG"
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" \
+          gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --prerelease --title "Tools: DVDAuthor $DVDAUTHOR_TAG for Windows" \
             --notes "dvdauthor $DVDAUTHOR_TAG (official release tarball, SHA-256 $DVDAUTHOR_SHA256) built by the 'Build DVDAuthor for Windows' workflow. Used by DVD Forge's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
-          gh release upload "$tag" dvdauthor-*-windows-x86_64.zip dvdauthor-*-windows-x86_64.zip.sha256 --clobber
+          gh release upload "$tag" -R "$GITHUB_REPOSITORY" dvdauthor-*-windows-x86_64.zip dvdauthor-*-windows-x86_64.zip.sha256 --clobber
