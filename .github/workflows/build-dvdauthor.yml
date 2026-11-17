@@ -85,11 +85,13 @@ jobs:
           sed -i 's/^          //' ../shim/freetype-config
           chmod +x ../shim/freetype-config
           export PATH="$PWD/../shim:$PATH"
-          # fsync() is _commit() in the Windows CRT (<io.h>).
-          CPPFLAGS="-include io.h -Dfsync=_commit" ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { tail -80 config.log; exit 1; }
+          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { tail -80 config.log; exit 1; }
           # Only the programs: the man pages need DocBook, not shipped.
-          make -C src -j4 || make -C src
-          make -C src install
+          # fsync() is _commit() in the Windows CRT (<io.h>); only for make,
+          # configure's own feature tests must not see the forced include.
+          WINFLAGS='CPPFLAGS=-include io.h -Dfsync=_commit'
+          make -C src -j4 "$WINFLAGS" || make -C src "$WINFLAGS"
+          make -C src install "$WINFLAGS"
 
       - name: Collect executables and DLLs
         run: |
