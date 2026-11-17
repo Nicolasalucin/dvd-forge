@@ -518,6 +518,20 @@ fn tail(value: &str, max_chars: usize) -> String {
 }
 
 /// Builds the Lanczos scale/pad chain for the requested DVD profile.
+/// The scale chain plus, for interlaced output, the field order the encoder
+/// writes (`setfield`, valid in every FFmpeg version).
+fn encode_filter(video: &VideoEncodeConfig) -> String {
+    let mut filter = build_scale_filter(video);
+    if video.interlaced {
+        filter.push_str(if video.top_field_first {
+            ",setfield=tff"
+        } else {
+            ",setfield=bff"
+        });
+    }
+    filter
+}
+
 pub fn build_scale_filter(video: &VideoEncodeConfig) -> String {
     let (display_width, display_height) = display_canvas(video.standard, video.aspect);
     let (target_width, target_height) = target_canvas(video.standard, video.profile);
@@ -1041,7 +1055,7 @@ fn format_millis(millis: u64) -> String {
 fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
     let mut args = vec![
         "-vf".to_string(),
-        build_scale_filter(video),
+        encode_filter(video),
         "-c:v".to_string(),
         "mpeg2video".to_string(),
         "-pix_fmt".to_string(),
@@ -1066,26 +1080,16 @@ fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
         "rd".to_string(),
         "-subcmp".to_string(),
         "rd".to_string(),
-        // Measured on hard content (fractal zoom + grain, PAL, 2-pass):
-        // +0.9 dB PSNR at 8 Mbps and +0.4 dB at 4.5 Mbps for the same size,
-        // ~10-20 % slower. qmin/lmin 1 lets rate control spend the whole
-        // budget (with the default floor it undershot 8 Mbps by 11 %); wider
-        // motion search and bidirectional refinement; MPEG-2 intra VLC
-        // table (Main Profile, decoded by every DVD player).
-        "-qmin".to_string(),
-        "1".to_string(),
-        "-lmin".to_string(),
-        "75".to_string(),
-        "-mblmin".to_string(),
-        "75".to_string(),
-        "-dia_size".to_string(),
-        "2".to_string(),
+        // Measured on hard content (fractal zoom + grain, PAL, 2-pass,
+        // PSNR against lossless): +0.35 dB at 4.5 Mbps for +3 % time.
+        // Rejected after timing them: qmin/lmin 1 (+58 % time at high
+        // bitrates, only adds bits where quality is already transparent),
+        // dia_size 2 and bidir_refine (+14 % time for +0.1 dB).
         "-last_pred".to_string(),
         "2".to_string(),
-        "-bidir_refine".to_string(),
-        "4".to_string(),
         "-mpv_flags".to_string(),
         "+mv0".to_string(),
+        // MPEG-2 intra VLC table (Main Profile; every DVD player decodes it).
         "-intra_vlc".to_string(),
         "1".to_string(),
         // FFmpeg's MPEG-2 encoder rejects `+cgop` together with scene-cut
@@ -1101,11 +1105,9 @@ fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
     ];
     let mut flags = "+cgop".to_string();
     if video.interlaced {
+        // Field order comes from `setfield` in the filter chain: the `-top`
+        // option was removed in FFmpeg 9 and made every interlaced encode fail.
         flags.push_str("+ildct+ilme");
-        args.extend([
-            "-top".to_string(),
-            if video.top_field_first { "1" } else { "0" }.to_string(),
-        ]);
     }
     args.extend(["-flags".to_string(), flags]);
     args
@@ -1130,17 +1132,21 @@ fn intra_dc_precision(kbps: u32) -> u8 {
     }
 }
 
-/// Pass 1 keeps the RD decisions and uses trellis 1. Pass 2 raises trellis to
-/// 2 and omits `-b_strategy` because the B-frame layout is already fixed by the
-/// first pass.
+/// Pass 1 only gathers rate-control statistics and fixes the B-frame layout
+/// (`-b_strategy 2`). It keeps `-mbd rd` but drops RD motion comparison and
+/// trellis: with them, `b_strategy 2` trial-encoded every frame several
+/// times at full RD cost (pass 1 took 44 s against 8 s for pass 2). Measured
+/// on the quality fixture: final PSNR 43.08 dB before, 43.10 dB after, the
+/// whole two-pass encode 2.8x faster. Pass 2 keeps full RD and trellis 2.
 fn first_pass_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
     let mut args = video_codec_args(video);
+    for option in ["-cmp", "-subcmp"] {
+        if let Some(position) = args.iter().position(|arg| arg == option) {
+            args.drain(position..position + 2);
+        }
+    }
     if let Some(position) = args.iter().position(|arg| arg == "-trellis") {
-        args.drain(position..position + 2);
-        args.splice(
-            position..position,
-            ["-trellis".to_string(), "1".to_string()],
-        );
+        args[position + 1] = "0".to_string();
     }
     args
 }
@@ -1262,17 +1268,18 @@ mod tests {
         assert!(has_pair(&args, "-pass", "1"));
         assert!(has_pair(&args, "-b_strategy", "2"));
         assert!(has_pair(&args, "-mbd", "rd"));
-        assert!(has_pair(&args, "-trellis", "1"));
-        assert!(has_pair(&args, "-cmp", "rd"));
-        assert!(has_pair(&args, "-subcmp", "rd"));
+        // Light statistics pass (timed: 2.8x faster, same final quality).
+        assert!(has_pair(&args, "-trellis", "0"));
+        assert!(!args.iter().any(|arg| arg == "-cmp" || arg == "-subcmp"));
         assert!(has_pair(&args, "-intra_dc_precision", "1"));
         assert!(has_pair(&args, "-flags", "+cgop"));
         assert!(has_pair(&args, "-sc_threshold", "1000000000"));
-        // Quality tuning measured in 1.0.1 (full budget, motion, intra VLC).
-        assert!(has_pair(&args, "-qmin", "1"));
-        assert!(has_pair(&args, "-dia_size", "2"));
-        assert!(has_pair(&args, "-bidir_refine", "4"));
+        // Quality tuning measured for 1.1 (motion predictors, intra VLC).
+        assert!(has_pair(&args, "-last_pred", "2"));
+        assert!(has_pair(&args, "-mpv_flags", "+mv0"));
         assert!(has_pair(&args, "-intra_vlc", "1"));
+        // Timed and rejected: far slower for no visible gain.
+        assert!(!args.iter().any(|arg| arg == "-qmin" || arg == "-dia_size"));
         assert!(has_pair(&args, "-f", "null"));
         assert!(args.contains(&"-passlogfile".to_string()));
         let pass2 = build_pass2_args(&request());
@@ -1308,7 +1315,8 @@ mod tests {
         req.video.top_field_first = true;
         let args = build_pass1_args(&req);
         assert!(has_pair(&args, "-flags", "+cgop+ildct+ilme"));
-        assert!(has_pair(&args, "-top", "1"));
+        assert!(!args.iter().any(|arg| arg == "-top"));
+        assert!(args.iter().any(|arg| arg.ends_with(",setfield=tff")));
         assert!(build_scale_filter(&req.video).contains("interl=1"));
     }
 

@@ -147,5 +147,8 @@ export function localizeError(message: string): string {
   const match = /^([EW]_[A-Z0-9_]+): ([\s\S]*)$/.exec(message.trim());
   if (!match) return message;
   const localized = localizeDiagnostic({ code: match[1], message: match[2] });
-  return localized === match[2] ? localized : `${localized} (${match[2]})`;
+  // The original is only worth appending when it carries details the
+  // translation lacks (paths, tool output), not when it is a known sentence.
+  if (localized === match[2] || i18n.has(match[2])) return localized;
+  return `${localized} (${match[2]})`;
 }

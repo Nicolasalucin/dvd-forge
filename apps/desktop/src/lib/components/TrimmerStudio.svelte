@@ -466,7 +466,9 @@
   {:else}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_260px]">
       <div class="flex min-w-0 flex-col gap-2">
-        <div class="relative flex min-h-[180px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-black">
+        <!-- A TV-shaped frame: the video never sets the height, so vertical or
+             odd-sized sources show with bars, as the disc will. -->
+        <div class="relative mx-auto flex aspect-video max-h-[62vh] min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-black">
           {#if playbackSupport === null}
             <div class="p-6 text-center text-xs text-slate-500">
               {t("Comprobando soporte de reproducción…")}
@@ -496,7 +498,7 @@
               preload="metadata"
               playsinline
               controls={videoFullscreen}
-              class="max-h-full max-w-full"
+              class="absolute inset-0 h-full w-full object-contain"
               onloadedmetadata={onLoadedMetadata}
               onerror={onVideoError}
               ontimeupdate={onTimeUpdate}

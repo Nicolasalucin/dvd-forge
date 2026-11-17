@@ -193,7 +193,7 @@
             <button type="button" class="flex min-h-0 flex-1 flex-col text-left" onclick={() => selectEpisode(episode)}>
               <div class="relative aspect-video w-full overflow-hidden bg-black">
                 {#if preview}
-                  <img src={preview} alt="" class="h-full w-full object-cover" draggable="false" />
+                  <img src={preview} alt="" class="h-full w-full bg-black object-contain" draggable="false" />
                 {:else}
                   <div class="flex h-full items-center justify-center text-slate-600"><Icon name="film" size={18} /></div>
                 {/if}

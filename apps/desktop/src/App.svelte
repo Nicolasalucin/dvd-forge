@@ -35,6 +35,12 @@
     inspector: () => import("./lib/components/DiscInspector.svelte"),
   };
 
+  // Walkthrough builds only (VITE_WALKTHROUGH=1 at build time; never set by
+  // release CI): lets the test driver do what a native file dialog would.
+  if (import.meta.env.VITE_WALKTHROUGH === "1") {
+    (window as unknown as Record<string, unknown>).__kd = { projectStore, actions, ui };
+  }
+
   let recovery = $state<AutosaveEntry[]>([]);
   let dragging = $state(false);
 

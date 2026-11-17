@@ -241,3 +241,45 @@ fn template_switch_preserves_episode_thumbnails_and_actions() {
             .is_some_and(|page| page.template == MenuTemplateId::Minimalist)
     }));
 }
+
+fn title_of(menu: &kinodisc_domain::Menu) -> Option<String> {
+    menu.items.iter().find_map(|item| match item {
+        kinodisc_domain::MenuItem::Text(text) if text.id == "tpl:title" => Some(text.text.clone()),
+        _ => None,
+    })
+}
+
+/// 1.1 walkthrough: templates wrote their own name ("Retro CRT") as the
+/// menu title, which then got burned onto the user's disc.
+#[test]
+fn template_title_is_the_project_name_and_keeps_a_typed_title() {
+    let mut project = project_with_episodes(3);
+    project.name = "Vacaciones 2026".to_string();
+    let applied = apply_template(&project, MenuTemplateId::RetroCrt).expect("template");
+    let mut next = project.clone();
+    next.menus = applied.menus.clone();
+    let root = next
+        .menus
+        .iter()
+        .find(|menu| menu.id == next.root_menu)
+        .expect("root");
+    assert_eq!(title_of(root).as_deref(), Some("Vacaciones 2026"));
+
+    // The user types a title, then switches template: the title stays.
+    for menu in &mut next.menus {
+        for item in &mut menu.items {
+            if let kinodisc_domain::MenuItem::Text(text) = item {
+                if text.id == "tpl:title" {
+                    text.text = "Verano en la costa".to_string();
+                }
+            }
+        }
+    }
+    let switched = apply_template(&next, MenuTemplateId::CinemaDark).expect("template");
+    let root = switched
+        .menus
+        .iter()
+        .find(|menu| menu.id == next.root_menu)
+        .expect("root");
+    assert_eq!(title_of(root).as_deref(), Some("Verano en la costa"));
+}

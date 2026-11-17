@@ -14,12 +14,24 @@ use std::sync::Mutex;
 /// global; estos tests lo serializan para no interferir entre sí.
 static CONTEXT_LOCK: Mutex<()> = Mutex::new(());
 
+/// Commands write recent projects, job history and caches to the per-user
+/// data folder; point it at a throw-away folder so `cargo test` never adds
+/// entries to the developer's real "Recent projects" list.
+fn isolate_user_data() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let dir = std::env::temp_dir().join(format!("kinodisc-test-data-{}", std::process::id()));
+        std::env::set_var("XDG_DATA_HOME", dir);
+    });
+}
+
 fn fixture_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/projects/minimal.json")
 }
 
 #[test]
 fn project_new_creates_a_blank_dvd_shell() {
+    isolate_user_data();
     let _context = CONTEXT_LOCK.lock().expect("context lock");
     let project = project_new(
         "Test DVD".into(),
@@ -40,6 +52,7 @@ fn project_new_creates_a_blank_dvd_shell() {
 
 #[test]
 fn project_save_and_open_round_trip() {
+    isolate_user_data();
     let _context = CONTEXT_LOCK.lock().expect("context lock");
     let project = load_project(fixture_path()).expect("fixture");
     let path = std::env::temp_dir().join(format!(
@@ -55,6 +68,7 @@ fn project_save_and_open_round_trip() {
 
 #[test]
 fn menu_templates_are_exposed_and_applied_through_tauri_commands() {
+    isolate_user_data();
     let templates = menu_templates();
     assert_eq!(templates.len(), 5);
     let project = load_project(fixture_path()).expect("fixture");
@@ -69,6 +83,7 @@ fn menu_templates_are_exposed_and_applied_through_tauri_commands() {
 
 #[test]
 fn plan_calculate_uses_the_fixture_metadata() {
+    isolate_user_data();
     let project = load_project(fixture_path()).expect("fixture");
     let plan = plan_calculate(project).expect("plan");
     assert!(plan.feasible);
@@ -79,6 +94,7 @@ fn plan_calculate_uses_the_fixture_metadata() {
 #[test]
 #[ignore = "requiere una unidad óptica conectada en /dev/sr*"]
 fn burn_list_devices_sees_the_physical_drive() {
+    isolate_user_data();
     let devices = tauri::async_runtime::block_on(burn_list_devices())
         .expect("burn_list_devices debe responder");
     if devices.is_empty() {
@@ -161,6 +177,7 @@ async fn render_start_forwards_job_events_and_produces_iso() {
 
 #[test]
 fn menu_save_background_writes_a_png_for_the_render() {
+    isolate_user_data();
     const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgFlIAAABpAD4z6GE4AAAAAElFTkSuQmCC";
     let project_id = format!("test-project-{}", std::process::id());
     let data_url = format!("data:image/png;base64,{ONE_PIXEL_PNG}");
@@ -178,6 +195,7 @@ fn menu_save_background_writes_a_png_for_the_render() {
 
 #[test]
 fn read_image_data_url_resolves_project_relative_assets() {
+    isolate_user_data();
     const ONE_PIXEL_PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPgFlIAAABpAD4z6GE4AAAAAElFTkSuQmCC";
     let fixture = fixture_path();
     let unique = std::time::SystemTime::now()
@@ -205,6 +223,7 @@ fn read_image_data_url_resolves_project_relative_assets() {
 
 #[test]
 fn project_new_creates_an_avchd_shell_with_a_menu() {
+    isolate_user_data();
     let _context = CONTEXT_LOCK.lock().expect("context lock");
     let project = project_new(
         "Test AVCHD".into(),

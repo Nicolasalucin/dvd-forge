@@ -1,4 +1,5 @@
 import { commands, type MediaAsset_Serialize, type Project_Serialize } from "./api/bindings";
+import { isPlaceholderAsset } from "./utils/assets";
 import { messageOf, unwrap } from "./api/client";
 import { exportMenu, exportMotionMenu } from "./editor/exportMenu";
 import { itemAssets } from "./editor/menuItems";
@@ -127,6 +128,9 @@ async function previewForAsset(
   if (cached) return cached;
   const frame = source.framePaths[assetId];
   const asset = project.assets.find((item) => item.id === assetId);
+  // A new project's empty background: compose on the menu colour, as the
+  // editor shows it (1.1 walkthrough: every new project failed to produce).
+  if (!frame && asset && isPlaceholderAsset(asset)) return "";
   let path = frame ?? (asset ? assetPath(asset) : null);
   if (!path) {
     const message = t("No se encontró la imagen o el vídeo del asset {asset}.", {

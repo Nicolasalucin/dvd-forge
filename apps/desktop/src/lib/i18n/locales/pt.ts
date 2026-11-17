@@ -1073,6 +1073,10 @@ export const pt: Dictionary = {
   "Empieza añadiendo tus vídeos": "Comece adicionando seus vídeos",
   "Importar vídeos…": "Importar vídeos…",
   "También puedes arrastrar los archivos a esta ventana.": "Você também pode arrastar os arquivos para esta janela.",
+  "No se encuentra el archivo: {path}": "Arquivo não encontrado: {path}",
+  "Abriendo…": "Abrindo…",
+  "No se encuentra": "Não encontrado",
+  "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "O arquivo do projeto não foi encontrado; talvez tenha sido movido, apagado ou esteja num disco desconectado.",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {
@@ -1233,4 +1237,5 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   W_SPLIT_EPISODE_TOO_LONG: "Um episódio não cabe sozinho num disco; reduza a qualidade ou escolha um disco maior.",
   I_SPLIT_CUSTOM_MENU: "Os menus feitos à mão mantêm o design; em cada disco, os botões de episódios de outro disco são removidos.",
   W_SCENES_INDEX_OVERFLOW: "Só os primeiros episódios cabem no índice de cenas; use um modelo com mais espaços.",
+  E_PROJECT_NOT_FOUND: "O arquivo do projeto não foi encontrado; talvez tenha sido movido, apagado ou esteja num disco desconectado.",
 };

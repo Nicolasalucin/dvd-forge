@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isPlaceholderAsset } from "../utils/assets";
   import * as actions from "../actions";
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
@@ -24,7 +25,7 @@
   const assets = $derived(
     projectStore.assets.filter((asset) => {
       // New projects carry an empty placeholder background; not a real file.
-      if (asset.bytes === 0 && /^0+$/.test(asset.sha256)) return false;
+      if (isPlaceholderAsset(asset)) return false;
       const term = search.trim().toLowerCase();
       if (!term) return true;
       return (
@@ -334,7 +335,7 @@
               >
                 <div class="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-black">
                   {#if preview}
-                    <img src={preview} alt="" class="h-full w-full object-cover" />
+                    <img src={preview} alt="" class="h-full w-full bg-black object-contain" />
                   {:else}
                     <Icon name={asset.kind === "video" ? "film" : asset.kind === "audio" ? "music" : asset.kind === "image" ? "photo" : "text"} size={16} class="text-slate-500" />
                   {/if}

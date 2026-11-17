@@ -1382,6 +1382,11 @@ export type RecentProject_Deserialize = {
 	discKind: string,
 	updatedAt: string,
 	thumbnailPath?: string | null,
+	/**
+	 *  Filled by the caller that lists recents: the file is gone (moved,
+	 *  deleted or on a disconnected drive). Never stored.
+	 */
+	missing?: boolean,
 };
 
 export type RecentProject_Serialize = {
@@ -1391,6 +1396,11 @@ export type RecentProject_Serialize = {
 	discKind: string,
 	updatedAt: string,
 	thumbnailPath: string | null,
+	/**
+	 *  Filled by the caller that lists recents: the file is gone (moved,
+	 *  deleted or on a disconnected drive). Never stored.
+	 */
+	missing: boolean,
 };
 
 export type RenderOutcome = RenderOutcome_Serialize | RenderOutcome_Deserialize;

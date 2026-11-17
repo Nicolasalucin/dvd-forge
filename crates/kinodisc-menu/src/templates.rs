@@ -256,6 +256,7 @@ pub fn apply_template(
     if project.episodes.is_empty() {
         return Err(TemplateError::NoEpisodes);
     }
+    let disc_title = disc_title(project, root);
     let mut episodes = project.episodes.clone();
     episodes.sort_by_key(|episode| episode.number);
     let capacity = template.capacity();
@@ -436,8 +437,13 @@ pub fn apply_template(
         if index > 0 {
             menu.items.clear();
         }
-        menu.items
-            .extend(template_items(root, &template, index, page_count));
+        menu.items.extend(template_items(
+            root,
+            &template,
+            &disc_title,
+            index,
+            page_count,
+        ));
         if index == 0 {
             menu.items.extend(custom_items.clone());
         }
@@ -716,18 +722,42 @@ fn is_template_item(item: &MenuItem) -> bool {
     }
 }
 
+/// The title a template writes on its pages: a title the user already typed
+/// over a previous template's, otherwise the project name. The template's
+/// own name ("Retro CRT") is never burned onto someone's disc.
+fn disc_title(project: &Project, root: &Menu) -> String {
+    let typed = root.items.iter().find_map(|item| match item {
+        MenuItem::Text(text) if text.id == "tpl:title" => Some(text.text.as_str()),
+        _ => None,
+    });
+    if let Some(typed) = typed {
+        let base = typed.split(" · ").next().unwrap_or(typed).trim();
+        let generated = base.is_empty() || templates().iter().any(|template| template.name == base);
+        if !generated {
+            return base.to_string();
+        }
+    }
+    let name = project.name.trim();
+    if name.is_empty() {
+        "DVD".to_string()
+    } else {
+        name.to_string()
+    }
+}
+
 fn template_items(
     root: &Menu,
     template: &MenuTemplate,
+    title: &str,
     page: usize,
     count: usize,
 ) -> Vec<MenuItem> {
     vec![MenuItem::Text(TextItem {
         id: "tpl:title".to_string(),
         text: if count > 1 {
-            format!("{} · {}/{}", template.name, page + 1, count)
+            format!("{title} · {}/{}", page + 1, count)
         } else {
-            template.name.to_string()
+            title.to_string()
         },
         rect: title_rect(root.canvas),
         font_family: template.font_family.to_string(),

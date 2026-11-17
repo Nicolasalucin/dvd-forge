@@ -989,6 +989,10 @@ export const es: Dictionary = {
   "Empieza añadiendo tus vídeos": "Empieza añadiendo tus vídeos",
   "Importar vídeos…": "Importar vídeos…",
   "También puedes arrastrar los archivos a esta ventana.": "También puedes arrastrar los archivos a esta ventana.",
+  "No se encuentra el archivo: {path}": "No se encuentra el archivo: {path}",
+  "Abriendo…": "Abriendo…",
+  "No se encuentra": "No se encuentra",
+  "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.",
 };
 
 export const en: Dictionary = {
@@ -2063,4 +2067,8 @@ export const en: Dictionary = {
   "Empieza añadiendo tus vídeos": "Start by adding your videos",
   "Importar vídeos…": "Import videos…",
   "También puedes arrastrar los archivos a esta ventana.": "You can also drag the files onto this window.",
+  "No se encuentra el archivo: {path}": "File not found: {path}",
+  "Abriendo…": "Opening…",
+  "No se encuentra": "Not found",
+  "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "The project file cannot be found; it may have been moved, deleted or be on a disconnected drive.",
 };

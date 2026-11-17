@@ -64,7 +64,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 8;
+const ENCODER_REV: u32 = 10;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -4180,6 +4180,16 @@ fn gop_for(standard: TvStandard) -> u16 {
     }
 }
 
+/// Field order for interlaced HD menu clips (`setfield`; the `-top` option
+/// was removed in FFmpeg 9). `null` keeps progressive clips unchanged.
+fn field_filter(interlaced: bool) -> &'static str {
+    if interlaced {
+        "setfield=tff"
+    } else {
+        "null"
+    }
+}
+
 #[derive(Debug, Clone)]
 struct CompiledHdMenu {
     pes: Vec<u8>,
@@ -4712,7 +4722,7 @@ async fn encode_menu_video_with_transition(
         ));
         current = format!("v{index}");
     }
-    filters.push(format!("[{current}]null[out]"));
+    filters.push(format!("[{current}]{}[out]", field_filter(spec.interlaced)));
     command.args(["-filter_complex", &filters.join(";")]);
     command.args([
         "-map",
@@ -4734,7 +4744,7 @@ async fn encode_menu_video_with_transition(
         &format!("profile=high:keyint={keyint}:min-keyint={keyint}:scenecut=0:open-gop=0:bluray-compat=1"),
     ]);
     if spec.interlaced {
-        command.args(["-flags", "+ildct+ilme", "-top", "1"]);
+        command.args(["-flags", "+ildct+ilme"]);
     }
     if spec.psf {
         command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);
@@ -4796,10 +4806,16 @@ async fn encode_menu_video(
         command.args(["-t", &format!("{duration_secs:.3}")]);
         if !matches!(spec.video, MenuClipVideo::Black) {
             let video_filter = format!(
-                "scale={}:{}:force_original_aspect_ratio=decrease,                 pad={}:{}:(ow-iw)/2:(oh-ih)/2:color=black,fps={rate}",
-                spec.width, spec.height, spec.width, spec.height
+                "scale={}:{}:force_original_aspect_ratio=decrease,                 pad={}:{}:(ow-iw)/2:(oh-ih)/2:color=black,fps={rate},{}",
+                spec.width,
+                spec.height,
+                spec.width,
+                spec.height,
+                field_filter(spec.interlaced)
             );
             command.args(["-vf", &video_filter]);
+        } else if spec.interlaced {
+            command.args(["-vf", field_filter(true)]);
         }
     } else {
         let mut filter_graph = vec![format!(
@@ -4824,7 +4840,7 @@ async fn encode_menu_video(
             ));
             current = format!("v{index}");
         }
-        filter_graph.push(format!("[{current}]null[out]"));
+        filter_graph.push(format!("[{current}]{}[out]", field_filter(spec.interlaced)));
         command.args(["-filter_complex", &filter_graph.join(";")]);
         command.args(["-map", "[out]", "-t", &format!("{duration_secs:.3}")]);
     }
@@ -4844,7 +4860,7 @@ async fn encode_menu_video(
         &x264_params,
     ]);
     if spec.interlaced {
-        command.args(["-flags", "+ildct+ilme", "-top", "1"]);
+        command.args(["-flags", "+ildct+ilme"]);
     }
     if spec.psf {
         command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);

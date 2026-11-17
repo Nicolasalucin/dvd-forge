@@ -956,19 +956,21 @@
           <div class="rounded-lg border border-slate-800 p-2">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-medium text-slate-400">{t("Miniatura")}</span>
-              <button
-                type="button"
-                onclick={() => projectStore.updateEpisode(episode.id, { thumbnailPath: null })}
-                class="text-[11px] text-slate-500 hover:text-rose-300"
-              >
-                {t("Quitar ruta")}
-              </button>
+              {#if episode.thumbnailPath || episode.thumbnailTimeMs !== null}
+                <button
+                  type="button"
+                  onclick={() => projectStore.updateEpisode(episode.id, { thumbnailPath: null, thumbnailTimeMs: null })}
+                  class="ui-btn-ghost text-[11px]"
+                >
+                  {t("Restablecer")}
+                </button>
+              {/if}
             </div>
             {#if projectStore.episodePreview(episode)}
               <img
                 src={projectStore.episodePreview(episode)}
                 alt=""
-                class="mt-1.5 aspect-video w-full rounded border border-slate-800 object-cover"
+                class="mt-1.5 aspect-video w-full rounded border border-slate-800 bg-black object-contain"
               />
             {/if}
             <label class="mt-1.5 block">
@@ -983,9 +985,6 @@
                 onchange={(event) => setThumbnailTime(event.currentTarget.value)}
               />
             </label>
-            <p class="mt-1 truncate font-mono text-[11px] text-slate-600" title={episode.thumbnailPath ?? ""}>
-              {episode.thumbnailPath ? basename(episode.thumbnailPath) : t("sin captura")}
-            </p>
           </div>
 
           <div>

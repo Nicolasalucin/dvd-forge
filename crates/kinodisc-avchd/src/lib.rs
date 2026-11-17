@@ -456,6 +456,10 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         let codec = hardware
             .map(kinodisc_toolchain::HardwareEncoder::ffmpeg_name)
             .unwrap_or("libx264");
+        if spec.interlaced {
+            // Field order for the encoder; `-top` is gone in FFmpeg 9.
+            filter.push_str(",setfield=tff");
+        }
         if hardware == Some(kinodisc_toolchain::HardwareEncoder::VaapiH264) {
             filter.push_str(",format=nv12,hwupload");
         }
@@ -530,12 +534,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             "bt709".to_string(),
         ]);
         if spec.interlaced {
-            args.extend([
-                "-flags".to_string(),
-                "+ildct+ilme".to_string(),
-                "-top".to_string(),
-                "1".to_string(),
-            ]);
+            args.extend(["-flags".to_string(), "+ildct+ilme".to_string()]);
         }
     }
     args.extend(["-map".to_string(), "0:v:0".to_string()]);
@@ -1202,7 +1201,9 @@ mod tests {
         let args = build_encode_args(&request).join(" ");
         assert!(args.contains("tff=1"));
         assert!(args.contains("+ildct+ilme"));
-        assert!(args.contains("-top 1"));
+        // `-top` no longer exists in FFmpeg 9; the filter sets field order.
+        assert!(!args.contains("-top"));
+        assert!(args.contains(",setfield=tff"));
     }
 
     #[test]

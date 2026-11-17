@@ -165,4 +165,5 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_SPLIT_EPISODE_TOO_LONG: "An episode does not fit on a disc by itself; lower the quality or choose a larger disc.",
   I_SPLIT_CUSTOM_MENU: "Hand-made menus keep their design; on each disc, buttons for episodes on another disc are removed.",
   W_SCENES_INDEX_OVERFLOW: "Only the first episodes fit in the scene index; use a template with more slots.",
+  E_PROJECT_NOT_FOUND: "The project file cannot be found; it may have been moved, deleted or be on a disconnected drive.",
 };

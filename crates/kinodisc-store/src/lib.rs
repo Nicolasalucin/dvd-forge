@@ -32,6 +32,10 @@ pub struct RecentProject {
     pub disc_kind: String,
     pub updated_at: String,
     pub thumbnail_path: Option<String>,
+    /// Filled by the caller that lists recents: the file is gone (moved,
+    /// deleted or on a disconnected drive). Never stored.
+    #[serde(default)]
+    pub missing: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -366,6 +370,7 @@ impl Store {
             disc_kind: input.disc_kind.clone(),
             updated_at: now,
             thumbnail_path: input.thumbnail_path.clone(),
+            missing: false,
         })
     }
 
@@ -383,6 +388,7 @@ impl Store {
                 disc_kind: row.get(3)?,
                 updated_at: row.get(4)?,
                 thumbnail_path: row.get(5)?,
+                missing: false,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)

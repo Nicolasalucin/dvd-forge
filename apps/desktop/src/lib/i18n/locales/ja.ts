@@ -1139,6 +1139,10 @@ export const ja: Dictionary = {
   "Empieza añadiendo tus vídeos": "まず動画を追加しましょう",
   "Importar vídeos…": "動画を取り込む…",
   "También puedes arrastrar los archivos a esta ventana.": "ファイルをこのウィンドウにドラッグすることもできます。",
+  "No se encuentra el archivo: {path}": "ファイルが見つかりません: {path}",
+  "Abriendo…": "開いています…",
+  "No se encuentra": "見つかりません",
+  "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "プロジェクトファイルが見つかりません。移動・削除されたか、接続されていないドライブにある可能性があります。",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -1299,4 +1303,5 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   W_SPLIT_EPISODE_TOO_LONG: "1 つのエピソードが単独でディスクに収まりません。画質を下げるか、大容量のディスクを選んでください。",
   I_SPLIT_CUSTOM_MENU: "手作りのメニューはデザインを保ちます。各ディスクでは、別のディスクにあるエピソードのボタンが削除されます。",
   W_SCENES_INDEX_OVERFLOW: "シーン一覧に入るのは最初のエピソードだけです。枠の多いテンプレートを使ってください。",
+  E_PROJECT_NOT_FOUND: "プロジェクトファイルが見つかりません。移動・削除されたか、接続されていないドライブにある可能性があります。",
 };

@@ -5,9 +5,13 @@ use kinodisc_store::{RecentProject, RecentProjectInput, Store};
 #[specta::specta]
 pub fn recent_projects_list(limit: Option<u32>) -> Result<Vec<RecentProject>, String> {
     let store = Store::open_default().map_err(|error| error.to_string())?;
-    store
+    let mut recents = store
         .recent_projects(limit.unwrap_or(12))
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    for recent in &mut recents {
+        recent.missing = !std::path::Path::new(&recent.file_path).is_file();
+    }
+    Ok(recents)
 }
 
 #[tauri::command(async)]

@@ -480,6 +480,15 @@ pub struct MediaAsset {
     pub imported_at: String,
 }
 
+impl MediaAsset {
+    /// The empty background a new project starts with (no file on disk, size
+    /// 0, all-zero hash): the menu is drawn on its background colour instead.
+    /// Never read, packaged or reported as missing.
+    pub fn is_placeholder(&self) -> bool {
+        self.bytes == 0 && !self.sha256.is_empty() && self.sha256.bytes().all(|byte| byte == b'0')
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaProbe {

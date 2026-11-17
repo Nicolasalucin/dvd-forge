@@ -190,6 +190,9 @@ fn portable_project(project: &Project, project_dir: &Path) -> (Project, Collecto
         // Generated preview proxies are rebuilt on demand.
         asset.proxy = None;
         let Some(current) = current else { continue };
+        if asset.is_placeholder() {
+            continue;
+        }
         if let Some(bundle_path) = collector.add(project_dir, &current, "el medio") {
             asset.source = AssetSource::Project;
             asset.relative_path = Some(bundle_path);

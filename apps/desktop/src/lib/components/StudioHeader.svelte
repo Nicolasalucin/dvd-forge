@@ -3,6 +3,7 @@
   import type { PlayerPreset } from "../api/bindings";
   import * as actions from "../actions";
   import { t } from "../i18n/index.svelte";
+  import { localizeError } from "../i18n/diagnostics";
   import { projectStore, type StudioMode } from "../stores/project.svelte";
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
@@ -251,7 +252,7 @@
   {/if}
   {#if projectStore.error}
     <div class="flex items-center justify-between gap-3 border-t border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-[12px] text-rose-200" role="alert">
-      <span class="truncate" title={projectStore.error}>{projectStore.error}</span>
+      <span class="truncate" title={localizeError(projectStore.error)}>{localizeError(projectStore.error)}</span>
       <button type="button" onclick={() => (projectStore.error = null)} aria-label={t("Cerrar")}><Icon name="close" size={14} /></button>
     </div>
   {/if}
