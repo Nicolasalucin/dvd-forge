@@ -45,6 +45,22 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## v0.7.0 highlights
+
+- **New to DVD Forge?** Read the [user guide](docs/USER_GUIDE.md) or press
+  **❓ Guide** in the app: a step-by-step tour opens on first run, and a simple
+  mode hides the advanced tools until you enable **Expert mode**.
+- **1080p at 25/29.97 fps (PsF) and 50/59.94 fps (AVCHD 2.0)** for TV and
+  modern-camera content.
+- **Add videos without re-encoding**: compliant H.264 files (camcorder
+  `.m2ts`/`.mts`, matching MP4/MKV) are copied straight onto AVCHD/Blu-ray
+  discs, faster and lossless.
+- **Menus that work out of the box**: HD menus use a 1920×1080 canvas, any
+  installed font, extra menu screens and one-click episode thumbnails. Fixes
+  Blu-ray menus being dropped with FFmpeg 9 when tsMuxeR is absent.
+- **Complete English interface** and localized warnings; audio track
+  mismatches are fixed automatically instead of failing the render.
+
 ## v0.6.0 highlights
 
 - **Menu Designer 2.0**: five curated templates, automatic multi-page
@@ -450,6 +466,8 @@ cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
 ```
 
 ## Quick start
+
+> Full walkthrough: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
 1. Create a DVD-Video, AVCHD or Blu-ray project.
 2. Import the videos and drag them into the sequence.

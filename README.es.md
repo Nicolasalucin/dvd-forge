@@ -45,6 +45,23 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+## Novedades de v0.7.0
+
+- **¿Primera vez?** Lee la [guía de uso](docs/GUIA-DE-USO.md) o pulsa
+  **❓ Guía** en la aplicación: un recorrido paso a paso se abre la primera vez
+  y el modo simple oculta las herramientas avanzadas hasta activar el
+  **Modo experto**.
+- **1080p a 25/29,97 fps (PsF) y 50/59,94 fps (AVCHD 2.0)** para contenido de
+  TV y cámaras modernas.
+- **Añadir vídeos sin recodificar**: los H.264 compatibles (`.m2ts`/`.mts` de
+  cámara, MP4/MKV con el mismo formato) se copian directamente al disco
+  AVCHD/Blu-ray, más rápido y sin pérdida.
+- **Menús que funcionan a la primera**: lienzo 1920×1080 en HD, cualquier
+  fuente instalada, pantallas de menú adicionales y miniaturas con un clic.
+  Corrige los menús Blu-ray que se descartaban con FFmpeg 9 sin tsMuxeR.
+- **Interfaz en inglés completa** y avisos traducidos; las diferencias de
+  pistas de audio se corrigen solas en vez de cortar el render.
+
 ## Novedades de v0.6.0
 
 - **Menu Designer 2.0**: cinco plantillas, paginación multipágina automática y
@@ -348,6 +365,8 @@ cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
 ```
 
 ## Uso rápido
+
+> Paso a paso completo: [docs/GUIA-DE-USO.md](docs/GUIA-DE-USO.md).
 
 1. Crea un proyecto DVD-Video, AVCHD o Blu-ray.
 2. Importa los vídeos y arrástralos a la secuencia.

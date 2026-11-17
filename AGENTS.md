@@ -216,6 +216,27 @@ Smart Render Cache v2:
   fall back with `W_NATIVE_MUX_FALLBACK`; on 32-bit it must fail structurally.
 - Portable discovery checks `DVDFORGE_TOOLCHAIN_DIR`, `<exe>/toolchain/`,
   `<exe>/bin/` and platform-arch variants before resources and PATH.
+- Native menu clips are encoded to **Matroska** (`menu.mkv`), not raw
+  `.h264`: FFmpeg ≥ 9 refuses to stream-copy timestamp-less H.264 ES into
+  MPEG-TS. tsMuxeR keeps the raw `.h264`. `NativeStream::video_attr` must come
+  from `AvchdVideoConfig::bdmv_video_attr()` (format << 4 | rate).
+
+### 12. Frame rates, stream copy and audio reconciliation
+
+- 1080p 25/29.97 is **PsF** (`HdScan::Psf`): x264 `fake-interlaced=1:pic-struct=1`,
+  CPU only, signalled as 1080i in BDMV. 1080p 50/59.94 forces Level 4.2.
+- `dvdforge-plan::stream_copy::avchd_copy_decision` is the single authority
+  for Smart Stream Copy; unknown probe data means re-encode. The render reads
+  the decision from the plan (`EpisodeBitrate.stream_copy`) and includes it in
+  the cache `profile`.
+- `reconcile_episode_audio` and `harmonize_avchd_audio` run before every
+  encode; never map an audio stream index the probe does not list.
+
+### 13. Localization
+
+- Spanish is the source language; English must stay complete. Run
+  `npm run i18n:check` (fails on missing English keys or on Rust diagnostic
+  codes without an entry in `src/lib/i18n/diagnosticCodes.ts`).
 
 ### 11. FreeBSD and multi-arch release
 

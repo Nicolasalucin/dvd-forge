@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.7.0 — 2026-11-16
+
+Community feedback release: frame rates, menus, localization, audio, direct
+import and a guided, family-friendly interface.
+
+### Blu-ray/AVCHD frame rates
+
+- 1080p now accepts **25 and 29.97 fps**, encoded as **PsF** (x264
+  fake-interlaced, signalled as 1080i) so every Blu-ray player accepts it, and
+  **50/59.94 fps** (AVCHD 2.0 Progressive, H.264 Level 4.2) with the new
+  `W_AVCHD_1080P_HFR` compatibility warning.
+- The encoder honours the configured H.264 level instead of a fixed 4.1.
+- **Fix:** the native BDMV muxer wrote a hardcoded 480p/23.976 video
+  attribute in every MPLS/CLPI; it now writes the project's real format/rate.
+
+### Menus
+
+- **Fix:** with FFmpeg 9 and no tsMuxeR (the usual Windows setup) every HDMV
+  menu failed to attach (`first pts and dts value must be set`) and the disc
+  was silently produced without menus. The native path now muxes the menu
+  video from Matroska with real timestamps.
+- HD menus are edited on a **1920×1080 / 1280×720 canvas** that matches the
+  disc, instead of a 720×480 DVD canvas that squeezed HD backgrounds. Older
+  projects are upgraded on open; layouts, fonts and templates scale.
+- New **+ Menu screen** action (submenu with Back button, linked from the
+  current menu); rename by double click, delete from the menu list. The
+  misleading "+ Add" button next to the menus is now "+ Episode".
+- Button fonts: any font installed on the computer (searchable picker).
+- Thumbnails: menu tools (thumbnails, layouts, button styles) are no longer
+  disabled on Blu-ray/AVCHD; one-click "use the episode image" and "pick the
+  exact frame" from the Inspector; labelled 📸 Thumbnail button in the trimmer.
+
+### Smart Stream Copy (roadmap v0.7.0)
+
+- `Episode.videoMode` (auto/copy/reencode, default auto). Compliant H.264
+  sources (High/Main, allowed level, yuv420p, exact resolution, frame rate —
+  including field-rate camcorder 1080i —, scan and bitrate, no start trim) are
+  put on AVCHD/Blu-ray discs **without re-encoding**.
+- The planner budgets copied episodes at their real bitrate and shares the
+  remaining space among re-encoded ones; cache keys include the decision.
+- FFprobe import records video profile, level and bitrate. New
+  `W_STREAM_COPY_FALLBACK`; the Inspector shows ⚡ copied / ↻ re-encoded and why.
+- DVD-Video stream copy is not included yet.
+
+### Audio
+
+- Tracks pointing at a stream the source file does not have are remapped
+  (`W_AUDIO_STREAM_REMAPPED`) or replaced by silence (`W_AUDIO_SOURCE_SILENT`)
+  instead of failing FFmpeg.
+- AVCHD/Blu-ray episodes with different audio languages/track counts are
+  adapted to the first episode (`W_AUDIO_LAYOUT_ADAPTED`) instead of aborting.
+
+### Localization
+
+- The English interface is complete; remaining hardcoded Spanish strings are
+  translated. Every Rust diagnostic code (139) has an English meaning, so
+  warnings, logs and simulator notices follow the interface language.
+- Default disc content names ("Main menu", "Next ›") follow the interface
+  language. `npm run i18n:check` reports missing keys and codes.
+
+### Family-friendly interface
+
+- Step-by-step **❓ Guide** that opens on first run and jumps to each screen.
+- **Simple mode** by default; Animation, VM map and VBR are behind
+  **Expert mode**. Plain-language welcome screen and new-project dialog.
+- New user guides: `docs/GUIA-DE-USO.md` (Spanish) and `docs/USER_GUIDE.md`.
+
+### Engineering
+
+- `ENCODER_REV` 7. Stream-copy and PsF/HFR unit tests, audio reconciliation
+  tests, a stream-copy smoke render, and backend-agnostic BD smoke tests.
+- Clippy (Rust 1.100) clean; `cargo test --workspace` green.
+
 ## 0.6.0 — 2026-10-31
 
 ### Menu Designer 2.0

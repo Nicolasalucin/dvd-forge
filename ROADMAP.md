@@ -1,6 +1,6 @@
 # DVD Forge Roadmap — v0.5.0 to v1.0.0
 
-Status: v0.5.0 implementation (v0.5.1 next)  
+Status: v0.7.0 released (Smart Stream Copy for AVCHD/Blu-ray; Play-All and ISO inspector next)  
 Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
 Scope: native authoring, determinism, player compatibility, desktop UX and LTS packaging
 
@@ -336,6 +336,10 @@ serializers, Studio canvas.
 ---
 
 ## 4. v0.7.0 — Smart Stream Copy, Play-All Logic, ISO Inspector
+
+> Estado (0.7.0): §4.1 implementado para AVCHD/Blu-ray (`dvdforge-plan::stream_copy`,
+> `Episode.videoMode`, `W_STREAM_COPY_FALLBACK`); copia DVD-Video, §4.2 Play-All y
+> §4.3 inspector quedan pendientes.
 
 ### 4.1 Smart Stream Copy
 
