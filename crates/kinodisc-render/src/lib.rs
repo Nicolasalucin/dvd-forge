@@ -3087,6 +3087,7 @@ async fn encode_episodes(
     };
     let total = project.episodes.len().max(1);
     let mut reused_episodes = 0usize;
+    let mut prepared: Vec<PreparedEpisode<'_>> = Vec::with_capacity(project.episodes.len());
     for (index, episode) in project.episodes.iter().enumerate() {
         let asset = project
             .asset(episode.video)
@@ -3241,32 +3242,102 @@ async fn encode_episodes(
             },
             None => None,
         };
-        let base_mpeg = if let Some(artifact) = cached {
+        prepared.push(PreparedEpisode {
+            index,
+            episode,
+            request,
+            duration,
+            fps,
+            cache_key,
+            cached: cached.map(|artifact| PathBuf::from(artifact.artifact_path)),
+        });
+    }
+
+    // MPEG-2 encodes use few cores; several episodes run side by side
+    // (bounded) and the rest of the pipeline continues in disc order.
+    let jobs = encode_concurrency();
+    let shared = Arc::new(std::sync::Mutex::new(vec![0.0f64; total]));
+    for item in prepared.iter().filter(|item| item.cached.is_some()) {
+        if let Ok(mut fractions) = shared.lock() {
+            fractions[item.index] = 1.0;
+        }
+    }
+    let pending: Vec<usize> = prepared
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| item.cached.is_none())
+        .map(|(position, _)| position)
+        .collect();
+    if jobs > 1 && pending.len() > 1 {
+        log(
+            events,
+            format!(
+                "Codificando {} episodios de a {} a la vez.",
+                pending.len(),
+                jobs.min(pending.len())
+            ),
+        )
+        .await;
+    }
+    let permits = Arc::new(tokio::sync::Semaphore::new(jobs));
+    let mut set = tokio::task::JoinSet::new();
+    for position in pending {
+        let item = &prepared[position];
+        let encoder = encoder.clone();
+        let request = item.request.clone();
+        let events = events.clone();
+        let shared = Arc::clone(&shared);
+        let permits = Arc::clone(&permits);
+        let (index, duration, title) = (item.index, item.duration, item.episode.title.clone());
+        set.spawn(async move {
+            let _permit = permits
+                .acquire_owned()
+                .await
+                .map_err(|error| RenderError::Encode(error.to_string()))?;
+            log(
+                &events,
+                format!("Codificando episodio {}/{}: {}", index + 1, total, title),
+            )
+            .await;
+            let encoded = encode_episode_with_progress(
+                &encoder,
+                &request,
+                duration,
+                &events,
+                index,
+                total,
+                Some(shared),
+            )
+            .await?;
+            Ok::<_, RenderError>((position, encoded))
+        });
+    }
+    let mut encoded_by_position: HashMap<usize, EncodeOutputs> = HashMap::new();
+    while let Some(joined) = set.join_next().await {
+        let (position, encoded) = joined
+            .map_err(|error| RenderError::Encode(format!("tarea de codificación: {error}")))??;
+        encoded_by_position.insert(position, encoded);
+    }
+
+    for (position, item) in prepared.iter().enumerate() {
+        let (index, episode, duration, fps) = (item.index, item.episode, item.duration, item.fps);
+        let cache_key = &item.cache_key;
+        let base_mpeg = if let Some(artifact) = &item.cached {
             log(
                 events,
                 format!(
                     "Episodio {}/{}: reutilizando caché de artefactos {}",
                     index + 1,
                     total,
-                    artifact.artifact_path
+                    artifact.display()
                 ),
             )
             .await;
-            PathBuf::from(artifact.artifact_path)
+            artifact.clone()
         } else {
-            log(
-                events,
-                format!(
-                    "Codificando episodio {}/{}: {}",
-                    index + 1,
-                    total,
-                    episode.title
-                ),
-            )
-            .await;
-            let encoded =
-                encode_episode_with_progress(encoder, &request, duration, events, index, total)
-                    .await?;
+            let encoded = encoded_by_position
+                .remove(&position)
+                .ok_or_else(|| RenderError::Encode("episodio sin codificar".to_string()))?;
             // Only the muxed program stream is used from here on; the elementary
             // streams and the pass log would double the scratch footprint.
             let _ = std::fs::remove_file(&encoded.video_m2v);
@@ -3274,7 +3345,7 @@ async fn encode_episodes(
                 let _ = std::fs::remove_file(ac3);
             }
             let _ = std::fs::remove_file(encoded.passlog.with_extension("passlog-0.log"));
-            if let (Some(store), Some(key)) = (&cache, &cache_key) {
+            if let (Some(store), Some(key)) = (&cache, cache_key) {
                 match cached_artifact_path(store, key, "mpg", &encoded.muxed_mpg, duration).await {
                     Ok(path) => path,
                     Err(error) => {
@@ -3340,6 +3411,30 @@ async fn encode_episodes(
         .await;
     }
     Ok(files)
+}
+
+struct PreparedEpisode<'a> {
+    index: usize,
+    episode: &'a Episode,
+    request: EncodeRequest,
+    duration: u64,
+    fps: FrameRate,
+    cache_key: Option<ArtifactKey>,
+    cached: Option<PathBuf>,
+}
+
+/// Episodes encoded at the same time: a quarter of the cores (MPEG-2 two
+/// pass uses ~3-4), at least 1, at most 3; KINODISC_ENCODE_JOBS overrides.
+fn encode_concurrency() -> usize {
+    if let Some(value) = kinodisc_toolchain::legacy::env_var("KINODISC_ENCODE_JOBS")
+        .and_then(|value| value.trim().parse::<usize>().ok())
+    {
+        return value.clamp(1, 8);
+    }
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2);
+    (cores / 4).clamp(1, 3)
 }
 
 fn build_motion_buttons(
@@ -3851,6 +3946,7 @@ async fn encode_episode_with_progress(
     events: &EventSink,
     index: usize,
     total: usize,
+    shared: Option<Arc<std::sync::Mutex<Vec<f64>>>>,
 ) -> Result<EncodeOutputs, RenderError> {
     let (sender, mut receiver) = mpsc::channel::<EncodeProgress>(64);
     let event_sink = events.clone();
@@ -3866,8 +3962,20 @@ async fn encode_episode_with_progress(
             };
             let fraction = (progress.out_time_us as f64 / 1000.0 / duration).min(1.0);
             let episode_fraction = (base + fraction * span).min(1.0);
-            let permille = (((index as f64 + episode_fraction) / total.max(1) as f64) * 1000.0)
-                .min(1000.0) as u16;
+            // Episodes encoded at the same time report one combined figure.
+            let done = match &shared {
+                Some(shared) => match shared.lock() {
+                    Ok(mut fractions) => {
+                        if let Some(slot) = fractions.get_mut(index) {
+                            *slot = slot.max(episode_fraction);
+                        }
+                        fractions.iter().sum::<f64>()
+                    }
+                    Err(_) => index as f64 + episode_fraction,
+                },
+                None => index as f64 + episode_fraction,
+            };
+            let permille = ((done / total.max(1) as f64) * 1000.0).min(1000.0) as u16;
             let _ = event_sink
                 .send(JobEventKind::Progress {
                     stage: JobStage::EncodeEpisodes,
