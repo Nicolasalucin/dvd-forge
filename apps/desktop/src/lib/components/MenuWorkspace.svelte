@@ -165,13 +165,13 @@
 
 <svelte:window onkeydown={onCanvasKey} />
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex min-w-0 items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú")}</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú")}</span>
       {#if menus.length > 1}
         <select
-          class="max-w-[180px] rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+          class="max-w-[180px] rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
           value={menu?.id ?? ""}
           onchange={(event) => {
             const id = (event.currentTarget as HTMLSelectElement).value;
@@ -183,10 +183,10 @@
           {/each}
         </select>
       {:else}
-        <span class="truncate text-[11px] font-medium text-slate-300">{menu?.name ?? "—"}</span>
+        <span class="truncate text-[12px] font-medium text-slate-300">{menu?.name ?? "—"}</span>
       {/if}
       {#if menu}
-        <span class="hidden rounded-full border border-slate-800 px-2 py-0.5 font-mono text-[9px] text-slate-500 sm:inline">
+        <span class="hidden rounded-full border border-slate-800 px-2 py-0.5 font-mono text-[11px] text-slate-500 sm:inline">
           {menu.canvas.width}×{menu.canvas.height}
         </span>
       {/if}
@@ -194,7 +194,7 @@
 
     <div class="ml-auto flex flex-wrap items-center gap-1.5">
       {#if menu}
-        <label class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-400">
+        <label class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-400">
           {t("Fondo")}
           <input
             type="color"
@@ -206,7 +206,7 @@
           type="button"
           onclick={pickBackground}
           disabled={busy}
-          class="rounded-lg border border-slate-800 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
+          class="rounded-lg border border-slate-800 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
         >
           {t("Imagen…")}
         </button>
@@ -214,7 +214,7 @@
           type="button"
           onclick={pickMusic}
           disabled={busy}
-          class="rounded-lg border border-slate-800 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
+          class="rounded-lg border border-slate-800 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
         >
           {t("Música…")}
         </button>
@@ -224,7 +224,7 @@
             <button
               type="button"
               onclick={() => (projectStore.previewState = state.id)}
-              class={`rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition ${
+              class={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold transition ${
                 projectStore.previewState === state.id
                   ? "bg-slate-700 text-white"
                   : "text-slate-500 hover:text-slate-300"
@@ -237,7 +237,7 @@
         <button
           type="button"
           onclick={() => (projectStore.showSafeAreas = !projectStore.showSafeAreas)}
-          class={`rounded-lg border px-2 py-1 text-[10px] transition ${
+          class={`rounded-lg border px-2 py-1 text-[11px] transition ${
             projectStore.showSafeAreas
               ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
               : "border-slate-800 text-slate-500 hover:text-slate-300"
@@ -248,7 +248,7 @@
         <button
           type="button"
           onclick={() => (projectStore.showNavigation = !projectStore.showNavigation)}
-          class={`rounded-lg border px-2 py-1 text-[10px] transition ${
+          class={`rounded-lg border px-2 py-1 text-[11px] transition ${
             projectStore.showNavigation
               ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
               : "border-slate-800 text-slate-500 hover:text-slate-300"
@@ -259,7 +259,7 @@
         <button
           type="button"
           onclick={addButton}
-          class="rounded-lg bg-cyan-500 px-2 py-1 text-[10px] font-bold text-slate-950 transition hover:bg-cyan-400"
+          class="rounded-lg bg-cyan-500 px-2 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
         >
           {t("+ Botón")}
         </button>
@@ -269,7 +269,7 @@
 
   {#if localError || notice}
     <div
-      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[11px] ${
+      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${
         localError
           ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
           : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
@@ -301,7 +301,7 @@
             return accepted;
           }}
         />
-        <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-slate-500">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-500">
           <span>
             {t("Arrastra para mover · tiradores para redimensionar · coordenadas pares y separación mínima de 4 px.")}
             {t("Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.")}
@@ -313,7 +313,7 @@
         </div>
       </div>
     {:else}
-      <div class="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-800 text-center">
+      <div class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-800 text-center">
         <div>
           <p class="text-sm font-medium text-slate-300">{t("No hay un menú activo")}</p>
           <p class="mt-1 text-xs text-slate-500">
@@ -325,7 +325,7 @@
   </div>
 
   {#if selected}
-    <div class="shrink-0 border-t border-slate-800/70 px-3 py-1.5 text-[10px] text-slate-500">
+    <div class="shrink-0 border-t border-slate-800/70 px-3 py-1.5 text-[11px] text-slate-500">
       {t("Seleccionado:")} <span class="font-medium text-slate-300">{selected.name}</span>
       · {t(styleLabel(selected.styleKind))} · {t(actionLabel(selected.action.kind))}
     </div>

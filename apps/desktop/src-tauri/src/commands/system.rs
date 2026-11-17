@@ -38,6 +38,17 @@ pub fn toolchain_install_options(tools: Vec<String>) -> Vec<ToolInstallOption> {
         .collect()
 }
 
+/// Tools with an automatic download that must be (re)installed: missing,
+/// or installed by a pre-1.0 build without per-file hashes.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn toolchain_needs_install() -> Vec<String> {
+    kinodisc_toolchain::provision::needs_install()
+        .into_iter()
+        .map(|download| download.id.to_string())
+        .collect()
+}
+
 /// Downloads, verifies (size + SHA-256) and installs a tool into the
 /// per-user toolchain folder, which is searched before PATH.
 #[tauri::command(async)]

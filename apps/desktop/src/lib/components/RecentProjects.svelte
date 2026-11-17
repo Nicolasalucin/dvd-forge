@@ -39,17 +39,17 @@
 
 <div class={compact ? "space-y-1" : "space-y-2"}>
   {#if localError}
-    <p class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-200">
+    <p class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-200">
       {localError}
     </p>
   {/if}
   {#if projectStore.recentProjectsError}
-    <p class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-200">
+    <p class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
       {t("No se pudieron cargar los proyectos recientes: {error}", { error: projectStore.recentProjectsError })}
     </p>
   {/if}
   {#if projectStore.recentProjects.length === 0}
-    <p class="px-2 py-1 text-[10px] text-slate-600">
+    <p class="px-2 py-1 text-[11px] text-slate-600">
       {projectStore.recentProjectsBusy ? t("Cargando recientes…") : t("Todavía no hay proyectos recientes.")}
     </p>
   {:else}
@@ -62,10 +62,10 @@
           class="min-w-0 flex-1 text-left disabled:opacity-50"
           title={recent.filePath}
         >
-          <span class="block truncate text-[11px] font-semibold text-slate-200">
+          <span class="block truncate text-[12px] font-semibold text-slate-200">
             {opening === recent.filePath ? "Abriendo…" : recent.name}
           </span>
-          <span class="mt-0.5 flex items-center gap-1.5 text-[9px] text-slate-500">
+          <span class="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
             <span class="rounded border border-slate-700 px-1 py-0.5 text-cyan-200/80">{recent.discKind}</span>
             <span>{formatDate(recent.updatedAt)}</span>
           </span>
@@ -76,7 +76,7 @@
         <button
           type="button"
           onclick={() => void projectStore.forgetRecentProject(recent.filePath)}
-          class="rounded px-1 text-[10px] text-slate-600 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-300 group-hover:opacity-100"
+          class="rounded px-1 text-[11px] text-slate-600 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-300 group-hover:opacity-100"
           title={t("Quitar de recientes")}
         >
           ✕

@@ -172,10 +172,10 @@
     type="button"
     aria-label={t("Cerrar")}
     onclick={() => !running && onClose()}
-    class="absolute inset-0 cursor-default bg-slate-950/80 backdrop-blur-sm"
+    class="absolute inset-0 cursor-default bg-slate-950/80"
   ></button>
   <div
-    class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl shadow-black/60"
+    class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="batch-title"
@@ -183,7 +183,7 @@
     <header class="flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
         <h2 id="batch-title" class="text-lg font-semibold text-white">{t("Cola de discos")}</h2>
-        <p class="mt-0.5 text-[11px] text-slate-500">
+        <p class="mt-0.5 text-[12px] text-slate-500">
           {t("Genera varios discos seguidos, uno detrás de otro. Si se corta, lo que quedó en espera continúa después.")}
         </p>
       </div>
@@ -203,7 +203,7 @@
         type="button"
         onclick={addCurrent}
         disabled={running || !projectStore.project}
-        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
       >
         {t("+ Proyecto actual")}
       </button>
@@ -211,7 +211,7 @@
         type="button"
         onclick={addFiles}
         disabled={running}
-        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="rounded-lg border border-slate-700 px-3 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-40"
       >
         {t("+ Añadir proyectos…")}
       </button>
@@ -219,7 +219,7 @@
         type="button"
         onclick={clearFinished}
         disabled={running}
-        class="rounded-lg px-3 py-1.5 text-[11px] text-slate-400 transition hover:text-slate-200 disabled:opacity-40"
+        class="rounded-lg px-3 py-1.5 text-[12px] text-slate-400 transition hover:text-slate-200 disabled:opacity-40"
       >
         {t("Quitar terminados")}
       </button>
@@ -234,42 +234,42 @@
         <ol class="space-y-1.5">
           {#each items as item, index (item.path)}
             <li class="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2">
-              <span class="w-5 text-right font-mono text-[10px] text-slate-500">{index + 1}</span>
+              <span class="w-5 text-right font-mono text-[11px] text-slate-500">{index + 1}</span>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-[12px] font-medium text-slate-200" title={item.path}>{item.name}</p>
-                <p class={`truncate text-[10px] ${statusClass[item.status]}`} title={item.error ?? item.iso ?? ""}>
+                <p class={`truncate text-[11px] ${statusClass[item.status]}`} title={item.error ?? item.iso ?? ""}>
                   {statusLabel(item.status)}{item.iso ? ` · ${item.iso}` : ""}{item.error ? ` · ${item.error}` : ""}
                 </p>
               </div>
               {#if !running}
                 {#if item.status === "failed" || item.status === "cancelled"}
-                  <button type="button" onclick={() => retry(index)} class="rounded px-1.5 text-[11px] text-cyan-300 hover:bg-slate-800" title={t("Reintentar")} aria-label={t("Reintentar")}>↻</button>
+                  <button type="button" onclick={() => retry(index)} class="rounded px-1.5 text-[12px] text-cyan-300 hover:bg-slate-800" title={t("Reintentar")} aria-label={t("Reintentar")}>↻</button>
                 {/if}
-                <button type="button" onclick={() => move(index, -1)} disabled={index === 0} class="rounded px-1.5 text-[11px] text-slate-400 hover:bg-slate-800 disabled:opacity-25" aria-label={t("Subir")}>↑</button>
-                <button type="button" onclick={() => move(index, 1)} disabled={index === items.length - 1} class="rounded px-1.5 text-[11px] text-slate-400 hover:bg-slate-800 disabled:opacity-25" aria-label={t("Bajar")}>↓</button>
-                <button type="button" onclick={() => remove(index)} class="rounded px-1.5 text-[11px] text-slate-400 hover:bg-rose-500/10 hover:text-rose-300" aria-label={t("Quitar de la cola")}>✕</button>
+                <button type="button" onclick={() => move(index, -1)} disabled={index === 0} class="rounded px-1.5 text-[12px] text-slate-400 hover:bg-slate-800 disabled:opacity-25" aria-label={t("Subir")}>↑</button>
+                <button type="button" onclick={() => move(index, 1)} disabled={index === items.length - 1} class="rounded px-1.5 text-[12px] text-slate-400 hover:bg-slate-800 disabled:opacity-25" aria-label={t("Bajar")}>↓</button>
+                <button type="button" onclick={() => remove(index)} class="rounded px-1.5 text-[12px] text-slate-400 hover:bg-rose-500/10 hover:text-rose-300" aria-label={t("Quitar de la cola")}>✕</button>
               {/if}
             </li>
           {/each}
         </ol>
       {/if}
       {#if error}
-        <p class="mt-3 text-[11px] text-rose-300">{error}</p>
+        <p class="mt-3 text-[12px] text-rose-300">{error}</p>
       {/if}
       {#if running}
-        <p class="mt-3 text-[11px] text-cyan-200">
+        <p class="mt-3 text-[12px] text-cyan-200">
           {projectStore.renderStage} · {projectStore.renderPercent.toFixed(0)}%
         </p>
       {/if}
     </div>
 
     <footer class="flex items-center justify-between gap-2 border-t border-slate-800 px-5 py-3">
-      <span class="text-[11px] text-slate-500">{t("{count} en espera", { count: pending })}</span>
+      <span class="text-[12px] text-slate-500">{t("{count} en espera", { count: pending })}</span>
       {#if running}
         <button
           type="button"
           onclick={stop}
-          class="rounded-lg border border-rose-500/50 px-3 py-1.5 text-[11px] font-semibold text-rose-200 transition hover:bg-rose-500/10"
+          class="rounded-lg border border-rose-500/50 px-3 py-1.5 text-[12px] font-semibold text-rose-200 transition hover:bg-rose-500/10"
         >
           {t("Detener")}
         </button>
@@ -278,7 +278,7 @@
           type="button"
           onclick={runQueue}
           disabled={pending === 0}
-          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
         >
           {t("Generar todo")}
         </button>

@@ -320,25 +320,25 @@
     type="button"
     aria-label={t("Cerrar producción")}
     onclick={close}
-    class="absolute inset-0 cursor-default bg-slate-950/80 backdrop-blur-sm"
+    class="absolute inset-0 cursor-default bg-slate-950/80"
   ></button>
 
-  <div class="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl shadow-black/60">
+  <div class="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl">
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
-        <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400">{t("Producción")}</p>
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-400">{t("Producción")}</p>
         <h2 class="mt-1 text-lg font-semibold text-white">{t("Generar y grabar disco")}</h2>
-        <p class="mt-0.5 text-[11px] text-slate-500">
+        <p class="mt-0.5 text-[12px] text-slate-500">
           {isBluRay ? "Blu-ray HDMV" : isAvchd ? "AVCHD HD" : t("DVD-Video interactivo")} ·
           {project?.episodes.length ?? 0}
           {t((project?.episodes.length ?? 0) === 1 ? "episodio" : "episodios")}
         </p>
         {#if hardwareEncoder}
-          <p class="mt-1 text-[10px] text-emerald-300/80">
+          <p class="mt-1 text-[11px] text-emerald-300/80">
             {t("Aceleración: {encoder} (fallback automático a CPU)", { encoder: hardwareEncoder })}
           </p>
         {:else if isAvchd && projectStore.toolsReport}
-          <p class="mt-1 text-[10px] text-slate-500">
+          <p class="mt-1 text-[11px] text-slate-500">
             {t("Codificación H.264 en CPU (libx264).")}
           </p>
         {/if}
@@ -355,10 +355,10 @@
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
       {#if localError || projectStore.renderError || projectStore.burnError}
-        <div class="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] leading-5 text-rose-200">
+        <div class="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] leading-5 text-rose-200">
           {localError ?? projectStore.renderError ?? projectStore.burnError}
           {#if projectStore.renderError}
-            <p class="mt-1 text-[10px] text-rose-100/70">
+            <p class="mt-1 text-[11px] text-rose-100/70">
               {t("Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.")}
             </p>
           {/if}
@@ -378,19 +378,19 @@
             }`}
           >
             <span class="text-base text-cyan-300">{item.icon}</span>
-            <p class="mt-1 text-[11px] font-semibold text-slate-100">{t(item.title)}</p>
-            <p class="mt-0.5 text-[10px] leading-4 text-slate-500">{t(item.hint)}</p>
+            <p class="mt-1 text-[12px] font-semibold text-slate-100">{t(item.title)}</p>
+            <p class="mt-0.5 text-[11px] leading-4 text-slate-500">{t(item.hint)}</p>
           </button>
         {/each}
       </div>
 
       {#if mode === "iso" || mode === "folder"}
-        <label class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-[11px] text-slate-300">
+        <label class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-[12px] text-slate-300">
           <span>
             <span class="font-semibold text-slate-100">{t("Discos")}</span>
-            <span class="block text-[10px] text-slate-500">{t("Si no entra todo, repártelo en varios discos o crea uno por episodio")}</span>
+            <span class="block text-[11px] text-slate-500">{t("Si no entra todo, repártelo en varios discos o crea uno por episodio")}</span>
           </span>
-          <select bind:value={discSplit} disabled={busy} class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px]">
+          <select bind:value={discSplit} disabled={busy} class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[12px]">
             <option value="single">{t("Un solo disco")}</option>
             <option value="fitToDisc">{t("Varios discos (llenar cada uno)")}</option>
             <option value="perEpisode">{t("Un disco por episodio")}</option>
@@ -400,9 +400,9 @@
 
       {#if isAvchd && mode !== "existing"}
         <label class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2">
-          <span class="text-[10px] text-slate-400">{t("Codificación H.264")}</span>
+          <span class="text-[11px] text-slate-400">{t("Codificación H.264")}</span>
           <select
-            class="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+            class="rounded-md border border-slate-800 bg-slate-950 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
             bind:value={hardwareEncoding}
             disabled={busy}
           >
@@ -417,45 +417,45 @@
           {#if mode === "existing"}
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Imagen ISO")}</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Imagen ISO")}</span>
                 <button
                   type="button"
                   onclick={chooseExistingIso}
                   disabled={busy}
-                  class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
+                  class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
                 >
                   {t("Elegir…")}
                 </button>
               </div>
               <input
-                class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
                 bind:value={existingIso}
                 placeholder={t("/ruta/al/disco.iso")}
                 disabled={busy}
               />
               {#if existingIso}
-                <p class="mt-1 truncate text-[10px] text-slate-500">{basename(existingIso)}</p>
+                <p class="mt-1 truncate text-[11px] text-slate-500">{basename(existingIso)}</p>
               {/if}
             </div>
           {:else}
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Carpeta de salida")}</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Carpeta de salida")}</span>
                 <button
                   type="button"
                   onclick={chooseOutput}
                   disabled={busy}
-                  class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
+                  class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
                 >
                   {t("Elegir…")}
                 </button>
               </div>
               <input
-                class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+                class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 font-mono text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
                 bind:value={outputDir}
                 disabled={busy}
               />
-              <p class="mt-1 text-[10px] text-slate-500">
+              <p class="mt-1 text-[11px] text-slate-500">
                 {defaultsReady
                   ? t("El ISO se escribirá aquí con el nombre del proyecto.")
                   : t("Preparando carpeta predeterminada…")}
@@ -465,10 +465,10 @@
 
           <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 {t("Progreso")}
               </span>
-              <span class="font-mono text-[11px] text-cyan-300">
+              <span class="font-mono text-[12px] text-cyan-300">
                 {projectStore.burning
                   ? `${burnPercent.toFixed(1)}%`
                   : `${renderPercent.toFixed(1)}%`}
@@ -478,13 +478,13 @@
               <div
                 class={`h-full rounded-full transition-all duration-300 ${
                   projectStore.renderError || projectStore.burnError
-                    ? "bg-gradient-to-r from-rose-500 to-orange-400"
-                    : "bg-gradient-to-r from-cyan-500 via-sky-400 to-emerald-400"
+                    ? "bg-rose-500"
+                    : "bg-cyan-500"
                 }`}
                 style={`width: ${projectStore.burning ? burnPercent : renderPercent}%`}
               ></div>
             </div>
-            <p class="mt-1.5 truncate text-[10px] text-slate-500">
+            <p class="mt-1.5 truncate text-[11px] text-slate-500">
               {#if projectStore.rendering}
                 {projectStore.renderStage || t("Generando…")}
               {:else if projectStore.burning}
@@ -496,17 +496,17 @@
               {/if}
             </p>
             {#if projectStore.burnReport}
-              <p class="mt-1 text-[10px] text-emerald-300">
+              <p class="mt-1 text-[11px] text-emerald-300">
                 {t("Grabación completada")} · {projectStore.burnReport.backend} · {(projectStore.burnReport.elapsedMs / 1000).toFixed(1)} s
                 {#if projectStore.burnReport.verified}· {t("verificada")}{/if}
               </p>
             {/if}
             {#if projectStore.renderVerification}
               <details class="mt-2 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
-                <summary class="cursor-pointer select-none text-[10px] text-slate-400">
+                <summary class="cursor-pointer select-none text-[11px] text-slate-400">
                   {t("Verificación estructural")} · {projectStore.renderVerification.verdict}
                 </summary>
-                <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[9px]">
+                <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[11px]">
                   {#each projectStore.renderVerification.checks as check}
                     <li class:text-rose-300={check.status === "fail"} class:text-amber-300={check.status === "warn"} class:text-emerald-300={check.status === "pass"} class:text-slate-500={check.status === "skipped"}>
                       [{check.status}] {check.id}: {check.message}
@@ -517,13 +517,13 @@
             {/if}
             {#if projectStore.lastIso}
               <div class="mt-2 flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
-                <span class="min-w-0 truncate font-mono text-[10px] text-slate-400" title={projectStore.lastIso}>
+                <span class="min-w-0 truncate font-mono text-[11px] text-slate-400" title={projectStore.lastIso}>
                   {basename(projectStore.lastIso)}
                 </span>
                 <button
                   type="button"
                   onclick={openOutput}
-                  class="shrink-0 rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-500/60"
+                  class="shrink-0 rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
                 >
                   {t("Abrir carpeta")}
                 </button>
@@ -533,10 +533,10 @@
 
           {#if projectStore.renderLogs.length > 0}
             <details class="rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-              <summary class="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <summary class="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 {t("Registro")} · {projectStore.renderLogs.length} {t("líneas")}
               </summary>
-              <div class="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-2 font-mono text-[10px] leading-4 text-slate-500">
+              <div class="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-4 text-slate-500">
                 {#each projectStore.renderLogs as line}
                   <p class="whitespace-pre-wrap">{line}</p>
                 {/each}
@@ -549,23 +549,23 @@
           {#if needsBurn}
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Unidad")}</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Unidad")}</span>
                 <button
                   type="button"
                   onclick={refreshDevices}
                   disabled={refreshing || busy}
-                  class="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
+                  class="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-50"
                 >
                   {refreshing ? "…" : "Actualizar"}
                 </button>
               </div>
               {#if devices.length === 0}
-                <p class="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[10px] leading-4 text-amber-200/80">
+                <p class="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[11px] leading-4 text-amber-200/80">
                   {t("No se detectaron unidades ópticas. Puedes generar el ISO y grabarlo después.")}
                 </p>
               {:else}
                 <select
-                  class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="mt-2 w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                   value={effectiveDevice}
                   onchange={(event) => (selectedDevice = event.currentTarget.value)}
                   disabled={busy}
@@ -581,9 +581,9 @@
 
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
               <label class="block">
-                <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
+                <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
                 <select
-                  class="w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="w-full rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                   value={effectiveSpeed}
                   onchange={(event) => (speed = Number(event.currentTarget.value))}
                   disabled={busy}
@@ -595,43 +595,43 @@
                   {/each}
                 </select>
               </label>
-              <label class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
+              <label class="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
                 <input type="checkbox" bind:checked={verify} disabled={busy} class="accent-cyan-500" />
                 {t("Verificar por lectura SHA-256")}
               </label>
-              <label class="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400">
+              <label class="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
                 <input type="checkbox" bind:checked={eject} disabled={busy} class="accent-cyan-500" />
                 {t("Expulsar al terminar")}
               </label>
             </div>
           {:else}
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-              <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Salida")}</p>
-              <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+              <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Salida")}</p>
+              <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
                 {t("Se generará un archivo")} <span class="font-mono text-slate-300">{t(".iso")}</span> {t("listo para grabarlo con cualquier herramienta del sistema.")}
               </p>
             </div>
           {/if}
 
           <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Plan")}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Plan")}</p>
             {#if projectStore.plan}
-              <div class="mt-1.5 flex items-center justify-between text-[10px]">
+              <div class="mt-1.5 flex items-center justify-between text-[11px]">
                 <span class="text-slate-500">{t("Ocupación")}</span>
                 <span class={projectStore.plan.feasible ? "font-mono text-emerald-300" : "font-mono text-rose-300"}>
                   {projectStore.planPercent.toFixed(1)}%
                 </span>
               </div>
-              <div class="mt-1 flex items-center justify-between text-[10px]">
+              <div class="mt-1 flex items-center justify-between text-[11px]">
                 <span class="text-slate-500">{t("Tasa de bits")}</span>
                 <span class="font-mono text-slate-300">{projectStore.plan.videoKbps} kbps</span>
               </div>
-              <div class="mt-1 flex items-center justify-between text-[10px]">
+              <div class="mt-1 flex items-center justify-between text-[11px]">
                 <span class="text-slate-500">{t("Calidad")}</span>
                 <span class="text-slate-300">{projectStore.qualityLabel}</span>
               </div>
             {:else}
-              <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+              <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
                 {t("El plan se calculará automáticamente al generar el disco.")}
               </p>
             {/if}
@@ -646,18 +646,18 @@
           <button
             type="button"
             onclick={cancel}
-            class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold text-rose-200 transition hover:bg-rose-500/20"
+            class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[12px] font-semibold text-rose-200 transition hover:bg-rose-500/20"
           >
             {t("Cancelar")}
           </button>
-          <span class="text-[10px] text-slate-500">
+          <span class="text-[11px] text-slate-500">
             {projectStore.rendering ? t("Generación en curso") : t("Grabación en curso")}
           </span>
         {:else}
           <button
             type="button"
             onclick={openOutput}
-            class="rounded-lg border border-slate-800 px-3 py-1.5 text-[11px] text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
+            class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
           >
             {t("Abrir carpeta")}
           </button>
@@ -668,7 +668,7 @@
           type="button"
           onclick={close}
           disabled={busy}
-          class="rounded-lg border border-slate-800 px-3 py-1.5 text-[11px] text-slate-300 transition hover:border-slate-700 disabled:opacity-40"
+          class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-slate-700 disabled:opacity-40"
         >
           {t("Cerrar")}
         </button>
@@ -676,7 +676,7 @@
           type="button"
           onclick={start}
           disabled={!canStart}
-          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
         >
           {startLabel}
         </button>

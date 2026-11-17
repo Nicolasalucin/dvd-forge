@@ -1,3 +1,4 @@
+import { ProjectHistory } from "./history.svelte";
 import {
   commands,
   type AspectRatio,
@@ -328,6 +329,8 @@ export function guessMediaKind(path: string, probe: MediaProbe_Serialize): Media
 
 class ProjectStore {
   project = $state<Project_Serialize | null>(null);
+  /** Undo/redo and unsaved-changes tracking. */
+  readonly history = new ProjectHistory();
   projectPath = $state<string | null>(null);
   recentProjects = $state<RecentProject_Serialize[]>([]);
   recentProjectsBusy = $state(false);
@@ -481,6 +484,7 @@ class ProjectStore {
     }
     this.project = project;
     this.syncPlayAll();
+    this.history.reset(project);
     this.planSequence += 1;
     this.plan = null;
     this.planError = null;
@@ -515,6 +519,7 @@ class ProjectStore {
 
   clearProject(): void {
     this.project = null;
+    this.history.reset(null);
     this.projectPath = null;
     this.plan = null;
     this.planError = null;
@@ -533,7 +538,49 @@ class ProjectStore {
   }
 
   touch(): void {
-    if (this.project) this.project.modifiedAt = new Date().toISOString();
+    if (!this.project) return;
+    this.project.modifiedAt = new Date().toISOString();
+    this.history.schedule(() => this.project);
+  }
+
+  get canUndo(): boolean {
+    return this.history.canUndo;
+  }
+
+  get canRedo(): boolean {
+    return this.history.canRedo;
+  }
+
+  /** True when the project differs from the last saved/opened version. */
+  get dirty(): boolean {
+    return this.history.dirty;
+  }
+
+  undo(): void {
+    this.restoreSnapshot(this.history.undo());
+  }
+
+  redo(): void {
+    this.restoreSnapshot(this.history.redo());
+  }
+
+  private restoreSnapshot(snapshot: string | null): void {
+    if (!snapshot || !this.project) return;
+    const restored = JSON.parse(snapshot) as Project_Serialize;
+    restored.modifiedAt = new Date().toISOString();
+    this.project = restored;
+    // Keep selections that still exist; fall back to the first item.
+    if (!restored.menus.some((menu) => menu.id === this.selectedMenuId)) {
+      this.selectedMenuId = restored.menus[0]?.id ?? null;
+    }
+    const menu = restored.menus.find((item) => item.id === this.selectedMenuId);
+    if (!menu?.buttons.some((button) => button.id === this.selectedButtonId)) {
+      this.selectedButtonId = null;
+    }
+    if (!restored.episodes.some((episode) => episode.id === this.selectedEpisodeId)) {
+      this.selectedEpisodeId = restored.episodes[0]?.id ?? null;
+    }
+    this.plan = null;
   }
 
   renameProject(name: string): void {
@@ -1788,6 +1835,29 @@ class ProjectStore {
     return true;
   }
 
+  /** Copies the selected button next to it (new id, same action). */
+  duplicateSelectedButton(): boolean {
+    const menu = this.activeMenu;
+    const source = menu?.buttons.find((button) => button.id === this.selectedButtonId);
+    if (!menu || !source) return false;
+    const copy = JSON.parse(JSON.stringify(source)) as typeof source;
+    copy.id = crypto.randomUUID();
+    copy.name = `${source.name} (${t("copia")})`;
+    const offset = 16 * menuScale(menu);
+    const { x, y, w, h } = { x: copy.rect.x ?? 0, y: copy.rect.y ?? 0, w: copy.rect.w ?? 0, h: copy.rect.h ?? 0 };
+    copy.rect = {
+      ...copy.rect,
+      x: Math.min(x + offset, Math.max(0, menu.canvas.width - w)),
+      y: Math.min(y + offset, Math.max(0, menu.canvas.height - h)),
+    };
+    copy.navOverride = { up: null, down: null, left: null, right: null };
+    menu.buttons = [...menu.buttons, copy];
+    this.selectedButtonId = copy.id;
+    this.syncPlayAll();
+    this.touch();
+    return true;
+  }
+
   deleteSelectedButton(): void {
     const menu = this.activeMenu;
     if (!menu || !this.selectedButtonId) return;
@@ -2472,6 +2542,67 @@ class ProjectStore {
     }
   }
 
+  private autosaveTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Writes a crash-recovery copy every 30 s while there are unsaved changes. */
+  startAutosave(): void {
+    if (this.autosaveTimer) return;
+    this.autosaveTimer = setInterval(() => void this.autosaveNow(), 30_000);
+  }
+
+  async autosaveNow(): Promise<void> {
+    this.history.flush();
+    const project = this.project;
+    if (!project || !this.dirty) return;
+    try {
+      await unwrap(
+        commands.autosaveWrite({
+          projectId: project.id,
+          name: project.name,
+          path: this.projectPath,
+          savedAt: new Date().toISOString(),
+          projectJson: JSON.stringify(project),
+        }),
+      );
+    } catch {
+      // Recovery copies are best effort; the real save reports errors.
+    }
+  }
+
+  async discardAutosave(projectId?: string): Promise<void> {
+    const id = projectId ?? this.project?.id;
+    if (!id) return;
+    try {
+      await unwrap(commands.autosaveDiscard(id));
+    } catch {
+      // Nothing to discard.
+    }
+  }
+
+  /**
+   * Asks before unsaved changes are lost (new/open/close). Returns true when
+   * it is fine to continue.
+   */
+  async confirmLoseChanges(): Promise<boolean> {
+    this.history.flush();
+    if (!this.project || !this.dirty) return true;
+    const { ask } = await import("@tauri-apps/plugin-dialog");
+    const discard = await ask(
+      t("«{name}» tiene cambios sin guardar. Si continúas, se perderán.", { name: this.project.name }),
+      { title: "Kinodisc", kind: "warning", okLabel: t("Descartar cambios"), cancelLabel: t("Cancelar") },
+    );
+    if (discard) await this.discardAutosave();
+    return discard;
+  }
+
+  /** Opens a crash-recovery copy; it stays "unsaved" until the user saves. */
+  recoverAutosave(entry: { projectJson: string; path?: string | null }): void {
+    const project = JSON.parse(entry.projectJson) as Project_Serialize;
+    this.projectPath = entry.path ?? null;
+    this.setProject(project);
+    this.history.markUnsaved();
+  }
+
   async newProject(
     name: string,
     standard: TvStandard,
@@ -2480,6 +2611,7 @@ class ProjectStore {
     avchdResolution: AvchdResolution | null,
     avchdFrameRate: FrameRate | null,
   ): Promise<void> {
+    if (!(await this.confirmLoseChanges())) return;
     this.busy = true;
     this.error = null;
     try {
@@ -2497,6 +2629,7 @@ class ProjectStore {
   }
 
   async openProject(path: string): Promise<void> {
+    if (!(await this.confirmLoseChanges())) return;
     this.busy = true;
     this.error = null;
     try {
@@ -2574,6 +2707,8 @@ class ProjectStore {
     try {
       await unwrap(commands.projectSave(path, project));
       this.projectPath = path;
+      this.history.markSaved(project);
+      void this.discardAutosave(project.id);
       await this.refreshRecentProjects();
     } catch (cause) {
       this.error = messageOf(cause);

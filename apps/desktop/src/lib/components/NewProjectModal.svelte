@@ -141,15 +141,15 @@
     aria-label={t("Cerrar")}
     onclick={onClose}
     disabled={busy}
-    class="absolute inset-0 cursor-default bg-slate-950/80 backdrop-blur-sm"
+    class="absolute inset-0 cursor-default bg-slate-950/80"
   ></button>
 
-  <div class="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl shadow-black/60">
+  <div class="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950 shadow-xl">
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
-        <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400">{t("Kinodisc")}</p>
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-400">{t("Kinodisc")}</p>
         <h2 class="mt-1 text-lg font-semibold text-white">{t("Nuevo proyecto")}</h2>
-        <p class="mt-0.5 text-[11px] text-slate-500">
+        <p class="mt-0.5 text-[12px] text-slate-500">
           {t("Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.")}
         </p>
       </div>
@@ -165,7 +165,7 @@
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
       {#if localError}
-        <div class="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+        <div class="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200">
           {localError}
         </div>
       {/if}
@@ -182,7 +182,7 @@
           }`}
         >
           <span class="text-sm font-semibold text-white">{t("DVD-Video universal")}</span>
-          <span class="mt-0.5 block text-[10px] leading-4 text-slate-500">
+          <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">
             {t("Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.")}
           </span>
         </button>
@@ -197,7 +197,7 @@
           }`}
         >
           <span class="text-sm font-semibold text-white">{t("Blu-ray / AVCHD (alta definición)")}</span>
-          <span class="mt-0.5 block text-[10px] leading-4 text-slate-500">
+          <span class="mt-0.5 block text-[11px] leading-4 text-slate-500">
             {t("Imagen HD con menús. Necesita reproductor Blu-ray, PS3/PS4/PS5 o similar.")}
           </span>
         </button>
@@ -205,7 +205,7 @@
 
       <div class="mt-4 space-y-3">
         <label class="block">
-          <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Nombre")}</span>
+          <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Nombre")}</span>
           <input
             class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/60"
             bind:value={name}
@@ -217,9 +217,9 @@
         {#if mode === "dvdVideo"}
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="block">
-              <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Estándar")}</span>
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Estándar")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] text-white outline-none focus:border-cyan-500/60"
+                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
                 bind:value={standard}
                 disabled={busy}
               >
@@ -228,9 +228,9 @@
               </select>
             </label>
             <label class="block">
-              <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Aspecto")}</span>
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Aspecto")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] text-white outline-none focus:border-cyan-500/60"
+                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
                 bind:value={aspect}
                 disabled={busy}
               >
@@ -242,9 +242,9 @@
         {:else}
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="block">
-              <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Resolución")}</span>
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Resolución")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] text-white outline-none focus:border-cyan-500/60"
+                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
                 bind:value={resolution}
                 disabled={busy}
               >
@@ -256,9 +256,9 @@
               </select>
             </label>
             <label class="block">
-              <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
+              <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Velocidad")}</span>
               <select
-                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[11px] text-white outline-none focus:border-cyan-500/60"
+                class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-[12px] text-white outline-none focus:border-cyan-500/60"
                 value={effectiveFpsKey}
                 onchange={(event) => (fpsKey = event.currentTarget.value)}
                 disabled={busy}
@@ -270,15 +270,15 @@
             </label>
           </div>
           {#if resolution === "1080p" && (effectiveFpsKey === "25" || effectiveFpsKey === "29.97")}
-            <p class="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] leading-4 text-emerald-100/80">
+            <p class="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] leading-4 text-emerald-100/80">
               {t("Ideal para TV y video casero. Se graba como PsF (imagen progresiva en señal 1080i), compatible con todos los reproductores Blu-ray.")}
             </p>
           {:else if resolution === "1080p" && (effectiveFpsKey === "50" || effectiveFpsKey === "59.94")}
-            <p class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[10px] leading-4 text-amber-100/80">
+            <p class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] leading-4 text-amber-100/80">
               {t("Máxima fluidez (deportes, videojuegos, cámaras modernas). Es AVCHD 2.0: funciona en PS3/PS4/PS5 y reproductores actuales, pero algunos Blu-ray antiguos no lo reproducen.")}
             </p>
           {/if}
-          <p class="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] leading-4 text-cyan-100/80">
+          <p class="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[11px] leading-4 text-cyan-100/80">
             {t("AVCHD/Blu-ray usa H.264, AC-3 y menús HDMV Interactive Graphics. Puedes elegir BD-25 o BD-50 en la cabecera para habilitar el authoring Blu-ray nativo.")}
           </p>
         {/if}
@@ -290,7 +290,7 @@
         type="button"
         onclick={openProject}
         disabled={busy}
-        class="rounded-lg border border-slate-800 px-3 py-1.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-40"
+        class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-cyan-500/60 disabled:opacity-40"
       >
         {t("Abrir proyecto…")}
       </button>
@@ -299,7 +299,7 @@
           type="button"
           onclick={onClose}
           disabled={busy}
-          class="rounded-lg border border-slate-800 px-3 py-1.5 text-[11px] text-slate-300 transition hover:border-slate-700 disabled:opacity-40"
+          class="rounded-lg border border-slate-800 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-slate-700 disabled:opacity-40"
         >
           {t("Cancelar")}
         </button>
@@ -307,7 +307,7 @@
           type="button"
           onclick={createProject}
           disabled={busy}
-          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
+          class="rounded-lg bg-cyan-500 px-4 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
         >
           {busy ? t("Creando…") : t("Crear proyecto")}
         </button>

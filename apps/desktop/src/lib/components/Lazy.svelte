@@ -12,13 +12,13 @@
 </script>
 
 {#await loader()}
-  <div class="flex flex-1 items-center justify-center text-[11px] text-slate-500" role="status">
+  <div class="flex flex-1 items-center justify-center text-[12px] text-slate-500" role="status">
     {t("Cargando…")}
   </div>
 {:then module}
   <module.default {...props} />
 {:catch error}
-  <div class="flex flex-1 items-center justify-center text-[11px] text-rose-300" role="alert">
+  <div class="flex flex-1 items-center justify-center text-[12px] text-rose-300" role="alert">
     {String(error)}
   </div>
 {/await}

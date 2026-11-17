@@ -1,6 +1,5 @@
 <script lang="ts">
-  import SlideshowDialog from "./SlideshowDialog.svelte";
-  import DiscInspector from "./DiscInspector.svelte";
+  import { ui } from "../ui/state.svelte";
   import { t } from "../i18n/index.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { ButtonStyleKind, MediaAsset_Serialize, MediaKind } from "../api/bindings";
@@ -65,8 +64,6 @@
     { kind: "hotspot", title: "Zona activa", hint: "Zona interactiva invisible" },
   ];
 
-  let slideshowOpen = $state(false);
-  let inspectorOpen = $state(false);
 
   async function importMedia() {
     if (!project) return;
@@ -233,7 +230,7 @@
       <button
         type="button"
         onclick={() => (projectStore.mediaTab = tab.id)}
-        class={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-[11px] font-semibold transition ${
+        class={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-[12px] font-semibold transition ${
           projectStore.mediaTab === tab.id
             ? "bg-slate-800 text-white"
             : "text-slate-500 hover:bg-slate-900 hover:text-slate-300"
@@ -246,7 +243,7 @@
     <button
       type="button"
       onclick={() => (projectStore.leftCollapsed = true)}
-      class="shrink-0 rounded-lg border border-slate-800 px-1.5 py-1.5 text-[10px] text-slate-500 transition hover:border-slate-700 hover:text-slate-200"
+      class="shrink-0 rounded-lg border border-slate-800 px-1.5 py-1.5 text-[11px] text-slate-500 transition hover:border-slate-700 hover:text-slate-200"
       title={t("Ocultar biblioteca")}
     >
       «
@@ -256,7 +253,7 @@
   <div class="min-h-0 flex-1 overflow-y-auto p-3">
     {#if localError || notice}
       <div
-        class={`mb-3 rounded-lg border px-2.5 py-2 text-[11px] leading-5 ${
+        class={`mb-3 rounded-lg border px-2.5 py-2 text-[12px] leading-5 ${
           localError
             ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
             : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
@@ -269,7 +266,7 @@
     {#if projectStore.mediaTab === "media"}
       <div class="flex items-center gap-2">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[11px] text-slate-200 outline-none placeholder:text-slate-600 focus:border-cyan-500/60"
+          class="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus:border-cyan-500/60"
           placeholder={t("Buscar medios…")}
           bind:value={search}
         />
@@ -277,35 +274,30 @@
           type="button"
           onclick={importMedia}
           disabled={busy || !project}
-          class="shrink-0 rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-50"
+          class="shrink-0 rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? "…" : t("+ Importar")}
         </button>
         <button
           type="button"
-          onclick={() => (inspectorOpen = true)}
+          onclick={() => (ui.inspector = true)}
           disabled={busy || !project}
           title={t("Inspeccionar o importar un disco")}
-          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
+          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
         >
           {t("Disco")}
         </button>
         <button
           type="button"
-          onclick={() => (slideshowOpen = true)}
+          onclick={() => (ui.slideshow = true)}
           disabled={busy || !project}
           title={t("Presentación de fotos")}
-          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
+          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[12px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
         >
           {t("Fotos")}
         </button>
       </div>
-      {#if slideshowOpen}
-        <SlideshowDialog onclose={() => (slideshowOpen = false)} />
-      {/if}
-      {#if inspectorOpen}
-        <DiscInspector onclose={() => (inspectorOpen = false)} />
-      {/if}
+
 
       {#if !project}
         <p class="mt-8 px-2 text-center text-xs leading-5 text-slate-500">
@@ -314,7 +306,7 @@
       {:else if assets.length === 0}
         <div class="mt-8 rounded-xl border border-dashed border-slate-800 px-3 py-8 text-center">
           <p class="text-xs font-medium text-slate-300">{t("Sin medios")}</p>
-          <p class="mt-1 text-[11px] leading-5 text-slate-500">
+          <p class="mt-1 text-[12px] leading-5 text-slate-500">
             {t("Importa vídeo, audio o imágenes para empezar.")}
           </p>
         </div>
@@ -335,16 +327,16 @@
                   {/if}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-[11px] font-semibold text-slate-200" title={asset.displayName}>
+                  <p class="truncate text-[12px] font-semibold text-slate-200" title={asset.displayName}>
                     {basename(asset.displayName)}
                   </p>
-                  <p class="mt-0.5 truncate text-[10px] text-slate-500">{assetMeta(asset)}</p>
+                  <p class="mt-0.5 truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>
                   <div class="mt-1 flex items-center gap-1.5">
-                    <span class="rounded-full border border-slate-700 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-slate-400">
+                    <span class="rounded-full border border-slate-700 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-slate-400">
                       {kindLabel(asset.kind)}
                     </span>
                     {#if episode}
-                      <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-300">
+                      <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-300">
                         E{episode.number}
                       </span>
                     {/if}
@@ -357,7 +349,7 @@
                   <button
                     type="button"
                     onclick={() => addEpisode(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
+                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
                   >
                     {episode ? t("Seleccionar episodio") : t("+ Episodio")}
                   </button>
@@ -367,7 +359,7 @@
                     type="button"
                     onclick={() => setButtonThumbnail(asset)}
                     disabled={!selectedButton}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
+                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
                   >
                     {t("Miniatura")}
                   </button>
@@ -376,7 +368,7 @@
                   <button
                     type="button"
                     onclick={() => setBackground(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
                   >
                     {t("Fondo")}
                   </button>
@@ -385,7 +377,7 @@
                   <button
                     type="button"
                     onclick={() => setVideoBackground(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
                   >
                     {t("Fondo vídeo")}
                   </button>
@@ -394,7 +386,7 @@
                   <button
                     type="button"
                     onclick={() => setMusic(asset)}
-                    class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+                    class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
                   >
                     {t("Música menú")}
                   </button>
@@ -405,7 +397,7 @@
         </ul>
       {/if}
     {:else if projectStore.mediaTab === "layouts"}
-      <p class="px-1 text-[11px] leading-5 text-slate-500">
+      <p class="px-1 text-[12px] leading-5 text-slate-500">
         {t("Genera una composición completa a partir de los episodios y ajusta después en el lienzo.")}
       </p>
       <div class="mt-3 space-y-2">
@@ -430,20 +422,20 @@
                 </div>
               </div>
               <div class="min-w-0">
-                <p class="text-[11px] font-semibold text-slate-200">{t(layout.title)}</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">{t(layout.hint)}</p>
+                <p class="text-[12px] font-semibold text-slate-200">{t(layout.title)}</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">{t(layout.hint)}</p>
               </div>
             </div>
           </button>
         {/each}
       </div>
       {#if noMenus && isAvchd}
-        <p class="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-2 text-[10px] leading-5 text-cyan-100/80">
+        <p class="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-2 text-[11px] leading-5 text-cyan-100/80">
           {t("Este disco no tiene menú (reproducción continua). Crea una pantalla de menú desde la barra inferior para usar los diseños.")}
         </p>
       {/if}
     {:else}
-      <p class="px-1 text-[11px] leading-5 text-slate-500">
+      <p class="px-1 text-[12px] leading-5 text-slate-500">
         {selectedButton
           ? t("Aplica un estilo a «{name}».", { name: selectedButton.name })
           : t("Selecciona un botón o crea uno nuevo con el estilo elegido.")}
@@ -463,22 +455,22 @@
             <div class="flex items-center gap-2.5">
               <div class="flex h-9 w-16 shrink-0 items-center justify-center rounded-md border border-slate-700 bg-slate-950">
                 {#if style.kind === "thumbnailCard"}
-                  <span class="h-6 w-10 rounded-sm border border-slate-600 bg-gradient-to-br from-slate-700 to-slate-900"></span>
+                  <span class="h-6 w-10 rounded-sm border border-slate-600 bg-slate-700"></span>
                 {:else if style.kind === "playBadge"}
-                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[9px] text-slate-950">▶</span>
+                  <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[11px] text-slate-950">▶</span>
                 {:else if style.kind === "glassPill"}
                   <span class="h-4 w-11 rounded-full border border-white/30 bg-white/10"></span>
                 {:else if style.kind === "classicFrame"}
                   <span class="h-5 w-12 rounded-sm border-2 border-slate-400/70 bg-slate-800"></span>
                 {:else if style.kind === "textOnly"}
-                  <span class="text-[9px] font-semibold text-slate-300">{t("Texto")}</span>
+                  <span class="text-[11px] font-semibold text-slate-300">{t("Texto")}</span>
                 {:else}
                   <span class="h-4 w-12 border-l-2 border-cyan-400/70 bg-slate-900/30"></span>
                 {/if}
               </div>
               <div class="min-w-0">
-                <p class="text-[11px] font-semibold text-slate-200">{t(style.title)}</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">{t(style.hint)}</p>
+                <p class="text-[12px] font-semibold text-slate-200">{t(style.title)}</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">{t(style.hint)}</p>
               </div>
             </div>
           </button>
@@ -490,7 +482,7 @@
           onclick={() => {
             if (!projectStore.addButton("classicFrame")) localError = projectStore.error;
           }}
-          class="mt-3 w-full rounded-lg border border-slate-700 px-2.5 py-2 text-[11px] font-medium text-slate-200 transition hover:border-cyan-500/60"
+          class="mt-3 w-full rounded-lg border border-slate-700 px-2.5 py-2 text-[12px] font-medium text-slate-200 transition hover:border-cyan-500/60"
         >
           {t("+ Añadir botón clásico")}
         </button>

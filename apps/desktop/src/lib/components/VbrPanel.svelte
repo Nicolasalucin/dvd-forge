@@ -122,22 +122,22 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Calidad VBR")}</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Calidad VBR")}</span>
       {#if plan}
-        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
           {plan.videoKbps.toLocaleString(i18n.locale)} kbps {t("promedio")}
         </span>
-        <span class={`rounded-full border px-2 py-0.5 text-[10px] ${plan.feasible ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
+        <span class={`rounded-full border px-2 py-0.5 text-[11px] ${plan.feasible ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
           {t(plan.feasible ? "Viable" : "No viable")}
         </span>
       {/if}
     </div>
     <div class="flex items-center gap-2">
       {#if dvdVideo}
-        <label class="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/70 px-2 py-1 text-[10px] text-slate-400">
+        <label class="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/70 px-2 py-1 text-[11px] text-slate-400">
           <input
             type="checkbox"
             checked={dvdVideo.trellis}
@@ -147,7 +147,7 @@
           {t("Trellis")}
         </label>
       {/if}
-      <span class="rounded-md border border-slate-800 px-2 py-1 text-[10px] text-slate-500">
+      <span class="rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-500">
         {projectStore.planBusy ? t("Calculando plan…") : t("Plan automático")}
       </span>
     </div>
@@ -157,10 +157,10 @@
     <div class="flex min-w-0 flex-col gap-3">
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
             {t("Curva de asignación")}{isAvchd ? "" : t(" · 2 pasadas")}
           </h2>
-          <div class="flex items-center gap-3 text-[9px] text-slate-500">
+          <div class="flex items-center gap-3 text-[11px] text-slate-500">
             <span class="flex items-center gap-1"><span class="h-0.5 w-4 bg-cyan-400"></span> {t("objetivo")}</span>
             <span class="flex items-center gap-1"><span class="h-0.5 w-4 bg-amber-300"></span> {t("corte de capa")}</span>
           </div>
@@ -170,8 +170,8 @@
           <svg class="mt-2 w-full" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
             <defs>
               <linearGradient id="vbr-area" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.02" />
+                <stop offset="0%" stop-color="var(--color-cyan-400)" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="var(--color-cyan-400)" stop-opacity="0.02" />
               </linearGradient>
             </defs>
 
@@ -181,26 +181,26 @@
                 y1={yForKbps(tick)}
                 x2={chartWidth - padRight}
                 y2={yForKbps(tick)}
-                stroke="#1e293b"
+                stroke="var(--color-slate-800)"
                 stroke-width="1"
               />
               <text
                 x={padLeft - 6}
                 y={yForKbps(tick) + 3}
                 text-anchor="end"
-                fill="#64748b"
+                fill="var(--color-slate-500)"
                 font-size="8"
                 font-family="monospace">{Math.round(tick / 1000)}M</text>
             {/each}
 
             <path d={areaPath} fill="url(#vbr-area)" />
-            <path d={curvePath} fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round" />
+            <path d={curvePath} fill="none" stroke="var(--color-cyan-400)" stroke-width="2.5" stroke-linejoin="round" />
             <line
               x1={padLeft}
               y1={targetY}
               x2={chartWidth - padRight}
               y2={targetY}
-              stroke="#67e8f9"
+              stroke="var(--color-cyan-300)"
               stroke-width="1"
               stroke-dasharray="6 5"
               opacity="0.75"
@@ -212,11 +212,11 @@
                 y1={padTop}
                 x2={layerBreakX}
                 y2={padTop + plotHeight}
-                stroke="#fcd34d"
+                stroke="var(--color-amber-300)"
                 stroke-width="1.5"
                 stroke-dasharray="4 4"
               />
-              <text x={layerBreakX + 4} y={padTop + 9} fill="#fde68a" font-size="8">{t("corte de capa")}</text>
+              <text x={layerBreakX + 4} y={padTop + 9} fill="var(--color-amber-200)" font-size="8">{t("corte de capa")}</text>
             {/if}
 
             {#each timeTicks as tick}
@@ -225,13 +225,13 @@
                 y1={padTop + plotHeight}
                 x2={xForTime(tick)}
                 y2={padTop + plotHeight + 4}
-                stroke="#334155"
+                stroke="var(--color-slate-700)"
               />
               <text
                 x={xForTime(tick)}
                 y={chartHeight - 8}
                 text-anchor="middle"
-                fill="#64748b"
+                fill="var(--color-slate-500)"
                 font-size="8"
                 font-family="monospace">{formatDuration(tick)}</text>
             {/each}
@@ -251,10 +251,10 @@
 
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
             {t("Prioridad por episodio")}
           </h2>
-          <span class="text-[9px] text-slate-500">
+          <span class="text-[11px] text-slate-500">
             {t("El promedio global se mantiene; los bits se redistribuyen.")}
           </span>
         </div>
@@ -263,12 +263,12 @@
             {@const planned = plan?.perEpisode.find((entry) => entry.episode === episode.id)}
             {@const priority = priorityOf(episode.id)}
             <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/50 px-2 py-1.5">
-              <span class="font-mono text-[9px] text-cyan-300">E{episode.number}</span>
-              <span class="min-w-0 flex-1 truncate text-[10px] text-slate-300">{episode.title}</span>
-              <span class="font-mono text-[9px] text-slate-500">
+              <span class="font-mono text-[11px] text-cyan-300">E{episode.number}</span>
+              <span class="min-w-0 flex-1 truncate text-[11px] text-slate-300">{episode.title}</span>
+              <span class="font-mono text-[11px] text-slate-500">
                 {planned ? `${planned.videoKbps.toLocaleString(i18n.locale)} kbps` : t("sin plan")}
               </span>
-              <span class="font-mono text-[9px] text-slate-600">
+              <span class="font-mono text-[11px] text-slate-600">
                 {formatDuration(projectStore.episodeEffectiveDuration(episode))}
               </span>
               <div class="flex rounded-md border border-slate-800 bg-slate-900 p-0.5">
@@ -277,7 +277,7 @@
                     type="button"
                     onclick={() => void setPriority(episode.id, option.id)}
                     title={t(option.hint)}
-                    class={`rounded px-1.5 py-0.5 text-[9px] font-semibold transition ${
+                    class={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition ${
                       priority === option.id
                         ? "bg-cyan-500/20 text-cyan-200"
                         : "text-slate-500 hover:text-slate-200"
@@ -290,27 +290,27 @@
             </div>
           {/each}
           {#if episodes.length === 0}
-            <p class="text-[10px] text-slate-500">{t("Sin episodios.")}</p>
+            <p class="text-[11px] text-slate-500">{t("Sin episodios.")}</p>
           {/if}
         </div>
       </div>
 
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Diagnósticos")}</h2>
+        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Diagnósticos")}</h2>
         <div class="mt-2 space-y-1.5">
           {#each plan?.warnings ?? [] as warning (warning.code + warning.message)}
-            <div class={`rounded-lg border px-2 py-1.5 text-[10px] leading-4 ${warningClass(warning.severity)}`}>
-              <span class="font-mono text-[9px] opacity-70">{warning.code}</span>
+            <div class={`rounded-lg border px-2 py-1.5 text-[11px] leading-4 ${warningClass(warning.severity)}`}>
+              <span class="font-mono text-[11px] opacity-70">{warning.code}</span>
               <span class="ml-1">{localizeDiagnostic(warning)}</span>
             </div>
           {/each}
           {#if !plan || plan.warnings.length === 0}
-            <p class="rounded-lg border border-dashed border-slate-800 px-2 py-3 text-center text-[10px] text-slate-500">
+            <p class="rounded-lg border border-dashed border-slate-800 px-2 py-3 text-center text-[11px] text-slate-500">
               {t("Sin advertencias del planificador.")}
             </p>
           {/if}
           {#if plan && !plan.feasible}
-            <div class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[10px] text-rose-200">
+            <div class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[11px] text-rose-200">
               {t("Buffer underflow probable: reduce la prioridad de los episodios largos o cambia a Half-D1 / DVD-9.")}
             </div>
           {/if}
@@ -320,8 +320,8 @@
 
     <aside class="flex min-h-0 flex-col gap-2">
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Presupuesto")}</h2>
-        <dl class="mt-2 space-y-1 text-[10px]">
+        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Presupuesto")}</h2>
+        <dl class="mt-2 space-y-1 text-[11px]">
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Disco")}</dt>
             <dd class="text-slate-300">{discLabel}</dd>
@@ -356,9 +356,9 @@
       </div>
 
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Corte de capa")}</h2>
+        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Corte de capa")}</h2>
         {#if plan?.layerBreakSector !== null && plan?.layerBreakSector !== undefined}
-          <dl class="mt-2 space-y-1 text-[10px]">
+          <dl class="mt-2 space-y-1 text-[11px]">
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Sector")}</dt>
               <dd class="font-mono text-amber-200">{plan.layerBreakSector}</dd>
@@ -376,19 +376,19 @@
               <dd class="font-mono text-slate-300">{formatBytes(plan.layerBreakSector * 2048)}</dd>
             </div>
           </dl>
-          <p class="mt-2 text-[9px] leading-4 text-slate-500">
+          <p class="mt-2 text-[11px] leading-4 text-slate-500">
             {t("Alineado a bloques ECC de 16 sectores. La autoría ajusta el corte de capa al PGC más cercano durante la grabación.")}
           </p>
         {:else}
-          <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+          <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
             {t("Selecciona DVD-9 para calcular el punto de cambio de capa PTP/OTP.")}
           </p>
         {/if}
       </div>
 
       <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Codificación")}</h2>
-        <dl class="mt-2 space-y-1 text-[10px]">
+        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Codificación")}</h2>
+        <dl class="mt-2 space-y-1 text-[11px]">
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Perfil")}</dt>
             <dd class="text-slate-300">{isAvchd ? "H.264/AVC" : (plan?.profile ?? "—")}</dd>

@@ -89,17 +89,17 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú animado")}</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Menú animado")}</span>
       {#if menu}
-        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
           {menu.name}
         </span>
       {/if}
       {#if motion}
-        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
           {formatDuration(duration)} · {t(motion.loopEnabled ? "en bucle" : "una vez")}
         </span>
       {/if}
@@ -110,7 +110,7 @@
           <button
             type="button"
             onclick={() => projectStore.disableMenuMotion()}
-            class="rounded-md border border-rose-500/30 px-2 py-1 text-[10px] text-rose-300 transition hover:bg-rose-500/10"
+            class="rounded-md border border-rose-500/30 px-2 py-1 text-[11px] text-rose-300 transition hover:bg-rose-500/10"
           >
             {t("Desactivar animación")}
           </button>
@@ -118,7 +118,7 @@
           <button
             type="button"
             onclick={enableMotion}
-            class="rounded-md bg-cyan-500 px-2.5 py-1 text-[10px] font-bold text-slate-950 transition hover:bg-cyan-400"
+            class="rounded-md bg-cyan-500 px-2.5 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
           >
             {t("Activar menú animado")}
           </button>
@@ -129,7 +129,7 @@
 
   {#if !menu}
     <div class="flex flex-1 items-center justify-center p-6 text-center">
-      <div class="max-w-md rounded-2xl border border-dashed border-slate-800 p-8">
+      <div class="max-w-md rounded-lg border border-dashed border-slate-800 p-8">
         <p class="text-sm font-medium text-slate-300">{t("Sin menú activo")}</p>
         <p class="mt-1 text-xs leading-5 text-slate-500">
           {t("Crea un menú para configurar su bucle, fundidos y botones de vídeo en DVD o HD.")}
@@ -143,10 +143,10 @@
           {#if backgroundUrl}
             <img src={backgroundUrl} alt="" class="absolute inset-0 h-full w-full object-cover opacity-60" />
           {/if}
-          <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/30"></div>
+          <div class="absolute inset-0 bg-slate-950/80 via-transparent to-slate-950/30"></div>
           {#if previewUrl}
             <div class="relative z-10 flex max-w-[72%] flex-col items-center gap-2">
-              <div class="relative overflow-hidden rounded-2xl border-2 border-cyan-400/60 shadow-2xl shadow-cyan-500/20">
+              <div class="relative overflow-hidden rounded-lg border-2 border-cyan-400/60 shadow-xl">
                 <img src={previewUrl} alt="" class="max-h-[150px] w-auto object-contain" />
                 {#if buttonMotion}
                   <div class="absolute inset-0 animate-pulse border-2 border-cyan-300/50"></div>
@@ -155,14 +155,14 @@
                   </span>
                 {/if}
               </div>
-              <span class="rounded-full bg-slate-950/80 px-2 py-1 text-[10px] text-slate-200 backdrop-blur">
+              <span class="rounded-full bg-slate-950/80 px-2 py-1 text-[11px] text-slate-200">
                 {selectedButton?.name ?? t("Selecciona un botón para ver su vista previa animada")}
               </span>
             </div>
           {:else}
             <p class="relative z-10 text-xs text-slate-500">{t("Sin fondo o miniatura para previsualizar.")}</p>
           {/if}
-          <div class="absolute left-2 top-2 flex items-center gap-1 rounded-lg bg-slate-950/80 px-2 py-1 text-[9px] text-slate-300 backdrop-blur">
+          <div class="absolute left-2 top-2 flex items-center gap-1 rounded-lg bg-slate-950/80 px-2 py-1 text-[11px] text-slate-300">
             <span class="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
             {t("Vista previa animada")}
           </div>
@@ -170,23 +170,23 @@
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Línea de tiempo del menú")}</h2>
-            <span class="font-mono text-[10px] text-cyan-300">{formatDuration(duration)}</span>
+            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Línea de tiempo del menú")}</h2>
+            <span class="font-mono text-[11px] text-cyan-300">{formatDuration(duration)}</span>
           </div>
           <div class="relative mt-2 h-24 overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
             <svg class="absolute inset-0 h-full w-full" viewBox="0 0 600 96" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="motion-fade" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.45" />
-                  <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.03" />
+                  <stop offset="0%" stop-color="var(--color-cyan-400)" stop-opacity="0.45" />
+                  <stop offset="100%" stop-color="var(--color-cyan-400)" stop-opacity="0.03" />
                 </linearGradient>
               </defs>
-              <path d="M 0 88 L 600 88" stroke="#1e293b" stroke-width="1" />
+              <path d="M 0 88 L 600 88" stroke="var(--color-slate-800)" stroke-width="1" />
               <path d={`${fadePath("in", 88)} L 600 88 L 0 88 Z`} fill="url(#motion-fade)" />
-              <path d={fadePath("in", 88)} fill="none" stroke="#22d3ee" stroke-width="2" />
-              <path d={fadePath("out", 88)} fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5 4" />
+              <path d={fadePath("in", 88)} fill="none" stroke="var(--color-cyan-400)" stroke-width="2" />
+              <path d={fadePath("out", 88)} fill="none" stroke="var(--color-violet-400)" stroke-width="1.5" stroke-dasharray="5 4" />
               {#each [0, 150, 300, 450, 600] as tick}
-                <line x1={tick} y1="80" x2={tick} y2="90" stroke="#334155" />
+                <line x1={tick} y1="80" x2={tick} y2="90" stroke="var(--color-slate-700)" />
               {/each}
             </svg>
             <div class="absolute inset-x-3 bottom-2 flex justify-between font-mono text-[8px] text-slate-600">
@@ -201,7 +201,7 @@
                 entrada {formatDuration(motion.fadeInMs)} / salida {formatDuration(motion.fadeOutMs)}
               </div>
             {:else}
-              <div class="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">
+              <div class="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">
                 {t("Activa el menú animado para editar el bucle y los fundidos.")}
               </div>
             {/if}
@@ -210,10 +210,10 @@
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
               {t("Botones de vídeo")} · {menu.buttons.length}
             </h2>
-            <span class="text-[9px] text-slate-500">{t("máscara + fragmento en bucle")}</span>
+            <span class="text-[11px] text-slate-500">{t("máscara + fragmento en bucle")}</span>
           </div>
           <div class="mt-2 grid gap-2 md:grid-cols-2">
             {#each menu.buttons as button (button.id)}
@@ -235,13 +235,13 @@
                       style={button.shapeMask === "circle" ? "border-radius: 9999px;" : undefined}
                     />
                   {:else}
-                    <div class="flex h-10 w-16 items-center justify-center rounded bg-slate-900 text-[9px] text-slate-600">
+                    <div class="flex h-10 w-16 items-center justify-center rounded bg-slate-900 text-[11px] text-slate-600">
                       {t("sin fotograma")}
                     </div>
                   {/if}
                   <div class="min-w-0">
-                    <p class="truncate text-[10px] font-semibold text-slate-200">{button.name}</p>
-                    <p class="text-[9px] text-slate-500">
+                    <p class="truncate text-[11px] font-semibold text-slate-200">{button.name}</p>
+                    <p class="text-[11px] text-slate-500">
                       {button.motionPreview ? `${formatDuration(button.motionPreview.loopDurationMs)} ${t("en bucle")}` : t("estático")} · {maskLabel(button.shapeMask)}
                     </p>
                   </div>
@@ -249,7 +249,7 @@
               </button>
             {/each}
             {#if menu.buttons.length === 0}
-              <p class="text-[10px] text-slate-500">{t("Añade botones desde la pestaña Menú.")}</p>
+              <p class="text-[11px] text-slate-500">{t("Añade botones desde la pestaña Menú.")}</p>
             {/if}
           </div>
         </div>
@@ -257,11 +257,11 @@
 
       <aside class="flex min-h-0 flex-col gap-2">
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Bucle del menú")}</h2>
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Bucle del menú")}</h2>
           {#if motion}
             <div class="mt-2 space-y-2">
               <label class="block">
-                <span class="mb-0.5 flex justify-between text-[9px] text-slate-500">
+                <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                   <span>{t("Duración")}</span>
                   <span class="font-mono">{formatDuration(duration)}</span>
                 </span>
@@ -275,7 +275,7 @@
                   class="w-full accent-cyan-400"
                 />
               </label>
-              <label class="flex items-center justify-between text-[10px] text-slate-400">
+              <label class="flex items-center justify-between text-[11px] text-slate-400">
                 <span>{t("Repetir en bucle")}</span>
                 <input
                   type="checkbox"
@@ -287,30 +287,30 @@
               </label>
               <div class="grid grid-cols-2 gap-2">
                 <label class="block">
-                  <span class="mb-0.5 block text-[9px] text-slate-500">{t("Entrada (ms)")}</span>
+                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Entrada (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="50"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                     value={motion.fadeInMs}
                     onchange={(event) => setNumber("fadeInMs", Number(event.currentTarget.value))}
                   />
                 </label>
                 <label class="block">
-                  <span class="mb-0.5 block text-[9px] text-slate-500">{t("Salida (ms)")}</span>
+                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Salida (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="50"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                     value={motion.fadeOutMs}
                     onchange={(event) => setNumber("fadeOutMs", Number(event.currentTarget.value))}
                   />
                 </label>
               </div>
               <label class="block">
-                <span class="mb-0.5 flex justify-between text-[9px] text-slate-500">
+                <span class="mb-0.5 flex justify-between text-[11px] text-slate-500">
                   <span>{t("Volumen de música")}</span>
                   <span class="font-mono">{Math.round((motion.audioVolume ?? 1) * 100)}%</span>
                 </span>
@@ -326,21 +326,21 @@
               </label>
             </div>
           {:else}
-            <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+            <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
               {t("El menú estático se muestra indefinidamente. Actívalo para definir un bucle con entrada/salida y música.")}
             </p>
           {/if}
         </div>
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Transición de entrada")}</h2>
-          <p class="mt-1 text-[9px] leading-4 text-slate-500">
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Transición de entrada")}</h2>
+          <p class="mt-1 text-[11px] leading-4 text-slate-500">
             {t("Clip pregrabado que se reproduce antes del bucle interactivo del menú raíz.")}
           </p>
           <label class="mt-2 block">
-            <span class="mb-0.5 block text-[9px] text-slate-500">{t("Clip")}</span>
+            <span class="mb-0.5 block text-[11px] text-slate-500">{t("Clip")}</span>
             <select
-              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
               value={transition?.asset ?? ""}
               onchange={(event) => {
                 const value = event.currentTarget.value;
@@ -356,21 +356,21 @@
           {#if transition}
             <div class="mt-2 grid grid-cols-2 gap-2">
               <label class="block">
-                <span class="mb-0.5 block text-[9px] text-slate-500">{t("Duración (ms)")}</span>
+                <span class="mb-0.5 block text-[11px] text-slate-500">{t("Duración (ms)")}</span>
                 <input
                   type="number"
                   min="100"
                   step="100"
-                  class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                   value={transition.durationMs}
                   onchange={(event) =>
                     projectStore.updateMenuTransition({ durationMs: Math.max(100, Number(event.currentTarget.value)) })}
                 />
               </label>
               <label class="block">
-                <span class="mb-0.5 block text-[9px] text-slate-500">{t("Curva")}</span>
+                <span class="mb-0.5 block text-[11px] text-slate-500">{t("Curva")}</span>
                 <select
-                  class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                  class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                   value={transition.easing}
                   onchange={(event) =>
                     projectStore.updateMenuTransition({ easing: event.currentTarget.value as typeof transition.easing })}
@@ -387,12 +387,12 @@
 
         {#if selectedButton}
           <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Botón seleccionado")}</h2>
-            <p class="mt-1 truncate text-[11px] font-medium text-slate-200">{selectedButton.name}</p>
+            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Botón seleccionado")}</h2>
+            <p class="mt-1 truncate text-[12px] font-medium text-slate-200">{selectedButton.name}</p>
             <label class="mt-2 block">
-              <span class="mb-0.5 block text-[9px] text-slate-500">{t("Máscara de forma")}</span>
+              <span class="mb-0.5 block text-[11px] text-slate-500">{t("Máscara de forma")}</span>
               <select
-                class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                 value={selectedButton.shapeMask}
                 onchange={(event) =>
                   setShape(selectedButton, event.currentTarget.value as ButtonShapeMask)}
@@ -402,7 +402,7 @@
                 {/each}
               </select>
             </label>
-            <label class="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+            <label class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
               <span>{t("Vídeo en bucle")}</span>
               <input
                 type="checkbox"
@@ -414,12 +414,12 @@
             {#if buttonMotion}
               <div class="mt-2 grid grid-cols-2 gap-2">
                 <label class="block">
-                  <span class="mb-0.5 block text-[9px] text-slate-500">{t("Inicio (ms)")}</span>
+                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Inicio (ms)")}</span>
                   <input
                     type="number"
                     min="0"
                     step="100"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                     value={buttonMotion.sourceStartMs}
                     onchange={(event) =>
                       setButtonMotion(
@@ -430,12 +430,12 @@
                   />
                 </label>
                 <label class="block">
-                  <span class="mb-0.5 block text-[9px] text-slate-500">{t("Bucle (ms)")}</span>
+                  <span class="mb-0.5 block text-[11px] text-slate-500">{t("Bucle (ms)")}</span>
                   <input
                     type="number"
                     min="500"
                     step="500"
-                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                    class="w-full rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 font-mono text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
                     value={buttonMotion.loopDurationMs}
                     onchange={(event) =>
                       setButtonMotion(
@@ -451,8 +451,8 @@
         {/if}
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Salida")}</h2>
-          <p class="mt-1.5 text-[10px] leading-4 text-slate-500">
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Salida")}</h2>
+          <p class="mt-1.5 text-[11px] leading-4 text-slate-500">
             {t("La duración del menú se sincroniza con el proyecto. La composición combina el fondo, la música y los fragmentos de vídeo de los botones.")}
           </p>
         </div>

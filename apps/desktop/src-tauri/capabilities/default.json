@@ -10,6 +10,9 @@
     "core:path:default",
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-fullscreen",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-set-theme",
     "dialog:default"
   ]
 }

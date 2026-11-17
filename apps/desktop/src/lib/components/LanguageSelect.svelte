@@ -45,7 +45,7 @@
       open = !open;
       query = "";
     }}
-    class="flex w-full items-center justify-between gap-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-left text-[10px] text-slate-200 outline-none transition hover:border-cyan-500/50 disabled:opacity-50"
+    class="flex w-full items-center justify-between gap-1 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-left text-[11px] text-slate-200 outline-none transition hover:border-cyan-500/50 disabled:opacity-50"
     aria-haspopup="listbox"
     aria-expanded={open}
     title={selected}
@@ -54,9 +54,9 @@
     <span class="text-[8px] text-slate-500">▼</span>
   </button>
   {#if open}
-    <div class="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-slate-700 bg-slate-950 p-1.5 shadow-2xl shadow-black/60">
+    <div class="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-slate-700 bg-slate-950 p-1.5 shadow-xl">
       <input
-        class="w-full rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-100 outline-none focus:border-cyan-500/60"
+        class="w-full rounded-md border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-cyan-500/60"
         placeholder={t("Buscar idioma…")}
         bind:value={query}
       />
@@ -65,7 +65,7 @@
           <button
             type="button"
             onclick={() => choose(language.code)}
-            class={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-[10px] transition ${
+            class={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition ${
               language.code === current
                 ? "bg-cyan-500/15 text-cyan-100"
                 : "text-slate-300 hover:bg-slate-800"
@@ -77,7 +77,7 @@
           </button>
         {/each}
         {#if filtered.length === 0}
-          <p class="px-2 py-1.5 text-[10px] text-slate-500">{t("Sin resultados.")}</p>
+          <p class="px-2 py-1.5 text-[11px] text-slate-500">{t("Sin resultados.")}</p>
         {/if}
       </div>
     </div>

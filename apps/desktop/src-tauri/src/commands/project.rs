@@ -311,3 +311,98 @@ fn sanitize_volume_label(name: &str) -> String {
     label.truncate(32);
     label
 }
+
+/// Crash-recovery copy of an unsaved project (never the user's own file).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AutosaveEntry {
+    pub project_id: String,
+    pub name: String,
+    /// The project's file when it had been saved before, if any.
+    pub path: Option<String>,
+    pub saved_at: String,
+    pub project_json: String,
+}
+
+const AUTOSAVE_LIMIT: usize = 32 * 1024 * 1024;
+
+fn autosave_dir() -> Result<std::path::PathBuf, String> {
+    kinodisc_toolchain::legacy::app_data_dir()
+        .map(|dir| dir.join("autosave"))
+        .ok_or_else(|| "No se encontró la carpeta de datos del usuario.".to_string())
+}
+
+/// Only canonical UUIDs name autosave files (no paths, no traversal).
+fn autosave_file(project_id: &str) -> Result<std::path::PathBuf, String> {
+    let valid = project_id.len() == 36
+        && project_id
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() || c == '-');
+    if !valid {
+        return Err("Identificador de proyecto no válido.".to_string());
+    }
+    Ok(autosave_dir()?.join(format!("{}.json", project_id.to_ascii_lowercase())))
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn autosave_write(entry: AutosaveEntry) -> Result<(), String> {
+    if entry.project_json.len() > AUTOSAVE_LIMIT {
+        return Err("El proyecto es demasiado grande para el autoguardado.".to_string());
+    }
+    // Must be a project, not arbitrary data.
+    serde_json::from_str::<Project>(&entry.project_json)
+        .map_err(|error| format!("Proyecto no válido: {error}"))?;
+    let target = autosave_file(&entry.project_id)?;
+    std::fs::create_dir_all(target.parent().unwrap_or(std::path::Path::new(".")))
+        .map_err(|error| error.to_string())?;
+    let bytes = serde_json::to_vec(&entry).map_err(|error| error.to_string())?;
+    let partial = target.with_extension("part");
+    std::fs::write(&partial, bytes).map_err(|error| error.to_string())?;
+    std::fs::rename(&partial, &target).map_err(|error| error.to_string())
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn autosave_list() -> Vec<AutosaveEntry> {
+    let Ok(dir) = autosave_dir() else {
+        return Vec::new();
+    };
+    let mut entries: Vec<AutosaveEntry> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|item| item.path().extension().is_some_and(|ext| ext == "json"))
+        .filter(|item| {
+            item.metadata()
+                .is_ok_and(|meta| meta.len() as usize <= AUTOSAVE_LIMIT + 4096)
+        })
+        .filter_map(|item| std::fs::read(item.path()).ok())
+        .filter_map(|bytes| serde_json::from_slice::<AutosaveEntry>(&bytes).ok())
+        .collect();
+    entries.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+    entries
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn autosave_discard(project_id: String) -> Result<(), String> {
+    let target = autosave_file(&project_id)?;
+    match std::fs::remove_file(target) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod autosave_tests {
+    #[test]
+    fn autosave_names_must_be_uuids() {
+        assert!(super::autosave_file("../../evil").is_err());
+        assert!(super::autosave_file("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/").is_err());
+        assert!(super::autosave_file("C:/x").is_err());
+        let ok = super::autosave_file("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE").unwrap();
+        assert!(ok.ends_with("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.json"));
+    }
+}

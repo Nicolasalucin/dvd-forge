@@ -1,8 +1,16 @@
 @import "tailwindcss";
+@import "./theme.css";
 
+/*
+ * Kinodisc follows the operating system theme (light/dark); the View menu can
+ * force one with <html data-theme="light|dark">. Colours come from theme.css.
+ */
 :root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  -webkit-font-smoothing: antialiased;
 }
 
 html,
@@ -13,24 +21,43 @@ body,
 }
 
 body {
-  background: #070b14;
-  color: #e6edf7;
+  background: var(--app-bg);
+  color: var(--app-text);
 }
 
 button,
 select,
-input {
+input,
+textarea {
   font: inherit;
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.35);
+  background: var(--selection);
 }
 
-/* Accessibility: a clear focus ring for keyboard users only. */
+/* A clear focus ring for keyboard users only. */
 :focus-visible {
-  outline: 2px solid #22d3ee;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* Pressable things answer the press (no animation on keyboard actions). */
+button:not(:disabled) {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Desktop scrollbars that follow the theme. */
+* {
+  scrollbar-color: var(--color-slate-700) transparent;
+  scrollbar-width: thin;
 }
 
 /* Respect the system "reduce motion" setting. */
@@ -43,4 +70,12 @@ input {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  button:not(:disabled):active {
+    transform: none;
+  }
+}
+
+/* Text on the accent colour stays white in both themes. */
+.on-accent {
+  color: #ffffff;
 }

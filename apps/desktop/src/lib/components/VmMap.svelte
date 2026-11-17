@@ -311,20 +311,20 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Mapa de navegación")}</span>
-      <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Mapa de navegación")}</span>
+      <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
         {nodes.length} {t("nodos")} · {edges.length} {t("saltos")}
       </span>
       {#if isAvchd}
-        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-400">
           {t(isContinuousAvchd ? "AVCHD continuo" : "Blu-ray/AVCHD HD")}
         </span>
       {/if}
     </div>
-    <p class="text-[10px] text-slate-500">
+    <p class="text-[11px] text-slate-500">
       {t("INICIO → VMGM → VTSM → títulos · clic en un nodo para inspeccionarlo")}
     </p>
   </div>
@@ -341,17 +341,17 @@
             <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${mapWidth} ${canvasHeight}`}>
             <defs>
               <marker id="vm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-cyan-400)" />
               </marker>
               <marker id="vm-arrow-dashed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-slate-400)" />
               </marker>
             </defs>
             {#each edges as edge (edge.id)}
               <path
                 d={edgePath(edge)}
                 fill="none"
-                stroke={edge.dashed ? "#64748b" : "#22d3ee"}
+                stroke={edge.dashed ? "var(--color-slate-500)" : "var(--color-cyan-400)"}
                 stroke-width={edge.dashed ? 1.8 : 2.4}
                 stroke-linecap="round"
                 stroke-dasharray={edge.dashed ? "6 5" : undefined}
@@ -368,7 +368,7 @@
               ondblclick={openSelected}
               class={`absolute rounded-xl border px-2.5 py-2 text-left shadow-lg transition ${
                 selected?.id === node.id
-                  ? "border-cyan-400/80 bg-cyan-500/15 shadow-cyan-500/10"
+                  ? "border-cyan-400/80 bg-cyan-500/15"
                   : node.kind === "episode"
                     ? "border-slate-700 bg-slate-900/90 hover:border-cyan-500/50"
                     : node.kind === "firstPlay"
@@ -377,9 +377,9 @@
               }`}
               style={`left: ${node.x}px; top: ${node.y}px; width: ${node.width}px;`}
             >
-              <span class="block truncate text-[10px] font-semibold text-slate-100">{node.title}</span>
-              <span class="mt-0.5 block truncate text-[9px] text-slate-500">{node.subtitle}</span>
-              <span class="mt-1 flex items-center gap-1 text-[9px] text-slate-600">
+              <span class="block truncate text-[11px] font-semibold text-slate-100">{node.title}</span>
+              <span class="mt-0.5 block truncate text-[11px] text-slate-500">{node.subtitle}</span>
+              <span class="mt-1 flex items-center gap-1 text-[11px] text-slate-600">
                 <span class="rounded bg-slate-950/70 px-1 py-0.5">{incoming(node.id).length} ent.</span>
                 <span class="rounded bg-slate-950/70 px-1 py-0.5">{outgoing(node.id).length} sal.</span>
                 {#if node.kind === "episode"}
@@ -395,22 +395,22 @@
 
     <div class="shrink-0 rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-500">{t("Nodo")}</span>
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Nodo")}</span>
         {#if selected}
-          <span class="truncate text-[11px] font-semibold text-slate-100">{selected.title}</span>
-          <span class="truncate text-[9px] text-slate-500">{selected.subtitle}</span>
+          <span class="truncate text-[12px] font-semibold text-slate-100">{selected.title}</span>
+          <span class="truncate text-[11px] text-slate-500">{selected.subtitle}</span>
           <span class="rounded bg-slate-950/70 px-1 py-0.5 text-[8px] text-slate-400">
             {incoming(selected.id).length} {t("ent.")} · {outgoing(selected.id).length} {t("sal.")}
           </span>
           <button
             type="button"
             onclick={openSelected}
-            class="ml-auto rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[9px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+            class="ml-auto rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
           >
             {t("Abrir")}
           </button>
         {:else}
-          <span class="text-[10px] text-slate-500">{t("Sin nodo seleccionado.")}</span>
+          <span class="text-[11px] text-slate-500">{t("Sin nodo seleccionado.")}</span>
         {/if}
       </div>
       {#if selected}

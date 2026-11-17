@@ -543,12 +543,12 @@
       <button
         type="button"
         onclick={goBack}
-        class="absolute left-2 top-2 rounded-lg bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-slate-200 backdrop-blur transition hover:bg-slate-900"
+        class="absolute left-2 top-2 rounded-lg bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:bg-slate-900"
       >
         {t("← Menú")}
       </button>
       {#if currentEpisode}
-        <span class="absolute right-2 top-2 rounded-lg bg-slate-950/80 px-2 py-1 text-[10px] text-cyan-200 backdrop-blur">
+        <span class="absolute right-2 top-2 rounded-lg bg-slate-950/80 px-2 py-1 text-[11px] text-cyan-200">
           {episodeTitle(currentEpisode)}
         </span>
       {/if}
@@ -565,11 +565,11 @@
         <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
           <div class="h-full rounded-full bg-cyan-500" style={`width: ${progressPercent()}%`}></div>
         </div>
-        <span class="shrink-0 font-mono text-[10px] text-slate-400">
+        <span class="shrink-0 font-mono text-[11px] text-slate-400">
           {formatDuration(Math.max(0, playerEndMs - playerStartMs))}
         </span>
       </div>
-      <p class="mt-1.5 text-[10px] text-slate-500">
+      <p class="mt-1.5 text-[11px] text-slate-500">
         {t("Reproduciendo solo el rango recortado")} · {formatDuration(currentTimeMs - playerStartMs)} {t("transcurridos")}
       </p>
     </div>
@@ -578,7 +578,7 @@
 
 {#snippet tvRemoteOverlay()}
   <div class="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
-    <div class="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/15 bg-slate-950/55 p-2 shadow-2xl shadow-black/60 backdrop-blur-md">
+    <div class="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/15 bg-slate-950/55 p-2 shadow-xl">
       <button
         type="button"
         onclick={() => navigate("left")}
@@ -608,7 +608,7 @@
       <button
         type="button"
         onclick={activateFocus}
-        class="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500 text-[10px] font-black text-slate-950 transition hover:bg-cyan-400"
+        class="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500 text-[11px] font-black text-slate-950 transition hover:bg-cyan-400"
         title={t("OK")}
       >
         {t("OK")}
@@ -625,28 +625,28 @@
       <button
         type="button"
         onclick={goRoot}
-        class="rounded-lg px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
       >
         {t("Menú raíz")}
       </button>
       <button
         type="button"
         onclick={goTitle}
-        class="rounded-lg px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
       >
         {t("Título")}
       </button>
       <button
         type="button"
         onclick={goBack}
-        class="rounded-lg px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:bg-white/10"
+        class="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/10"
       >
         {t("Volver")}
       </button>
       <button
         type="button"
         onclick={toggleTvFullscreen}
-        class="rounded-lg border border-white/15 px-2 py-1 text-[10px] text-slate-300 transition hover:bg-white/10"
+        class="rounded-lg border border-white/15 px-2 py-1 text-[11px] text-slate-300 transition hover:bg-white/10"
         title={t("Salir de pantalla completa")}
       >
         ⤡
@@ -655,31 +655,31 @@
   </div>
 {/snippet}
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Simulador")}</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Simulador")}</span>
       {#if currentMenu}
-        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+        <span class="rounded-full border border-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
           {currentMenu.name}
         </span>
       {/if}
       {#if isAvchd}
-        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">
+        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-200">
           {t(isContinuousAvchd ? "AVCHD continuo" : "Blu-ray/AVCHD HD")}
         </span>
       {/if}
     </div>
     <div class="flex items-center gap-2">
       {#if focusButton}
-        <span class="hidden text-[10px] text-slate-500 sm:inline">
+        <span class="hidden text-[11px] text-slate-500 sm:inline">
           {t("Foco:")} <span class="text-slate-300">{focusButton.name}</span>
         </span>
       {/if}
       <button
         type="button"
         onclick={toggleTvFullscreen}
-        class="rounded-md border border-slate-800 px-2 py-1 text-[10px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+        class="rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
         title={t("Televisor a pantalla completa")}
       >
         {tvFullscreen ? "⤡ TV" : "⛶ TV"}
@@ -687,7 +687,7 @@
       <button
         type="button"
         onclick={refreshGraph}
-        class="rounded-md border border-slate-800 px-2 py-1 text-[10px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+        class="rounded-md border border-slate-800 px-2 py-1 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
       >
         {t("Refrescar grafo")}
       </button>
@@ -696,7 +696,7 @@
 
   {#if notice || graphError}
     <div
-      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[11px] ${
+      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${
         graphError
           ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
           : "border-slate-700 bg-slate-900/60 text-slate-300"
@@ -707,13 +707,13 @@
   {/if}
 
   {#if playbackSupport && !playbackSupport.supported}
-    <div class="mx-3 mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-100">
+    <div class="mx-3 mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[12px] text-amber-100">
       <p class="font-semibold">{t("Reproducción de vídeo no disponible")}</p>
-      <p class="mt-0.5 text-[10px] leading-4 text-amber-100/80">{playbackSupport.detail}</p>
+      <p class="mt-0.5 text-[11px] leading-4 text-amber-100/80">{playbackSupport.detail}</p>
       {#if playbackSupport.installHint}
-        <code class="mt-1 block break-words text-[9px] leading-4 text-cyan-200">{playbackSupport.installHint}</code>
+        <code class="mt-1 block break-words text-[11px] leading-4 text-cyan-200">{playbackSupport.installHint}</code>
       {/if}
-      <p class="mt-1 text-[10px] text-amber-100/60">
+      <p class="mt-1 text-[11px] text-amber-100/60">
         {t("Los menús, el foco y la navegación siguen funcionando.")}
       </p>
     </div>
@@ -721,7 +721,7 @@
 
   {#if isContinuousAvchd}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div bind:this={tvStageAvchd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-[#05070d]">
+      <div bind:this={tvStageAvchd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-black">
         <div class="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black p-2 shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
@@ -747,7 +747,7 @@
         {#if tvFullscreen}{@render tvRemoteOverlay()}{/if}
       </div>
       <aside class="flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-        <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
           {t("Episodios")} · {episodes.length}
         </h2>
         <ul class="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
@@ -762,10 +762,10 @@
                     : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
                 }`}
               >
-                <span class="block truncate text-[10px] font-medium text-slate-200">
+                <span class="block truncate text-[11px] font-medium text-slate-200">
                   {episodeTitle(episode)}
                 </span>
-                <span class="mt-0.5 block text-[9px] text-slate-500">
+                <span class="mt-0.5 block text-[11px] text-slate-500">
                   {formatDuration(projectStore.episodeEffectiveDuration(episode))} · {episode.chapters.length}
                   {t(episode.chapters.length === 1 ? "capítulo" : "capítulos")}
                 </span>
@@ -777,7 +777,7 @@
     </div>
   {:else if currentMenu}
     <div class="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(0,1fr)_260px]">
-      <div bind:this={tvStageDvd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-[#05070d]">
+      <div bind:this={tvStageDvd} class="relative flex min-h-0 flex-1 flex-col gap-2 bg-black">
         <div class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[1.75rem] border-[10px] border-slate-800 bg-black shadow-[0_25px_60px_rgba(0,0,0,0.72)] ring-1 ring-black">
           {#if playerSrc}
             {@render playerPanel()}
@@ -799,7 +799,7 @@
           {/if}
         </div>
         {#if !tvFullscreen}
-          <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-slate-500">
+          <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-500">
             <span>{t("Flechas para navegar · Enter para activar · Retroceso para volver.")}</span>
             <span>
               {graph?.nodes.length ?? 0} {t("nodos")} · {graph?.edges.length ?? 0} {t("aristas")}
@@ -810,15 +810,15 @@
       </div>
 
       <aside class="flex min-h-0 flex-col gap-2 overflow-y-auto pr-0.5">
-        <div class="rounded-[1.75rem] border border-slate-700/80 bg-gradient-to-b from-slate-800 via-slate-900 to-slate-950 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_40px_rgba(0,0,0,0.55)]">
+        <div class="rounded-[1.75rem] border border-slate-700/80 bg-slate-800 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-300">{t("Mando")}</h2>
+            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-300">{t("Mando")}</h2>
             <span class="rounded-full border border-slate-700 px-2 py-0.5 text-[8px] uppercase tracking-wider text-slate-500">
               {discLabel}
             </span>
           </div>
           <div class="relative mx-auto mt-4 h-40 w-40">
-            <div class="absolute inset-0 rounded-full border border-slate-600/80 bg-[radial-gradient(circle_at_30%_20%,#334155_0%,#0f172a_55%,#020617_100%)] shadow-[inset_0_2px_12px_rgba(255,255,255,0.08),0_12px_24px_rgba(0,0,0,0.5)]"></div>
+            <div class="absolute inset-0 rounded-full border border-slate-600/80 bg-[radial-gradient(circle_at_30%_20%,var(--color-slate-700)_0%,#0f172a_55%,#020617_100%)]"></div>
             <button
               type="button"
               onclick={() => navigate("up")}
@@ -854,7 +854,7 @@
             <button
               type="button"
               onclick={activateFocus}
-              class="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500 text-[11px] font-black text-slate-950 shadow-[0_0_0_6px_rgba(6,182,212,0.12),0_10px_20px_rgba(6,182,212,0.25)] transition hover:bg-cyan-400"
+              class="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500 text-[12px] font-black text-slate-950 shadow-[0_0_0_6px_rgba(6,182,212,0.12),0_10px_20px_rgba(6,182,212,0.25)] transition hover:bg-cyan-400"
             >
               {t("OK")}
             </button>
@@ -863,7 +863,7 @@
             <button
               type="button"
               onclick={goRoot}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
               title={t("Ir al menú raíz")}
             >
               {t("Menú raíz")}
@@ -871,7 +871,7 @@
             <button
               type="button"
               onclick={goTitle}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
               title={t("Ir al menú de títulos")}
             >
               {t("Título")}
@@ -879,7 +879,7 @@
             <button
               type="button"
               onclick={goBack}
-              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[9px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+              class="rounded-full border border-slate-600/70 bg-slate-950/60 px-2 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
               title={t("Volver")}
             >
               {t("Volver")}
@@ -888,15 +888,15 @@
         </div>
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Foco")}</h2>
+          <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">{t("Foco")}</h2>
           {#if focusButton}
             <p class="mt-1.5 truncate text-xs font-medium text-slate-200">{focusButton.name}</p>
-            <p class="mt-0.5 text-[10px] text-slate-500">{actionLabel(focusButton.action.kind)}</p>
+            <p class="mt-0.5 text-[11px] text-slate-500">{actionLabel(focusButton.action.kind)}</p>
           {:else}
-            <p class="mt-1.5 text-[10px] text-slate-500">{t("Sin botón enfocado")}</p>
+            <p class="mt-1.5 text-[11px] text-slate-500">{t("Sin botón enfocado")}</p>
           {/if}
           {#if graph}
-            <p class="mt-2 text-[10px] text-slate-500">
+            <p class="mt-2 text-[11px] text-slate-500">
               {graph.nodes.length} {t("botones")} · {graph.edges.length} {t("direcciones")}
             </p>
           {/if}
@@ -904,17 +904,17 @@
 
         {#if graph?.routeHash}
           <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-            <p class="text-[10px] font-semibold text-slate-500">{t("Huella de rutas D-Pad")}</p>
-            <p class="mt-1 truncate font-mono text-[10px] text-cyan-300">{graph.routeHash.slice(0, 24)}…</p>
+            <p class="text-[11px] font-semibold text-slate-500">{t("Huella de rutas D-Pad")}</p>
+            <p class="mt-1 truncate font-mono text-[11px] text-cyan-300">{graph.routeHash.slice(0, 24)}…</p>
           </div>
         {/if}
 
         {#if warnings.length > 0}
           <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5">
-            <p class="text-[10px] font-semibold text-amber-200">{t("Avisos de navegación")}</p>
+            <p class="text-[11px] font-semibold text-amber-200">{t("Avisos de navegación")}</p>
             <ul class="mt-1 space-y-1">
               {#each warnings as warning}
-                <li class="text-[9px] leading-4 text-amber-100/70">{localizeDiagnostic(warning)}</li>
+                <li class="text-[11px] leading-4 text-amber-100/70">{localizeDiagnostic(warning)}</li>
               {/each}
             </ul>
           </div>
@@ -923,7 +923,7 @@
     </div>
   {:else}
     <div class="flex flex-1 items-center justify-center p-6 text-center">
-      <div class="max-w-sm rounded-2xl border border-dashed border-slate-800 p-8">
+      <div class="max-w-sm rounded-lg border border-dashed border-slate-800 p-8">
         <p class="text-sm font-medium text-slate-300">{t("Sin menú para simular")}</p>
         <p class="mt-1 text-xs text-slate-500">
           {t("Crea un proyecto DVD-Video o Blu-ray/AVCHD para probar la navegación interactiva.")}

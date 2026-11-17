@@ -343,26 +343,26 @@
   }
 </script>
 
-<section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
+<section class="flex min-h-0 flex-1 flex-col bg-black">
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/70 px-3 py-2">
     <div class="flex min-w-0 items-center gap-2">
-      <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Edición")}</span>
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Edición")}</span>
       {#if episode}
-        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
           E{episode.number}
         </span>
-        <span class="truncate text-[11px] font-medium text-slate-200">{episode.title}</span>
+        <span class="truncate text-[12px] font-medium text-slate-200">{episode.title}</span>
       {/if}
     </div>
     {#if episode}
-      <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+      <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
         <span>{t("Fuente")} {formatDuration(sourceDuration)}</span>
         <span class="text-slate-700">→</span>
         <span class="font-semibold text-cyan-300">{t("Recorte")} {formatDuration(effectiveMs)}</span>
         <button
           type="button"
           onclick={resetTrim}
-          class="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-500/60"
+          class="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
         >
           {t("Restablecer")}
         </button>
@@ -372,7 +372,7 @@
 
   {#if localError || notice}
     <div
-      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[11px] ${
+      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${
         localError
           ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
           : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
@@ -384,7 +384,7 @@
 
   {#if !episode}
     <div class="flex flex-1 items-center justify-center p-6">
-      <div class="max-w-sm rounded-2xl border border-dashed border-slate-800 p-8 text-center">
+      <div class="max-w-sm rounded-lg border border-dashed border-slate-800 p-8 text-center">
         <p class="text-sm font-medium text-slate-300">{t("Selecciona un episodio")}</p>
         <p class="mt-1 text-xs leading-5 text-slate-500">
           {t("Añade un vídeo desde la biblioteca de medios o elige un episodio en la secuencia.")}
@@ -404,15 +404,15 @@
               {#if thumbnail}
                 <img src={thumbnail} alt="" class="max-h-full max-w-full opacity-25" />
               {/if}
-              <div class="relative max-w-md rounded-xl border border-amber-500/30 bg-slate-950/90 p-4 text-center shadow-2xl backdrop-blur">
+              <div class="relative max-w-md rounded-xl border border-amber-500/30 bg-slate-950/90 p-4 text-center shadow-xl">
                 <p class="text-xs font-semibold text-amber-200">{t("Vista previa de vídeo no disponible")}</p>
-                <p class="mt-1 text-[10px] leading-4 text-slate-400">{playbackSupport.detail}</p>
+                <p class="mt-1 text-[11px] leading-4 text-slate-400">{playbackSupport.detail}</p>
                 {#if playbackSupport.installHint}
-                  <code class="mt-2 block break-words rounded-md bg-black/40 px-2 py-1 text-left text-[9px] leading-4 text-cyan-200">
+                  <code class="mt-2 block break-words rounded-md bg-black/40 px-2 py-1 text-left text-[11px] leading-4 text-cyan-200">
                     {playbackSupport.installHint}
                   </code>
                 {/if}
-                <p class="mt-2 text-[10px] leading-4 text-slate-500">
+                <p class="mt-2 text-[11px] leading-4 text-slate-500">
                   {t("Puedes recortar, añadir capítulos y capturar fotogramas igualmente.")}
                 </p>
               </div>
@@ -440,7 +440,7 @@
             </div>
           {/if}
           {#if playbackSupport?.supported}
-            <div class="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-lg bg-slate-950/85 px-2 py-1 text-[10px] text-slate-300 backdrop-blur">
+            <div class="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-lg bg-slate-950/85 px-2 py-1 text-[11px] text-slate-300">
               <button
                 type="button"
                 onclick={togglePlay}
@@ -457,7 +457,7 @@
                 onclick={captureThumbnail}
                 disabled={!sourcePath}
                 title={t("Usar este fotograma como miniatura del episodio en los menús")}
-                class="ml-1 flex h-6 items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 text-[10px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
+                class="ml-1 flex h-6 items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
               >
                 📸 {t("Miniatura")}
               </button>
@@ -466,7 +466,7 @@
                 onclick={toggleVideoFullscreen}
                 disabled={!videoSrc}
                 title={videoFullscreen ? t("Salir de pantalla completa") : t("Pantalla completa del vídeo")}
-                class="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-slate-700 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
+                class="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-slate-700 text-[12px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
               >
                 {videoFullscreen ? "⤡" : "⛶"}
               </button>
@@ -475,7 +475,7 @@
         </div>
 
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-          <div class="mb-1.5 flex items-center justify-between text-[10px] text-slate-500">
+          <div class="mb-1.5 flex items-center justify-between text-[11px] text-slate-500">
             <span>{t("Entrada")} <span class="font-mono text-cyan-300">{formatMs(startMs)}</span></span>
             <span class="font-mono text-slate-200">{formatMs(currentTimeMs)}</span>
             <span>{t("Salida")} <span class="font-mono text-cyan-300">{formatMs(endMs)}</span></span>
@@ -502,14 +502,14 @@
             ></div>
             <span
               aria-hidden="true"
-              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-400 bg-cyan-400/10 pt-0.5 text-[9px] font-black leading-none text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
+              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-400 bg-cyan-400/10 pt-0.5 text-[11px] font-black leading-none text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
               style={`left: ${percent(startMs)}%;`}
             >
               [
             </span>
             <span
               aria-hidden="true"
-              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-300 bg-cyan-300/10 pt-0.5 text-[9px] font-black leading-none text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
+              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-300 bg-cyan-300/10 pt-0.5 text-[11px] font-black leading-none text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
               style={`left: ${percent(endMs)}%;`}
             >
               ]
@@ -530,18 +530,18 @@
             <button
               type="button"
               onclick={markStart}
-              class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60"
+              class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
             >
               {t("Marcar inicio")}
             </button>
             <button
               type="button"
               onclick={markEnd}
-              class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60"
+              class="rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-cyan-500/60"
             >
               {t("Marcar fin")}
             </button>
-            <span class="ml-auto rounded-md bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-cyan-300">
+            <span class="ml-auto rounded-md bg-slate-950/70 px-2 py-1 font-mono text-[11px] text-cyan-300">
               {t("Recorte")} {formatMs(effectiveMs)}
             </span>
           </div>
@@ -549,9 +549,9 @@
 
         <div class="grid gap-2 sm:grid-cols-2">
           <label class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-            <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Escalado")}</span>
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Escalado")}</span>
             <select
-              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
               value={episode.scaleMode}
               onchange={(event) => setScaleMode((event.currentTarget as HTMLSelectElement).value as VideoScaleMode)}
             >
@@ -559,12 +559,12 @@
                 <option value={mode.id}>{t(mode.label)}</option>
               {/each}
             </select>
-            <span class="mt-1 block text-[9px] text-slate-600">{scaleHint}</span>
+            <span class="mt-1 block text-[11px] text-slate-600">{scaleHint}</span>
           </label>
           <label class="rounded-xl border border-slate-800 bg-slate-900/50 p-2.5">
-            <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Pista de audio")}</span>
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Pista de audio")}</span>
             <select
-              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-cyan-500/60"
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-[12px] text-slate-200 outline-none focus:border-cyan-500/60"
               value={episode.audio[0]?.sourceStream ?? 0}
               onchange={(event) => setAudio(Number((event.currentTarget as HTMLSelectElement).value))}
             >
@@ -579,13 +579,13 @@
       <aside class="flex min-h-0 flex-col gap-2">
         <div class="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <h2 class="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
               {t("Capítulos")} · {episode.chapters.length}
             </h2>
             <button
               type="button"
               onclick={addChapter}
-              class="rounded-md bg-cyan-500 px-2 py-1 text-[10px] font-bold text-slate-950 transition hover:bg-cyan-400"
+              class="rounded-md bg-cyan-500 px-2 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
             >
               {t("+ Añadir")}
             </button>
@@ -594,28 +594,28 @@
             <button
               type="button"
               onclick={() => autoChapters("5min")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
             >
               {t("Cada 5 min")}
             </button>
             <button
               type="button"
               onclick={() => autoChapters("10min")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
             >
               {t("Cada 10 min")}
             </button>
             <button
               type="button"
               onclick={() => autoChapters("quarters")}
-              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
+              class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 transition hover:border-cyan-500/60 hover:text-slate-200"
             >
               {t("4 partes")}
             </button>
             <button
               type="button"
               onclick={importChapters}
-              class="rounded-md border border-cyan-500/40 px-1.5 py-0.5 text-[9px] text-cyan-200 transition hover:border-cyan-400"
+              class="rounded-md border border-cyan-500/40 px-1.5 py-0.5 text-[11px] text-cyan-200 transition hover:border-cyan-400"
             >
               {t("Importar del archivo")}
             </button>
@@ -623,14 +623,14 @@
           <ul class="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-0.5">
             {#each episode.chapters as chapter, index}
               <li class="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
-                <span class="w-4 text-center font-mono text-[9px] text-slate-600">{index + 1}</span>
+                <span class="w-4 text-center font-mono text-[11px] text-slate-600">{index + 1}</span>
                 <button
                   type="button"
                   onclick={() => seek(chapterSourceTime(chapter))}
                   class="min-w-0 flex-1 text-left"
                 >
-                  <span class="block truncate text-[10px] text-slate-300">{chapter.title}</span>
-                  <span class="block font-mono text-[9px] text-slate-500">
+                  <span class="block truncate text-[11px] text-slate-300">{chapter.title}</span>
+                  <span class="block font-mono text-[11px] text-slate-500">
                     {formatMs(chapterSourceTime(chapter))}
                   </span>
                 </button>
@@ -638,7 +638,7 @@
                   <button
                     type="button"
                     onclick={() => removeChapter(chapter)}
-                    class="rounded px-1 text-[10px] text-slate-600 transition hover:bg-rose-500/10 hover:text-rose-300"
+                    class="rounded px-1 text-[11px] text-slate-600 transition hover:bg-rose-500/10 hover:text-rose-300"
                     title={t("Eliminar capítulo")}
                   >
                     ✕

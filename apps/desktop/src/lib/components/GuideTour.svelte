@@ -122,7 +122,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div
-  class="fixed bottom-4 right-4 z-50 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-500/30 bg-slate-950/95 shadow-2xl shadow-cyan-950/40 backdrop-blur"
+  class="fixed bottom-4 right-4 z-50 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-cyan-500/30 bg-slate-950/95 shadow-xl"
   role="dialog"
   aria-modal="false"
   aria-labelledby="guide-title"
@@ -132,14 +132,14 @@
       {step.icon}
     </div>
     <div class="min-w-0 flex-1">
-      <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">
+      <p class="text-[11px] font-semibold uppercase tracking-wide text-cyan-300/80">
         {t("Guía · paso {current} de {total}", { current: index + 1, total: steps.length })}
       </p>
       <h2 id="guide-title" class="mt-0.5 text-base font-semibold text-white">{t(step.title)}</h2>
       <p class="mt-1.5 text-[12px] leading-5 text-slate-300">{t(step.body)}</p>
       <ul class="mt-2 space-y-1">
         {#each step.tips as tip}
-          <li class="flex gap-1.5 text-[11px] leading-5 text-slate-400">
+          <li class="flex gap-1.5 text-[12px] leading-5 text-slate-400">
             <span class="text-cyan-400" aria-hidden="true">•</span><span>{t(tip)}</span>
           </li>
         {/each}
@@ -148,7 +148,7 @@
         <button
           type="button"
           onclick={step.action.run}
-          class="mt-3 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+          class="mt-3 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-3 py-1.5 text-[12px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
         >
           {t(step.action.label)} →
         </button>
@@ -181,7 +181,7 @@
         <button
           type="button"
           onclick={() => (index -= 1)}
-          class="rounded-lg px-2.5 py-1 text-[11px] text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          class="rounded-lg px-2.5 py-1 text-[12px] text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
         >
           {t("Atrás")}
         </button>
@@ -190,7 +190,7 @@
         <button
           type="button"
           onclick={finish}
-          class="rounded-lg bg-cyan-500 px-3 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
+          class="rounded-lg bg-cyan-500 px-3 py-1 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400"
         >
           {t("¡Entendido!")}
         </button>
@@ -198,7 +198,7 @@
         <button
           type="button"
           onclick={() => (index += 1)}
-          class="rounded-lg bg-cyan-500 px-3 py-1 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400"
+          class="rounded-lg bg-cyan-500 px-3 py-1 text-[12px] font-bold text-slate-950 transition hover:bg-cyan-400"
         >
           {t("Siguiente")}
         </button>

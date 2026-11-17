@@ -6,6 +6,9 @@ import { invoke as __TAURI_INVOKE, Channel } from "@tauri-apps/api/core";
 export const commands = {
 	projectNew: (name: string, standard: TvStandard, aspect: AspectRatio, mode: AuthoringMode, avchdResolution: AvchdResolution | null, avchdFrameRate: FrameRate | null) => typedError<Project_Serialize, string>(__TAURI_INVOKE("project_new", { name, standard, aspect, mode, avchdResolution, avchdFrameRate })),
 	projectSave: (path: string, project: Project_Deserialize) => typedError<null, string>(__TAURI_INVOKE("project_save", { path, project })),
+	autosaveWrite: (entry: AutosaveEntry_Deserialize) => typedError<null, string>(__TAURI_INVOKE("autosave_write", { entry })),
+	autosaveList: () => __TAURI_INVOKE<AutosaveEntry_Serialize[]>("autosave_list"),
+	autosaveDiscard: (projectId: string) => typedError<null, string>(__TAURI_INVOKE("autosave_discard", { projectId })),
 	projectOpen: (path: string) => typedError<Project_Serialize, string>(__TAURI_INVOKE("project_open", { path })),
 	/**
 	 *  Packs the project and every file it uses into one `.kinodisc-bundle`.
@@ -113,6 +116,11 @@ export const commands = {
 	systemFonts: () => __TAURI_INVOKE<string[]>("system_fonts"),
 	toolchainInstallOptions: (tools: string[]) => __TAURI_INVOKE<ToolInstallOption_Serialize[]>("toolchain_install_options", { tools }),
 	/**
+	 *  Tools with an automatic download that must be (re)installed: missing,
+	 *  or installed by a pre-1.0 build without per-file hashes.
+	 */
+	toolchainNeedsInstall: () => __TAURI_INVOKE<string[]>("toolchain_needs_install"),
+	/**
 	 *  Downloads, verifies (size + SHA-256) and installs a tool into the
 	 *  per-user toolchain folder, which is searched before PATH.
 	 */
@@ -184,6 +192,29 @@ export type AudioStreamInfo_Serialize = {
 };
 
 export type AuthoringMode = "dvdVideo" | "avchd";
+
+/**  Crash-recovery copy of an unsaved project (never the user's own file). */
+export type AutosaveEntry = AutosaveEntry_Serialize | AutosaveEntry_Deserialize;
+
+/**  Crash-recovery copy of an unsaved project (never the user's own file). */
+export type AutosaveEntry_Deserialize = {
+	projectId: string,
+	name: string,
+	/**  The project's file when it had been saved before, if any. */
+	path?: string | null,
+	savedAt: string,
+	projectJson: string,
+};
+
+/**  Crash-recovery copy of an unsaved project (never the user's own file). */
+export type AutosaveEntry_Serialize = {
+	projectId: string,
+	name: string,
+	/**  The project's file when it had been saved before, if any. */
+	path: string | null,
+	savedAt: string,
+	projectJson: string,
+};
 
 export type AvchdPlanDetails = {
 	resolution: AvchdResolution,

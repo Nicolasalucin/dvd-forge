@@ -1,19 +1,25 @@
 <script lang="ts">
-  import { t } from "./lib/i18n/index.svelte";
   import { onMount } from "svelte";
-  import { open } from "@tauri-apps/plugin-dialog";
-  import { commands } from "./lib/api/bindings";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { commands, type AutosaveEntry } from "./lib/api/bindings";
   import { messageOf } from "./lib/api/client";
+  import * as actions from "./lib/actions";
+  import { i18n, t } from "./lib/i18n/index.svelte";
   import Inspector from "./lib/components/Inspector.svelte";
   import MediaPanel from "./lib/components/MediaPanel.svelte";
   import NewProjectModal from "./lib/components/NewProjectModal.svelte";
-  import RecentProjects from "./lib/components/RecentProjects.svelte";
+  import StatusBar from "./lib/components/StatusBar.svelte";
   import StoryboardBar from "./lib/components/StoryboardBar.svelte";
   import StudioHeader from "./lib/components/StudioHeader.svelte";
-  import GuideTour from "./lib/components/GuideTour.svelte";
+  import Welcome from "./lib/components/Welcome.svelte";
   import Lazy from "./lib/components/Lazy.svelte";
+  import { projectStore } from "./lib/stores/project.svelte";
+  import { handleShortcut, refreshAppMenu } from "./lib/ui/appMenu";
+  import Icon from "./lib/ui/Icon.svelte";
+  import { applyTheme, ui } from "./lib/ui/state.svelte";
 
-  // Screens that are not visible at startup load on first use.
+  // Screens and dialogs that are not visible at startup load on first use.
   const screens = {
     menu: () => import("./lib/components/MenuWorkspace.svelte"),
     trim: () => import("./lib/components/TrimmerStudio.svelte"),
@@ -23,12 +29,34 @@
     motion: () => import("./lib/components/MotionPanel.svelte"),
     vbr: () => import("./lib/components/VbrPanel.svelte"),
     production: () => import("./lib/components/ProductionModal.svelte"),
+    guide: () => import("./lib/components/GuideTour.svelte"),
+    about: () => import("./lib/components/AboutDialog.svelte"),
+    slideshow: () => import("./lib/components/SlideshowDialog.svelte"),
+    inspector: () => import("./lib/components/DiscInspector.svelte"),
   };
-  import { projectStore } from "./lib/stores/project.svelte";
 
-  let newProjectOpen = $state(false);
+  let recovery = $state<AutosaveEntry[]>([]);
+  let dragging = $state(false);
+
+  // The menu bar mirrors language, theme, expert mode, recent files and
+  // undo availability.
+  $effect(() => {
+    void [
+      i18n.locale,
+      ui.theme,
+      projectStore.expertMode,
+      projectStore.recentProjects.length,
+      Boolean(projectStore.project),
+      projectStore.canUndo,
+      projectStore.canRedo,
+    ];
+    refreshAppMenu();
+  });
 
   onMount(() => {
+    applyTheme(ui.theme);
+    projectStore.startAutosave();
+    void projectStore.refreshToolsDoctor();
     void (async () => {
       await projectStore.refreshRecentProjects();
       try {
@@ -37,104 +65,84 @@
           await projectStore.openProject(startupProject);
           return;
         }
+        recovery = await commands.autosaveList();
       } catch (cause) {
         projectStore.error = messageOf(cause);
       }
-      if (!projectStore.hasProject) newProjectOpen = true;
-      // First run: show the guided tour next to the new-project dialog.
-      if (projectStore.guidePending) projectStore.guideOpen = true;
     })();
+
+    const onKey = (event: KeyboardEvent) => {
+      if (handleShortcut(event)) event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+
+    // Drop files anywhere: projects open, media is imported.
+    const cleanups: Array<() => void> = [];
+    void getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const payload = event.payload;
+        if (payload.type === "enter" || payload.type === "over") dragging = true;
+        else if (payload.type === "leave") dragging = false;
+        else if (payload.type === "drop") {
+          dragging = false;
+          const paths = payload.paths;
+          const project = paths.find((path) => /\.(json|kinodisc|dvdforge-bundle)$/i.test(path));
+          if (project && paths.length === 1) void actions.openPath(project);
+          else if (projectStore.project) void actions.importMedia(paths);
+          else ui.notice = t("Crea o abre un proyecto para añadir vídeos.");
+        }
+      })
+      .then((unlisten) => cleanups.push(unlisten))
+      .catch(() => undefined);
+
+    // Closing the window with unsaved changes asks first.
+    void getCurrentWindow()
+      .onCloseRequested(async (event) => {
+        if (!(await projectStore.confirmLoseChanges())) event.preventDefault();
+      })
+      .then((unlisten) => cleanups.push(unlisten))
+      .catch(() => undefined);
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      for (const cleanup of cleanups) cleanup();
+    };
   });
 
-  async function openProject() {
-    const picked = await open({
-      multiple: false,
-      filters: [{ name: t("Proyecto de Kinodisc"), extensions: ["json"] }],
-    });
-    if (typeof picked !== "string") return;
-    try {
-      await projectStore.openProject(picked);
-    } catch (cause) {
-      projectStore.error = messageOf(cause);
-    }
+  function recover(entry: AutosaveEntry) {
+    projectStore.recoverAutosave(entry);
+    recovery = [];
+  }
+
+  async function discardRecovery() {
+    for (const entry of recovery) await projectStore.discardAutosave(entry.projectId);
+    recovery = [];
+  }
+
+  function savedAt(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleString(i18n.locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 </script>
 
-<div class="flex h-screen min-h-0 flex-col overflow-hidden bg-[#070b14] text-slate-100">
-  <StudioHeader
-    onNewProject={() => (newProjectOpen = true)}
-    onProduce={() => (projectStore.productionOpen = true)}
-  />
+<div class="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100">
+  <StudioHeader />
 
   {#if !projectStore.project}
-    <main class="flex min-h-0 flex-1 items-center justify-center p-6">
-      <div class="w-full max-w-xl rounded-3xl border border-slate-800/80 bg-slate-950/60 p-8 text-center shadow-2xl shadow-black/30">
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-600 text-lg font-black text-slate-950">
-          {t("DF")}
-        </div>
-        <h1 class="mt-4 text-2xl font-semibold tracking-tight text-white">{t("Kinodisc Studio")}</h1>
-        <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
-          {t("Convierte tus vídeos en un DVD o Blu-ray con menú, como los de las películas: importa, diseña el menú, pruébalo con el mando y graba.")}
-        </p>
-        <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <button
-            type="button"
-            onclick={() => (newProjectOpen = true)}
-            class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-cyan-400"
-          >
-            {t("Nuevo proyecto")}
-          </button>
-          <button
-            type="button"
-            onclick={openProject}
-            class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
-          >
-            {t("Abrir proyecto…")}
-          </button>
-          <button
-            type="button"
-            onclick={() => (projectStore.guideOpen = true)}
-            class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
-          >
-            ❓ {t("¿Cómo funciona?")}
-          </button>
-        </div>
-        <div class="mt-7 grid gap-2 text-left sm:grid-cols-3">
-          {#each [
-            { icon: "▣", title: "Medios", hint: "Vídeo, audio e imágenes" },
-            { icon: "▤", title: "Menús", hint: "Plantillas listas y botones con miniaturas" },
-            { icon: "◉", title: "Producción", hint: "ISO y grabación guiada" },
-          ] as feature}
-            <div class="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3">
-              <span class="text-base text-cyan-300">{feature.icon}</span>
-              <p class="mt-1 text-[11px] font-semibold text-slate-200">{t(feature.title)}</p>
-              <p class="mt-0.5 text-[10px] leading-4 text-slate-500">{t(feature.hint)}</p>
-            </div>
-          {/each}
-        </div>
-        {#if projectStore.recentProjects.length > 0}
-          <div class="mt-5 text-left">
-            <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {t("Proyectos recientes")}
-            </p>
-            <div class="max-h-40 overflow-y-auto pr-1">
-              <RecentProjects compact />
-            </div>
-          </div>
-        {/if}
-      </div>
-    </main>
+    <Welcome />
   {:else}
     <div class="flex min-h-0 flex-1">
       {#if projectStore.leftCollapsed}
         <button
           type="button"
           onclick={() => (projectStore.leftCollapsed = false)}
-          class="flex w-9 shrink-0 flex-col items-center justify-center gap-2 border-r border-slate-800/80 bg-slate-950/60 text-slate-500 transition hover:bg-slate-900 hover:text-slate-200"
+          class="flex w-8 shrink-0 flex-col items-center justify-center gap-2 border-r border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-100"
           title={t("Mostrar biblioteca")}
         >
-          <span class="text-xs">▸</span>
-          <span class="text-[9px] uppercase tracking-[0.2em] [writing-mode:vertical-rl]">{t("Medios")}</span>
+          <Icon name="chevronRight" size={14} />
+          <span class="text-[12px] [writing-mode:vertical-rl]">{t("Medios")}</span>
         </button>
       {:else}
         <MediaPanel />
@@ -165,11 +173,11 @@
         <button
           type="button"
           onclick={() => (projectStore.rightCollapsed = false)}
-          class="flex w-9 shrink-0 flex-col items-center justify-center gap-2 border-l border-slate-800/80 bg-slate-950/60 text-slate-500 transition hover:bg-slate-900 hover:text-slate-200"
-          title={t("Mostrar inspector")}
+          class="flex w-8 shrink-0 flex-col items-center justify-center gap-2 border-l border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-100"
+          title={t("Mostrar propiedades")}
         >
-          <span class="text-xs">◂</span>
-          <span class="text-[9px] uppercase tracking-[0.2em] [writing-mode:vertical-rl]">{t("Inspector")}</span>
+          <span class="rotate-180"><Icon name="chevronRight" size={14} /></span>
+          <span class="text-[12px] [writing-mode:vertical-rl]">{t("Propiedades")}</span>
         </button>
       {:else}
         <Inspector />
@@ -177,18 +185,61 @@
     </div>
   {/if}
 
+  <StatusBar />
+
+  {#if dragging}
+    <div class="pointer-events-none fixed inset-2 z-[60] flex items-center justify-center rounded-lg border-2 border-dashed border-cyan-500 bg-cyan-500/10">
+      <p class="rounded-md bg-slate-900 px-4 py-2 text-[14px] text-slate-100 shadow-xl">
+        {projectStore.project ? t("Suelta para añadir los archivos al proyecto") : t("Suelta un proyecto para abrirlo")}
+      </p>
+    </div>
+  {/if}
+
   {#if projectStore.productionOpen}
     <Lazy loader={screens.production} />
   {/if}
-
-  {#if newProjectOpen}
-    <NewProjectModal onClose={() => (newProjectOpen = false)} />
+  {#if ui.newProject}
+    <NewProjectModal onClose={() => (ui.newProject = false)} />
+  {/if}
+  {#if projectStore.guideOpen}
+    <Lazy loader={screens.guide} props={{ onClose: () => (projectStore.guideOpen = false), onNewProject: () => (ui.newProject = true) }} />
+  {/if}
+  {#if ui.about}
+    <Lazy loader={screens.about} props={{ onclose: () => (ui.about = false) }} />
+  {/if}
+  {#if ui.slideshow}
+    <Lazy loader={screens.slideshow} props={{ onclose: () => (ui.slideshow = false) }} />
+  {/if}
+  {#if ui.inspector}
+    <Lazy loader={screens.inspector} props={{ onclose: () => (ui.inspector = false) }} />
   {/if}
 
-  {#if projectStore.guideOpen}
-    <GuideTour
-      onClose={() => (projectStore.guideOpen = false)}
-      onNewProject={() => (newProjectOpen = true)}
-    />
+  {#if recovery.length > 0 && !projectStore.project}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div class="relative z-10 w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+        <div class="flex items-center gap-2">
+          <Icon name="info" class="text-cyan-400" />
+          <h2 id="recovery-title" class="text-[15px] font-semibold text-slate-100">{t("Recuperar cambios sin guardar")}</h2>
+        </div>
+        <p class="mt-2 text-[13px] leading-5 text-slate-300">
+          {t("Kinodisc se cerró sin guardar estos proyectos. Puedes abrir la última copia automática.")}
+        </p>
+        <ul class="mt-3 space-y-1.5">
+          {#each recovery as entry (entry.projectId)}
+            <li class="flex items-center justify-between gap-3 rounded-md border border-slate-800 px-3 py-2">
+              <span class="min-w-0">
+                <span class="block truncate text-[13px] text-slate-100">{entry.name}</span>
+                <span class="text-[12px] text-slate-500">{savedAt(entry.savedAt)}</span>
+              </span>
+              <button type="button" class="on-accent shrink-0 rounded-md bg-cyan-500 px-3 py-1 text-[13px] font-semibold hover:bg-cyan-400" onclick={() => recover(entry)}>{t("Recuperar")}</button>
+            </li>
+          {/each}
+        </ul>
+        <div class="mt-4 flex justify-end">
+          <button type="button" class="rounded-md px-3 py-1.5 text-[13px] text-slate-300 hover:text-slate-100" onclick={discardRecovery}>{t("Descartar")}</button>
+        </div>
+      </div>
+    </div>
   {/if}
 </div>
