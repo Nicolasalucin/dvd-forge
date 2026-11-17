@@ -2,6 +2,7 @@ import { commands, type MediaAsset_Serialize, type Project_Serialize } from "./a
 import { messageOf, unwrap } from "./api/client";
 import { exportMenu, exportMotionMenu } from "./editor/exportMenu";
 import { t } from "./i18n/index.svelte";
+import { thumbnailKey, thumbnailTimeMs, type ThumbnailRef } from "./editor/thumbnailKey";
 
 export interface MenuPreviewSource {
   backgroundColor: string;
@@ -36,6 +37,7 @@ export async function compositeProjectMenus(
       for (const button of menu.buttons) {
         if (!button.thumbnail) continue;
         await previewForAsset(project, button.thumbnail.asset, shared, warnings, false);
+        await previewForFrame(project, button.thumbnail, shared, warnings);
       }
       const motion =
         menu.background.kind === "videoLoop" ||
@@ -84,6 +86,31 @@ export async function compositeProjectMenus(
 }
 
 class RequiredPreviewError extends Error {}
+
+/** Scene buttons: the frame at the chapter time instead of the poster. */
+async function previewForFrame(
+  project: Project_Serialize,
+  thumbnail: ThumbnailRef,
+  source: MenuPreviewSource,
+  warnings: string[],
+): Promise<void> {
+  const key = thumbnailKey(thumbnail);
+  const at = thumbnailTimeMs(thumbnail);
+  if (at === null || source.previewUrls[key]) return;
+  const asset = project.assets.find((item) => item.id === thumbnail.asset);
+  const path = asset ? assetPath(asset) : null;
+  if (!asset || asset.kind !== "video" || !path) return;
+  try {
+    const frame = await unwrap(commands.mediaExtractFrame(path, at, null));
+    source.previewUrls[key] = await unwrap(commands.readImageDataUrl(frame));
+  } catch (cause) {
+    // Fall back to the poster frame already loaded for the asset.
+    warnings.push(
+      t("No se pudo cargar «{asset}»: {error}", { asset: asset.displayName, error: messageOf(cause) }),
+    );
+    source.previewUrls[key] = source.previewUrls[thumbnail.asset] ?? "";
+  }
+}
 
 async function previewForAsset(
   project: Project_Serialize,

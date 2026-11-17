@@ -1,6 +1,7 @@
 //! Menu compiler façade: raster layer generation, subpicture validation and
 //! spumux XML construction.
 
+pub mod chapters;
 pub mod templates;
 
 use image::{imageops::FilterType, GrayImage, Luma, Rgba, RgbaImage};

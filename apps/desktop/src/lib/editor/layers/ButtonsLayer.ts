@@ -1,4 +1,5 @@
 import Konva from "konva";
+import { thumbnailKey } from "../thumbnailKey";
 import type { Menu_Serialize, MenuButton_Serialize, SubpicturePalette } from "../../api/bindings";
 import { buttonStyleLayout, type ButtonLayout } from "../buttonLayout";
 import { normalizeRect } from "../exportMenu";
@@ -158,7 +159,9 @@ export class ButtonsLayer {
       const width = rect.x1 - rect.x0;
       const height = rect.y1 - rect.y0;
       const thumbnailUrl = button.thumbnail
-        ? (options.thumbnails[button.thumbnail.asset] ?? null)
+        ? (options.thumbnails[thumbnailKey(button.thumbnail)] ??
+          options.thumbnails[button.thumbnail.asset] ??
+          null)
         : null;
       const group = new Konva.Group({
         id: button.id,

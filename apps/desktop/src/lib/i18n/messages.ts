@@ -791,6 +791,10 @@ export const es: Dictionary = {
   "Un solo disco": "Un solo disco",
   "Varios discos (llenar cada uno)": "Varios discos (llenar cada uno)",
   "{count} discos generados en {seconds} s": "{count} discos generados en {seconds} s",
+  "Crea un menú con un botón por capítulo para cada episodio": "Crea un menú con un botón por capítulo para cada episodio",
+  "Escena {n}": "Escena {n}",
+  "Escenas": "Escenas",
+  "Menús de escenas": "Menús de escenas",
 };
 
 export const en: Dictionary = {
@@ -1672,4 +1676,8 @@ export const en: Dictionary = {
   "Un solo disco": "A single disc",
   "Varios discos (llenar cada uno)": "Several discs (fill each one)",
   "{count} discos generados en {seconds} s": "{count} discs created in {seconds} s",
+  "Crea un menú con un botón por capítulo para cada episodio": "Creates a menu with one button per chapter for each episode",
+  "Escena {n}": "Scene {n}",
+  "Escenas": "Scenes",
+  "Menús de escenas": "Scene menus",
 };

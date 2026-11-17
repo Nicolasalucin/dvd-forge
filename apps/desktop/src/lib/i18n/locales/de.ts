@@ -947,6 +947,10 @@ export const de: Dictionary = {
   "Un solo disco": "Eine einzige Disc",
   "Varios discos (llenar cada uno)": "Mehrere Discs (jede füllen)",
   "{count} discos generados en {seconds} s": "{count} Discs in {seconds} s erstellt",
+  "Crea un menú con un botón por capítulo para cada episodio": "Erstellt für jede Folge ein Menü mit einer Schaltfläche pro Kapitel",
+  "Escena {n}": "Szene {n}",
+  "Escenas": "Szenen",
+  "Menús de escenas": "Szenenmenüs",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -1106,4 +1110,5 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   W_PLAYER_PRESET_STRICT: "Teile des Projekts laufen auf dem gewählten Player eventuell nicht flüssig.",
   W_SPLIT_EPISODE_TOO_LONG: "Eine Folge passt allein nicht auf eine Disc; Qualität senken oder eine größere Disc wählen.",
   I_SPLIT_CUSTOM_MENU: "Selbst gestaltete Menüs behalten ihr Design; auf jeder Disc werden Schaltflächen für Folgen auf anderen Discs entfernt.",
+  W_SCENES_INDEX_OVERFLOW: "Nur die ersten Folgen passen in den Szenenindex; eine Vorlage mit mehr Feldern verwenden.",
 };

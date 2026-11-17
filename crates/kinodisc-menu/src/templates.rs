@@ -252,8 +252,7 @@ pub fn apply_template(
     // Template typography is designed for the 720x480 DVD canvas; HD menus
     // (1920x1080/1280x720) scale it so text keeps the same visual size.
     let mut template = template;
-    let canvas_scale = (f64::from(root.canvas.height) / 480.0).max(1.0);
-    template.font_size = (f64::from(template.font_size) * canvas_scale).round() as u16;
+    template.font_size = scaled_font_size(&template, root.canvas);
     if project.episodes.is_empty() {
         return Err(TemplateError::NoEpisodes);
     }
@@ -333,6 +332,9 @@ pub fn apply_template(
         .filter(|item| !is_template_item(item))
         .cloned()
         .collect();
+    // Links to the generated scene menus are re-created, never moved to Extras.
+    let scene_menus = crate::chapters::generated_menu_ids(&project.menus, root_id);
+    let scenes_link = crate::chapters::scenes_link(root, &scene_menus);
     let mut custom_buttons: Vec<MenuButton> = Vec::new();
     for menu in std::iter::once(root)
         .chain(old_pages.iter())
@@ -341,6 +343,7 @@ pub fn apply_template(
         for button in &menu.buttons {
             if selected_ids.contains(&button.id)
                 || is_generated_nav(button)
+                || matches!(button.action, ButtonAction::GotoMenu { menu } if scene_menus.contains(&menu))
                 || matches!(button.action, ButtonAction::PlayEpisode { .. })
             {
                 continue;
@@ -470,6 +473,11 @@ pub fn apply_template(
         if index == 0 && !extras_ids.is_empty() {
             add_extras_link(&mut menu, &template, extras_ids[0]);
         }
+        if index == 0 {
+            if let Some((name, target)) = &scenes_link {
+                add_corner_link(&mut menu, &template, name, *target);
+            }
+        }
         menu.buttons.sort_by(|a, b| {
             a.rect
                 .y
@@ -570,7 +578,55 @@ fn is_generated_nav(button: &MenuButton) -> bool {
             || button.name == "Extras")
 }
 
-fn page_shell(root: &Menu, id: MenuId, template: &MenuTemplate) -> Menu {
+/// Template typography is designed for the 720x480 DVD canvas; HD menus
+/// (1920x1080/1280x720) scale it so text keeps the same visual size.
+pub(crate) fn scaled_font_size(template: &MenuTemplate, canvas: CanvasSpec) -> u16 {
+    let canvas_scale = (f64::from(canvas.height) / 480.0).max(1.0);
+    (f64::from(template.font_size) * canvas_scale).round() as u16
+}
+
+/// Text link centred in the footer (Back, Extras...).
+pub(crate) fn add_center_link(
+    menu: &mut Menu,
+    template: &MenuTemplate,
+    name: &str,
+    target: MenuId,
+) {
+    let width = menu.canvas.width as f64;
+    let height = menu.canvas.height as f64;
+    let k = (height / 480.0).max(1.0);
+    menu.buttons.push(nav_button(
+        name,
+        LogicalRect::new(
+            (width - 140.0 * k) / 2.0,
+            height - 54.0 * k,
+            140.0 * k,
+            34.0 * k,
+        ),
+        template,
+        ButtonAction::GotoMenu { menu: target },
+    ));
+}
+
+/// Text link in the bottom-left footer corner (free on the first page,
+/// which has no Previous button).
+pub(crate) fn add_corner_link(
+    menu: &mut Menu,
+    template: &MenuTemplate,
+    name: &str,
+    target: MenuId,
+) {
+    let height = menu.canvas.height as f64;
+    let k = (height / 480.0).max(1.0);
+    menu.buttons.push(nav_button(
+        name,
+        LogicalRect::new(18.0 * k, height - 54.0 * k, 180.0 * k, 34.0 * k),
+        template,
+        ButtonAction::GotoMenu { menu: target },
+    ));
+}
+
+pub(crate) fn page_shell(root: &Menu, id: MenuId, template: &MenuTemplate) -> Menu {
     let mut menu = root.clone();
     menu.id = id;
     menu.name = template.name.to_string();
@@ -682,7 +738,7 @@ fn template_items(
 }
 
 /// Title band at the top of a template page, scaled to the canvas size.
-fn title_rect(canvas: CanvasSpec) -> LogicalRect {
+pub(crate) fn title_rect(canvas: CanvasSpec) -> LogicalRect {
     let scale = (f64::from(canvas.height) / 480.0).max(1.0);
     let margin = (18.0 * scale).round();
     LogicalRect::new(
@@ -693,7 +749,7 @@ fn title_rect(canvas: CanvasSpec) -> LogicalRect {
     )
 }
 
-fn grid_rects(
+pub(crate) fn grid_rects(
     canvas: CanvasSpec,
     template: &MenuTemplate,
     slots: usize,
@@ -733,7 +789,7 @@ fn grid_rects(
         .collect()
 }
 
-fn add_navigation(
+pub(crate) fn add_navigation(
     menu: &mut Menu,
     template: &MenuTemplate,
     page: usize,
@@ -783,7 +839,7 @@ fn add_extras_link(menu: &mut Menu, template: &MenuTemplate, extras: MenuId) {
     ));
 }
 
-fn nav_button(
+pub(crate) fn nav_button(
     name: &str,
     rect: LogicalRect,
     template: &MenuTemplate,
@@ -812,7 +868,7 @@ fn nav_button(
     }
 }
 
-fn even_buttons(buttons: Vec<MenuButton>) -> Vec<MenuButton> {
+pub(crate) fn even_buttons(buttons: Vec<MenuButton>) -> Vec<MenuButton> {
     buttons
         .into_iter()
         .map(|mut button| {

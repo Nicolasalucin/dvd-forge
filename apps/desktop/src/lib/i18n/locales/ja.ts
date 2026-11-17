@@ -947,6 +947,10 @@ export const ja: Dictionary = {
   "Un solo disco": "1 枚のディスク",
   "Varios discos (llenar cada uno)": "複数のディスク (各ディスクを満たす)",
   "{count} discos generados en {seconds} s": "{seconds} 秒で {count} 枚のディスクを作成",
+  "Crea un menú con un botón por capítulo para cada episodio": "エピソードごとに、チャプターごとのボタンを持つメニューを作成します",
+  "Escena {n}": "シーン {n}",
+  "Escenas": "シーン",
+  "Menús de escenas": "シーンメニュー",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -1106,4 +1110,5 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   W_PLAYER_PRESET_STRICT: "選択したプレーヤーでは一部がスムーズに再生されない可能性があります。",
   W_SPLIT_EPISODE_TOO_LONG: "1 つのエピソードが単独でディスクに収まりません。画質を下げるか、大容量のディスクを選んでください。",
   I_SPLIT_CUSTOM_MENU: "手作りのメニューはデザインを保ちます。各ディスクでは、別のディスクにあるエピソードのボタンが削除されます。",
+  W_SCENES_INDEX_OVERFLOW: "シーン一覧に入るのは最初のエピソードだけです。枠の多いテンプレートを使ってください。",
 };

@@ -54,6 +54,8 @@ export const commands = {
 	 */
 	menuNavigation: (menu: Menu_Deserialize, focus: string | null) => __TAURI_INVOKE<NavigationGraph_Serialize>("menu_navigation", { menu, focus }),
 	menuTemplates: () => __TAURI_INVOKE<MenuTemplateInfo[]>("menu_templates"),
+	/**  Builds (or rebuilds) the automatic scene-selection menus. */
+	menuApplyChapterMenus: (project: Project_Deserialize) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_chapter_menus", { project })),
 	menuApplyTemplate: (project: Project_Deserialize, template: MenuTemplateId) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_template", { project, template })),
 	planCalculate: (project: Project_Deserialize) => typedError<BitratePlan_Serialize, string>(__TAURI_INVOKE("plan_calculate", { project })),
 	/**

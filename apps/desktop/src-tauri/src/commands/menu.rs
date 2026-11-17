@@ -43,6 +43,13 @@ pub fn menu_apply_template(
     apply_template(&project, template).map_err(|error| error.to_string())
 }
 
+/// Builds (or rebuilds) the automatic scene-selection menus.
+#[tauri::command]
+#[specta::specta]
+pub fn menu_apply_chapter_menus(project: Project) -> Result<TemplateApplyResult, String> {
+    kinodisc_menu::chapters::apply_chapter_menus(&project).map_err(|error| error.to_string())
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn menu_save_background(

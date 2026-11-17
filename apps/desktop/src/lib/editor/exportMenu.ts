@@ -1,3 +1,4 @@
+import { thumbnailKey } from "./thumbnailKey";
 import type {
   ButtonShapeMask,
   ButtonStyleKind,
@@ -90,15 +91,15 @@ export async function exportMenu(
   }
 
   const thumbnailImages = new Map<string, HTMLImageElement>();
-  for (const assetId of new Set(
+  for (const key of new Set(
     menu.buttons
-      .map((button) => button.thumbnail?.asset)
-      .filter((assetId): assetId is string => Boolean(assetId)),
+      .map((button) => (button.thumbnail ? thumbnailKey(button.thumbnail) : null))
+      .filter((key): key is string => Boolean(key)),
   )) {
-    const url = thumbnailUrls[assetId];
+    const url = thumbnailUrls[key];
     if (!url) continue;
     try {
-      thumbnailImages.set(assetId, await loadImage(url));
+      thumbnailImages.set(key, await loadImage(url));
     } catch {
       // Una miniatura ilegible no debe impedir exportar el resto del menú.
     }
@@ -111,7 +112,7 @@ export async function exportMenu(
     const buttonWidth = rect.x1 - rect.x0;
     const buttonHeight = rect.y1 - rect.y0;
     const image = button.thumbnail
-      ? thumbnailImages.get(button.thumbnail.asset)
+      ? thumbnailImages.get(thumbnailKey(button.thumbnail))
       : undefined;
     const layout = buttonStyleLayout(
       button.styleKind,
@@ -193,15 +194,15 @@ export async function exportMotionMenu(
   if (!labelsContext) throw new Error(t("No se pudo crear el contexto 2D de las etiquetas."));
 
   const thumbnailImages = new Map<string, HTMLImageElement>();
-  for (const assetId of new Set(
+  for (const key of new Set(
     menu.buttons
-      .map((button) => button.thumbnail?.asset)
-      .filter((assetId): assetId is string => Boolean(assetId)),
+      .map((button) => (button.thumbnail ? thumbnailKey(button.thumbnail) : null))
+      .filter((key): key is string => Boolean(key)),
   )) {
-    const url = thumbnailUrls[assetId];
+    const url = thumbnailUrls[key];
     if (!url) continue;
     try {
-      thumbnailImages.set(assetId, await loadImage(url));
+      thumbnailImages.set(key, await loadImage(url));
     } catch {
       // La miniatura es opcional.
     }
@@ -214,7 +215,7 @@ export async function exportMotionMenu(
     const buttonWidth = rect.x1 - rect.x0;
     const buttonHeight = rect.y1 - rect.y0;
     const image = button.thumbnail
-      ? thumbnailImages.get(button.thumbnail.asset)
+      ? thumbnailImages.get(thumbnailKey(button.thumbnail))
       : undefined;
     const layout = buttonStyleLayout(
       button.styleKind,

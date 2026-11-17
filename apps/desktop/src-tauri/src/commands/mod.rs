@@ -14,7 +14,8 @@ pub use media::{
     media_probe_file, read_image_data_url, PlaybackSupport,
 };
 pub use menu::{
-    menu_apply_template, menu_navigation, menu_save_background, menu_save_labels, menu_templates,
+    menu_apply_chapter_menus, menu_apply_template, menu_navigation, menu_save_background,
+    menu_save_labels, menu_templates,
 };
 pub use plan::{plan_calculate, project_split};
 pub use project::{

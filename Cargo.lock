@@ -1846,6 +1846,7 @@ dependencies = [
  "kinodisc-domain",
  "kinodisc-jobs",
  "kinodisc-media",
+ "kinodisc-menu",
  "kinodisc-plan",
  "kinodisc-project",
  "kinodisc-render",

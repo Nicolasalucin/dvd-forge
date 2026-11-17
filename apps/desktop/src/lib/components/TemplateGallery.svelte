@@ -38,6 +38,18 @@
     applying = null;
   }
 
+  const hasChapters = $derived(
+    (projectStore.project?.episodes ?? []).some((episode) => episode.chapters.length > 0),
+  );
+
+  async function makeScenes() {
+    applying = "scenes";
+    error = null;
+    const ok = await projectStore.applyChapterMenus();
+    if (!ok) error = projectStore.error;
+    applying = null;
+  }
+
   function swatch(rgb: [number, number, number]) {
     return "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
   }
@@ -63,6 +75,15 @@
       onclick={load}
       disabled={loading}
     >{t("Recargar")}</button>
+    {#if hasChapters}
+      <button
+        type="button"
+        class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:border-cyan-500/60 hover:text-cyan-200"
+        onclick={makeScenes}
+        disabled={applying !== null || !projectStore.project}
+        title={t("Crea un menú con un botón por capítulo para cada episodio")}
+      >{t("Menús de escenas")}</button>
+    {/if}
   </div>
   {#if open}
   {#if error}<p class="mb-2 rounded bg-rose-500/10 px-2 py-1 text-[10px] text-rose-200">{error}</p>{/if}

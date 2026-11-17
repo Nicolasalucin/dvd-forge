@@ -145,11 +145,21 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
     "‹ Anterior": t("‹ Anterior"),
     "Siguiente ›": t("Siguiente ›"),
     "Volver": t("Volver"),
+    "Escenas": t("Escenas"),
+    "Inicio": t("Inicio"),
+  };
+  const localize = (name: string): string => {
+    if (defaults[name]) return defaults[name];
+    // Generated scene pages and buttons: "Escenas · <episode>", "Escena 3".
+    if (name.startsWith("Escenas · ")) return t("Escenas") + name.slice("Escenas".length);
+    const scene = /^Escena (\d+)$/.exec(name);
+    if (scene) return t("Escena {n}", { n: scene[1] });
+    return name;
   };
   for (const menu of menus) {
-    if (defaults[menu.name]) menu.name = defaults[menu.name];
+    menu.name = localize(menu.name);
     for (const button of menu.buttons) {
-      if (defaults[button.name]) button.name = defaults[button.name];
+      button.name = localize(button.name);
     }
   }
 }
@@ -1837,6 +1847,30 @@ class ProjectStore {
       void this.ensureVideoThumbnail(episode.video);
     }
     return true;
+  }
+
+  /** Creates or refreshes the scene-selection menus from the chapters. */
+  async applyChapterMenus(): Promise<boolean> {
+    const project = this.project;
+    if (!project) return false;
+    this.busy = true;
+    this.error = null;
+    try {
+      const result = await unwrap(commands.menuApplyChapterMenus(project));
+      localizeGeneratedMenus(result.menus);
+      project.menus = result.menus;
+      this.templateDiagnostics = result.diagnostics.map(
+        (diagnostic) => diagnostic.code + ": " + localizeDiagnostic(diagnostic),
+      );
+      this.plan = null;
+      this.touch();
+      return true;
+    } catch (cause) {
+      this.error = messageOf(cause);
+      return false;
+    } finally {
+      this.busy = false;
+    }
   }
 
   async applyMenuTemplate(templateId: MenuTemplateId): Promise<boolean> {

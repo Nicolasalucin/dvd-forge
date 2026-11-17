@@ -18,6 +18,7 @@ kinodisc-jobs = { path = "../kinodisc-jobs" }
 kinodisc-media = { path = "../kinodisc-media" }
 kinodisc-plan = { path = "../kinodisc-plan" }
 kinodisc-project = { path = "../kinodisc-project" }
+kinodisc-menu = { path = "../kinodisc-menu" }
 kinodisc-render = { path = "../kinodisc-render" }
 kinodisc-toolchain = { path = "../kinodisc-toolchain" }
 kinodisc-verify = { path = "../kinodisc-verify" }
