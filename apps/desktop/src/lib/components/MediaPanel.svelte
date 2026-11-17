@@ -23,6 +23,8 @@
   const selectedEpisode = $derived(projectStore.selectedEpisode);
   const assets = $derived(
     projectStore.assets.filter((asset) => {
+      // New projects carry an empty placeholder background; not a real file.
+      if (asset.bytes === 0 && /^0+$/.test(asset.sha256)) return false;
       const term = search.trim().toLowerCase();
       if (!term) return true;
       return (

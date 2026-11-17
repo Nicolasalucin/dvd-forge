@@ -552,7 +552,7 @@ class ProjectStore {
     this.selectedMenuId = project.menus[0]?.id ?? null;
     this.selectedEpisodeId = project.episodes[0]?.id ?? null;
     this.selectedButtonId = project.menus[0]?.buttons[0]?.id ?? null;
-    this.studioMode = project.menus.length > 0 ? "menu" : "trim";
+    this.studioMode = project.menus.length > 0 && project.episodes.length > 0 ? "menu" : "trim";
     this.previewState = "normal";
     this.previewUrls = {};
     this.framePaths = {};

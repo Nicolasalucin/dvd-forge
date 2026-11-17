@@ -1133,6 +1133,12 @@ export const de: Dictionary = {
   "Pantalla": "Bildformat",
   "Región": "Region",
   "Sistema de TV": "TV-System",
+  "Añade al menos un vídeo: la plantilla crea un botón por episodio.": "Mindestens ein Video hinzufügen: Die Vorlage erstellt eine Schaltfläche pro Folge.",
+  "Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.": "Jedes Video wird eine Folge der Disc. Danach eine Menüvorlage wählen und die Disc erstellen.",
+  "Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.": "Eine Folge in der Sequenz unten wählen, um sie zu schneiden und Kapitel zu setzen.",
+  "Empieza añadiendo tus vídeos": "Fügen Sie zuerst Ihre Videos hinzu",
+  "Importar vídeos…": "Videos importieren…",
+  "También puedes arrastrar los archivos a esta ventana.": "Sie können die Dateien auch in dieses Fenster ziehen.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {

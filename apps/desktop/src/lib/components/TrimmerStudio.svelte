@@ -5,6 +5,21 @@
 
 <script lang="ts">
   import Icon from "../ui/Icon.svelte";
+  import * as actions from "../actions";
+  import { ui } from "../ui/state.svelte";
+
+  /** Imports videos and adds each one as an episode right away. */
+  async function importAndAdd() {
+    const before = new Set(projectStore.assets.map((asset) => asset.id));
+    await actions.importMedia();
+    for (const asset of projectStore.assets) {
+      if (!before.has(asset.id) && asset.kind === "video" && !projectStore.episodeForAsset(asset.id)) {
+        projectStore.addEpisodeFromAsset(asset.id);
+      }
+    }
+    const first = projectStore.episodes[0];
+    if (first) projectStore.selectEpisode(first.id);
+  }
   import { t } from "../i18n/index.svelte";
   import { onMount } from "svelte";
   import {
@@ -424,12 +439,29 @@
 
   {#if !episode}
     <div class="flex flex-1 items-center justify-center p-6">
-      <div class="max-w-sm rounded-lg border border-dashed border-slate-800 p-8 text-center">
-        <p class="text-sm font-medium text-slate-300">{t("Selecciona un episodio")}</p>
-        <p class="mt-1 text-xs leading-5 text-slate-500">
-          {t("Añade un vídeo desde la biblioteca de medios o elige un episodio en la secuencia.")}
-        </p>
-      </div>
+      {#if projectStore.episodes.length === 0}
+        <div class="max-w-md text-center">
+          <Icon name="film" size={40} class="mx-auto text-slate-500" />
+          <h2 class="mt-3 text-[18px] font-semibold text-slate-100">{t("Empieza añadiendo tus vídeos")}</h2>
+          <p class="mt-1 text-[13px] leading-5 text-slate-400">
+            {t("Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.")}
+          </p>
+          <div class="mt-4 flex justify-center gap-2">
+            <button type="button" class="ui-btn ui-btn-primary" onclick={() => importAndAdd()}>
+              <Icon name="import" size={15} />{t("Importar vídeos…")}
+            </button>
+            <button type="button" class="ui-btn" onclick={() => (ui.slideshow = true)}>
+              <Icon name="photo" size={15} />{t("Presentación de fotos")}
+            </button>
+          </div>
+          <p class="ui-hint mt-3">{t("También puedes arrastrar los archivos a esta ventana.")}</p>
+        </div>
+      {:else}
+        <div class="max-w-sm text-center">
+          <p class="text-[14px] font-medium text-slate-200">{t("Selecciona un episodio")}</p>
+          <p class="ui-hint mt-1">{t("Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.")}</p>
+        </div>
+      {/if}
     </div>
   {:else}
     <div class="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_260px]">

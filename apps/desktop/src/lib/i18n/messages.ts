@@ -983,6 +983,12 @@ export const es: Dictionary = {
   "Pantalla": "Pantalla",
   "Región": "Región",
   "Sistema de TV": "Sistema de TV",
+  "Añade al menos un vídeo: la plantilla crea un botón por episodio.": "Añade al menos un vídeo: la plantilla crea un botón por episodio.",
+  "Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.": "Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.",
+  "Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.": "Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.",
+  "Empieza añadiendo tus vídeos": "Empieza añadiendo tus vídeos",
+  "Importar vídeos…": "Importar vídeos…",
+  "También puedes arrastrar los archivos a esta ventana.": "También puedes arrastrar los archivos a esta ventana.",
 };
 
 export const en: Dictionary = {
@@ -2051,4 +2057,10 @@ export const en: Dictionary = {
   "Pantalla": "Screen",
   "Región": "Region",
   "Sistema de TV": "TV system",
+  "Añade al menos un vídeo: la plantilla crea un botón por episodio.": "Add at least one video: the template creates a button per episode.",
+  "Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.": "Each video becomes an episode of the disc. Then choose a menu template and produce the disc.",
+  "Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.": "Pick an episode in the sequence below to trim it and mark chapters.",
+  "Empieza añadiendo tus vídeos": "Start by adding your videos",
+  "Importar vídeos…": "Import videos…",
+  "También puedes arrastrar los archivos a esta ventana.": "You can also drag the files onto this window.",
 };

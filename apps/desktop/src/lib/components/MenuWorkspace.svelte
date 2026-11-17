@@ -37,7 +37,9 @@
   ];
 
   // Templates open in a drop-down so the canvas keeps the space.
-  let templatesOpen = $state((projectStore.activeMenu?.buttons.length ?? 0) === 0);
+  let templatesOpen = $state(
+    (projectStore.activeMenu?.buttons.length ?? 0) === 0 && projectStore.episodes.length > 0,
+  );
   $effect(() => {
     if (!templatesOpen) return;
     const close = () => (templatesOpen = false);

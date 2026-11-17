@@ -1133,6 +1133,12 @@ export const ja: Dictionary = {
   "Pantalla": "画面",
   "Región": "リージョン",
   "Sistema de TV": "テレビ方式",
+  "Añade al menos un vídeo: la plantilla crea un botón por episodio.": "動画を 1 本以上追加してください。テンプレートはエピソードごとにボタンを作ります。",
+  "Cada vídeo será un episodio del disco. Después eliges una plantilla de menú y produces el disco.": "動画はそれぞれディスクのエピソードになります。次にメニューテンプレートを選び、ディスクを作成します。",
+  "Elige un episodio en la secuencia de abajo para recortarlo y marcar capítulos.": "下のシーケンスでエピソードを選ぶと、トリミングやチャプター設定ができます。",
+  "Empieza añadiendo tus vídeos": "まず動画を追加しましょう",
+  "Importar vídeos…": "動画を取り込む…",
+  "También puedes arrastrar los archivos a esta ventana.": "ファイルをこのウィンドウにドラッグすることもできます。",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

@@ -76,13 +76,18 @@
     {#if loading}
       <p class="ui-hint">{t("Cargando plantillas…")}</p>
     {:else}
+      {#if (projectStore.project?.episodes.length ?? 0) === 0}
+        <p class="mb-2 rounded-md bg-amber-500/10 px-2.5 py-1.5 text-[12px] text-amber-200">
+          {t("Añade al menos un vídeo: la plantilla crea un botón por episodio.")}
+        </p>
+      {/if}
       <div class="grid grid-cols-2 gap-2 lg:grid-cols-3">
         {#each templates as template (template.id)}
           <button
             type="button"
             class="rounded-md border border-slate-700 p-2 text-left hover:border-cyan-500 disabled:opacity-50"
             onclick={() => apply(template.id)}
-            disabled={applying !== null || !projectStore.project}
+            disabled={applying !== null || !projectStore.project || projectStore.project.episodes.length === 0}
           >
             <div
               class="grid h-14 gap-1 rounded p-1.5"
