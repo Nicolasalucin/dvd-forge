@@ -27,6 +27,29 @@ discs that play on a living-room player: menus with thumbnails, chapters,
 several audio and subtitle tracks, play all, scene selection — the whole disc,
 checked before it is burned.
 
+## What's new in 1.1
+
+- **Fix the video**: rotate and mirror phone videos, crop black borders
+  (detected for you), brightness/contrast/saturation, noise reduction,
+  deinterlacing, and a **blurred background** behind vertical videos — with a
+  live preview framed like the disc.
+- **Join videos** into one episode (camcorder parts, a day of phone clips),
+  with a chapter at the start of each.
+- **Chapters at scene changes**, found automatically.
+- **Test the quality** before producing: 10 seconds encoded exactly as on the
+  disc, side by side with the original, with a plain verdict.
+- **15 menu templates** (wedding, birthday, travel, sports, holidays, old film,
+  nature, documentary, kids, elegant…), each with its own colours and
+  decoration.
+- **Case cover and disc label** to print at real size (300 dpi PNG or print).
+- **Notice when done** (sound and taskbar), optional **shut down when done**.
+- **Relink moved videos**: missing files are marked and found again in their
+  new folder.
+- **About 5× faster DVD encoding** with the same quality, plus bug fixes found
+  by a full walkthrough (interlaced videos with FFmpeg 9, new projects, CLI
+  menus…).
+- **FreeBSD**: prebuilt command-line tool in every release.
+
 ## What's new in 1.0
 
 - **A new interface.** Light and dark themes that follow your system, a native
@@ -62,6 +85,10 @@ Full list: [CHANGELOG.md](CHANGELOG.md).
 | Trim and chapters on a filmstrip | Try the disc with a virtual remote |
 | ![Audio and subtitles](docs/screenshots/06-audio-subtitles.png) | ![Production](docs/screenshots/07-production.png) |
 | Audio languages, subtitles and offsets | ISO, disc folder, several discs, burning |
+| ![Fix the video](docs/screenshots/09-picture-fixes.png) | ![Test the quality](docs/screenshots/10-quality-test.png) |
+| Rotate, crop, colour, blurred sides for vertical videos | 10 s encoded as on the disc, side by side |
+| ![Templates](docs/screenshots/11-templates.png) | ![Cover and label](docs/screenshots/12-cover.png) |
+| 15 menu templates | Case cover and disc label to print |
 
 <p align="center"><img src="docs/screenshots/08-dark-theme.png" alt="Dark theme" width="80%" /></p>
 
@@ -90,7 +117,7 @@ Download the installer for your system from the
 | Linux x86_64 | `.AppImage`, `.deb`, CLI tarball |
 | Linux i686 | CLI tarball |
 | macOS (Apple Silicon / Intel) | `.dmg`, CLI tarball |
-| FreeBSD | build from source |
+| FreeBSD x86_64 | CLI tarball; desktop app from source |
 
 Each release includes `SHA256SUMS.txt` to check the downloads.
 
@@ -134,6 +161,8 @@ kinodisc-cli toolchain install all                   # verified downloads (Windo
 kinodisc-cli render project.json -o out --folder     # ISO + VIDEO_TS/BDMV folder
 kinodisc-cli split project.json --per-episode        # one project per disc
 kinodisc-cli scenes project.json                     # add scene menus from chapters
+kinodisc-cli chapters project.json --scenes          # chapters at scene changes
+kinodisc-cli join part1.mp4 part2.mp4 -o joined.mp4  # several clips into one video
 kinodisc-cli slideshow photos/*.jpg --music song.mp3 -o out
 kinodisc-cli inspect disc.iso --import imported/     # what is on a disc
 kinodisc-cli batch queue.json --resume               # many discs in a row
@@ -153,8 +182,10 @@ and AI agents: [AGENTS.md](AGENTS.md).
 
 ## Privacy and security
 
-Kinodisc works offline. It only connects to the internet when you ask it to
-download the video tools, and only to the pinned, checksummed files. It never
+Kinodisc works offline. It only connects to the internet to download the
+video tools when you ask (pinned, checksummed files) and, at most once a day,
+to ask GitHub whether a newer Kinodisc exists — nothing about you is sent, and
+it can be turned off in Help. It never
 runs programs from the current folder, refuses tools that were modified after
 download, and opens only the files you choose.
 

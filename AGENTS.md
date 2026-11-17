@@ -81,8 +81,14 @@ Do not edit that file manually. Regenerate it with `npm run bindings` (or
 The DVD-Video software encode path is tuned deliberately:
 
 - Scaling uses `flags=lanczos`.
-- RD/Trellis: `-mbd rd`, `-cmp rd`, `-subcmp rd`; `-trellis 1` on pass 1 and
-  `-trellis 2` on pass 2.
+- RD/Trellis: pass 2 uses `-mbd rd -cmp rd -subcmp rd -trellis 2`. Pass 1 is
+  a light statistics pass (`-mbd rd`, no `-cmp/-subcmp`, `-trellis 0`): with
+  RD comparison, `b_strategy 2` trial-encoded every frame several times (5×
+  slower, same final PSNR). Quality options kept after timing them:
+  `-intra_vlc 1 -last_pred 2 -mpv_flags +mv0`; `qmin 1`, `dia_size` and
+  `bidir_refine` were rejected (much slower, no visible gain).
+- Interlaced output takes its field order from `setfield=tff/bff` in the
+  filter chain; never `-top` (removed in FFmpeg 9).
 - DC precision uses `-intra_dc_precision 0/1/2` (8/9/10 bits), not deprecated
   `-dc`.
 - Closed GOP is mandatory: `-flags +cgop` and strict `-g 15` (PAL) / `-g 18`
@@ -290,6 +296,34 @@ Smart Render Cache v2:
   (`kinodisc-verify::inspect`, read-only parsers, bounds-checked) and
   `render --folder` (`kinodisc-verify::extract`).
 
+### 17. Kinodisc 1.1 additions
+
+- **Picture fixes** (`Episode.filters`, serde default) go through
+  `kinodisc-render::picture` only: the same chain for DVD, AVCHD/BD, the
+  preview (`media_filter_preview`) and the quality sample. It is part of the
+  episode cache key only when not neutral, and disables stream copy
+  (`COPY_FILTERS`). Order: deinterlace → crop → rotate/mirror → denoise →
+  colour → blurred sides.
+- **Menu artwork without the editor**: `kinodisc-render::compose` draws the
+  menus for CLI/batch renders (mirrors `buttonLayout.ts`/`exportMenu.ts`).
+  Keep the two in sync. The menu cache key includes the composed PNG.
+- **Templates** paint `tpl:bg` (removed when the user picks a background) and
+  `tpl:decor-*` shapes; titles use `title_color`. Template names are shown
+  translated; never use third-party names or trademarks for templates.
+- **Join** (`kinodisc-render::join`) passes `-reinit_filter 0` per input and
+  has a stall timeout; keep both.
+- **Quality sample** (`kinodisc-render::sample`) must build its requests like
+  the real render and pick compare frames by number (raw `.m2v` has no
+  B-frame timestamps).
+- **Network**: the only requests are tool downloads and the daily update
+  check (`kinodisc-toolchain::update`, official repo only, nothing sent);
+  `open_release_page` opens only official release URLs.
+- **Writes chosen by the user**: `image_save_png` writes absolute `.png`
+  paths with PNG data only; `system_shutdown` runs fixed arguments through
+  absolute system paths.
+- `cargo test` must never touch the user's data folder: tests that call
+  commands set `XDG_DATA_HOME` to a temporary folder.
+
 ### 13. Localization
 
 - Spanish is the source language; English must stay complete. Run
@@ -302,8 +336,10 @@ Smart Render Cache v2:
   `dvd+rw-mediainfo` for media, and `growisofs` with `xorriso` fallback.
 - The headless workspace must compile on FreeBSD (CI VM) and the pure crates are
   cross-checked with `x86_64-unknown-freebsd`.
-- Release artifacts cover Windows x86_64/i686, Linux x86_64/i686, and macOS
-  arm64/x86_64. Keep the 32-bit archive names stable.
+- Release artifacts cover Windows x86_64/i686, Linux x86_64/i686, macOS
+  arm64/x86_64 and the FreeBSD x86_64 CLI (built in a VM). Keep the 32-bit and
+  FreeBSD archive names stable. CI runs the whole headless test suite on
+  FreeBSD.
 
 ## Development commands
 

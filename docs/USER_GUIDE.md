@@ -15,7 +15,9 @@ at any time for the guided tour.
   click it to see each program and install what is missing.
 
 The theme follows your system; **View › Theme** forces light or dark.
-**View › Language** changes the interface language.
+**View › Language** changes the interface language. Once a day Kinodisc asks
+GitHub whether a newer version exists and says so in the status bar; turn it
+off in **Help › Check for updates at start-up**.
 
 ## 2. Create a project
 
@@ -45,8 +47,30 @@ uses (button thumbnail, menu background, animated background, menu music).
 
 In **Videos**, the strip under the player shows frames of the whole video:
 drag the blue handles or use **Mark start / Mark end**. Chapters appear as
-amber marks; add them at the playhead or with *Every 5 min*, *Every 10 min* or
-*4 parts*, or import them from the file.
+amber marks; add them at the playhead or with *Every 5 min*, *Every 10 min*,
+*4 parts* or **By scenes** (a chapter at every scene change), or import them
+from the file.
+
+### Fix the picture
+
+The **Picture** card under the player fixes a video before it goes on the
+disc; the preview shows the frame at the playhead as the disc will:
+
+- **Orientation**: rotate left/right and mirror (phone videos filmed sideways).
+- **Crop edges**: type the pixels or press **Detect black borders**.
+- **Brightness, contrast, saturation** (double-click a slider to reset it).
+- **Reduce noise** (light/strong) and **Deinterlace** (automatic when an
+  interlaced camcorder video goes to a progressive Blu-ray).
+- **Sides of a vertical video**: black bars or a **blurred background** made
+  from the same video.
+- **Test quality** encodes 10 seconds exactly as on the disc and shows them
+  next to the original, with a verdict.
+
+### Join videos
+
+**Disc › Join videos…** (or the button in an empty project) turns several
+clips into one episode, in the order you choose, with a chapter at the start
+of each clip. Different sizes, frame rates and clips without sound are fine.
 
 ### Videos that do not need re-encoding (Blu-ray/AVCHD)
 
@@ -72,8 +96,11 @@ is not encrypted. Encrypted (commercial) discs can be viewed but not imported.
 
 In **Menu**:
 
-- **Templates** applies a design with one button per episode (more pages are
-  added automatically). **Scene menus** inside the templates panel creates a
+- **Templates** applies one of 15 designs (wedding, birthday, travel,
+  sports, holidays, old film, nature, documentary, kids, elegant…) with one
+  button per episode; more pages are added automatically. Each template has
+  its own background colour and decoration; choosing your own background
+  picture replaces the colour. **Scene menus** inside the templates panel creates a
   menu with one button per chapter.
 - **Button** adds a button, **Text** adds a title or any text.
 - Drag to move: pink guides appear when a button lines up with another or with
@@ -107,6 +134,17 @@ Title and Back behave as on a real player, including Play All and chapters.
   episode. Split discs show `1 / 3`, `2 / 3`… on their menu.
 
 Every image is checked by the structural verifier before it can be burned.
+
+**Shut down the computer when done** turns the computer off after the job
+(a 60-second countdown lets you cancel). Either way, Kinodisc plays a sound
+and flashes in the taskbar when it finishes.
+
+### Cover and label
+
+**Disc › Cover and label…** makes the case cover (DVD 273×183 mm, Blu-ray
+262×148 mm, with spine) and the round disc label (118 mm, blank centre) with
+your menu's colours, font and thumbnails. Edit the texts, then **Save PNG**
+(300 dpi; print at 100 %) or **Print**.
 
 ### If production stops halfway
 
@@ -150,6 +188,7 @@ changes; Kinodisc asks before closing them, and keeps a recovery copy every
 | “Tools missing” | Click it in the status bar and install; on Linux/macOS run the command shown. |
 | After updating, tools are reinstalled | Kinodisc 1.0 checks every tool file; copies from older versions are downloaded again once. |
 | “Does not fit” | Lower the quality, choose a bigger disc or produce several discs. |
+| “N file(s) of this project are missing” | In Media, press **Find…** on a file marked *Not found*; other missing files in the same new folder are found too. |
 | A button cannot be moved there | Buttons need 4 px between them (a DVD/Blu-ray rule). |
 | Audio warning | The production log says which track was adjusted and why. |
 

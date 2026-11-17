@@ -27,6 +27,31 @@ discos que se reproducen en el reproductor del living: menús con miniaturas,
 capítulos, varias pistas de audio y subtítulos, «reproducir todo», menús de
 escenas… el disco completo, revisado antes de grabarlo.
 
+## Novedades de la 1.1
+
+- **Arreglar el vídeo**: girar y espejar vídeos del celular, recortar bordes
+  negros (los detecta solo), brillo/contraste/saturación, quitar ruido,
+  desentrelazar y un **fondo desenfocado** detrás de los vídeos verticales,
+  con vista previa encuadrada como en el disco.
+- **Unir vídeos** en un episodio (partes de una filmación, los clips del
+  celular de un día), con un capítulo al principio de cada uno.
+- **Capítulos en los cambios de escena**, automáticos.
+- **Probar la calidad** antes de producir: 10 segundos codificados igual que en
+  el disco, al lado del original, con un veredicto claro.
+- **15 plantillas de menú** (boda, cumpleaños, viaje, deportes, vacaciones,
+  cine antiguo, naturaleza, documental, infantil, elegante…), cada una con sus
+  colores y su decoración.
+- **Carátula y etiqueta del disco** para imprimir a tamaño real (PNG a 300 ppp
+  o imprimir).
+- **Aviso al terminar** (sonido y barra de tareas) y opción de **apagar al
+  terminar**.
+- **Volver a vincular vídeos movidos**: los archivos que faltan se marcan y se
+  encuentran en su nueva carpeta.
+- **DVD unas 5 veces más rápido** con la misma calidad, y arreglos encontrados
+  en una prueba completa (vídeos entrelazados con FFmpeg 9, proyectos nuevos,
+  menús de la CLI…).
+- **FreeBSD**: herramienta de línea de comandos precompilada en cada versión.
+
 ## Novedades de la 1.0
 
 - **Interfaz nueva.** Tema claro y oscuro que sigue al sistema, barra de menú
@@ -64,6 +89,10 @@ Lista completa: [CHANGELOG.md](CHANGELOG.md).
 | Recorte y capítulos sobre una tira de fotogramas | Prueba el disco con un mando virtual |
 | ![Audio y subtítulos](docs/screenshots/06-audio-subtitles.png) | ![Producción](docs/screenshots/07-production.png) |
 | Idiomas de audio, subtítulos y desfases | ISO, carpeta del disco, varios discos, grabación |
+| ![Arreglar el vídeo](docs/screenshots/09-picture-fixes.png) | ![Probar calidad](docs/screenshots/10-quality-test.png) |
+| Girar, recortar, color, laterales desenfocados | 10 s codificados como en el disco, lado a lado |
+| ![Plantillas](docs/screenshots/11-templates.png) | ![Carátula y etiqueta](docs/screenshots/12-cover.png) |
+| 15 plantillas de menú | Carátula y etiqueta para imprimir |
 
 <p align="center"><img src="docs/screenshots/08-dark-theme.png" alt="Tema oscuro" width="80%" /></p>
 
@@ -93,7 +122,7 @@ Descarga el instalador para tu sistema en la
 | Linux x86_64 | `.AppImage`, `.deb`, CLI comprimida |
 | Linux i686 | CLI comprimida |
 | macOS (Apple Silicon / Intel) | `.dmg`, CLI comprimida |
-| FreeBSD | compilar desde el código |
+| FreeBSD x86_64 | CLI comprimida; la app de escritorio, desde el código |
 
 Cada versión incluye `SHA256SUMS.txt` para comprobar las descargas.
 
@@ -137,6 +166,8 @@ kinodisc-cli toolchain install all                   # descargas verificadas (Wi
 kinodisc-cli render proyecto.json -o salida --folder # ISO + carpeta VIDEO_TS/BDMV
 kinodisc-cli split proyecto.json --per-episode       # un proyecto por disco
 kinodisc-cli scenes proyecto.json                    # menús de escenas desde los capítulos
+kinodisc-cli chapters proyecto.json --scenes         # capítulos en los cambios de escena
+kinodisc-cli join parte1.mp4 parte2.mp4 -o unido.mp4 # varios clips en un vídeo
 kinodisc-cli slideshow fotos/*.jpg --music tema.mp3 -o salida
 kinodisc-cli inspect disco.iso --import importado/   # qué hay en un disco
 kinodisc-cli batch cola.json --resume                # muchos discos seguidos
@@ -156,9 +187,10 @@ contribuyen y para agentes de IA: [AGENTS.md](AGENTS.md).
 
 ## Privacidad y seguridad
 
-Kinodisc funciona sin conexión. Solo se conecta a internet cuando le pides que
-descargue las herramientas de vídeo, y solo a archivos fijos con su suma de
-verificación. Nunca ejecuta programas de la carpeta actual, rechaza
+Kinodisc funciona sin conexión. Solo se conecta a internet para descargar las
+herramientas de vídeo cuando se lo pides (archivos fijos con su suma de
+verificación) y, como mucho una vez al día, para preguntarle a GitHub si hay
+una versión nueva: no envía nada sobre ti y se desactiva en Ayuda. Nunca ejecuta programas de la carpeta actual, rechaza
 herramientas modificadas después de descargarlas y solo abre los archivos que
 eliges.
 

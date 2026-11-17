@@ -1,6 +1,6 @@
 # Kinodisc Roadmap — v0.5.0 to v1.0.0
 
-Status: v1.0.0 released — renamed to Kinodisc; redesigned interface (themes, native menu bar, design system, undo/autosave), disc folders, multi-disc split, scene menus, photo slideshows, disc inspector/import, HDMV per-episode playback, parallel DVD encoding and security hardening (see CHANGELOG)  
+Status: v1.1.0 released (fix the video, join clips, scene chapters, quality test, 15 templates, cover and label, FreeBSD CLI).
 Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
 Scope: native authoring, determinism, player compatibility, desktop UX and LTS packaging
 

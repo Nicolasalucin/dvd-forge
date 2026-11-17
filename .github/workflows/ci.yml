@@ -122,7 +122,8 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y rust ffmpeg dvdauthor
+            # Fonts too: subtitle and menu tests draw text (a bare VM has none).
+            pkg install -y rust ffmpeg dvdauthor dejavu
           run: |
             cargo check --workspace --exclude kinodisc-desktop
             # The whole headless workspace, not only burn/toolchain (1.1).

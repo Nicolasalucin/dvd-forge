@@ -15,7 +15,9 @@ Pulsa **F1** en cualquier momento para ver la guía interactiva.
   **Faltan herramientas**; haz clic para ver cada programa e instalar lo que falte.
 
 El tema sigue al sistema; **Ver › Tema** fuerza claro u oscuro.
-**Ver › Idioma** cambia el idioma de la interfaz.
+**Ver › Idioma** cambia el idioma de la interfaz. Una vez al día Kinodisc le
+pregunta a GitHub si hay una versión nueva y lo avisa en la barra de estado;
+se desactiva en **Ayuda › Buscar actualizaciones al iniciar**.
 
 ## 2. Crear un proyecto
 
@@ -46,7 +48,31 @@ los demás usos (miniatura de botón, fondo del menú, fondo animado, música).
 En **Vídeos**, la tira bajo el reproductor muestra fotogramas de todo el vídeo:
 arrastra los tiradores azules o usa **Marcar inicio / Marcar fin**. Los
 capítulos son marcas ámbar; añádelos en el cabezal o con *Cada 5 min*, *Cada
-10 min* o *4 partes*, o impórtalos del archivo.
+10 min*, *4 partes* o **Por escenas** (un capítulo en cada cambio de escena),
+o impórtalos del archivo.
+
+### Arreglar la imagen
+
+La tarjeta **Imagen**, debajo del reproductor, arregla un vídeo antes de que
+vaya al disco; la vista previa muestra el fotograma del cabezal tal como
+quedará:
+
+- **Orientación**: girar a la izquierda/derecha y espejo (vídeos del celular
+  grabados de costado).
+- **Recortar bordes**: escribe los píxeles o pulsa **Detectar bordes negros**.
+- **Brillo, contraste, saturación** (doble clic en un control lo restablece).
+- **Reducir ruido** (suave/fuerte) y **Desentrelazar** (automático cuando un
+  vídeo entrelazado de filmadora va a un Blu-ray progresivo).
+- **Laterales del vídeo vertical**: barras negras o un **fondo desenfocado**
+  hecho con el mismo vídeo.
+- **Probar calidad** codifica 10 segundos igual que en el disco y los muestra
+  al lado del original, con un veredicto.
+
+### Unir vídeos
+
+**Disco › Unir vídeos…** (o el botón del proyecto vacío) convierte varios
+clips en un solo episodio, en el orden que elijas, con un capítulo al
+principio de cada uno. Sirven tamaños y fps distintos y clips sin sonido.
 
 ### Vídeos que no hace falta recodificar (Blu-ray/AVCHD)
 
@@ -73,8 +99,11 @@ ver pero no importar.
 
 En **Menú**:
 
-- **Plantillas** aplica un diseño con un botón por episodio (agrega páginas
-  solo si hace falta). **Menús de escenas**, dentro del panel de plantillas,
+- **Plantillas** aplica uno de 15 diseños (boda, cumpleaños, viaje,
+  deportes, vacaciones, cine antiguo, naturaleza, documental, infantil,
+  elegante…) con un botón por episodio; agrega páginas solo si hace falta.
+  Cada plantilla trae su color de fondo y su decoración; si eliges una imagen
+  de fondo propia, reemplaza el color. **Menús de escenas**, dentro del panel de plantillas,
   crea un menú con un botón por capítulo.
 - **Botón** añade un botón; **Texto** añade un título o cualquier texto.
 - Arrastra para mover: aparecen guías rosas cuando un botón se alinea con otro
@@ -109,6 +138,17 @@ Menú, Título y Volver funcionan como en un reproductor real, incluidos
   episodio. Los discos divididos muestran `1 / 3`, `2 / 3`… en el menú.
 
 El verificador estructural revisa cada imagen antes de permitir grabarla.
+
+**Apagar la computadora al terminar** la apaga al acabar el trabajo (una
+cuenta regresiva de 60 segundos permite cancelarlo). En cualquier caso,
+Kinodisc suena y parpadea en la barra de tareas al terminar.
+
+### Carátula y etiqueta
+
+**Disco › Carátula y etiqueta…** crea la carátula de la caja (DVD 273×183 mm,
+Blu-ray 262×148 mm, con lomo) y la etiqueta redonda del disco (118 mm, centro
+en blanco) con los colores, la letra y las miniaturas del menú. Edita los
+textos y pulsa **Guardar PNG** (300 ppp; imprímelo al 100 %) o **Imprimir**.
 
 ### Si la producción se corta a la mitad
 
@@ -152,6 +192,7 @@ copia de recuperación cada 30 segundos por si la computadora se apaga.
 | «Faltan herramientas» | Haz clic en la barra de estado e instálalas; en Linux/macOS ejecuta el comando que aparece. |
 | Tras actualizar se reinstalan las herramientas | Kinodisc 1.0 comprueba cada archivo; las copias de versiones anteriores se descargan de nuevo una vez. |
 | «No cabe» | Baja la calidad, elige un disco más grande o produce varios discos. |
+| «Faltan N archivo(s) de este proyecto» | En Medios, pulsa **Buscar…** en el archivo marcado *No se encuentra*; los demás que estén en la misma carpeta nueva se encuentran solos. |
 | Un botón no se puede mover ahí | Los botones necesitan 4 px de separación (regla de DVD/Blu-ray). |
 | Aviso de audio | El registro de producción dice qué pista se ajustó y por qué. |
 

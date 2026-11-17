@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.1.0 — 2026-11-17
+
+Fix the video, join clips, chapters at scene changes, a quality test, 15 menu
+templates, printable covers and labels, a FreeBSD CLI, and a full walkthrough
+of the app with its bugs fixed.
+
+### New
+
+- **Fix the video** (Videos › Picture): rotate/mirror, crop (with black
+  border detection), brightness/contrast/saturation, noise reduction,
+  deinterlacing and a blurred background for vertical videos. One FFmpeg
+  chain is shared by the DVD and Blu-ray encoders and by the preview, so the
+  preview matches the disc. Older projects open unchanged.
+- **Join videos** into one episode with a chapter per clip (`kinodisc-cli
+  join`); different sizes, frame rates and silent clips are fine.
+- **Chapters at scene changes** (*By scenes*, `kinodisc-cli chapters
+  --scenes`).
+- **Test quality**: 10 s encoded exactly as on the disc at the planned
+  bitrate, side by side with the original, with PSNR and a plain verdict.
+- **15 menu templates**: Wedding, Birthday, Travel, Sports, Holidays, Old
+  film, Nature, Documentary, Kids and Elegant join the five from 1.0; each has
+  its own background colour and decoration.
+- **Case cover and disc label** at 300 dpi (DVD 273×183 mm or Blu-ray
+  262×148 mm with spine; 118 mm label), saved as PNG or printed at real size.
+- **Notice when done** (sound, taskbar) and **shut down when done** with a
+  60-second cancel.
+- **Relink moved videos**: missing files are reported on open, marked in
+  Media and found again in their new folder.
+- **Update check**: at most once a day, one request to GitHub, nothing sent;
+  shown in the status bar, can be turned off in Help.
+- **CLI menus**: discs rendered from the command line now have the same menu
+  artwork as the app (titles, labels, thumbnails, items).
+- **FreeBSD**: a prebuilt `kinodisc-cli` in every release; CI runs the whole
+  headless test suite in a FreeBSD VM.
+
+### Fixes (walkthrough)
+
+- Interlaced sources failed with FFmpeg 9 (removed `-top`); fixed in 1.0.1
+  and now also deinterlaced automatically for progressive Blu-ray discs.
+- New projects could not be produced (fixed in 1.0.1).
+- The menu cache ignored the composed artwork; a changed thumbnail or font
+  could reuse an old menu.
+- The space meter emptied after applying a template, undo or disc changes.
+- Joining clips whose parameters change midway stalled FFmpeg.
+- Minimalist template: dark text on the dark canvas.
+- One-episode discs and last pages centre their buttons.
+- Production dialog layout, readable overlay labels in the light theme,
+  developer wording removed from the preview, "font" vs "source" in
+  translations, duplicated error messages.
+- "Classic Criterion" is now "Classic Editorial" (trademark).
+
+### Performance
+
+- DVD encoding about **5× faster** at the same quality (light statistics
+  pass): 4 videos of 1:50 went from 365 s to 66 s.
+
 ## 1.0.1 — 2026-11-17
 
 Fixes found by a full walkthrough of 1.0.0. Upgrading is recommended.
