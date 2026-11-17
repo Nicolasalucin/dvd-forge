@@ -1581,10 +1581,32 @@ async fn render_avchd_project(
             .map(|entry| entry.video_kbps)
             .unwrap_or(plan.video_kbps)
             .clamp(1, max_video_cap);
-        let (audio_configs, current_audio_layout) =
-            avchd_audio_configs(episode, &project, probe, duration_ms);
+        let (reconciled_audio, reconcile_warnings) = reconcile_episode_audio(episode, probe);
+        let reconciled_episode = Episode {
+            audio: reconciled_audio,
+            ..(*episode).clone()
+        };
+        let (mut audio_configs, mut current_audio_layout) =
+            avchd_audio_configs(&reconciled_episode, &project, probe, duration_ms);
+        let mut audio_warnings = reconcile_warnings;
+        if let Some(existing) = &audio_layout {
+            if existing != &current_audio_layout {
+                let (adapted, adapt_warnings) =
+                    harmonize_avchd_audio(&episode.title, existing, audio_configs);
+                current_audio_layout = adapted
+                    .iter()
+                    .map(|config| (config.language.clone(), config.codec))
+                    .collect();
+                audio_configs = adapted;
+                audio_warnings.extend(adapt_warnings);
+            }
+        }
+        for diagnostic in audio_warnings {
+            warn(&events, &diagnostic.code, diagnostic.message.clone()).await;
+            pgs_warnings.push(diagnostic);
+        }
         match &audio_layout {
-            None => audio_layout = Some(current_audio_layout),
+            None => audio_layout = Some(current_audio_layout.clone()),
             Some(existing) if existing != &current_audio_layout => {
                 return Err(RenderError::Author(
                     "Las pistas de audio no tienen el mismo orden e idiomas en todos los episodios; AVCHD no puede concatenar layouts distintos.".to_string(),
@@ -1594,7 +1616,13 @@ async fn render_avchd_project(
         }
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
-            let audio_hash = audio_params_hash(episode);
+            // Hash the reconciled/harmonized audio actually encoded, so a
+            // remapped stream or relabelled language never reuses a stale MKV.
+            let audio_hash = format!(
+                "{}:{:?}",
+                audio_params_hash(&reconciled_episode),
+                current_audio_layout
+            );
             let subtitles_hash = subtitle_inputs_hash(episode, &project_dir);
             let inputs_hash = canonical_hash(&EpisodeRenderInputs {
                 kind: "avchd",
@@ -2518,6 +2546,134 @@ async fn encode_intro(
     Ok(Some(encoded.muxed_mpg))
 }
 
+/// Makes an episode's audio list match the streams that really exist in its
+/// source file. Tracks pointing at a stream index the file does not have
+/// (edited projects, replaced media, MKV vs MP4 layouts) used to fail FFmpeg
+/// with "Stream map '0:N' matches no streams". They are remapped to an unused
+/// audio stream, or dropped (silence is authored) when the file has no audio.
+fn reconcile_episode_audio(
+    episode: &Episode,
+    probe: &MediaProbe,
+) -> (Vec<dvdforge_domain::EpisodeAudio>, Vec<Diagnostic>) {
+    let available: Vec<u32> = probe.audio.iter().map(|stream| stream.index).collect();
+    let mut used: Vec<u32> = episode
+        .audio
+        .iter()
+        .map(|audio| audio.source_stream)
+        .filter(|index| available.contains(index))
+        .collect();
+    let mut tracks = Vec::with_capacity(episode.audio.len());
+    let mut warnings = Vec::new();
+    for audio in &episode.audio {
+        if available.contains(&audio.source_stream) {
+            tracks.push(audio.clone());
+            continue;
+        }
+        let replacement = available
+            .iter()
+            .copied()
+            .find(|index| !used.contains(index))
+            .or_else(|| available.first().copied());
+        match replacement {
+            Some(index) => {
+                used.push(index);
+                let mut fixed = audio.clone();
+                fixed.source_stream = index;
+                tracks.push(fixed);
+                warnings.push(Diagnostic::warning(
+                    "W_AUDIO_STREAM_REMAPPED",
+                    format!(
+                        "«{}»: la pista de audio «{}» apuntaba al stream {}, que no existe en el archivo; se usa el stream {index}.",
+                        episode.title, audio.label, audio.source_stream
+                    ),
+                ));
+            }
+            None => warnings.push(Diagnostic::warning(
+                "W_AUDIO_SOURCE_SILENT",
+                format!(
+                    "«{}» no tiene audio; la pista «{}» se reemplaza por silencio.",
+                    episode.title, audio.label
+                ),
+            )),
+        }
+    }
+    (tracks, warnings)
+}
+
+/// AVCHD/Blu-ray concatenates every episode into one M2TS, so all episodes
+/// must share the same audio layout. Instead of aborting, later episodes are
+/// adapted to the first one: languages are relabelled, missing tracks reuse
+/// the last available stream, extra tracks are dropped, and codec mismatches
+/// are re-encoded to AC-3 when the disc layout is AC-3.
+fn harmonize_avchd_audio(
+    episode_title: &str,
+    canonical: &[(String, dvdforge_avchd::AvchdAudioCodec)],
+    mut configs: Vec<AvchdAudioConfig>,
+) -> (Vec<AvchdAudioConfig>, Vec<Diagnostic>) {
+    let mut warnings = Vec::new();
+    let adapted = |message: String| Diagnostic::warning("W_AUDIO_LAYOUT_ADAPTED", message);
+    if canonical.is_empty() || configs.is_empty() {
+        if !configs.is_empty() || !canonical.is_empty() {
+            warnings.push(adapted(format!(
+                "«{episode_title}»: su audio no coincide con el primer episodio (uno de los dos no tiene audio); algunos reproductores pueden cortar el sonido."
+            )));
+        }
+        return (configs, warnings);
+    }
+    if configs.len() > canonical.len() {
+        warnings.push(adapted(format!(
+            "«{episode_title}» tiene {} pistas de audio y el disco usa {}; se descartan las sobrantes.",
+            configs.len(),
+            canonical.len()
+        )));
+        configs.truncate(canonical.len());
+    }
+    if configs.len() < canonical.len() {
+        warnings.push(adapted(format!(
+            "«{episode_title}» tiene {} pistas de audio y el disco usa {}; las que faltan repiten la última pista disponible.",
+            configs.len(),
+            canonical.len()
+        )));
+    }
+    let available = configs.len();
+    let template = configs.last().cloned();
+    let mut result = Vec::with_capacity(canonical.len());
+    for (index, (language, codec)) in canonical.iter().enumerate() {
+        let Some(mut config) = configs.get(index).cloned().or_else(|| template.clone()) else {
+            break;
+        };
+        if &config.language != language {
+            warnings.push(adapted(format!(
+                "«{episode_title}»: la pista {} pasa de «{}» a «{language}» para coincidir con el resto del disco.",
+                index + 1,
+                config.language
+            )));
+            config.language = language.clone();
+        }
+        if config.codec != *codec {
+            if *codec == dvdforge_avchd::AvchdAudioCodec::Ac3 {
+                config.copy = false;
+                config.codec = dvdforge_avchd::AvchdAudioCodec::Ac3;
+                config.channels = config.channels.clamp(1, 6);
+                warnings.push(adapted(format!(
+                    "«{episode_title}»: la pista {} se recodifica a AC-3 para coincidir con el resto del disco.",
+                    index + 1
+                )));
+            } else {
+                warnings.push(adapted(format!(
+                    "«{episode_title}»: la pista {} usa otro códec que el resto del disco; desactiva el paso directo de audio para unificarlo.",
+                    index + 1
+                )));
+            }
+        }
+        if index >= available {
+            config.default = false;
+        }
+        result.push(config);
+    }
+    (result, warnings)
+}
+
 fn audio_encode_config(
     audio: &dvdforge_domain::EpisodeAudio,
     duration_ms: u64,
@@ -2828,8 +2984,11 @@ async fn encode_episodes(
             .map(|entry| entry.duration_ms)
             .or(probe.duration_ms)
             .unwrap_or(1);
-        let audio_tracks: Vec<AudioEncodeConfig> = episode
-            .audio
+        let (reconciled_audio, audio_warnings) = reconcile_episode_audio(episode, probe);
+        for diagnostic in audio_warnings {
+            warn(events, &diagnostic.code, diagnostic.message.clone()).await;
+        }
+        let audio_tracks: Vec<AudioEncodeConfig> = reconciled_audio
             .iter()
             .map(|audio| audio_encode_config(audio, duration))
             .collect();
@@ -2851,7 +3010,10 @@ async fn encode_episodes(
         let maxrate_kbps = (video_kbps + 3_000).min(cap).max(video_kbps);
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
-            let audio_hash = audio_params_hash(episode);
+            let audio_hash = audio_params_hash(&Episode {
+                audio: reconciled_audio.clone(),
+                ..episode.clone()
+            });
             let subtitles_hash = subtitle_inputs_hash(episode, project_dir);
             let inputs_hash = canonical_hash(&EpisodeRenderInputs {
                 kind: "dvd",
@@ -4921,6 +5083,100 @@ mod tests {
         project.menus[0] = menu.clone();
         let transition = menu_inputs_hash(&project, &menu, None).expect("transition hash");
         assert_ne!(motion, transition);
+    }
+
+    fn audio_track(stream: u32, language: &str) -> dvdforge_domain::EpisodeAudio {
+        dvdforge_domain::EpisodeAudio {
+            source_stream: stream,
+            source_path: None,
+            language: language.to_string(),
+            label: language.to_string(),
+            gain_db: 0.0,
+            ac3_kbps: 192,
+            delay_ms: 0,
+            format: dvdforge_domain::AudioFormat::Ac3Stereo,
+            default: true,
+            commentary: false,
+            mastering: dvdforge_domain::AudioMastering::default(),
+        }
+    }
+
+    fn fixture_episode() -> (Episode, MediaProbe) {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/projects/minimal.json");
+        let project = dvdforge_project::load_project(path).expect("fixture");
+        let episode = project.episodes[0].clone();
+        let probe = project
+            .asset(episode.video)
+            .map(|asset| asset.probe.clone())
+            .expect("asset");
+        (episode, probe)
+    }
+
+    #[test]
+    fn missing_audio_stream_is_remapped_to_existing_one() {
+        let (mut episode, mut probe) = fixture_episode();
+        probe.audio.truncate(1);
+        let Some(real) = probe.audio.first().map(|stream| stream.index) else {
+            return;
+        };
+        episode.audio = vec![audio_track(real + 7, "eng")];
+        let (tracks, warnings) = reconcile_episode_audio(&episode, &probe);
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].source_stream, real);
+        assert!(warnings.iter().any(|w| w.code == "W_AUDIO_STREAM_REMAPPED"));
+    }
+
+    #[test]
+    fn audio_tracks_on_silent_source_become_silence() {
+        let (mut episode, mut probe) = fixture_episode();
+        probe.audio.clear();
+        episode.audio = vec![audio_track(1, "eng")];
+        let (tracks, warnings) = reconcile_episode_audio(&episode, &probe);
+        assert!(tracks.is_empty());
+        assert!(warnings.iter().any(|w| w.code == "W_AUDIO_SOURCE_SILENT"));
+    }
+
+    fn avchd_audio(stream: u32, language: &str) -> AvchdAudioConfig {
+        AvchdAudioConfig {
+            source_stream: stream,
+            bitrate_kbps: 192,
+            channels: 2,
+            sample_rate: 48_000,
+            pre_filter: None,
+            gain_db: 0.0,
+            delay_ms: 0,
+            duration_ms: 1_000,
+            language: language.to_string(),
+            copy: false,
+            codec: dvdforge_avchd::AvchdAudioCodec::Ac3,
+            default: true,
+            commentary: false,
+        }
+    }
+
+    #[test]
+    fn avchd_layouts_are_harmonized_instead_of_failing() {
+        use dvdforge_avchd::AvchdAudioCodec::Ac3;
+        let canonical = vec![("eng".to_string(), Ac3), ("spa".to_string(), Ac3)];
+        // Different language and one track fewer than the first episode.
+        let (adapted, warnings) =
+            harmonize_avchd_audio("Ep 2", &canonical, vec![avchd_audio(1, "und")]);
+        let layout: Vec<_> = adapted
+            .iter()
+            .map(|config| (config.language.clone(), config.codec))
+            .collect();
+        assert_eq!(layout, canonical);
+        assert!(!adapted[1].default);
+        assert!(warnings.iter().all(|w| w.code == "W_AUDIO_LAYOUT_ADAPTED"));
+        assert!(warnings.len() >= 2);
+        // Extra tracks are dropped.
+        let (adapted, _) = harmonize_avchd_audio(
+            "Ep 3",
+            &canonical[..1],
+            vec![avchd_audio(1, "eng"), avchd_audio(2, "fra")],
+        );
+        assert_eq!(adapted.len(), 1);
     }
 
     #[test]
