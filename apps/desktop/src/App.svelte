@@ -6,19 +6,24 @@
   import { messageOf } from "./lib/api/client";
   import Inspector from "./lib/components/Inspector.svelte";
   import MediaPanel from "./lib/components/MediaPanel.svelte";
-  import MenuWorkspace from "./lib/components/MenuWorkspace.svelte";
   import NewProjectModal from "./lib/components/NewProjectModal.svelte";
-  import ProductionModal from "./lib/components/ProductionModal.svelte";
   import RecentProjects from "./lib/components/RecentProjects.svelte";
-  import MotionPanel from "./lib/components/MotionPanel.svelte";
-  import Simulator from "./lib/components/Simulator.svelte";
   import StoryboardBar from "./lib/components/StoryboardBar.svelte";
   import StudioHeader from "./lib/components/StudioHeader.svelte";
-  import TracksPanel from "./lib/components/TracksPanel.svelte";
-  import TrimmerStudio from "./lib/components/TrimmerStudio.svelte";
-  import VbrPanel from "./lib/components/VbrPanel.svelte";
-  import VmMap from "./lib/components/VmMap.svelte";
   import GuideTour from "./lib/components/GuideTour.svelte";
+  import Lazy from "./lib/components/Lazy.svelte";
+
+  // Screens that are not visible at startup load on first use.
+  const screens = {
+    menu: () => import("./lib/components/MenuWorkspace.svelte"),
+    trim: () => import("./lib/components/TrimmerStudio.svelte"),
+    simulator: () => import("./lib/components/Simulator.svelte"),
+    vmMap: () => import("./lib/components/VmMap.svelte"),
+    tracks: () => import("./lib/components/TracksPanel.svelte"),
+    motion: () => import("./lib/components/MotionPanel.svelte"),
+    vbr: () => import("./lib/components/VbrPanel.svelte"),
+    production: () => import("./lib/components/ProductionModal.svelte"),
+  };
   import { projectStore } from "./lib/stores/project.svelte";
 
   let newProjectOpen = $state(false);
@@ -138,19 +143,19 @@
       <main class="flex min-h-0 min-w-0 flex-1 flex-col">
         <div class="flex min-h-0 flex-1">
           {#if projectStore.studioMode === "menu"}
-            <MenuWorkspace />
+            <Lazy loader={screens.menu} />
           {:else if projectStore.studioMode === "trim"}
-            <TrimmerStudio />
+            <Lazy loader={screens.trim} />
           {:else if projectStore.studioMode === "simulator"}
-            <Simulator />
+            <Lazy loader={screens.simulator} />
           {:else if projectStore.studioMode === "vmMap"}
-            <VmMap />
+            <Lazy loader={screens.vmMap} />
           {:else if projectStore.studioMode === "tracks"}
-            <TracksPanel />
+            <Lazy loader={screens.tracks} />
           {:else if projectStore.studioMode === "motion"}
-            <MotionPanel />
+            <Lazy loader={screens.motion} />
           {:else if projectStore.studioMode === "vbr"}
-            <VbrPanel />
+            <Lazy loader={screens.vbr} />
           {/if}
         </div>
         <StoryboardBar />
@@ -173,7 +178,7 @@
   {/if}
 
   {#if projectStore.productionOpen}
-    <ProductionModal />
+    <Lazy loader={screens.production} />
   {/if}
 
   {#if newProjectOpen}

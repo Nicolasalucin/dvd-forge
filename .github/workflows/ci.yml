@@ -48,6 +48,10 @@ jobs:
         working-directory: apps/desktop
         run: npm run check
 
+      - name: Translations complete (6 languages + diagnostic codes)
+        working-directory: apps/desktop
+        run: npm run i18n:check
+
       - name: Frontend production build
         working-directory: apps/desktop
         run: npm run build

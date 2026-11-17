@@ -1,22 +1,5 @@
 import { i18n, t } from "./index.svelte";
 import { DIAGNOSTIC_EN } from "./diagnosticCodes";
-import {
-  DIAGNOSTIC_DE,
-  DIAGNOSTIC_FR,
-  DIAGNOSTIC_IT,
-  DIAGNOSTIC_JA,
-  DIAGNOSTIC_PT,
-} from "./diagnosticCodesI18n";
-
-const DIAGNOSTIC_BY_LOCALE: Record<string, Record<string, string>> = {
-  en: DIAGNOSTIC_EN,
-  pt: DIAGNOSTIC_PT,
-  fr: DIAGNOSTIC_FR,
-  de: DIAGNOSTIC_DE,
-  it: DIAGNOSTIC_IT,
-  ja: DIAGNOSTIC_JA,
-};
-
 export interface DiagnosticLike {
   code: string;
   message: string;
@@ -120,7 +103,8 @@ export function localizeDiagnostic(diagnostic: DiagnosticLike): string {
   if (fixed && i18n.has(fixed)) return t(fixed);
   if (i18n.has(diagnostic.message)) return t(diagnostic.message);
   // Per-code meaning in the current locale, so no locale shows Spanish text.
-  const generic = DIAGNOSTIC_BY_LOCALE[i18n.locale]?.[diagnostic.code];
+  const table = i18n.locale === "en" ? DIAGNOSTIC_EN : i18n.diagnosticMeanings();
+  const generic = table?.[diagnostic.code];
   if (generic) return generic;
   if (rule) {
     const match = diagnostic.message.match(rule.pattern);

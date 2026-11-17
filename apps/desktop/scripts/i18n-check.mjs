@@ -56,7 +56,14 @@ for (const file of walk(src)) {
 }
 
 // Load catalogs without a TS toolchain: the file is a set of object literals.
-const catalogSource = readFileSync(join(src, "lib", "i18n", "messages.ts"), "utf8");
+// es/en live in messages.ts; the other locales are lazy modules in locales/.
+const localeDir = join(src, "lib", "i18n", "locales");
+const localeSources = readdirSync(localeDir)
+  .filter((name) => name.endsWith(".ts"))
+  .map((name) => readFileSync(join(localeDir, name), "utf8"))
+  .join("\n");
+const catalogSource =
+  readFileSync(join(src, "lib", "i18n", "messages.ts"), "utf8") + "\n" + localeSources;
 const catalogs = {};
 const block = /export const (\w+): Dictionary = \{([\s\S]*?)\n\};/g;
 const entry = /^\s*("(?:\\.|[^"\\])*")\s*:\s*("(?:\\.|[^"\\])*"),?\s*$/gm;
@@ -94,7 +101,7 @@ walkRust(join(root, "src-tauri", "src"));
 const missingCodes = [...rustCodes].filter((code) => !knownCodes.has(code)).sort();
 
 // Per-locale diagnostic tables (pt/fr/de/it/ja) must cover every code too.
-const localeTables = readFileSync(join(src, "lib", "i18n", "diagnosticCodesI18n.ts"), "utf8");
+const localeTables = localeSources;
 const missingLocaleCodes = {};
 for (const match of localeTables.matchAll(/export const DIAGNOSTIC_(\w+): Record<string, string> = \{([\s\S]*?)\n\};/g)) {
   const present = new Set([...match[2].matchAll(/^\s*([EW]_[A-Z0-9_]+):/gm)].map((m) => m[1]));

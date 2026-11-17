@@ -16,6 +16,57 @@
   const menus = $derived(project?.menus ?? []);
   const selected = $derived(projectStore.selectedButton);
 
+  /**
+   * Keyboard editing of the menu canvas: arrows move the selected button
+   * (Shift = 4× faster), [ and ] select the previous/next button, Delete
+   * removes it and Escape deselects. Ignored while typing in a field.
+   */
+  function onCanvasKey(event: KeyboardEvent) {
+    if (projectStore.studioMode !== "menu" || !menu) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (target.closest("input, textarea, select, [contenteditable='true']") || document.querySelector("[role=dialog][aria-modal=true]"))) return;
+    const buttons = menu.buttons;
+    if (event.key === "[" || event.key === "]") {
+      if (buttons.length === 0) return;
+      const current = buttons.findIndex((button) => button.id === projectStore.selectedButtonId);
+      const delta = event.key === "]" ? 1 : -1;
+      const next = (current + delta + buttons.length) % buttons.length;
+      projectStore.selectedButtonId = buttons[current < 0 ? 0 : next].id;
+      event.preventDefault();
+      return;
+    }
+    if (!selected) return;
+    if (event.key === "Escape") {
+      projectStore.selectedButtonId = null;
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "Delete") {
+      projectStore.deleteSelectedButton();
+      event.preventDefault();
+      return;
+    }
+    const step = Math.max(2, menu.canvas.gridPx || 8) * (event.shiftKey ? 4 : 1);
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    const move = moves[event.key];
+    if (!move) return;
+    event.preventDefault();
+    const rect = selected.rect;
+    const accepted = projectStore.updateButtonRect(selected.id, {
+      x: (rect.x ?? 0) + move[0],
+      y: (rect.y ?? 0) + move[1],
+      w: rect.w ?? 0,
+      h: rect.h ?? 0,
+    });
+    if (!accepted) localError = t("El botón se solapa o no respeta los 4 px de separación.");
+  }
+
   function styleLabel(kind: string): string {
     switch (kind) {
       case "thumbnailCard":
@@ -111,6 +162,8 @@
     }
   }
 </script>
+
+<svelte:window onkeydown={onCanvasKey} />
 
 <section class="flex min-h-0 flex-1 flex-col bg-[#080d18]">
   <div class="flex flex-wrap items-center gap-2 border-b border-slate-800/70 px-3 py-2">
@@ -251,6 +304,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[10px] text-slate-500">
           <span>
             {t("Arrastra para mover · tiradores para redimensionar · coordenadas pares y separación mínima de 4 px.")}
+            {t("Teclado: flechas mueven (Mayús = más rápido) · [ ] cambian de botón · Supr borra · Esc deselecciona.")}
           </span>
           <span>
             {menu.buttons.length} {t(menu.buttons.length === 1 ? "botón" : "botones")} ·

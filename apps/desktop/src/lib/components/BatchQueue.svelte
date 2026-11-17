@@ -165,6 +165,8 @@
   };
 </script>
 
+<svelte:window onkeydown={(event) => { if (event.key === "Escape" && !running) onClose(); }} />
+
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
   <button
     type="button"
