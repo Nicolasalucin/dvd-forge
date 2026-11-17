@@ -45,7 +45,10 @@ pub fn avchd_copy_decision(
     max_video_kbps: u32,
 ) -> CopyDecision {
     if episode.video_mode == VideoEncodeMode::Reencode {
-        return CopyDecision::no("COPY_DISABLED", "Recodificación elegida para este episodio.");
+        return CopyDecision::no(
+            "COPY_DISABLED",
+            "Recodificación elegida para este episodio.",
+        );
     }
     let Some(video) = probe.video.as_ref() else {
         return CopyDecision::no("COPY_NO_VIDEO", "El archivo no tiene vídeo analizable.");
@@ -181,7 +184,8 @@ pub fn avchd_copy_decision(
         copy: true,
         video_kbps: Some(video_kbps.max(1)),
         code: "COPY_OK",
-        note: "Compatible: el vídeo se copia sin recodificar (más rápido y sin pérdida).".to_string(),
+        note: "Compatible: el vídeo se copia sin recodificar (más rápido y sin pérdida)."
+            .to_string(),
     }
 }
 

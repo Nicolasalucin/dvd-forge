@@ -544,9 +544,7 @@ fn calculate_avchd_plan(
     let mut encoded_kbps = priority_video_kbps(&encoded, video_kbps, max_video_kbps).into_iter();
     let allocated: Vec<u32> = episodes
         .iter()
-        .map(|episode| {
-            copied(episode).unwrap_or_else(|| encoded_kbps.next().unwrap_or(video_kbps))
-        })
+        .map(|episode| copied(episode).unwrap_or_else(|| encoded_kbps.next().unwrap_or(video_kbps)))
         .collect();
     let mut per_episode = Vec::with_capacity(episodes.len());
     let mut estimated_total = 0u64;

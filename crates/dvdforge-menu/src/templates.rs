@@ -772,7 +772,12 @@ fn add_extras_link(menu: &mut Menu, template: &MenuTemplate, extras: MenuId) {
     let k = (height / 480.0).max(1.0);
     menu.buttons.push(nav_button(
         "Extras",
-        LogicalRect::new((width - 140.0 * k) / 2.0, height - 54.0 * k, 140.0 * k, 34.0 * k),
+        LogicalRect::new(
+            (width - 140.0 * k) / 2.0,
+            height - 54.0 * k,
+            140.0 * k,
+            34.0 * k,
+        ),
         template,
         ButtonAction::GotoMenu { menu: extras },
     ));

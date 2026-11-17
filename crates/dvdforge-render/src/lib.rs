@@ -10,9 +10,9 @@ use dvdforge_avchd::{
 };
 use dvdforge_domain::{
     normalize_rect, AspectRatio, AssetId, AssetSource, AuthoringMode, ButtonAction, ButtonId,
-    ButtonShapeMask, Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, HdScan, JobId,
-    MediaKind, MediaProbe, MenuBackground, MenuId, MenuScaleMode, PixelRect, Project, TvStandard,
-    VideoConfig, VideoScaleMode,
+    ButtonShapeMask, Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, HdScan,
+    JobId, MediaKind, MediaProbe, MenuBackground, MenuId, MenuScaleMode, PixelRect, Project,
+    TvStandard, VideoConfig, VideoScaleMode,
 };
 use dvdforge_dvd::{
     build_dvdauthor_xml, AudioEncodeConfig, AuthoredAudioTrack, AuthoredButton,
@@ -4398,8 +4398,7 @@ async fn encode_menu_video_with_transition(
         .expect("transition checked by caller");
     let rate = format!("{}/{}", spec.fps.num, spec.fps.den);
     // 1080p50/59.94 menus need Level 4.2 even on AVCHD (DVD) media.
-    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0)
-    {
+    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0) {
         "4.2"
     } else {
         "4.1"
@@ -4519,8 +4518,7 @@ async fn encode_menu_video(
         return encode_menu_video_with_transition(path, spec, duration_secs).await;
     }
     // 1080p50/59.94 menus need Level 4.2 even on AVCHD (DVD) media.
-    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0)
-    {
+    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0) {
         "4.2"
     } else {
         "4.1"

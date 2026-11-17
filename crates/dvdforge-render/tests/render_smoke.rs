@@ -379,6 +379,97 @@ async fn renders_menu_less_avchd_with_metadata_udf() {
 }
 
 #[tokio::test]
+#[ignore = "render AVCHD con Smart Stream Copy; requiere ffmpeg"]
+async fn renders_avchd_with_stream_copied_episode() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let work = std::env::temp_dir().join(format!(
+        "dvdforge-render-stream-copy-smoke-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&work);
+    std::fs::create_dir_all(work.join("assets")).expect("work dir");
+    // A camcorder-like clip that already matches the 720p23.976 fixture.
+    let clip = work.join("assets/camcorder.m2ts");
+    let status = std::process::Command::new(dvdforge_toolchain::resolve_binary("ffmpeg"))
+        .args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=1280x720:rate=24000/1001:duration=8",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:sample_rate=48000:duration=8",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-profile:v",
+            "high",
+            "-level:v",
+            "4.1",
+            "-pix_fmt",
+            "yuv420p",
+            "-b:v",
+            "5M",
+            "-maxrate",
+            "7M",
+            "-bufsize",
+            "7M",
+            "-x264-params",
+            "keyint=24:min-keyint=24:scenecut=0:open-gop=0:bluray-compat=1",
+            "-c:a",
+            "ac3",
+            "-b:a",
+            "192k",
+        ])
+        .arg(&clip)
+        .status()
+        .expect("ffmpeg");
+    assert!(status.success());
+    std::fs::copy(
+        root.join("fixtures/projects/assets/episode-02.mp4"),
+        work.join("assets/episode-02.mp4"),
+    )
+    .expect("second episode");
+    let mut project =
+        dvdforge_project::load_project(root.join("fixtures/projects/avchd-dvd5.json"))
+            .expect("fixture");
+    project.assets[0].relative_path = Some("assets/camcorder.m2ts".to_string());
+    project.assets[0].display_name = "camcorder.m2ts".to_string();
+    let output = work.join("out");
+    let (sender, mut receiver) = mpsc::channel(256);
+    let render_output = output.clone();
+    let task =
+        tokio::spawn(
+            async move { render_project(project, work.clone(), render_output, sender).await },
+        );
+    let mut copied = false;
+    while let Some(event) = receiver.recv().await {
+        if let dvdforge_jobs::JobEventKind::Log { message, .. } = &event {
+            copied |= message.contains("se copia sin recodificar");
+        }
+    }
+    let outcome = task.await.expect("task").expect("render");
+    assert!(PathBuf::from(&outcome.iso_path).is_file());
+    assert!(
+        copied,
+        "el episodio compatible debía copiarse sin recodificar"
+    );
+    // The copied stream keeps the source encoder settings (preset fast).
+    let episode = std::fs::read(output.join("episodes/episode-01.mkv")).expect("episode mkv");
+    let signature = b"subme=6";
+    assert!(episode
+        .windows(signature.len())
+        .any(|window| window == signature));
+    let _ = std::fs::remove_dir_all(output.parent().unwrap());
+}
+
+#[tokio::test]
 #[ignore = "render de menú DVD con transición; requiere ffmpeg/dvdauthor/xorriso"]
 async fn renders_dvd_motion_transition() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

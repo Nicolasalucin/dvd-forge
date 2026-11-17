@@ -537,7 +537,6 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
                 "1".to_string(),
             ]);
         }
-
     }
     args.extend(["-map".to_string(), "0:v:0".to_string()]);
     if request.audios.is_empty() {
