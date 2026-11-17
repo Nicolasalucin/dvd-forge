@@ -249,6 +249,11 @@ pub fn apply_template(
     }
     let root_id = project.root_menu;
     let root = project.menu(root_id).ok_or(TemplateError::MissingRoot)?;
+    // Template typography is designed for the 720x480 DVD canvas; HD menus
+    // (1920x1080/1280x720) scale it so text keeps the same visual size.
+    let mut template = template;
+    let canvas_scale = (f64::from(root.canvas.height) / 480.0).max(1.0);
+    template.font_size = (f64::from(template.font_size) * canvas_scale).round() as u16;
     if project.episodes.is_empty() {
         return Err(TemplateError::NoEpisodes);
     }
@@ -495,12 +500,7 @@ pub fn apply_template(
         menu.items.push(MenuItem::Text(TextItem {
             id: "tpl:title".to_string(),
             text: menu.name.clone(),
-            rect: LogicalRect::new(
-                18.0,
-                18.0,
-                (root.canvas.width as f64 - 36.0).max(16.0),
-                36.0,
-            ),
+            rect: title_rect(root.canvas),
             font_family: template.font_family.to_string(),
             font_size: template.font_size as f32,
             color: template.text_color.to_string(),
@@ -564,7 +564,8 @@ fn find_episode_button(root: &Menu, pages: &[Menu], episode: EpisodeId) -> Optio
 
 fn is_generated_nav(button: &MenuButton) -> bool {
     matches!(button.action, ButtonAction::GotoMenu { .. })
-        && (button.name.starts_with("‹")
+        && (button.name.starts_with('‹')
+            || button.name.ends_with('›')
             || button.name.starts_with("Siguiente")
             || button.name == "Extras")
 }
@@ -665,7 +666,6 @@ fn template_items(
     page: usize,
     count: usize,
 ) -> Vec<MenuItem> {
-    let width = root.canvas.width as f64;
     vec![MenuItem::Text(TextItem {
         id: "tpl:title".to_string(),
         text: if count > 1 {
@@ -673,12 +673,24 @@ fn template_items(
         } else {
             template.name.to_string()
         },
-        rect: LogicalRect::new(18.0, 18.0, (width - 36.0).max(16.0), 36.0),
+        rect: title_rect(root.canvas),
         font_family: template.font_family.to_string(),
         font_size: template.font_size as f32,
         color: template.text_color.to_string(),
         align: TextAlign::Center,
     })]
+}
+
+/// Title band at the top of a template page, scaled to the canvas size.
+fn title_rect(canvas: CanvasSpec) -> LogicalRect {
+    let scale = (f64::from(canvas.height) / 480.0).max(1.0);
+    let margin = (18.0 * scale).round();
+    LogicalRect::new(
+        margin,
+        margin,
+        (f64::from(canvas.width) - margin * 2.0).max(16.0),
+        (36.0 * scale).round(),
+    )
 }
 
 fn grid_rects(
@@ -734,10 +746,11 @@ fn add_navigation(
     }
     let width = menu.canvas.width as f64;
     let height = menu.canvas.height as f64;
+    let k = (height / 480.0).max(1.0);
     if let Some(target) = previous {
         menu.buttons.push(nav_button(
             "‹ Anterior",
-            LogicalRect::new(18.0, height - 54.0, 180.0, 34.0),
+            LogicalRect::new(18.0 * k, height - 54.0 * k, 180.0 * k, 34.0 * k),
             template,
             ButtonAction::GotoMenu { menu: target },
         ));
@@ -745,7 +758,7 @@ fn add_navigation(
     if let Some(target) = next {
         menu.buttons.push(nav_button(
             "Siguiente ›",
-            LogicalRect::new(width - 198.0, height - 54.0, 180.0, 34.0),
+            LogicalRect::new(width - 198.0 * k, height - 54.0 * k, 180.0 * k, 34.0 * k),
             template,
             ButtonAction::GotoMenu { menu: target },
         ));
@@ -756,9 +769,10 @@ fn add_navigation(
 fn add_extras_link(menu: &mut Menu, template: &MenuTemplate, extras: MenuId) {
     let width = menu.canvas.width as f64;
     let height = menu.canvas.height as f64;
+    let k = (height / 480.0).max(1.0);
     menu.buttons.push(nav_button(
         "Extras",
-        LogicalRect::new((width - 140.0) / 2.0, height - 54.0, 140.0, 34.0),
+        LogicalRect::new((width - 140.0 * k) / 2.0, height - 54.0 * k, 140.0 * k, 34.0 * k),
         template,
         ButtonAction::GotoMenu { menu: extras },
     ));
@@ -780,7 +794,8 @@ fn nav_button(
         label: None,
         style_kind: ButtonStyleKind::TextOnly,
         font_family: template.font_family.to_string(),
-        font_size: 16,
+        // `template.font_size` is already canvas-scaled; nav text is ~70 %.
+        font_size: ((f64::from(template.font_size) * 0.72).round() as u16).max(12),
         font_weight: "bold".to_string(),
         text_color: template.text_color.to_string(),
         shadow_color: template.shadow_color.to_string(),

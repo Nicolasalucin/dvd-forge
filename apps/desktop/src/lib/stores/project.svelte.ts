@@ -111,6 +111,29 @@ function canvasFor(standard: TvStandard, aspect: AspectRatio) {
   };
 }
 
+/**
+ * Menu canvas for the project's disc. HD discs (AVCHD/Blu-ray 1080/720) edit
+ * menus at the final resolution so HD artwork is never squeezed into the
+ * 720x480 DVD canvas.
+ */
+function canvasForProject(project: Project_Serialize) {
+  const video = project.disc.video;
+  if (project.disc.mode === "avchd" && video.kind === "avchd") {
+    if (video.resolution === "1080p" || video.resolution === "1080i") {
+      return { width: 1920, height: 1080, tvStandard: project.disc.standard, aspect: "sixteenNine" as AspectRatio, safeMarginPx: 96, gridPx: 8 };
+    }
+    if (video.resolution === "720p") {
+      return { width: 1280, height: 720, tvStandard: project.disc.standard, aspect: "sixteenNine" as AspectRatio, safeMarginPx: 64, gridPx: 8 };
+    }
+  }
+  return canvasFor(project.disc.standard, project.disc.aspect);
+}
+
+
+/** Size factor of a menu canvas relative to the 720x480 DVD reference. */
+function menuScale(menu: Menu_Serialize): number {
+  return Math.max(1, menu.canvas.height / 480);
+}
 
 function freshId(value: unknown): string {
   return typeof value === "string" && value.trim().length > 0 ? value : crypto.randomUUID();
@@ -398,6 +421,14 @@ class ProjectStore {
 
   setProject(project: Project_Serialize): void {
     normalizeProject(project);
+    // Projects created by older builds kept HD menus on a 720x480 canvas, which
+    // squeezed 1920x1080 backgrounds. Upgrade them to the disc resolution.
+    const target = canvasForProject(project);
+    for (const menu of project.menus) {
+      if (menu.canvas.width !== target.width || menu.canvas.height !== target.height) {
+        this.rescaleMenu(menu, target);
+      }
+    }
     this.project = project;
     this.syncPlayAll();
     this.planSequence += 1;
@@ -1329,6 +1360,7 @@ class ProjectStore {
     action: MenuButton_Serialize["action"],
     name: string,
     episode: Episode_Serialize | null = null,
+    scale = 1,
   ): MenuButton_Serialize {
     return {
       id: crypto.randomUUID(),
@@ -1348,7 +1380,7 @@ class ProjectStore {
       label: null,
       styleKind,
       fontFamily: "Inter",
-      fontSize: 22,
+      fontSize: Math.round(22 * scale),
       fontWeight: "bold",
       textColor: "#FFFFFF",
       shadowColor: "#000000",
@@ -1368,9 +1400,10 @@ class ProjectStore {
       ? { kind: "playEpisode", episode: episode.id }
       : { kind: "playAll" };
     const name = episode?.title ?? t("Reproducir todo");
-    const buttonWidth = styleKind === "thumbnailCard" ? 240 : 200;
-    const buttonHeight = styleKind === "thumbnailCard" ? 150 : 64;
-    const gap = 16;
+    const scale = menuScale(menu);
+    const buttonWidth = Math.round((styleKind === "thumbnailCard" ? 240 : 200) * scale);
+    const buttonHeight = Math.round((styleKind === "thumbnailCard" ? 150 : 64) * scale);
+    const gap = Math.round(16 * scale);
     const marginX = Math.round(menu.canvas.width * 0.08);
     const marginY = Math.round(menu.canvas.height * 0.1);
     const columns = Math.max(
@@ -1408,6 +1441,7 @@ class ProjectStore {
           action,
           name,
           episode,
+          scale,
         );
         menu.buttons = [...menu.buttons, button];
         this.selectedButtonId = button.id;
@@ -1469,6 +1503,99 @@ class ProjectStore {
     if (!button) return;
     button.navOverride = { ...button.navOverride, [direction]: targetId };
     this.touch();
+  }
+
+  /**
+   * Adds a new menu screen (submenu). It copies the look of the current menu,
+   * gets a "Back" button and the current menu gets a button that opens it, so
+   * the new screen is reachable right away.
+   */
+  addMenu(name?: string): Menu_Serialize | null {
+    const project = this.project;
+    if (!project) return null;
+    const source = this.activeMenu ?? project.menus[0] ?? null;
+    if (!source) {
+      this.createRootMenu(project);
+      this.touch();
+      return project.menus[0] ?? null;
+    }
+    const index = project.menus.length;
+    const menuName = name?.trim() || t("Menú {number}", { number: index + 1 });
+    const menu: Menu_Serialize = {
+      ...structuredClone($state.snapshot(source) as Menu_Serialize),
+      id: crypto.randomUUID(),
+      name: menuName,
+      role: "submenu",
+      placement: { kind: "vtsm", titleset: 1 },
+      items: [],
+      buttons: [],
+      template: null,
+      transition: null,
+    };
+    const scale = menuScale(menu);
+    const w = Math.round(200 * scale);
+    const h = Math.round(64 * scale);
+    const margin = Math.round(menu.canvas.width * 0.08);
+    const back = this.makeButton(
+      this.evenRect(
+        { x: margin, y: menu.canvas.height - Math.round(menu.canvas.height * 0.1) - h, w, h },
+        menu.canvas.width,
+        menu.canvas.height,
+      ),
+      "classicFrame",
+      { kind: "gotoMenu", menu: source.id },
+      t("Volver"),
+      null,
+      scale,
+    );
+    menu.buttons = [back];
+    project.menus = [...project.menus, menu];
+    // Link the new screen from the menu the user was editing.
+    this.selectedMenuId = source.id;
+    const before = source.buttons.length;
+    if (this.addButton("classicFrame")) {
+      const link = source.buttons[source.buttons.length - 1];
+      if (source.buttons.length > before && link) {
+        link.action = { kind: "gotoMenu", menu: menu.id };
+        link.name = menuName;
+      }
+    }
+    this.selectedMenuId = menu.id;
+    this.selectedButtonId = back.id;
+    this.studioMode = "menu";
+    this.error = null;
+    this.syncPlayAll();
+    this.touch();
+    return menu;
+  }
+
+  renameMenu(menuId: string, name: string): void {
+    const menu = this.project?.menus.find((item) => item.id === menuId);
+    if (!menu || !name.trim()) return;
+    menu.name = name.trim();
+    this.touch();
+  }
+
+  /** Removes a non-root menu; buttons that opened it go back to the root. */
+  removeMenu(menuId: string): boolean {
+    const project = this.project;
+    if (!project || menuId === project.rootMenu) return false;
+    if (!project.menus.some((menu) => menu.id === menuId)) return false;
+    project.menus = project.menus.filter((menu) => menu.id !== menuId);
+    for (const menu of project.menus) {
+      for (const button of menu.buttons) {
+        if (button.action.kind === "gotoMenu" && button.action.menu === menuId) {
+          button.action = { kind: "gotoMenu", menu: project.rootMenu };
+        }
+      }
+    }
+    if (this.selectedMenuId === menuId) {
+      this.selectedMenuId = project.rootMenu;
+      this.selectedButtonId = this.activeMenu?.buttons[0]?.id ?? null;
+    }
+    this.syncPlayAll();
+    this.touch();
+    return true;
   }
 
   deleteSelectedButton(): void {
@@ -1693,33 +1820,37 @@ class ProjectStore {
    * valid after the conversion.
    */
   private rescaleMenu(menu: Menu_Serialize, next: Menu_Serialize["canvas"]): void {
+    // Normalize against the *previous* canvas, then scale both axes so a
+    // DVD (720x480) layout maps proportionally onto an HD (1920x1080) canvas.
+    const previousWidth = menu.canvas.width || next.width;
     const previousHeight = menu.canvas.height || next.height;
-    const factor = next.height / previousHeight;
-    for (const button of menu.buttons) {
-      const rect = normalizeRect(button.rect, next.width, previousHeight);
-      button.rect = this.evenRect(
+    const fx = next.width / previousWidth;
+    const fy = next.height / previousHeight;
+    const scale = (rect: MenuButton_Serialize["rect"]) => {
+      const normalized = normalizeRect(rect, previousWidth, previousHeight);
+      return this.evenRect(
         {
-          x: rect.x0,
-          y: rect.y0 * factor,
-          w: rect.x1 - rect.x0,
-          h: (rect.y1 - rect.y0) * factor,
+          x: normalized.x0 * fx,
+          y: normalized.y0 * fy,
+          w: (normalized.x1 - normalized.x0) * fx,
+          h: (normalized.y1 - normalized.y0) * fy,
         },
         next.width,
         next.height,
       );
-    }
-    for (const item of menu.items) {
-      const rect = normalizeRect(item.rect, next.width, previousHeight);
-      item.rect = this.evenRect(
-        {
-          x: rect.x0,
-          y: rect.y0 * factor,
-          w: rect.x1 - rect.x0,
-          h: (rect.y1 - rect.y0) * factor,
-        },
-        next.width,
-        next.height,
-      );
+    };
+    for (const button of menu.buttons) button.rect = scale(button.rect);
+    for (const item of menu.items) item.rect = scale(item.rect);
+    if (Math.abs(fy - 1) > 0.01) {
+      const font = (size: number) => Math.max(8, Math.round(size * fy));
+      for (const button of menu.buttons) {
+        button.fontSize = font(button.fontSize);
+        if (button.label?.fontSize) button.label.fontSize = font(button.label.fontSize);
+      }
+      for (const item of menu.items) {
+        const text = item as { fontSize?: number | null };
+        if (typeof text.fontSize === "number") text.fontSize = font(text.fontSize);
+      }
     }
     menu.canvas = next;
   }
@@ -1762,7 +1893,7 @@ class ProjectStore {
         this.createRootMenu(project);
       } else {
         for (const menu of project.menus) {
-          this.rescaleMenu(menu, canvasFor("ntsc", "sixteenNine"));
+          this.rescaleMenu(menu, canvasForProject(project));
         }
       }
       this.selectedMenuId = project.menus[0]?.id ?? null;
@@ -1785,7 +1916,7 @@ class ProjectStore {
         this.createRootMenu(project);
       } else {
         for (const menu of project.menus) {
-          this.rescaleMenu(menu, canvasFor(project.disc.standard, project.disc.aspect));
+          this.rescaleMenu(menu, canvasForProject(project));
         }
       }
       this.selectedMenuId = project.menus[0]?.id ?? null;
@@ -1802,7 +1933,7 @@ class ProjectStore {
     for (const menu of project.menus) {
       // rescaleMenu normalizes against the *previous* canvas height before
       // scaling (no clipping of the lower rows) and also rescales menu items.
-      this.rescaleMenu(menu, canvasFor(standard, project.disc.aspect));
+      this.rescaleMenu(menu, canvasForProject(project));
     }
     this.touch();
   }
@@ -1932,7 +2063,7 @@ class ProjectStore {
   }
 
   private createRootMenu(project: Project_Serialize): void {
-    const canvas = canvasFor(project.disc.standard, project.disc.aspect);
+    const canvas = canvasForProject(project);
     let background = project.assets.find((asset) => asset.kind === "image");
     if (!background) {
       const backgroundId = crypto.randomUUID();

@@ -55,6 +55,21 @@
     return "bg-cyan-400";
   }
 
+  function addMenu() {
+    projectStore.addMenu();
+  }
+
+  function renameMenu(menu: Menu_Serialize) {
+    const name = window.prompt(t("Nombre de la pantalla de menú"), menu.name);
+    if (name !== null) projectStore.renameMenu(menu.id, name);
+  }
+
+  function removeMenu(menu: Menu_Serialize, event: MouseEvent) {
+    event.stopPropagation();
+    if (!window.confirm(t("¿Eliminar la pantalla de menú «{menu}»? Los botones que la abrían volverán al menú principal.", { menu: menu.name }))) return;
+    projectStore.removeMenu(menu.id);
+  }
+
   function openFirstPlay() {
     projectStore.studioMode = "simulator";
   }
@@ -82,20 +97,44 @@
           </button>
         {/if}
         {#each menus as menu}
+          <span class="group/menu relative inline-flex max-w-full">
+            <button
+              type="button"
+              onclick={() => projectStore.selectMenu(menu.id)}
+              ondblclick={() => renameMenu(menu)}
+              class={`max-w-full rounded-md border px-1.5 py-0.5 text-left text-[9px] transition ${
+                projectStore.selectedMenuId === menu.id
+                  ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200"
+                  : "border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-300"
+              }`}
+              title={t("{menu} · doble clic para renombrar", { menu: menu.name })}
+            >
+              <span class="block max-w-[170px] truncate font-semibold">{menu.name}</span>
+              <span class="block max-w-[170px] truncate text-[8px] opacity-60">{menuRole(menu)}</span>
+            </button>
+            {#if menu.id !== project?.rootMenu}
+              <button
+                type="button"
+                onclick={(event) => removeMenu(menu, event)}
+                class="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-800 text-[8px] text-slate-300 hover:bg-rose-500/80 hover:text-white group-hover/menu:flex"
+                title={t("Eliminar pantalla de menú")}
+                aria-label={t("Eliminar pantalla de menú")}
+              >
+                ✕
+              </button>
+            {/if}
+          </span>
+        {/each}
+        {#if project}
           <button
             type="button"
-            onclick={() => projectStore.selectMenu(menu.id)}
-            class={`max-w-full rounded-md border px-1.5 py-0.5 text-left text-[9px] transition ${
-              projectStore.selectedMenuId === menu.id
-                ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200"
-                : "border-slate-800 text-slate-500 hover:border-slate-700 hover:text-slate-300"
-            }`}
-            title={menu.name}
+            onclick={addMenu}
+            class="rounded-md border border-dashed border-cyan-500/40 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+            title={t("Añadir otra pantalla de menú (submenú) enlazada desde la actual")}
           >
-            <span class="block max-w-[190px] truncate font-semibold">{menu.name}</span>
-            <span class="block max-w-[190px] truncate text-[8px] opacity-60">{menuRole(menu)}</span>
+            {t("+ Pantalla de menú")}
           </button>
-        {/each}
+        {/if}
         {#if isAvchd}
           <span class="rounded-md border border-cyan-500/25 bg-cyan-500/5 px-1.5 py-0.5 text-[9px] text-cyan-200/70">
             {t(menus.length > 0 ? "Blu-ray/AVCHD HD" : "AVCHD continuo")}
@@ -117,8 +156,9 @@
         type="button"
         onclick={addEpisode}
         class="rounded-md border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+        title={t("Añadir episodio desde la biblioteca")}
       >
-        {t("+ Añadir")}
+        {t("+ Episodio")}
       </button>
     </div>
   </div>

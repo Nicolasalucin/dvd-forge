@@ -106,11 +106,12 @@ pub fn project_new(
         AuthoringMode::Avchd => {
             let resolution = avchd_resolution.unwrap_or(AvchdResolution::R720p);
             let frame_rate = avchd_frame_rate.unwrap_or_else(|| default_avchd_fps(resolution));
-            let config = AvchdVideoConfig {
+            let mut config = AvchdVideoConfig {
                 resolution,
                 frame_rate,
                 ..AvchdVideoConfig::default()
             };
+            config.level = config.effective_level();
             let errors: Vec<String> = config
                 .validate()
                 .into_iter()
@@ -152,7 +153,12 @@ pub fn project_new(
                 name: "Menú principal".to_string(),
                 role: MenuRole::Root,
                 placement: MenuPlacement::Vmgm,
-                canvas: CanvasSpec::new(effective_standard, effective_aspect),
+                canvas: match resolution.dimensions() {
+                    (width @ (1920 | 1280), height) => {
+                        CanvasSpec::hd(width as u16, height as u16, effective_standard)
+                    }
+                    _ => CanvasSpec::new(effective_standard, effective_aspect),
+                },
                 background: MenuBackground::Static {
                     asset: background_id,
                 },

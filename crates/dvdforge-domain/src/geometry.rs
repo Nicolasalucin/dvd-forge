@@ -76,10 +76,29 @@ impl CanvasSpec {
         }
     }
 
+    /// Editor canvas for an HD (AVCHD/Blu-ray) disc. The canvas matches the
+    /// final menu resolution so 1920x1080 artwork is shown 1:1 instead of being
+    /// squeezed into a 720x480 DVD canvas.
+    pub fn hd(width: u16, height: u16, tv_standard: TvStandard) -> Self {
+        Self {
+            width,
+            height,
+            tv_standard,
+            aspect: AspectRatio::SixteenNine,
+            safe_margin_px: ((width as f32) * 0.05).round() as u16,
+            grid_px: 8,
+        }
+    }
+
+    /// True for the HD canvases accepted on AVCHD/Blu-ray menus.
+    pub fn is_hd(self) -> bool {
+        matches!((self.width, self.height), (1920, 1080) | (1280, 720))
+    }
+
     pub fn validate(self) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
         let (expected_width, expected_height) = self.tv_standard.canvas_size();
-        if self.width != expected_width || self.height != expected_height {
+        if !self.is_hd() && (self.width != expected_width || self.height != expected_height) {
             diagnostics.push(
                 Diagnostic::error(
                     "E_CANVAS_SIZE",
