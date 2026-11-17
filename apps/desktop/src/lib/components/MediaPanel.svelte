@@ -1,5 +1,6 @@
 <script lang="ts">
   import SlideshowDialog from "./SlideshowDialog.svelte";
+  import DiscInspector from "./DiscInspector.svelte";
   import { t } from "../i18n/index.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { ButtonStyleKind, MediaAsset_Serialize, MediaKind } from "../api/bindings";
@@ -65,6 +66,7 @@
   ];
 
   let slideshowOpen = $state(false);
+  let inspectorOpen = $state(false);
 
   async function importMedia() {
     if (!project) return;
@@ -281,6 +283,15 @@
         </button>
         <button
           type="button"
+          onclick={() => (inspectorOpen = true)}
+          disabled={busy || !project}
+          title={t("Inspeccionar o importar un disco")}
+          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
+        >
+          {t("Disco")}
+        </button>
+        <button
+          type="button"
           onclick={() => (slideshowOpen = true)}
           disabled={busy || !project}
           title={t("Presentación de fotos")}
@@ -291,6 +302,9 @@
       </div>
       {#if slideshowOpen}
         <SlideshowDialog onclose={() => (slideshowOpen = false)} />
+      {/if}
+      {#if inspectorOpen}
+        <DiscInspector onclose={() => (inspectorOpen = false)} />
       {/if}
 
       {#if !project}

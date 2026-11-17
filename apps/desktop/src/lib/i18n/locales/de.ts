@@ -963,6 +963,21 @@ export const de: Dictionary = {
   "Sin música (pista de audio en silencio)": "Keine Musik (stille Tonspur)",
   "Título del episodio": "Titel der Folge",
   "{count} fotos · {duration}": "{count} Fotos · {duration}",
+  "Abrir ISO…": "ISO öffnen…",
+  "Abrir carpeta…": "Ordner öffnen…",
+  "Capítulo {n}": "Kapitel {n}",
+  "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
+  "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
+  "Disco de datos": "Datendisc",
+  "Imagen de disco": "Disc-Image",
+  "Importar como episodios…": "Als Folgen importieren…",
+  "Inspeccionar disco": "Disc untersuchen",
+  "Inspeccionar o importar un disco": "Disc untersuchen oder importieren",
+  "Leyendo…": "Wird gelesen…",
+  "Mira qué hay en una imagen ISO o en una carpeta VIDEO_TS/BDMV y, si no está cifrado, impórtalo como episodios.": "Sehen, was auf einem ISO-Image oder in einem VIDEO_TS/BDMV-Ordner ist, und unverschlüsselt als Folgen importieren.",
+  "repetido": "doppelt",
+  "{count} archivos": "{count} Dateien",
+  "{count} títulos añadidos como episodios.": "{count} Titel als Folgen hinzugefügt.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {

@@ -7,6 +7,7 @@
 pub mod bdmv;
 pub mod dvd;
 pub mod extract;
+pub mod inspect;
 pub mod menu;
 pub mod report;
 pub mod stream;

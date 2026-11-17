@@ -1,5 +1,6 @@
 mod batch;
 mod bundle;
+mod inspect_cmd;
 mod render;
 mod scenes_cmd;
 mod slideshow_cmd;
@@ -43,6 +44,7 @@ async fn main() -> ExitCode {
         "toolchain" => toolchain_cmd::run(&args[1..]),
         "split" => split_cmd::run(&args[1..]),
         "scenes" => scenes_cmd::run(&args[1..]),
+        "inspect" => inspect_cmd::run(&args[1..]),
         "slideshow" => slideshow_cmd::run(&args[1..]).await,
         "version" | "--version" | "-V" => {
             println!("kinodisc-cli {VERSION}");

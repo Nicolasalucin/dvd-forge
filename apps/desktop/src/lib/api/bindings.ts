@@ -26,12 +26,19 @@ export const commands = {
 	startupProjectPath: () => __TAURI_INVOKE<string | null>("startup_project_path"),
 	mediaProbeFile: (path: string) => typedError<MediaProbe_Serialize, string>(__TAURI_INVOKE("media_probe_file", { path })),
 	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
+	/**  Builds (or reuses) a photo slideshow video in the per-user cache. */
+	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
 	/**
 	 *  Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 	 *  escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
-	 *  Builds (or reuses) a photo slideshow video in the per-user cache.
+	 *  What is on a DVD/Blu-ray image or folder (read-only).
 	 */
-	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
+	discInspect: (path: string) => typedError<DiscInspection, string>(__TAURI_INVOKE("disc_inspect", { path })),
+	/**
+	 *  Copies the titles of an unencrypted disc into `destination` as video
+	 *  files (DVD: one .vob per title; Blu-ray: one .m2ts per playlist).
+	 */
+	discImport: (path: string, destination: string) => typedError<ImportedTitle[], string>(__TAURI_INVOKE("disc_import", { path, destination })),
 	/**
 	 *  Devuelve un fichero reproducible por `<video>` en WebKitGTK. Los MP4/WebM
 	 *  con códecs compatibles se usan directamente; el resto se remuxea o se
@@ -472,6 +479,18 @@ export type DiscConfig_Serialize = {
 	playerPreset: PlayerPreset,
 };
 
+export type DiscInspection = {
+	kind: InspectedKind,
+	volumeLabel: string,
+	totalBytes: number | null,
+	fileCount: number,
+	encrypted: boolean,
+	/**  "NTSC 16:9", "PAL 4:3", "1080p 23.976"... when known. */
+	video: string,
+	titles: InspectedTitle[],
+	notes: string[],
+};
+
 export type DiscPart = DiscPart_Serialize | DiscPart_Deserialize;
 
 export type DiscPart_Deserialize = {
@@ -721,6 +740,37 @@ export type ImageItem_Serialize = {
 	asset: AssetId,
 	rect: LogicalRect,
 	opacity: number | null,
+};
+
+export type ImportedTitle = {
+	path: string,
+	title: string,
+	chapterStartsMs: (number | null)[],
+};
+
+export type InspectedKind = "dvdVideo" | "bdmv" | "data";
+
+export type InspectedStream = {
+	/**  "ac3", "dts", "lpcm", "mpeg", "subtitle"... */
+	codec: string,
+	language: string,
+	channels: number,
+};
+
+export type InspectedTitle = {
+	/**  1-based title (DVD) or playlist number (BDMV). */
+	number: number,
+	durationMs: number | null,
+	chapters: number,
+	/**  Chapter start times relative to the title, in ms (first is 0). */
+	chapterStartsMs: (number | null)[],
+	bytes: number | null,
+	audio: InspectedStream[],
+	subtitles: InspectedStream[],
+	/**  DVD: title set number; BDMV: main clip number. */
+	group: number,
+	/**  BDMV: same clip and duration as an earlier playlist. */
+	duplicate: boolean,
 };
 
 export type JobEvent = JobEvent_Serialize | JobEvent_Deserialize;

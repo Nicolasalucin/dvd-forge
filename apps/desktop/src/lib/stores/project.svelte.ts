@@ -775,6 +775,44 @@ class ProjectStore {
     }
   }
 
+  /** Imports copied disc titles as episodes, keeping their chapters. */
+  async addImportedTitles(
+    titles: Array<{ path: string; title: string; chapterStartsMs: Array<number | null> }>,
+  ): Promise<number> {
+    const project = this.project;
+    if (!project || titles.length === 0) return 0;
+    await this.importMedia(titles.map((title) => title.path));
+    if (this.project !== project) return 0;
+    const video = project.disc.video;
+    const fps =
+      video.kind === "avchd"
+        ? video.frameRate.num / video.frameRate.den
+        : project.disc.standard === "pal"
+          ? 25
+          : 30000 / 1001;
+    let added = 0;
+    for (const imported of titles) {
+      const asset = project.assets.find((item) => this.assetPath(item) === imported.path);
+      if (!asset) continue;
+      const episode = this.episodeForAsset(asset.id) ?? this.addEpisodeFromAsset(asset.id);
+      if (!episode) continue;
+      episode.title = imported.title;
+      if (imported.chapterStartsMs.length > 1) {
+        episode.chapters = imported.chapterStartsMs.map((ms, index) => ({
+          // f64 values arrive as number | null (NaN); treat null as 0.
+
+          id: crypto.randomUUID(),
+          title: t("Capítulo {n}", { n: index + 1 }),
+          atFrame: Math.round(((ms ?? 0) * fps) / 1000),
+          thumbnail: null,
+        }));
+      }
+      added += 1;
+    }
+    this.touch();
+    return added;
+  }
+
   async addImageAssetFromPath(path: string): Promise<string | null> {
     const project = this.project;
     if (!project) return null;

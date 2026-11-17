@@ -964,6 +964,21 @@ export const fr: Dictionary = {
   "Sin música (pista de audio en silencio)": "Sans musique (piste audio silencieuse)",
   "Título del episodio": "Titre de l'épisode",
   "{count} fotos · {duration}": "{count} photos · {duration}",
+  "Abrir ISO…": "Ouvrir une ISO…",
+  "Abrir carpeta…": "Ouvrir un dossier…",
+  "Capítulo {n}": "Chapitre {n}",
+  "Carpeta donde copiar los títulos": "Dossier où copier les titres",
+  "Cifrado: se puede ver, pero no importar.": "Chiffré : consultable, mais non importable.",
+  "Disco de datos": "Disque de données",
+  "Imagen de disco": "Image disque",
+  "Importar como episodios…": "Importer comme épisodes…",
+  "Inspeccionar disco": "Inspecter un disque",
+  "Inspeccionar o importar un disco": "Inspecter ou importer un disque",
+  "Leyendo…": "Lecture…",
+  "Mira qué hay en una imagen ISO o en una carpeta VIDEO_TS/BDMV y, si no está cifrado, impórtalo como episodios.": "Voyez le contenu d'une image ISO ou d'un dossier VIDEO_TS/BDMV et, s'il n'est pas chiffré, importez-le comme épisodes.",
+  "repetido": "doublon",
+  "{count} archivos": "{count} fichiers",
+  "{count} títulos añadidos como episodios.": "{count} titres ajoutés comme épisodes.",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

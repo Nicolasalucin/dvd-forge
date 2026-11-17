@@ -12,14 +12,15 @@ use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
 
 use commands::{
-    bundle_export, bundle_import, burn_cancel, burn_list_devices, burn_start, job_history_list,
-    media_extract_frame, media_playback_support, media_prepare_preview, media_preview_url,
-    media_probe_file, menu_apply_chapter_menus, menu_apply_template, menu_navigation,
-    menu_save_background, menu_save_labels, menu_templates, open_folder, plan_calculate,
-    project_new, project_open, project_save, project_split, read_image_data_url,
-    recent_project_forget, recent_projects_list, render_cancel, render_export_folder,
-    render_name_part, render_start, slideshow_create, startup_project_path, system_fonts,
-    toolchain_install, toolchain_install_options, tools_doctor, verify_iso, PlaybackSupport,
+    bundle_export, bundle_import, burn_cancel, burn_list_devices, burn_start, disc_import,
+    disc_inspect, job_history_list, media_extract_frame, media_playback_support,
+    media_prepare_preview, media_preview_url, media_probe_file, menu_apply_chapter_menus,
+    menu_apply_template, menu_navigation, menu_save_background, menu_save_labels, menu_templates,
+    open_folder, plan_calculate, project_new, project_open, project_save, project_split,
+    read_image_data_url, recent_project_forget, recent_projects_list, render_cancel,
+    render_export_folder, render_name_part, render_start, slideshow_create, startup_project_path,
+    system_fonts, toolchain_install, toolchain_install_options, tools_doctor, verify_iso,
+    PlaybackSupport,
 };
 
 pub const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/lib/api/bindings.ts");
@@ -36,6 +37,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             media_probe_file,
             media_extract_frame,
             slideshow_create,
+            disc_inspect,
+            disc_import,
             media_prepare_preview,
             media_playback_support,
             media_preview_url,

@@ -541,6 +541,41 @@ fn playback_support_from_missing(platform: &str, missing: Vec<String>) -> Playba
 
 /// Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 /// escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
+/// What is on a DVD/Blu-ray image or folder (read-only).
+#[tauri::command]
+#[specta::specta]
+pub async fn disc_inspect(
+    path: String,
+) -> Result<kinodisc_verify::inspect::DiscInspection, String> {
+    let path = PathBuf::from(path);
+    if !path.is_absolute() {
+        return Err("Ruta no válida.".to_string());
+    }
+    tokio::task::spawn_blocking(move || kinodisc_verify::inspect::inspect(&path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Copies the titles of an unencrypted disc into `destination` as video
+/// files (DVD: one .vob per title; Blu-ray: one .m2ts per playlist).
+#[tauri::command]
+#[specta::specta]
+pub async fn disc_import(
+    path: String,
+    destination: String,
+) -> Result<Vec<kinodisc_verify::inspect::ImportedTitle>, String> {
+    let source = PathBuf::from(path);
+    let destination = PathBuf::from(destination);
+    if !source.is_absolute() || !destination.is_absolute() {
+        return Err("Ruta no válida.".to_string());
+    }
+    tokio::task::spawn_blocking(move || {
+        kinodisc_verify::inspect::import_titles(&source, &destination, &|| false)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 /// Builds (or reuses) a photo slideshow video in the per-user cache.
 #[tauri::command]
 #[specta::specta]

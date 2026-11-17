@@ -963,6 +963,21 @@ export const ja: Dictionary = {
   "Sin música (pista de audio en silencio)": "音楽なし (無音の音声トラック)",
   "Título del episodio": "エピソードのタイトル",
   "{count} fotos · {duration}": "写真 {count} 枚 · {duration}",
+  "Abrir ISO…": "ISO を開く…",
+  "Abrir carpeta…": "フォルダーを開く…",
+  "Capítulo {n}": "チャプター {n}",
+  "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
+  "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
+  "Disco de datos": "データディスク",
+  "Imagen de disco": "ディスクイメージ",
+  "Importar como episodios…": "エピソードとして取り込む…",
+  "Inspeccionar disco": "ディスクを調べる",
+  "Inspeccionar o importar un disco": "ディスクを調べる・取り込む",
+  "Leyendo…": "読み込み中…",
+  "Mira qué hay en una imagen ISO o en una carpeta VIDEO_TS/BDMV y, si no está cifrado, impórtalo como episodios.": "ISO イメージや VIDEO_TS/BDMV フォルダーの中身を確認し、暗号化されていなければエピソードとして取り込みます。",
+  "repetido": "重複",
+  "{count} archivos": "{count} ファイル",
+  "{count} títulos añadidos como episodios.": "{count} 件のタイトルをエピソードとして追加しました。",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
