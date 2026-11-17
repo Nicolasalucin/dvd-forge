@@ -20,7 +20,13 @@ pub struct NativeStream {
     pub pid: u16,
     pub stream_type: u8,
     pub language: Option<String>,
+    /// BDMV video attribute (`video_format << 4 | frame_rate`); only used for
+    /// video streams. Defaults to 1080p 23.976 (`0x61`).
+    pub video_attr: u8,
 }
+
+/// Default BDMV video attribute: 1080p @ 23.976.
+pub const DEFAULT_VIDEO_ATTR: u8 = 0x61;
 
 impl NativeStream {
     pub const fn video(pid: u16) -> Self {
@@ -28,6 +34,7 @@ impl NativeStream {
             pid,
             stream_type: 0x1B,
             language: None,
+            video_attr: DEFAULT_VIDEO_ATTR,
         }
     }
 
@@ -36,6 +43,7 @@ impl NativeStream {
             pid,
             stream_type: 0x81,
             language,
+            video_attr: DEFAULT_VIDEO_ATTR,
         }
     }
 
@@ -44,7 +52,14 @@ impl NativeStream {
             pid,
             stream_type: PMT_STREAM_TYPE_PGS,
             language,
+            video_attr: DEFAULT_VIDEO_ATTR,
         }
+    }
+
+    /// Overrides the BDMV video attribute for a video stream.
+    pub const fn with_video_attr(mut self, video_attr: u8) -> Self {
+        self.video_attr = video_attr;
+        self
     }
 
     pub const fn ig(pid: u16, language: Option<String>) -> Self {
@@ -52,6 +67,7 @@ impl NativeStream {
             pid,
             stream_type: PMT_STREAM_TYPE_IG,
             language,
+            video_attr: DEFAULT_VIDEO_ATTR,
         }
     }
 
@@ -77,7 +93,7 @@ impl NativeStream {
     fn attribute_bytes(&self) -> [u8; 4] {
         let language = self.language_bytes();
         match self.coding_type() {
-            0x1B => [0x31, 0x30, 0x00, 0x00],
+            0x1B => [self.video_attr, 0x00, 0x00, 0x00],
             0x81 => [0x10, language[0], language[1], language[2]],
             PMT_STREAM_TYPE_IG => [language[0], language[1], language[2], 0x00],
             _ => [language[0], language[1], language[2], 0x00],
@@ -414,6 +430,7 @@ pub fn parse_pmt_from_m2ts_prefix(prefix: &[u8]) -> Result<Vec<NativeStream>, Bd
                 pid: stream_pid,
                 stream_type,
                 language,
+                video_attr: DEFAULT_VIDEO_ATTR,
             });
             offset += 5 + info_length;
         }

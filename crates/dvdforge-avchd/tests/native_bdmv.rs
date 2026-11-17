@@ -110,6 +110,7 @@ async fn native_movie_with_pgs_is_verifiable() {
                 path: None,
                 language: "spa",
             }],
+            video_attr: 0x61,
         })
         .await
         .expect("native movie");
@@ -209,6 +210,7 @@ async fn native_movie_keeps_multiple_audio_tracks() {
             chapters_ms: &[0],
             audio_languages: &["eng", "spa"],
             subtitles: &[],
+            video_attr: 0x61,
         })
         .await
         .expect("native movie");
@@ -279,6 +281,7 @@ async fn native_menu_ig_is_verifiable() {
             chapters_ms: &[0],
             audio_languages: &["eng"],
             subtitles: &[],
+            video_attr: 0x61,
         })
         .await
         .expect("native movie");
@@ -366,6 +369,7 @@ async fn native_menu_ig_is_verifiable() {
             clip_id: 1,
             playlist_id: 1,
             expected_object: 1,
+            video_attr: 0x61,
         })
         .await
         .expect("native menu");

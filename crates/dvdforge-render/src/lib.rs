@@ -10,7 +10,7 @@ use dvdforge_avchd::{
 };
 use dvdforge_domain::{
     normalize_rect, AspectRatio, AssetId, AssetSource, AuthoringMode, ButtonAction, ButtonId,
-    ButtonShapeMask, Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, JobId,
+    ButtonShapeMask, Diagnostic, DiscCapacity, DvdProfile, Episode, EpisodeId, FrameRate, HdScan, JobId,
     MediaKind, MediaProbe, MenuBackground, MenuId, MenuScaleMode, PixelRect, Project, TvStandard,
     VideoConfig, VideoScaleMode,
 };
@@ -61,7 +61,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 6;
+const ENCODER_REV: u32 = 7;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.
@@ -1956,6 +1956,7 @@ async fn render_avchd_project(
                 chapters_ms: &chapters,
                 audio_languages: &native_audio_languages,
                 subtitles: &native_subtitles,
+                video_attr: config.bdmv_video_attr(),
             })
             .await
         {
@@ -2073,6 +2074,8 @@ async fn render_avchd_project(
                         height,
                         fps: config.frame_rate,
                         interlaced: config.resolution.interlaced(),
+                        psf: config.scan() == HdScan::Psf,
+                        video_attr: config.bdmv_video_attr(),
                         capacity: project.disc.capacity,
                         maxrate_kbps,
                         vbv_bufsize_kbps,
@@ -3784,6 +3787,8 @@ struct MenuClipSpec {
     height: u16,
     fps: FrameRate,
     interlaced: bool,
+    psf: bool,
+    video_attr: u8,
     capacity: DiscCapacity,
     maxrate_kbps: u32,
     vbv_bufsize_kbps: u32,
@@ -3846,6 +3851,8 @@ struct MenuClipFormat {
     height: u16,
     fps: FrameRate,
     interlaced: bool,
+    psf: bool,
+    video_attr: u8,
     capacity: DiscCapacity,
     maxrate_kbps: u32,
     vbv_bufsize_kbps: u32,
@@ -3969,6 +3976,8 @@ fn build_menu_clip_spec(
         height: format.height,
         fps: format.fps,
         interlaced: format.interlaced,
+        psf: format.psf,
+        video_attr: format.video_attr,
         capacity: format.capacity,
         maxrate_kbps: format.maxrate_kbps,
         vbv_bufsize_kbps: format.vbv_bufsize_kbps,
@@ -4013,6 +4022,7 @@ async fn attach_native_hdmv_menu(
             clip_id: clip,
             playlist_id: playlist,
             expected_object,
+            video_attr: spec.video_attr,
         })
         .await
         .map_err(|error| RenderError::Menu(error.to_string()))?;
@@ -4202,7 +4212,9 @@ async fn encode_menu_video_with_transition(
         .as_ref()
         .expect("transition checked by caller");
     let rate = format!("{}/{}", spec.fps.num, spec.fps.den);
-    let level = if spec.capacity.is_blu_ray() {
+    // 1080p50/59.94 menus need Level 4.2 even on AVCHD (DVD) media.
+    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0)
+    {
         "4.2"
     } else {
         "4.1"
@@ -4305,6 +4317,9 @@ async fn encode_menu_video_with_transition(
     if spec.interlaced {
         command.args(["-flags", "+ildct+ilme", "-top", "1"]);
     }
+    if spec.psf {
+        command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);
+    }
     command.args(["-f", "h264"]).arg(path);
     run_menu_ffmpeg(command, path, "video").await
 }
@@ -4318,7 +4333,9 @@ async fn encode_menu_video(
     if spec.transition.is_some() {
         return encode_menu_video_with_transition(path, spec, duration_secs).await;
     }
-    let level = if spec.capacity.is_blu_ray() {
+    // 1080p50/59.94 menus need Level 4.2 even on AVCHD (DVD) media.
+    let level = if spec.capacity.is_blu_ray() || (spec.height >= 1080 && spec.fps.as_f64() > 31.0)
+    {
         "4.2"
     } else {
         "4.1"
@@ -4410,6 +4427,9 @@ async fn encode_menu_video(
     ]);
     if spec.interlaced {
         command.args(["-flags", "+ildct+ilme", "-top", "1"]);
+    }
+    if spec.psf {
+        command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);
     }
     command.args(["-f", "h264"]).arg(path);
     run_menu_ffmpeg(command, path, "video").await

@@ -33,7 +33,7 @@ pub use navigation::{
 };
 pub use project::{
     AssetSource, AudioCodec, AudioDefaults, AudioFormat, AudioMastering, AudioStreamInfo,
-    AuthoringMode, AvchdResolution, AvchdVideoConfig, BurnPreferences, ChannelMode, Chapter,
+    AuthoringMode, AvchdResolution, AvchdVideoConfig, bdmv_frame_rate_code, HdScan, BurnPreferences, ChannelMode, Chapter,
     DiscCapacity, DiscConfig, DvdProfile, DvdVideoConfig, EncodeOverride, EncodingPriority,
     Episode, EpisodeAudio, FirstPlay, H264Level, LayerBreakMode, LoudnessTarget, MediaAsset,
     MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction, Project, ProxyInfo,

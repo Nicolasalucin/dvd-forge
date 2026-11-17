@@ -33,8 +33,12 @@
   function fpsOptionsFor(resolution: AvchdResolution): FpsOption[] {
     if (resolution === "1080p") {
       return [
-        { key: "23.976", label: "23.976 fps", rate: FPS_23_976 },
-        { key: "24", label: "24 fps", rate: FPS_24 },
+        { key: "23.976", label: "23.976 fps (cine)", rate: FPS_23_976 },
+        { key: "24", label: "24 fps (cine)", rate: FPS_24 },
+        { key: "25", label: "25 fps (TV PAL · PsF)", rate: FPS_25 },
+        { key: "29.97", label: "29.97 fps (TV NTSC · PsF)", rate: FPS_29_97 },
+        { key: "50", label: "50 fps (AVCHD 2.0)", rate: FPS_50 },
+        { key: "59.94", label: "59.94 fps (AVCHD 2.0)", rate: FPS_59_94 },
       ];
     }
     if (resolution === "1080i") {
@@ -258,11 +262,20 @@
                 disabled={busy}
               >
                 {#each fpsOptions as option}
-                  <option value={option.key}>{option.label}</option>
+                  <option value={option.key}>{t(option.label)}</option>
                 {/each}
               </select>
             </label>
           </div>
+          {#if resolution === "1080p" && (effectiveFpsKey === "25" || effectiveFpsKey === "29.97")}
+            <p class="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] leading-4 text-emerald-100/80">
+              {t("Ideal para TV y video casero. Se graba como PsF (imagen progresiva en señal 1080i), compatible con todos los reproductores Blu-ray.")}
+            </p>
+          {:else if resolution === "1080p" && (effectiveFpsKey === "50" || effectiveFpsKey === "59.94")}
+            <p class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[10px] leading-4 text-amber-100/80">
+              {t("Máxima fluidez (deportes, videojuegos, cámaras modernas). Es AVCHD 2.0: funciona en PS3/PS4/PS5 y reproductores actuales, pero algunos Blu-ray antiguos no lo reproducen.")}
+            </p>
+          {/if}
           <p class="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] leading-4 text-cyan-100/80">
             {t("AVCHD/Blu-ray usa H.264, AC-3 y menús HDMV Interactive Graphics. Puedes elegir BD-25 o BD-50 en la cabecera para habilitar el authoring Blu-ray nativo.")}
           </p>

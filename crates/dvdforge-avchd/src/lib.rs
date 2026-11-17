@@ -5,7 +5,7 @@
 
 use dvdforge_domain::{
     AspectRatio, AvchdResolution, AvchdVideoConfig, Diagnostic, DiscCapacity, FrameRange,
-    FrameRate, VideoScaleMode,
+    FrameRate, H264Level, HdScan, VideoScaleMode,
 };
 use dvdforge_toolchain::{resolve_binary, MEDIA_PROTOCOL_WHITELIST};
 use std::path::{Path, PathBuf};
@@ -40,6 +40,8 @@ pub struct ResolutionSpec {
     pub width: u32,
     pub height: u32,
     pub interlaced: bool,
+    /// Progressive pictures flagged as interlaced (1080p25/29.97 on Blu-ray).
+    pub psf: bool,
 }
 
 impl ResolutionSpec {
@@ -49,11 +51,23 @@ impl ResolutionSpec {
             width,
             height,
             interlaced: resolution.interlaced(),
+            psf: false,
         }
     }
 
-    pub const fn from_config(config: &AvchdVideoConfig) -> Self {
-        Self::from_resolution(config.resolution)
+    pub fn from_config(config: &AvchdVideoConfig) -> Self {
+        Self {
+            psf: config.scan() == HdScan::Psf,
+            ..Self::from_resolution(config.resolution)
+        }
+    }
+}
+
+/// x264/FFmpeg level string for an AVCHD/Blu-ray configuration.
+pub fn x264_level(config: &AvchdVideoConfig) -> &'static str {
+    match config.effective_level() {
+        H264Level::Level41 => "4.1",
+        H264Level::Level42 => "4.2",
     }
 }
 
@@ -429,7 +443,9 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     let keyint = request.config.keyint_frames.max(1);
     let maxrate = request.maxrate_kbps.max(request.video_kbps);
     let bufsize = request.vbv_bufsize_kbps.max(1);
-    let hardware = request.hardware_encoder;
+    // Hardware encoders cannot emit PsF (fake-interlaced) streams.
+    let hardware = request.hardware_encoder.filter(|_| !spec.psf);
+    let level = x264_level(&request.config);
     let codec = hardware
         .map(dvdforge_toolchain::HardwareEncoder::ffmpeg_name)
         .unwrap_or("libx264");
@@ -452,7 +468,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             "-profile:v".to_string(),
             "high".to_string(),
             "-level:v".to_string(),
-            AVCHD_X264_LEVEL.to_string(),
+            level.to_string(),
             "-pix_fmt".to_string(),
             "yuv420p".to_string(),
             "-b:v".to_string(),
@@ -472,6 +488,8 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         );
         if spec.interlaced {
             x264.push_str(":tff=1");
+        } else if spec.psf {
+            x264.push_str(":fake-interlaced=1:pic-struct=1");
         }
         args.extend([
             "-preset".to_string(),
@@ -479,7 +497,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
             "-profile:v".to_string(),
             "high".to_string(),
             "-level:v".to_string(),
-            AVCHD_X264_LEVEL.to_string(),
+            level.to_string(),
             "-pix_fmt".to_string(),
             "yuv420p".to_string(),
             "-b:v".to_string(),
@@ -1429,7 +1447,8 @@ mod tests {
             ResolutionSpec {
                 width: 1920,
                 height: 1080,
-                interlaced: false
+                interlaced: false,
+                psf: false,
             }
         );
         assert_eq!(
@@ -1437,9 +1456,32 @@ mod tests {
             ResolutionSpec {
                 width: 720,
                 height: 576,
-                interlaced: true
+                interlaced: true,
+                psf: false,
             }
         );
+    }
+
+    #[test]
+    fn psf_1080p25_uses_fake_interlaced_cpu_encode() {
+        let mut req = request();
+        req.config.resolution = AvchdResolution::R1080p;
+        req.config.frame_rate = FrameRate::PAL;
+        req.hardware_encoder = Some(dvdforge_toolchain::HardwareEncoder::NvencH264);
+        let args = build_encode_args(&req).join(" ");
+        assert!(args.contains("fake-interlaced=1:pic-struct=1"));
+        assert!(args.contains("libx264"));
+        assert!(!args.contains("+ildct"));
+    }
+
+    #[test]
+    fn hfr_1080p60_uses_level_42() {
+        let mut req = request();
+        req.config.resolution = AvchdResolution::R1080p;
+        req.config.frame_rate = FrameRate::FPS_59_94;
+        let args = build_encode_args(&req).join(" ");
+        assert!(args.contains("-level:v 4.2"));
+        assert!(args.contains("fps=60000/1001"));
     }
 
     #[test]
@@ -1491,7 +1533,7 @@ mod tests {
     #[test]
     fn invalid_resolution_fps_pair_is_rejected() {
         let mut config = config();
-        config.resolution = AvchdResolution::R1080p;
+        config.resolution = AvchdResolution::R720p;
         config.frame_rate = FrameRate::FPS_29_97;
         let errors = config_errors(&config);
         assert!(errors

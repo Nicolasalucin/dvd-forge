@@ -211,6 +211,19 @@ pub enum H264Level {
     Level42,
 }
 
+/// BDMV frame-rate code (libbluray `bd_video_rate`).
+pub fn bdmv_frame_rate_code(rate: FrameRate) -> u8 {
+    match (rate.as_f64() * 1000.0).round() as u32 {
+        23_976 => 1,
+        24_000 => 2,
+        25_000 => 3,
+        29_970 => 4,
+        50_000 => 6,
+        59_940 => 7,
+        _ => 1,
+    }
+}
+
 impl AvchdResolution {
     pub const fn dimensions(self) -> (u32, u32) {
         match self {
@@ -227,7 +240,17 @@ impl AvchdResolution {
 
     pub fn allowed_frame_rates(self) -> &'static [FrameRate] {
         match self {
-            Self::R1080p => &[FrameRate::FPS_23_976, FrameRate::FPS_24],
+            // 23.976/24 are native progressive Blu-ray rates. 25/29.97 are
+            // carried as PsF (progressive frames flagged as 1080i), which every
+            // Blu-ray player accepts. 50/59.94 are AVCHD 2.0 "Progressive".
+            Self::R1080p => &[
+                FrameRate::FPS_23_976,
+                FrameRate::FPS_24,
+                FrameRate::PAL,
+                FrameRate::FPS_29_97,
+                FrameRate::FPS_50,
+                FrameRate::FPS_59_94,
+            ],
             Self::R1080i => &[FrameRate::FPS_29_97, FrameRate::PAL],
             Self::R720p => &[
                 FrameRate::FPS_23_976,
@@ -250,7 +273,56 @@ impl AvchdResolution {
     }
 }
 
+/// How the video stream is scanned on disc.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HdScan {
+    Progressive,
+    Interlaced,
+    /// Progressive Segmented Frame: progressive pictures signalled as 1080i.
+    /// This is how 1080p25/1080p29.97 is legal on every Blu-ray player.
+    Psf,
+}
+
 impl AvchdVideoConfig {
+    pub fn scan(&self) -> HdScan {
+        if self.resolution.interlaced() {
+            HdScan::Interlaced
+        } else if self.resolution == AvchdResolution::R1080p
+            && (self.frame_rate == FrameRate::PAL || self.frame_rate == FrameRate::FPS_29_97)
+        {
+            HdScan::Psf
+        } else {
+            HdScan::Progressive
+        }
+    }
+
+    /// 1080p50/1080p59.94 (AVCHD 2.0 "Progressive" / Blu-ray 3.0).
+    pub fn is_high_frame_rate_1080p(&self) -> bool {
+        self.resolution == AvchdResolution::R1080p
+            && (self.frame_rate == FrameRate::FPS_50 || self.frame_rate == FrameRate::FPS_59_94)
+    }
+
+    /// H.264 level actually used by the encoder. 1080p50/59.94 needs 4.2.
+    pub fn effective_level(&self) -> H264Level {
+        if self.is_high_frame_rate_1080p() {
+            H264Level::Level42
+        } else {
+            self.level
+        }
+    }
+
+    /// BDMV STN/CLPI video attribute byte: `video_format << 4 | frame_rate`.
+    pub fn bdmv_video_attr(&self) -> u8 {
+        let format: u8 = match (self.resolution, self.scan()) {
+            (AvchdResolution::Sd480i, _) => 1,
+            (AvchdResolution::Sd576i, _) => 2,
+            (AvchdResolution::R1080i, _) | (AvchdResolution::R1080p, HdScan::Psf) => 4,
+            (AvchdResolution::R720p, _) => 5,
+            (AvchdResolution::R1080p, _) => 6,
+        };
+        (format << 4) | bdmv_frame_rate_code(self.frame_rate)
+    }
+
     /// Compatibility rules for AVCHD high-definition streams.
     pub fn validate(&self) -> Vec<Diagnostic> {
         self.validate_for_capacity(DiscCapacity::Dvd5)
@@ -283,8 +355,14 @@ impl AvchdVideoConfig {
                 ),
             ));
         }
-        let level_ok =
-            self.level == H264Level::Level41 || (blu_ray && self.level == H264Level::Level42);
+        let level_ok = self.level == H264Level::Level41
+            || ((blu_ray || self.is_high_frame_rate_1080p()) && self.level == H264Level::Level42);
+        if self.is_high_frame_rate_1080p() {
+            diagnostics.push(Diagnostic::warning(
+                "W_AVCHD_1080P_HFR",
+                "1080p a 50/59,94 fps es AVCHD 2.0 (Progressive): funciona en PS3/PS4/PS5 y en la mayoría de reproductores actuales, pero algunos Blu-ray antiguos no lo reproducen.",
+            ));
+        }
         if !level_ok {
             diagnostics.push(Diagnostic::error(
                 "E_AVCHD_LEVEL",
@@ -1802,16 +1880,61 @@ mod tests {
     }
 
     #[test]
-    fn avchd_1080p_rejects_2997_fps() {
+    fn avchd_1080p_accepts_tv_rates_as_psf() {
+        for rate in [FrameRate::PAL, FrameRate::FPS_29_97] {
+            let mut project = avchd_project();
+            if let VideoConfig::Avchd(config) = &mut project.disc.video {
+                config.resolution = AvchdResolution::R1080p;
+                config.frame_rate = rate;
+                assert_eq!(config.scan(), HdScan::Psf);
+                // PsF is signalled as 1080i in BDMV.
+                assert_eq!(config.bdmv_video_attr() >> 4, 4);
+            }
+            let diagnostics = project.validate();
+            assert!(diagnostics.iter().all(|diagnostic| !diagnostic.is_error()));
+        }
+    }
+
+    #[test]
+    fn avchd_1080p_high_frame_rate_uses_level_42_and_warns() {
         let mut project = avchd_project();
         if let VideoConfig::Avchd(config) = &mut project.disc.video {
             config.resolution = AvchdResolution::R1080p;
-            config.frame_rate = FrameRate::FPS_29_97;
+            config.frame_rate = FrameRate::FPS_59_94;
+            config.level = H264Level::Level42;
+            assert_eq!(config.effective_level(), H264Level::Level42);
+            assert_eq!(config.bdmv_video_attr(), 0x67);
+        }
+        let diagnostics = project.validate();
+        assert!(diagnostics.iter().all(|diagnostic| !diagnostic.is_error()));
+        assert!(diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "W_AVCHD_1080P_HFR"));
+    }
+
+    #[test]
+    fn avchd_720p_rejects_25_fps() {
+        let mut project = avchd_project();
+        if let VideoConfig::Avchd(config) = &mut project.disc.video {
+            config.resolution = AvchdResolution::R720p;
+            config.frame_rate = FrameRate::PAL;
         }
         let diagnostics = project.validate();
         assert!(diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E_AVCHD_FPS_INCOMPATIBLE"));
+    }
+
+    #[test]
+    fn bdmv_video_attr_matches_libbluray_codes() {
+        let config = AvchdVideoConfig::default();
+        assert_eq!(config.bdmv_video_attr(), 0x61); // 1080p 23.976
+        let config = AvchdVideoConfig {
+            resolution: AvchdResolution::R720p,
+            frame_rate: FrameRate::FPS_50,
+            ..AvchdVideoConfig::default()
+        };
+        assert_eq!(config.bdmv_video_attr(), 0x56);
     }
 
     #[test]
