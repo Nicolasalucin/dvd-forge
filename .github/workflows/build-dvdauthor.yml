@@ -114,8 +114,11 @@ jobs:
           #define bcopy(s, d, n) memmove((d), (s), (n))
           EOF
           WINFLAGS="CPPFLAGS=-I$PWD/../winshim -include wincompat.h"
-          make -C src -j4 "$WINFLAGS" || make -C src "$WINFLAGS"
-          make -C src install "$WINFLAGS"
+          # Only the two programs DVD Forge runs (mpeg2desc/spuunmux are
+          # debugging tools that use POSIX select()).
+          make -C src -j4 "$WINFLAGS" dvdauthor.exe spumux.exe || make -C src "$WINFLAGS" dvdauthor.exe spumux.exe
+          mkdir -p ../stage/bin
+          cp src/dvdauthor.exe src/spumux.exe ../stage/bin/
 
       - name: Collect executables and DLLs
         run: |
