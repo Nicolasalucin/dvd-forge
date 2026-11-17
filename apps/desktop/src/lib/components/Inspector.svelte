@@ -20,6 +20,7 @@
   const project = $derived(projectStore.project);
   const menu = $derived(projectStore.activeMenu);
   const button = $derived(projectStore.selectedButton);
+  const item = $derived(projectStore.selectedItem);
   const episode = $derived(projectStore.selectedEpisode);
   const isAvchd = $derived(project?.disc.mode === "avchd");
   const episodes = $derived(projectStore.episodes);
@@ -317,7 +318,9 @@
   <div class="ui-panel-header">
     <p class="ui-title truncate">
       {projectStore.studioMode === "menu"
-        ? button
+        ? item
+          ? t("Texto u objeto")
+          : button
           ? t("Botón de menú")
           : t("Propiedades del menú")
         : projectStore.studioMode === "trim"
@@ -363,6 +366,78 @@
         <p class="px-1 text-[12px] leading-5 text-slate-500">
           {t("Este proyecto no tiene menús. Cambia a DVD-Video para diseñar uno.")}
         </p>
+      {:else if item}
+        <section class="inspector-sections space-y-4">
+          {#if item.kind === "text"}
+            <div>
+              <span class="ui-label">{t("Texto")}</span>
+              <textarea
+                class="ui-input min-h-16 resize-y"
+                rows="2"
+                value={item.text}
+                oninput={(event) => projectStore.updateItem(item.id, { text: event.currentTarget.value })}
+              ></textarea>
+            </div>
+            <div class="space-y-3">
+              <FontPicker
+                label={t("Fuente")}
+                value={item.fontFamily}
+                recommended={recommendedFonts}
+                installed={systemFonts}
+                onchange={(family) => projectStore.updateItem(item.id, { fontFamily: family })}
+              />
+              <div class="grid grid-cols-[1fr_auto] items-start gap-2">
+                <SizeField
+                  label={t("Tamaño")}
+                  value={item.fontSize ?? 32}
+                  max={160}
+                  onchange={(size) => projectStore.updateItem(item.id, { fontSize: size })}
+                />
+                <div>
+                  <span class="ui-label">{t("Alineación")}</span>
+                  <div class="ui-seg" role="group" aria-label={t("Alineación")}>
+                    {#each [{ id: "left", label: t("Izq.") }, { id: "center", label: t("Centro") }, { id: "right", label: t("Der.") }] as align}
+                      <button type="button" aria-pressed={item.align === align.id} onclick={() => projectStore.updateItem(item.id, { align: align.id })}>
+                        {align.label}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              </div>
+              <ColorField label={t("Color")} value={item.color} onchange={(hex) => projectStore.updateItem(item.id, { color: hex })} />
+            </div>
+          {:else if item.kind === "shape"}
+            <div class="grid grid-cols-2 gap-2">
+              <ColorField label={t("Relleno")} value={item.fill} onchange={(hex) => projectStore.updateItem(item.id, { fill: hex })} />
+              <ColorField label={t("Borde")} value={item.stroke ?? "#000000"} onchange={(hex) => projectStore.updateItem(item.id, { stroke: hex, strokeWidth: item.strokeWidth || 2 })} />
+            </div>
+          {:else if item.kind === "image"}
+            <label class="block">
+              <span class="ui-label">{t("Opacidad")} · {Math.round((item.opacity ?? 1) * 100)}%</span>
+              <input type="range" min="0.1" max="1" step="0.05" class="w-full accent-cyan-500" value={item.opacity ?? 1}
+                oninput={(event) => projectStore.updateItem(item.id, { opacity: Number(event.currentTarget.value) })} />
+            </label>
+          {/if}
+          <div>
+            <span class="ui-label">{t("Posición y tamaño")}</span>
+            <div class="grid grid-cols-4 gap-1.5">
+              {#each [["x", "X"], ["y", "Y"], ["w", "W"], ["h", "H"]] as [field, label]}
+                <label class="block">
+                  <span class="mb-0.5 block text-center text-[11px] text-slate-500">{label}</span>
+                  <input
+                    class="ui-input ui-input-sm text-center tabular-nums"
+                    type="number"
+                    value={Math.round((item.rect as Record<string, number | null>)[field] ?? 0)}
+                    onchange={(event) => projectStore.updateItem(item.id, { rect: { ...item.rect, [field]: Math.max(0, Math.round(Number(event.currentTarget.value) / 2) * 2) } })}
+                  />
+                </label>
+              {/each}
+            </div>
+          </div>
+          <button type="button" class="ui-btn ui-btn-danger w-full" onclick={() => projectStore.deleteSelectedItem()}>
+            <Icon name="trash" size={15} />{t("Eliminar")}
+          </button>
+        </section>
       {:else if button}
         <section class="inspector-sections space-y-4">
           <label class="ui-label">

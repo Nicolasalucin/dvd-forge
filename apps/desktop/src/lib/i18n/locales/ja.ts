@@ -1094,6 +1094,18 @@ export const ja: Dictionary = {
   "Usar como música del menú": "メニューの音楽に使う",
   "{count} cap.": "{count} 章",
   "Área segura de TV": "TV のセーフエリア",
+  "Alineación": "配置",
+  "Añadir un título o texto al menú": "メニューにタイトルや文字を追加",
+  "Borde": "枠線",
+  "Centro": "中央",
+  "Color": "色",
+  "Der.": "右",
+  "Eliminar": "削除",
+  "Izq.": "左",
+  "Nuevo texto": "新しいテキスト",
+  "Opacidad": "不透明度",
+  "Posición y tamaño": "位置とサイズ",
+  "Texto u objeto": "テキスト・オブジェクト",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

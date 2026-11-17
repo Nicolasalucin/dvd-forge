@@ -1028,6 +1028,18 @@ export const pt: Dictionary = {
   "Usar como música del menú": "Usar como música do menu",
   "{count} cap.": "{count} cap.",
   "Área segura de TV": "Área segura da TV",
+  "Alineación": "Alinhamento",
+  "Añadir un título o texto al menú": "Adicionar um título ou texto ao menu",
+  "Borde": "Borda",
+  "Centro": "Centro",
+  "Color": "Cor",
+  "Der.": "Dir.",
+  "Eliminar": "Excluir",
+  "Izq.": "Esq.",
+  "Nuevo texto": "Novo texto",
+  "Opacidad": "Opacidade",
+  "Posición y tamaño": "Posição e tamanho",
+  "Texto u objeto": "Texto ou objeto",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

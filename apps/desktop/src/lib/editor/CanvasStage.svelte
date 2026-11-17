@@ -5,6 +5,7 @@
   import { drawBackground } from "./layers/BackgroundLayer";
   import { ButtonsLayer, type PreviewState } from "./layers/ButtonsLayer";
   import { drawNavigation, drawNavigationGraph } from "./layers/NavigationLayer";
+  import { ItemsLayer } from "./layers/ItemsLayer";
 
   interface Props {
     menu: Menu_Serialize | null;
@@ -24,6 +25,9 @@
       rect: { x: number; y: number; w: number; h: number },
     ) => boolean;
     onActivate?: (id: string) => void;
+    selectedItemId?: string | null;
+    onSelectItem?: (id: string) => void;
+    onMoveItem?: (id: string, rect: { x: number; y: number; w: number; h: number }) => void;
   }
 
   let {
@@ -41,6 +45,9 @@
     onSelect,
     onChange,
     onActivate,
+    selectedItemId = null,
+    onSelectItem,
+    onMoveItem,
   }: Props = $props();
 
   let wrapper: HTMLDivElement | undefined = $state();
@@ -53,6 +60,7 @@
   let backgroundLayer: Konva.Layer | null = null;
   let navigationLayer: Konva.Layer | null = null;
   let buttonsLayer: ButtonsLayer | null = null;
+  let itemsLayer: ItemsLayer | null = null;
 
   onMount(() => {
     ready = true;
@@ -81,7 +89,9 @@
     backgroundLayer = new Konva.Layer({ listening: false });
     navigationLayer = new Konva.Layer({ listening: false });
     buttonsLayer = new ButtonsLayer();
+    itemsLayer = new ItemsLayer();
     stage.add(backgroundLayer);
+    stage.add(itemsLayer.layer);
     stage.add(navigationLayer);
     stage.add(buttonsLayer.layer);
     stageRevision += 1;
@@ -118,6 +128,18 @@
     } else {
       drawNavigation(navigationLayer, menu);
     }
+  });
+
+  $effect(() => {
+    stageRevision;
+    if (!stage || !itemsLayer || !menu) return;
+    itemsLayer.sync(menu, {
+      selectedId: selectedItemId,
+      images: thumbnails,
+      editable,
+      onSelect: onSelectItem,
+      onMove: onMoveItem,
+    });
   });
 
   $effect(() => {
@@ -172,6 +194,7 @@
     backgroundLayer = null;
     navigationLayer = null;
     buttonsLayer = null;
+    itemsLayer = null;
     if (notify) stageRevision += 1;
   }
 </script>

@@ -1,6 +1,7 @@
 import { commands, type MediaAsset_Serialize, type Project_Serialize } from "./api/bindings";
 import { messageOf, unwrap } from "./api/client";
 import { exportMenu, exportMotionMenu } from "./editor/exportMenu";
+import { itemAssets } from "./editor/menuItems";
 import { t } from "./i18n/index.svelte";
 import { thumbnailKey, thumbnailTimeMs, type ThumbnailRef } from "./editor/thumbnailKey";
 
@@ -25,7 +26,7 @@ export async function compositeProjectMenus(
   const thumbnails: Record<string, string> = { ...source.previewUrls };
   const shared: MenuPreviewSource = { ...source, previewUrls: thumbnails };
   for (const menu of project.menus) {
-    if (menu.buttons.length === 0) continue;
+    if (menu.buttons.length === 0 && menu.items.length === 0) continue;
     try {
       const backgroundUrl = await previewForAsset(
         project,
@@ -34,6 +35,9 @@ export async function compositeProjectMenus(
         warnings,
         true,
       );
+      for (const asset of itemAssets(menu)) {
+        await previewForAsset(project, asset, shared, warnings, false);
+      }
       for (const button of menu.buttons) {
         if (!button.thumbnail) continue;
         await previewForAsset(project, button.thumbnail.asset, shared, warnings, false);

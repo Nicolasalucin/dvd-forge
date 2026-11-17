@@ -46,6 +46,21 @@
       event.preventDefault();
       return;
     }
+    const item = projectStore.selectedItem;
+    if (item) {
+      if (event.key === "Escape") projectStore.selectItem(null);
+      else if (event.key === "Delete") projectStore.deleteSelectedItem();
+      else {
+        const step = Math.max(2, menu.canvas.gridPx || 8) * (event.shiftKey ? 4 : 1);
+        const move = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[event.key];
+        if (!move) return;
+        projectStore.updateItem(item.id, {
+          rect: { ...item.rect, x: Math.max(0, (item.rect.x ?? 0) + move[0]), y: Math.max(0, (item.rect.y ?? 0) + move[1]) },
+        });
+      }
+      event.preventDefault();
+      return;
+    }
     if (!selected) return;
     if (event.key === "Escape") {
       projectStore.selectedButtonId = null;
@@ -200,6 +215,9 @@
       <button type="button" class="ui-btn ui-btn-sm ui-btn-primary" onclick={addButton} title={t("Añadir un botón al menú")}>
         <Icon name="add" size={14} />{t("Botón")}
       </button>
+      <button type="button" class="ui-btn ui-btn-sm" onclick={() => projectStore.addTextItem()} title={t("Añadir un título o texto al menú")}>
+        <Icon name="text" size={14} />{t("Texto")}
+      </button>
       <button
         type="button"
         class="ui-btn ui-btn-sm"
@@ -279,7 +297,13 @@
         previewState={projectStore.previewState}
         showSafeAreas={projectStore.showSafeAreas}
         showNavigation={projectStore.showNavigation}
-        onSelect={(id) => (projectStore.selectedButtonId = id)}
+        onSelect={(id) => {
+          projectStore.selectedButtonId = id;
+          projectStore.selectedItemId = null;
+        }}
+        selectedItemId={projectStore.selectedItemId}
+        onSelectItem={(id) => projectStore.selectItem(id)}
+        onMoveItem={(id, rect) => projectStore.updateItem(id, { rect })}
         onChange={(id, rect) => {
           const accepted = projectStore.updateButtonRect(id, rect);
           if (!accepted) localError = t("El botón se solapa o no respeta los 4 px de separación.");

@@ -403,6 +403,65 @@ class ProjectStore {
     );
   }
 
+  selectedItemId = $state<string | null>(null);
+
+  get selectedItem(): Menu_Serialize["items"][number] | null {
+    const menu = this.activeMenu;
+    return menu?.items.find((item) => item.id === this.selectedItemId) ?? null;
+  }
+
+  selectItem(id: string | null): void {
+    this.selectedItemId = id;
+    if (id) this.selectedButtonId = null;
+  }
+
+  /** Adds a text object centred on the active menu and selects it. */
+  addTextItem(): void {
+    const menu = this.activeMenu;
+    if (!menu) return;
+    const scale = menuScale(menu);
+    const w = Math.round((menu.canvas.width * 0.6) / 2) * 2;
+    const h = Math.round((56 * scale) / 2) * 2;
+    const id = `text:${crypto.randomUUID()}`;
+    menu.items = [
+      ...menu.items,
+      {
+        kind: "text",
+        id,
+        text: t("Nuevo texto"),
+        rect: {
+          x: Math.round((menu.canvas.width - w) / 4) * 2,
+          y: Math.round((menu.canvas.height * 0.12) / 2) * 2,
+          w,
+          h,
+        },
+        fontFamily: "Segoe UI",
+        fontSize: Math.round(36 * scale),
+        color: "#ffffff",
+        align: "center",
+      },
+    ];
+    this.selectItem(id);
+    this.touch();
+  }
+
+  updateItem(id: string, patch: Record<string, unknown>): void {
+    const menu = this.activeMenu;
+    if (!menu) return;
+    menu.items = menu.items.map((item) =>
+      item.id === id ? ({ ...item, ...patch } as typeof item) : item,
+    );
+    this.touch();
+  }
+
+  deleteSelectedItem(): void {
+    const menu = this.activeMenu;
+    if (!menu || !this.selectedItemId) return;
+    menu.items = menu.items.filter((item) => item.id !== this.selectedItemId);
+    this.selectedItemId = null;
+    this.touch();
+  }
+
   get selectedButton(): MenuButton_Serialize | null {
     const menu = this.activeMenu;
     if (!menu) return null;

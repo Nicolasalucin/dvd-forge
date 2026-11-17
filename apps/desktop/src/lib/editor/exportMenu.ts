@@ -1,4 +1,5 @@
 import { thumbnailKey } from "./thumbnailKey";
+import { drawMenuItems } from "./menuItems";
 import type {
   ButtonShapeMask,
   ButtonStyleKind,
@@ -89,6 +90,8 @@ export async function exportMenu(
     context.fillStyle = `rgba(0, 0, 0, ${Math.min(80, menu.dimPercent) / 100})`;
     context.fillRect(0, 0, width, height);
   }
+  // Titles, text, images and shapes sit between the background and buttons.
+  await drawMenuItems(context, menu, thumbnailUrls);
 
   const thumbnailImages = new Map<string, HTMLImageElement>();
   for (const key of new Set(
@@ -192,6 +195,8 @@ export async function exportMotionMenu(
   labels.height = height;
   const labelsContext = labels.getContext("2d");
   if (!labelsContext) throw new Error(t("No se pudo crear el contexto 2D de las etiquetas."));
+  // Over a video background, items go on the transparent overlay layer.
+  await drawMenuItems(labelsContext, menu, thumbnailUrls);
 
   const thumbnailImages = new Map<string, HTMLImageElement>();
   for (const key of new Set(
