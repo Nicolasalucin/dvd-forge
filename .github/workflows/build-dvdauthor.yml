@@ -31,7 +31,9 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git zip autotools
+            git zip autotools gettext-devel
+            mingw-w64-ucrt-x86_64-gettext-tools
+            mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-libxml2
@@ -53,6 +55,8 @@ jobs:
 
       - name: Build
         run: |
+          # aclocal from MSYS must also see the UCRT64 macros (libxml.m4…).
+          export ACLOCAL_PATH="/ucrt64/share/aclocal:/usr/share/aclocal"
           cd src
           ./bootstrap
           ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || ./configure --prefix="$PWD/../stage"
