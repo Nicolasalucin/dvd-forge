@@ -31,6 +31,9 @@ pub struct ToolDownload {
     pub files: &'static [&'static str],
     pub license: &'static str,
     pub homepage: &'static str,
+    /// Extract every file of the archive (programs plus their DLLs), not
+    /// only `files`.
+    pub bundle: bool,
 }
 
 /// Pinned downloads. Digests are the ones GitHub publishes for the assets.
@@ -44,6 +47,19 @@ pub const DOWNLOADS: &[ToolDownload] = &[ToolDownload {
     files: &["ffmpeg.exe", "ffprobe.exe"],
     license: "GPL-3.0-or-later (FFmpeg essentials build by Gyan Doshi)",
     homepage: "https://www.gyan.dev/ffmpeg/builds/",
+    bundle: false,
+},
+ToolDownload {
+    id: "dvdauthor",
+    version: "0.7.2",
+    platform: "windows-x86_64",
+    url: "https://github.com/Nicolasalucin/dvd-forge/releases/download/tools-dvdauthor-0.7.2/dvdauthor-0.7.2-windows-x86_64.zip",
+    sha256: "26742c9dbb81dc5c0597d1313b31ff946f76cbf11eb3d03e7aac1d7e81639636",
+    size: 5_939_822,
+    files: &["dvdauthor.exe", "spumux.exe"],
+    license: "GPL-2.0-or-later (dvdauthor 0.7.2, built by the DVD Forge CI from the official sources)",
+    homepage: "https://github.com/ldo/dvdauthor",
+    bundle: true,
 }];
 
 #[derive(Debug, thiserror::Error)]
@@ -109,6 +125,9 @@ pub fn install_hint(tool: &str) -> Option<String> {
     };
     match std::env::consts::OS {
         "windows" if package == "ffmpeg" => Some("winget install Gyan.FFmpeg".to_string()),
+        "windows" if package == "dvdauthor" => {
+            Some("dvdforge-cli toolchain install dvdauthor".to_string())
+        }
         "windows" => None,
         "macos" => Some(format!("brew install {package}")),
         "freebsd" => Some(format!("pkg install {package}")),
@@ -278,13 +297,31 @@ fn install(
     if let Some(bad) = entries.iter().find(|entry| !archive_entry_is_safe(entry)) {
         return Err(ProvisionError::Archive(format!("ruta no permitida: {bad}")));
     }
+    let leaf = |entry: &str| {
+        entry
+            .replace('\\', "/")
+            .rsplit('/')
+            .next()
+            .unwrap_or_default()
+            .to_string()
+    };
+    // Every named executable must be present.
     let mut wanted = Vec::new();
     for file in download.files {
         let entry = entries
             .iter()
-            .find(|entry| entry.replace('\\', "/").rsplit('/').next() == Some(*file))
+            .find(|entry| leaf(entry) == *file)
             .ok_or_else(|| ProvisionError::Archive(format!("falta {file} en el archivo")))?;
         wanted.push(entry.clone());
+    }
+    // Bundles also need their libraries (DLLs, licence) next to the programs.
+    if download.bundle {
+        for entry in &entries {
+            let name = leaf(entry);
+            if !name.is_empty() && !entry.ends_with('/') && !wanted.contains(entry) {
+                wanted.push(entry.clone());
+            }
+        }
     }
     let extract_dir = staging.join("x");
     fs::create_dir_all(&extract_dir)?;
@@ -304,9 +341,9 @@ fn install(
         )));
     }
     let mut installed = Vec::new();
-    for (file, entry) in download.files.iter().zip(&wanted) {
+    for entry in &wanted {
         let source = extract_dir.join(entry);
-        let target = directory.join(file);
+        let target = directory.join(leaf(entry));
         let _ = fs::remove_file(&target);
         fs::rename(&source, &target).or_else(|_| fs::copy(&source, &target).map(|_| ()))?;
         installed.push(target.display().to_string());
@@ -391,6 +428,7 @@ mod tests {
             files: &["ffmpeg.exe"],
             license: "test",
             homepage: "test",
+            bundle: false,
         };
         let directory = root.join("toolchain");
         let staging = directory.join(".staging-ffmpeg");
