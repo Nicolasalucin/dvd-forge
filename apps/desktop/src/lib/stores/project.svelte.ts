@@ -901,17 +901,47 @@ class ProjectStore {
     episode.thumbnailPath = framePath;
     this.previewUrls[episode.video] = previewUrl;
     this.framePaths[episode.video] = framePath;
-    const menu = this.activeMenu;
-    for (const button of menu?.buttons ?? []) {
-      if (button.action.kind === "playEpisode" && button.action.episode === episode.id) {
-        button.thumbnail = {
-          asset: episode.video,
-          inFrame: 0,
-          durationFrames: 0,
-          fps: { num: 30_000, den: 1_001 },
-        };
+    // Every menu (template pages included) showing this episode gets the frame.
+    for (const menu of this.project?.menus ?? []) {
+      for (const button of menu.buttons) {
+        if (button.action.kind === "playEpisode" && button.action.episode === episode.id) {
+          button.thumbnail = this.episodeThumbnailSpec(episode);
+          if (button.styleKind === "textOnly" || button.styleKind === "hotspot") {
+            button.styleKind = "thumbnailCard";
+          }
+        }
       }
     }
+    this.touch();
+  }
+
+  private episodeThumbnailSpec(episode: Episode_Serialize): NonNullable<MenuButton_Serialize["thumbnail"]> {
+    const fps = this.frameRate;
+    const rate =
+      Math.abs(fps - 25) < 0.01
+        ? { num: 25, den: 1 }
+        : Math.abs(fps - 24000 / 1001) < 0.01
+          ? { num: 24_000, den: 1_001 }
+          : { num: 30_000, den: 1_001 };
+    const timeMs = episode.thumbnailTimeMs ?? 0;
+    return {
+      asset: episode.video,
+      inFrame: Math.max(0, Math.round((timeMs / 1000) * (rate.num / rate.den))),
+      durationFrames: 0,
+      fps: rate,
+    };
+  }
+
+  /** One-click thumbnail: the episode's chosen frame (or its first frame). */
+  useEpisodeThumbnail(buttonId: string, episodeId: string): void {
+    const episode = this.project?.episodes.find((item) => item.id === episodeId);
+    const button = this.activeMenu?.buttons.find((item) => item.id === buttonId);
+    if (!episode || !button) return;
+    button.thumbnail = this.episodeThumbnailSpec(episode);
+    if (button.styleKind === "textOnly" || button.styleKind === "hotspot") {
+      button.styleKind = "thumbnailCard";
+    }
+    void this.ensureVideoThumbnail(episode.video, episode.thumbnailTimeMs ?? undefined);
     this.touch();
   }
 

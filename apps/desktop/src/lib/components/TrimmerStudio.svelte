@@ -456,10 +456,10 @@
                 type="button"
                 onclick={captureThumbnail}
                 disabled={!sourcePath}
-                title={t("Capturar fotograma para el menú")}
-                class="ml-1 flex h-6 w-6 items-center justify-center rounded-md border border-slate-700 text-[11px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-40"
+                title={t("Usar este fotograma como miniatura del episodio en los menús")}
+                class="ml-1 flex h-6 items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 text-[10px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
               >
-                📸
+                📸 {t("Miniatura")}
               </button>
               <button
                 type="button"

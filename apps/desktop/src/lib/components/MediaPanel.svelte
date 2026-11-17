@@ -14,6 +14,9 @@
 
   const project = $derived(projectStore.project);
   const isAvchd = $derived(project?.disc.mode === "avchd");
+  // AVCHD/Blu-ray projects support HDMV menus; only a project without any
+  // menu is a continuous-playback disc where menu tools do not apply.
+  const noMenus = $derived(!project || project.menus.length === 0);
   const selectedButton = $derived(projectStore.selectedButton);
   const selectedEpisode = $derived(projectStore.selectedEpisode);
   const assets = $derived(
@@ -330,7 +333,7 @@
                     {episode ? t("Seleccionar episodio") : t("+ Episodio")}
                   </button>
                 {/if}
-                {#if !isAvchd && (asset.kind === "image" || asset.kind === "video")}
+                {#if !noMenus && (asset.kind === "image" || asset.kind === "video")}
                   <button
                     type="button"
                     onclick={() => setButtonThumbnail(asset)}
@@ -381,7 +384,7 @@
           <button
             type="button"
             onclick={() => applyLayout(layout.kind)}
-            disabled={!project || isAvchd}
+            disabled={noMenus}
             class="group w-full rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 text-left transition hover:border-cyan-500/50 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <div class="flex items-center gap-2.5">
@@ -405,9 +408,9 @@
           </button>
         {/each}
       </div>
-      {#if isAvchd}
+      {#if noMenus && isAvchd}
         <p class="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-2 text-[10px] leading-5 text-cyan-100/80">
-          {t("AVCHD usa reproducción continua; las plantillas de menú no aplican.")}
+          {t("Este disco no tiene menú (reproducción continua). Crea una pantalla de menú desde la barra inferior para usar los diseños.")}
         </p>
       {/if}
     {:else}
@@ -421,7 +424,7 @@
           <button
             type="button"
             onclick={() => applyStyle(style.kind)}
-            disabled={!project || isAvchd}
+            disabled={noMenus}
             class={`w-full rounded-xl border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
               selectedButton?.styleKind === style.kind
                 ? "border-cyan-500/60 bg-cyan-500/10"
@@ -452,7 +455,7 @@
           </button>
         {/each}
       </div>
-      {#if !selectedButton && project && !isAvchd}
+      {#if !selectedButton && !noMenus}
         <button
           type="button"
           onclick={() => {

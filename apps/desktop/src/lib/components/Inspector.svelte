@@ -191,6 +191,24 @@
     projectStore.updateButton(button.id, { thumbnail: null });
   }
 
+  /** Episode this button plays, used for one-click thumbnails. */
+  const buttonEpisode = $derived.by(() => {
+    const action = button?.action;
+    if (!action || (action.kind !== "playEpisode" && action.kind !== "jumpTitleChapter")) return null;
+    return projectStore.episodes.find((item) => item.id === action.episode) ?? null;
+  });
+
+  function useEpisodeThumbnail() {
+    if (!button || !buttonEpisode) return;
+    projectStore.useEpisodeThumbnail(button.id, buttonEpisode.id);
+  }
+
+  function pickThumbnailFrame() {
+    if (!buttonEpisode) return;
+    projectStore.selectEpisode(buttonEpisode.id);
+    projectStore.studioMode = "trim";
+  }
+
   function setEpisodeTitle(value: string) {
     if (!episode) return;
     projectStore.updateEpisode(episode.id, { title: value });
@@ -542,9 +560,9 @@
                 {/if}
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-[10px] text-slate-300">
-                    {thumbnailAsset ? basename(thumbnailAsset.displayName) : "Medio"}
+                    {thumbnailAsset ? basename(thumbnailAsset.displayName) : t("Medio")}
                   </p>
-                  <p class="text-[9px] text-slate-600">Fotograma {button.thumbnail.inFrame}</p>
+                  <p class="text-[9px] text-slate-600">{t("Fotograma {frame}", { frame: button.thumbnail.inFrame })}</p>
                 </div>
                 <button
                   type="button"
@@ -555,9 +573,30 @@
                 </button>
               </div>
             {:else}
-              <p class="rounded-lg border border-dashed border-slate-800 px-2 py-2 text-[10px] leading-4 text-slate-600">
-                {t("Selecciona un medio y pulsa «Miniatura» en la biblioteca.")}
-              </p>
+              <div class="space-y-1.5 rounded-lg border border-dashed border-slate-800 px-2 py-2">
+                {#if buttonEpisode}
+                  <button
+                    type="button"
+                    onclick={useEpisodeThumbnail}
+                    class="w-full rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[10px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+                  >
+                    {t("Usar imagen de «{episode}»", { episode: buttonEpisode.title })}
+                  </button>
+                {/if}
+                <p class="text-[10px] leading-4 text-slate-500">
+                  {t("O elige cualquier imagen o vídeo en la Biblioteca (panel izquierdo) y pulsa «Miniatura».")}
+                </p>
+              </div>
+            {/if}
+            {#if buttonEpisode}
+              <button
+                type="button"
+                onclick={pickThumbnailFrame}
+                class="mt-1 w-full rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+                title={t("Abre el recortador; busca el momento y pulsa 📸 Miniatura")}
+              >
+                {t("📸 Elegir el fotograma exacto…")}
+              </button>
             {/if}
           </div>
 
