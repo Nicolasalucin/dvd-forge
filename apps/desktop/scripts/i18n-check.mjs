@@ -93,9 +93,18 @@ walkRust(join(root, "..", "..", "crates"));
 walkRust(join(root, "src-tauri", "src"));
 const missingCodes = [...rustCodes].filter((code) => !knownCodes.has(code)).sort();
 
+// Per-locale diagnostic tables (pt/fr/de/it/ja) must cover every code too.
+const localeTables = readFileSync(join(src, "lib", "i18n", "diagnosticCodesI18n.ts"), "utf8");
+const missingLocaleCodes = {};
+for (const match of localeTables.matchAll(/export const DIAGNOSTIC_(\w+): Record<string, string> = \{([\s\S]*?)\n\};/g)) {
+  const present = new Set([...match[2].matchAll(/^\s*([EW]_[A-Z0-9_]+):/gm)].map((m) => m[1]));
+  missingLocaleCodes[match[1].toLowerCase()] = [...rustCodes].filter((code) => !present.has(code)).sort();
+}
+const localeCodeGaps = Object.values(missingLocaleCodes).reduce((sum, list) => sum + list.length, 0);
+
 const args = new Set(process.argv.slice(2));
 if (args.has("--json")) {
-  console.log(JSON.stringify({ keys: keys.size, missing: report, missingCodes }, null, 2));
+  console.log(JSON.stringify({ keys: keys.size, missing: report, missingCodes, missingLocaleCodes }, null, 2));
 } else {
   console.log(`UI keys: ${keys.size}`);
   for (const [locale, missing] of Object.entries(report)) {
@@ -109,5 +118,9 @@ if (args.has("--json")) {
 if (!args.has("--json")) {
   console.log(`Diagnostic codes: ${rustCodes.size} in Rust, ${missingCodes.length} without English text`);
   for (const code of missingCodes) console.log(`  ${code}`);
+  for (const [locale, list] of Object.entries(missingLocaleCodes)) {
+    console.log(`  ${locale}: ${list.length} codes without a ${locale} text${list.length ? ": " + list.join(", ") : ""}`);
+  }
 }
-if (args.has("--strict") && (report.en?.length || missingCodes.length)) process.exit(1);
+const uiGaps = Object.values(report).reduce((sum, list) => sum + list.length, 0);
+if (args.has("--strict") && (uiGaps || missingCodes.length || localeCodeGaps)) process.exit(1);

@@ -41,6 +41,27 @@ class I18n {
     }
   }
 
+  /** True when the current locale has its own translation for `key`. */
+  has(key: string): boolean {
+    return this.locale === "es" || key in this.dictionary();
+  }
+
+  private dictionary(): Dictionary {
+    return this.locale === "es"
+      ? es
+      : this.locale === "en"
+        ? en
+        : this.locale === "pt"
+          ? pt
+          : this.locale === "fr"
+            ? fr
+            : this.locale === "de"
+              ? de
+              : this.locale === "it"
+                ? it
+                : ja;
+  }
+
   t(key: string, values?: Record<string, string | number>): string {
     const dictionary: Dictionary =
       this.locale === "es"

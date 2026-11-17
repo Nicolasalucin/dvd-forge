@@ -1,5 +1,21 @@
 import { i18n, t } from "./index.svelte";
 import { DIAGNOSTIC_EN } from "./diagnosticCodes";
+import {
+  DIAGNOSTIC_DE,
+  DIAGNOSTIC_FR,
+  DIAGNOSTIC_IT,
+  DIAGNOSTIC_JA,
+  DIAGNOSTIC_PT,
+} from "./diagnosticCodesI18n";
+
+const DIAGNOSTIC_BY_LOCALE: Record<string, Record<string, string>> = {
+  en: DIAGNOSTIC_EN,
+  pt: DIAGNOSTIC_PT,
+  fr: DIAGNOSTIC_FR,
+  de: DIAGNOSTIC_DE,
+  it: DIAGNOSTIC_IT,
+  ja: DIAGNOSTIC_JA,
+};
 
 export interface DiagnosticLike {
   code: string;
@@ -91,21 +107,28 @@ const FIXED: Record<string, string> = {
 };
 
 export function localizeDiagnostic(diagnostic: DiagnosticLike): string {
+  // Prefer a translation that keeps the interpolated values, but only when the
+  // current locale really has it: `t()` silently falls back to English.
   const rule = PATTERNS.find((candidate) =>
     candidate.pattern.test(diagnostic.message),
   );
-  if (rule) {
+  if (rule && i18n.has(rule.key)) {
     const match = diagnostic.message.match(rule.pattern);
     if (match) return t(rule.key, rule.values(match));
   }
   const fixed = FIXED[diagnostic.code];
+  if (fixed && i18n.has(fixed)) return t(fixed);
+  if (i18n.has(diagnostic.message)) return t(diagnostic.message);
+  // Per-code meaning in the current locale, so no locale shows Spanish text.
+  const generic = DIAGNOSTIC_BY_LOCALE[i18n.locale]?.[diagnostic.code];
+  if (generic) return generic;
+  if (rule) {
+    const match = diagnostic.message.match(rule.pattern);
+    if (match) return t(rule.key, rule.values(match));
+  }
   if (fixed) return t(fixed);
-  const translated = t(diagnostic.message);
-  if (i18n.locale === "es" || translated !== diagnostic.message) return translated;
-  // The Rust message is not in the catalog (it may contain file names or
-  // numbers). Use the per-code meaning so the UI never shows Spanish text.
-  const generic = DIAGNOSTIC_EN[diagnostic.code];
-  return generic ? t(generic) : translated;
+  const english = DIAGNOSTIC_EN[diagnostic.code];
+  return english ?? t(diagnostic.message);
 }
 
 /** Localizes any backend text that may carry a diagnostic code. */
