@@ -143,14 +143,14 @@
           {#if backgroundUrl}
             <img src={backgroundUrl} alt="" class="absolute inset-0 h-full w-full object-cover opacity-60" />
           {/if}
-          <div class="absolute inset-0 bg-slate-950/80"></div>
+          <div class="absolute inset-0 bg-black/60"></div>
           {#if previewUrl}
             <div class="relative z-10 flex max-w-[72%] flex-col items-center gap-2">
               <div class="relative overflow-hidden rounded-lg border-2 border-cyan-400/60 shadow-xl">
                 <img src={previewUrl} alt="" class="max-h-[150px] w-auto object-contain" />
                 {#if buttonMotion}
                   <div class="absolute inset-0 animate-pulse border-2 border-cyan-300/50"></div>
-                  <span class="absolute bottom-1 left-1 rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[8px] text-cyan-200">
+                  <span class="absolute bottom-1 left-1 rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200">
                     {formatDuration(buttonMotion.loopDurationMs)} en bucle
                   </span>
                 {/if}
@@ -189,7 +189,7 @@
                 <line x1={tick} y1="80" x2={tick} y2="90" stroke="var(--color-slate-700)" />
               {/each}
             </svg>
-            <div class="absolute inset-x-3 bottom-2 flex justify-between font-mono text-[8px] text-slate-600">
+            <div class="absolute inset-x-3 bottom-2 flex justify-between font-mono text-[11px] text-slate-600">
               <span>00:00</span>
               <span>{formatDuration(duration / 4)}</span>
               <span>{formatDuration(duration / 2)}</span>
@@ -197,7 +197,7 @@
               <span>{formatDuration(duration)}</span>
             </div>
             {#if motion}
-              <div class="absolute left-2 top-2 rounded bg-slate-950/80 px-1.5 py-0.5 text-[8px] text-cyan-200">
+              <div class="absolute left-2 top-2 rounded bg-slate-950/80 px-1.5 py-0.5 text-[11px] text-cyan-200">
                 entrada {formatDuration(motion.fadeInMs)} / salida {formatDuration(motion.fadeOutMs)}
               </div>
             {:else}

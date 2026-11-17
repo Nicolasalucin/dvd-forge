@@ -399,7 +399,7 @@
         {#if selected}
           <span class="truncate text-[12px] font-semibold text-slate-100">{selected.title}</span>
           <span class="truncate text-[11px] text-slate-500">{selected.subtitle}</span>
-          <span class="rounded bg-slate-950/70 px-1 py-0.5 text-[8px] text-slate-400">
+          <span class="rounded bg-slate-950/70 px-1 py-0.5 text-[11px] text-slate-400">
             {incoming(selected.id).length} {t("ent.")} · {outgoing(selected.id).length} {t("sal.")}
           </span>
           <button
@@ -416,21 +416,21 @@
       {#if selected}
         <div class="mt-1.5 flex gap-1 overflow-x-auto">
           {#each incoming(selected.id) as edge (edge.id)}
-            <span class="shrink-0 rounded border border-slate-800 bg-slate-950/60 px-1.5 py-0.5 text-[8px] text-slate-400">
+            <span class="shrink-0 rounded border border-slate-800 bg-slate-950/60 px-1.5 py-0.5 text-[11px] text-slate-400">
               ← {nodeTitle(edge.from)} · <span class="text-cyan-300/80">{edge.label}</span>
             </span>
           {/each}
           {#each outgoing(selected.id) as edge (edge.id)}
-            <span class="shrink-0 rounded border border-slate-800 bg-slate-950/60 px-1.5 py-0.5 text-[8px] text-slate-400">
+            <span class="shrink-0 rounded border border-slate-800 bg-slate-950/60 px-1.5 py-0.5 text-[11px] text-slate-400">
               → {nodeTitle(edge.to)} · <span class="text-cyan-300/80">{edge.label}</span>
             </span>
           {/each}
           {#if incoming(selected.id).length === 0 && outgoing(selected.id).length === 0}
-            <span class="text-[8px] text-slate-600">{t("Sin conexiones.")}</span>
+            <span class="text-[11px] text-slate-600">{t("Sin conexiones.")}</span>
           {/if}
         </div>
       {/if}
-      <div class="mt-1 flex flex-wrap items-center gap-2 text-[8px] text-slate-600">
+      <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
         <span>{t("Líneas discontinuas: retornos automáticos o reproducir todo.")}</span>
         {#if projectStore.plan?.layerBreakSector !== null && projectStore.plan?.layerBreakSector !== undefined}
           <span class="rounded border border-amber-500/25 bg-amber-500/10 px-1 py-0.5 text-amber-200">

@@ -520,7 +520,7 @@
             >
               <span class="absolute -top-0.5 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[4px] border-t-[6px] border-x-transparent border-t-white"></span>
             </div>
-            <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-1 font-mono text-[8px] text-slate-600">
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-1 font-mono text-[11px] text-slate-600">
               <span>00:00</span>
               <span>{formatMs(sourceDuration / 2)}</span>
               <span>{formatMs(sourceDuration)}</span>

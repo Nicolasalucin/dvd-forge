@@ -70,7 +70,7 @@
             <span>{formatDate(recent.updatedAt)}</span>
           </span>
           {#if !compact}
-            <span class="mt-0.5 block truncate font-mono text-[8px] text-slate-600">{recent.filePath}</span>
+            <span class="mt-0.5 block truncate font-mono text-[11px] text-slate-600">{recent.filePath}</span>
           {/if}
         </button>
         <button

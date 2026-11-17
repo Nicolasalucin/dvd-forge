@@ -51,7 +51,7 @@
     title={selected}
   >
     <span class="truncate">{selected}</span>
-    <span class="text-[8px] text-slate-500">▼</span>
+    <span class="text-[11px] text-slate-500">▼</span>
   </button>
   {#if open}
     <div class="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-slate-700 bg-slate-950 p-1.5 shadow-xl">

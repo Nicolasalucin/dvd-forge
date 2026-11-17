@@ -172,7 +172,7 @@
                     {track.language.toUpperCase()} · {track.format === "ac3Surround51" ? "5.1" : "2.0"} · {track.ac3Kbps} kbps
                   </span>
                   {#if track.delayMs !== 0}
-                    <span class="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-slate-950/80 px-1 text-[8px] font-mono text-amber-200">
+                    <span class="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-slate-950/80 px-1 text-[11px] font-mono text-amber-200">
                       {track.delayMs > 0 ? "+" : ""}{track.delayMs} ms
                     </span>
                   {/if}
@@ -196,7 +196,7 @@
             {/each}
           </div>
 
-          <div class="mt-2 flex justify-between border-t border-slate-800 pt-1 font-mono text-[8px] text-slate-600">
+          <div class="mt-2 flex justify-between border-t border-slate-800 pt-1 font-mono text-[11px] text-slate-600">
             <span>00:00</span>
             <span>25%</span>
             <span>50%</span>
@@ -242,10 +242,10 @@
                     A{index + 1}
                   </span>
                   {#if track.default}
-                    <span class="rounded bg-cyan-500/15 px-1 py-0.5 text-[8px] font-bold text-cyan-200">DEF</span>
+                    <span class="rounded bg-cyan-500/15 px-1 py-0.5 text-[11px] font-bold text-cyan-200">DEF</span>
                   {/if}
                   {#if track.commentary}
-                    <span class="rounded bg-fuchsia-500/15 px-1 py-0.5 text-[8px] font-bold text-fuchsia-200">COM</span>
+                    <span class="rounded bg-fuchsia-500/15 px-1 py-0.5 text-[11px] font-bold text-fuchsia-200">COM</span>
                   {/if}
                   <input
                     class="ui-input ui-input-sm min-w-0 flex-1"
