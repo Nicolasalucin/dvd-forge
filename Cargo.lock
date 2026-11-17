@@ -1011,6 +1011,7 @@ name = "dvdforge-verify"
 version = "0.8.0"
 dependencies = [
  "dvdforge-domain",
+ "dvdforge-iso",
  "hex",
  "libmkiso",
  "serde",

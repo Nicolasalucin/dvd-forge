@@ -8,6 +8,10 @@ use std::path::Path;
 
 pub(crate) fn check_raw(file: &mut File, size: u64, checks: &mut CheckList) {
     match read_at(file, 256 * SECTOR_BYTES, 512) {
+        Ok(anchor) if anchor.len() < 16 => checks.fail(
+            "UDF-AVDP",
+            "La imagen está truncada: no llega al sector 256 del AVDP.",
+        ),
         Ok(anchor) => {
             let tag = u16::from_le_bytes([anchor[0], anchor[1]]);
             let location = u32::from_le_bytes([anchor[12], anchor[13], anchor[14], anchor[15]]);
@@ -148,10 +152,19 @@ pub(crate) fn check_digest(path: &Path, checks: &mut CheckList) -> Result<(), st
     Ok(())
 }
 
+/// Reads up to `length` bytes at `offset`; shorter only at end of file.
+/// (A single `read` may legally return fewer bytes, so loop.)
 fn read_at(file: &mut File, offset: u64, length: usize) -> std::io::Result<Vec<u8>> {
     file.seek(SeekFrom::Start(offset))?;
     let mut buffer = vec![0u8; length];
-    let read = file.read(&mut buffer)?;
-    buffer.truncate(read);
+    let mut filled = 0;
+    while filled < length {
+        let read = file.read(&mut buffer[filled..])?;
+        if read == 0 {
+            break;
+        }
+        filled += read;
+    }
+    buffer.truncate(filled);
     Ok(buffer)
 }

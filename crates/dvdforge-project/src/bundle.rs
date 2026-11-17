@@ -650,4 +650,40 @@ mod tests {
         assert!(occupied.join("keep.txt").is_file());
         let _ = fs::remove_dir_all(&occupied);
     }
+    #[test]
+    fn corrupted_bundles_fail_cleanly() {
+        let source = temp("fuzz-src");
+        let project = fixture(&source);
+        let bundle = source.join("p.dvdforge-bundle");
+        export_bundle(&project, &source, &bundle).expect("export");
+        let original = fs::read(&bundle).unwrap();
+        let mut state: u64 = 0x5EED;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let case = source.join("case.dvdforge-bundle");
+        for seed in 0..120 {
+            let mut bytes = original.clone();
+            if seed % 4 == 0 {
+                let cut = (next() as usize) % bytes.len();
+                bytes.truncate(cut);
+            } else {
+                for _ in 0..1 + next() % 6 {
+                    let at = (next() as usize) % bytes.len();
+                    bytes[at] = next() as u8;
+                }
+            }
+            fs::write(&case, &bytes).unwrap();
+            let target = source.join(format!("restored-{seed}"));
+            let outcome = std::panic::catch_unwind(|| import_bundle(&case, &target));
+            let result = outcome.unwrap_or_else(|_| panic!("import panicked (case {seed})"));
+            if result.is_err() {
+                assert!(!target.exists(), "case {seed} left files behind");
+            }
+        }
+        let _ = fs::remove_dir_all(&source);
+    }
 }
