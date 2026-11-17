@@ -83,8 +83,9 @@ jobs:
           chmod +x ../shim/freetype-config
           export PATH="$PWD/../shim:$PATH"
           ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { tail -80 config.log; exit 1; }
-          make -j4 || make
-          make install
+          # Only the programs: the man pages need DocBook, not shipped.
+          make -C src -j4 || make -C src
+          make -C src install
 
       - name: Collect executables and DLLs
         run: |
