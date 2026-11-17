@@ -1,0 +1,114 @@
+name: Build DVDAuthor for Windows
+
+# Builds the official dvdauthor sources (github.com/ldo/dvdauthor, pinned tag
+# and commit) with MSYS2 UCRT64 and publishes a zip with dvdauthor.exe,
+# spumux.exe and their DLLs. DVD Forge's one-click installer downloads that
+# zip and checks its SHA-256 before extracting it.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the zip as a pre-release of this repository"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  DVDAUTHOR_TAG: "0.7.2"
+  DVDAUTHOR_COMMIT: "e0e0d410ac"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git zip autotools
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-libxml2
+            mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-freetype
+            mingw-w64-ucrt-x86_64-fontconfig
+            mingw-w64-ucrt-x86_64-fribidi
+
+      - name: Fetch pinned sources
+        run: |
+          git clone --branch "$DVDAUTHOR_TAG" --depth 1 https://github.com/ldo/dvdauthor.git src
+          cd src
+          actual=$(git rev-parse HEAD)
+          echo "commit $actual"
+          case "$actual" in
+            "$DVDAUTHOR_COMMIT"*) ;;
+            *) echo "unexpected commit for tag $DVDAUTHOR_TAG"; exit 1 ;;
+          esac
+
+      - name: Build
+        run: |
+          cd src
+          ./bootstrap
+          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || ./configure --prefix="$PWD/../stage"
+          make -j4
+          make install
+
+      - name: Collect executables and DLLs
+        run: |
+          mkdir -p dist
+          for exe in dvdauthor spumux spuunmux; do
+            [ -f "stage/bin/$exe.exe" ] && cp "stage/bin/$exe.exe" dist/
+          done
+          # Every non-system DLL the executables need, recursively.
+          for pass in 1 2 3 4; do
+            for file in dist/*.exe dist/*.dll; do
+              [ -f "$file" ] || continue
+              ldd "$file" | awk '/ucrt64/ {print $3}' | while read -r dll; do
+                cp -n "$dll" dist/ 2>/dev/null || true
+              done
+            done
+          done
+          cp src/COPYING dist/COPYING.dvdauthor.txt
+          printf 'dvdauthor %s (commit %s) built by GitHub Actions run %s\nSource: https://github.com/ldo/dvdauthor\nLicense: GPL-2.0-or-later\n' \
+            "$DVDAUTHOR_TAG" "$DVDAUTHOR_COMMIT" "$GITHUB_RUN_ID" > dist/README.txt
+          ls -la dist
+
+      - name: Smoke test
+        run: |
+          cd dist
+          ./dvdauthor.exe -h 2>&1 | head -3 || true
+          ./spumux.exe -h 2>&1 | head -3 || true
+          ./dvdauthor.exe -h 2>&1 | grep -qi dvdauthor
+          ./spumux.exe -h 2>&1 | grep -qi spumux
+
+      - name: Package
+        run: |
+          name="dvdauthor-$DVDAUTHOR_TAG-windows-x86_64.zip"
+          (cd dist && zip -X -r "../$name" .)
+          sha256sum "$name" | tee "$name.sha256"
+          stat -c '%s bytes' "$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dvdauthor-windows-x86_64
+          path: |
+            dvdauthor-*-windows-x86_64.zip
+            dvdauthor-*-windows-x86_64.zip.sha256
+
+      - name: Publish pre-release
+        if: ${{ inputs.publish }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="tools-dvdauthor-$DVDAUTHOR_TAG"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" \
+            --prerelease --title "Tools: DVDAuthor $DVDAUTHOR_TAG for Windows" \
+            --notes "dvdauthor $DVDAUTHOR_TAG (commit $DVDAUTHOR_COMMIT) built from https://github.com/ldo/dvdauthor by the 'Build DVDAuthor for Windows' workflow. Used by DVD Forge's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
+          gh release upload "$tag" dvdauthor-*-windows-x86_64.zip dvdauthor-*-windows-x86_64.zip.sha256 --clobber
