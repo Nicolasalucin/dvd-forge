@@ -805,13 +805,20 @@ pub(crate) fn grid_rects(
         ((height - margin_y * 2.0 - header - footer - gap * (rows.saturating_sub(1) as f64))
             / rows as f64)
             .max(16.0);
+    // Fewer episodes than cells (one-episode discs, the last page): centre
+    // the used rows, and each row's cards, instead of leaving them in the
+    // top-left corner with the rest of the screen empty.
+    let used_rows = slots.div_ceil(columns.max(1)).min(rows.max(1));
+    let offset_y = (rows.saturating_sub(used_rows)) as f64 * (cell_h + gap) / 2.0;
     (0..slots)
         .map(|index| {
             let column = index % columns;
             let row = index / columns;
+            let in_row = (slots - row * columns).min(columns);
+            let offset_x = (columns - in_row) as f64 * (cell_w + gap) / 2.0;
             LogicalRect::new(
-                margin_x + column as f64 * (cell_w + gap),
-                margin_y + header + row as f64 * (cell_h + gap),
+                margin_x + offset_x + column as f64 * (cell_w + gap),
+                margin_y + header + offset_y + row as f64 * (cell_h + gap),
                 cell_w,
                 cell_h,
             )

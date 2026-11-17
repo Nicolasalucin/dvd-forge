@@ -283,3 +283,26 @@ fn template_title_is_the_project_name_and_keeps_a_typed_title() {
         .expect("root");
     assert_eq!(title_of(root).as_deref(), Some("Verano en la costa"));
 }
+
+/// One-episode discs (split "one per episode") left the only card in the
+/// top-left corner; partially filled grids are centred now.
+#[test]
+fn a_single_episode_card_is_centred() {
+    let project = project_with_episodes(1);
+    for template in all_templates() {
+        let applied = apply_template(&project, template.id).expect("template");
+        let root = applied
+            .menus
+            .iter()
+            .find(|menu| menu.id == project.root_menu)
+            .expect("root");
+        let button = episode_buttons(std::slice::from_ref(root))[0];
+        let centre = button.rect.x + button.rect.w / 2.0;
+        let middle = f64::from(root.canvas.width) / 2.0;
+        assert!(
+            (centre - middle).abs() <= 4.0,
+            "{:?}: card centre {centre} vs {middle}",
+            template.id
+        );
+    }
+}
