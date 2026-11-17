@@ -1,3 +1,4 @@
+import { t } from "../../i18n/index.svelte";
 import Konva from "konva";
 import type { Menu_Serialize } from "../../api/bindings";
 
@@ -182,7 +183,7 @@ function addGuides(layer: Konva.Layer, width: number, height: number): void {
     actionY,
     width - actionX * 2,
     height - actionY * 2,
-    "ACCIÓN 5%",
+    t("ACCIÓN 5%"),
     "#38bdf8",
   );
   addGuide(
@@ -191,7 +192,7 @@ function addGuides(layer: Konva.Layer, width: number, height: number): void {
     titleY,
     width - titleX * 2,
     height - titleY * 2,
-    "TÍTULO 10%",
+    t("TÍTULO 10%"),
     "#fbbf24",
   );
 }

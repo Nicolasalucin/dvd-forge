@@ -121,7 +121,7 @@
 
         {#if report.missingRequired.length > 0}
           <div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] leading-5 text-rose-200">
-            Instala o añade al PATH: {report.missingRequired.join(", ")}.
+            {t("Instala o añade al PATH: {tools}.", { tools: report.missingRequired.join(", ") })}
           </div>
         {/if}
         {#if report.warnings.length > 0}

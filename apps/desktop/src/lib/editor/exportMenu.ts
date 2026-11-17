@@ -658,7 +658,10 @@ function validateGaps(buttons: CompiledButton[]) {
     for (let j = i + 1; j < buttons.length; j += 1) {
       if (!hasGap(buttons[i].rect, buttons[j].rect)) {
         throw new Error(
-          `Los botones ${buttons[i].name} y ${buttons[j].name} se solapan o no tienen 4 px de separación.`,
+          t("Los botones {a} y {b} se solapan o no tienen 4 px de separación.", {
+            a: buttons[i].name,
+            b: buttons[j].name,
+          }),
         );
       }
     }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "../i18n/index.svelte";
+  import { localizeDiagnostic } from "../i18n/diagnostics";
   import { onDestroy, onMount } from "svelte";
   import {
     commands,
@@ -913,7 +914,7 @@
             <p class="text-[10px] font-semibold text-amber-200">{t("Avisos de navegación")}</p>
             <ul class="mt-1 space-y-1">
               {#each warnings as warning}
-                <li class="text-[9px] leading-4 text-amber-100/70">{warning.message}</li>
+                <li class="text-[9px] leading-4 text-amber-100/70">{localizeDiagnostic(warning)}</li>
               {/each}
             </ul>
           </div>

@@ -8,6 +8,7 @@
     "dev": "vite --port 1420",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "i18n:check": "node scripts/i18n-check.mjs --strict",
     "bindings": "cargo run -q -p dvdforge-desktop --bin export-bindings",
     "tauri": "tauri"
   },

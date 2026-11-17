@@ -1,4 +1,5 @@
-import { t } from "./index.svelte";
+import { i18n, t } from "./index.svelte";
+import { DIAGNOSTIC_EN } from "./diagnosticCodes";
 
 export interface DiagnosticLike {
   code: string;
@@ -99,7 +100,17 @@ export function localizeDiagnostic(diagnostic: DiagnosticLike): string {
   }
   const fixed = FIXED[diagnostic.code];
   if (fixed) return t(fixed);
-  return t(diagnostic.message);
+  const translated = t(diagnostic.message);
+  if (i18n.locale === "es" || translated !== diagnostic.message) return translated;
+  // The Rust message is not in the catalog (it may contain file names or
+  // numbers). Use the per-code meaning so the UI never shows Spanish text.
+  const generic = DIAGNOSTIC_EN[diagnostic.code];
+  return generic ? t(generic) : translated;
+}
+
+/** Localizes any backend text that may carry a diagnostic code. */
+export function localizeMessage(code: string | null | undefined, message: string): string {
+  return code ? localizeDiagnostic({ code, message }) : t(message);
 }
 
 const JOB_STAGES = new Set([

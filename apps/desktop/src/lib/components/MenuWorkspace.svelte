@@ -38,21 +38,21 @@
   function actionLabel(kind: string): string {
     switch (kind) {
       case "playEpisode":
-        return "Reproducir episodio";
+        return t("Reproducir episodio");
       case "playAll":
-        return "Reproducir todo";
+        return t("Reproducir todo");
       case "gotoMenu":
-        return "Ir a menú";
+        return t("Ir a menú");
       case "jumpTitleChapter":
-        return "Ir a capítulo";
+        return t("Ir a capítulo");
       case "playFirstPlay":
-        return "Reproducir inicio";
+        return t("Reproducir inicio");
       case "setAudioTrack":
-        return "Cambiar pista de audio";
+        return t("Cambiar pista de audio");
       case "resume":
-        return "Reanudar";
+        return t("Reanudar");
       default:
-        return "Sin acción";
+        return t("Sin acción");
     }
   }
   const previewStates = [

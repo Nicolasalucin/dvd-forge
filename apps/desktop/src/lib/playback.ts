@@ -1,3 +1,4 @@
+import { t } from "./i18n/index.svelte";
 import { commands, type PlaybackSupport_Serialize } from "./api/bindings";
 import { unwrap } from "./api/client";
 
@@ -34,8 +35,8 @@ function fallbackSupport(error: unknown): PlaybackSupport_Serialize {
     platform: linux ? "linux" : "unknown",
     missing: [],
     detail: linux
-      ? `No se pudo comprobar GStreamer; la reproducción queda desactivada para evitar un cuelgue. ${message}`
-      : `No se pudo comprobar el soporte de reproducción. ${message}`,
+      ? `${t("No se pudo comprobar GStreamer; la reproducción queda desactivada para evitar un cuelgue.")} ${message}`
+      : `${t("No se pudo comprobar el soporte de reproducción.")} ${message}`,
     installHint: linux
       ? "Arch/CachyOS: sudo pacman -S gst-plugins-good gst-libav. Debian/Ubuntu: sudo apt install gstreamer1.0-plugins-good gstreamer1.0-libav."
       : null,

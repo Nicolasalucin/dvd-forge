@@ -36,8 +36,8 @@ import {
 } from "../api/bindings";
 import { messageOf, unwrap } from "../api/client";
 import { hasGap, normalizeRect } from "../editor/exportMenu";
-import { localizeJobStage } from "../i18n/diagnostics";
-import { t } from "../i18n/index.svelte";
+import { localizeDiagnostic, localizeJobStage, localizeMessage } from "../i18n/diagnostics";
+import { i18n, t } from "../i18n/index.svelte";
 import { normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
 
@@ -129,6 +129,29 @@ function canvasForProject(project: Project_Serialize) {
   return canvasFor(project.disc.standard, project.disc.aspect);
 }
 
+
+/**
+ * The Rust core names generated content in Spanish ("Menú principal", the
+ * template "‹ Anterior"/"Siguiente ›" buttons). Those names end up on the
+ * disc, so they follow the interface language. Only untouched default names
+ * are renamed; anything the user typed is kept. Nav buttons keep their ‹/›
+ * arrows, which is how the template engine recognises them.
+ */
+function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
+  if (i18n.locale === "es") return;
+  const defaults: Record<string, string> = {
+    "Menú principal": t("Menú principal"),
+    "‹ Anterior": t("‹ Anterior"),
+    "Siguiente ›": t("Siguiente ›"),
+    "Volver": t("Volver"),
+  };
+  for (const menu of menus) {
+    if (defaults[menu.name]) menu.name = defaults[menu.name];
+    for (const button of menu.buttons) {
+      if (defaults[button.name]) button.name = defaults[button.name];
+    }
+  }
+}
 
 /** Size factor of a menu canvas relative to the 720x480 DVD reference. */
 function menuScale(menu: Menu_Serialize): number {
@@ -421,6 +444,7 @@ class ProjectStore {
 
   setProject(project: Project_Serialize): void {
     normalizeProject(project);
+    localizeGeneratedMenus(project.menus);
     // Projects created by older builds kept HD menus on a 720x480 canvas, which
     // squeezed 1920x1080 backgrounds. Upgrade them to the disc resolution.
     const target = canvasForProject(project);
@@ -762,7 +786,7 @@ class ProjectStore {
     if (!project || !asset || asset.kind !== "video") return null;
     const number =
       project.episodes.reduce((highest, episode) => Math.max(highest, episode.number), 0) + 1;
-    const title = asset.displayName.replace(/\.[^.]+$/, "") || `Episodio ${number}`;
+    const title = asset.displayName.replace(/\.[^.]+$/, "") || t("Episodio {number}", { number });
     const sourceChapters = asset.probe.chapters ?? [];
     const importedChapters = sourceChapters
       .map((chapter, index) => ({
@@ -1057,7 +1081,7 @@ class ProjectStore {
       sourceStream: 0,
       sourcePath,
       language,
-      label: label ?? `Subtítulo ${episode.subtitles.length + 1}`,
+      label: label ?? t("Subtítulo {number}", { number: episode.subtitles.length + 1 }),
       delayMs: 0,
       isForced: false,
       isDefault: episode.subtitles.length === 0,
@@ -1788,13 +1812,14 @@ class ProjectStore {
     this.templateDiagnostics = [];
     try {
       const result = await unwrap(commands.menuApplyTemplate(project, templateId));
+      localizeGeneratedMenus(result.menus);
       project.menus = result.menus;
       project.rootMenu = result.rootMenu;
       this.selectedMenuId = result.rootMenu;
       const root = result.menus.find((menu) => menu.id === result.rootMenu);
       this.selectedButtonId = root?.buttons[0]?.id ?? null;
       this.templateDiagnostics = result.diagnostics.map(
-        (diagnostic) => diagnostic.code + ": " + diagnostic.message,
+        (diagnostic) => diagnostic.code + ": " + localizeDiagnostic(diagnostic),
       );
       this.plan = null;
       this.touch();
@@ -2211,10 +2236,13 @@ class ProjectStore {
         this.renderPercent = kind.permille / 10;
         break;
       case "warning":
-        this.renderLogs = [...this.renderLogs, `⚠ ${kind.code}: ${kind.message}`].slice(-300);
+        this.renderLogs = [
+          ...this.renderLogs,
+          `⚠ ${kind.code}: ${localizeMessage(kind.code, kind.message)}`,
+        ].slice(-300);
         break;
       case "log":
-        this.renderLogs = [...this.renderLogs, `[${kind.level}] ${kind.message}`].slice(-300);
+        this.renderLogs = [...this.renderLogs, `[${kind.level}] ${t(kind.message)}`].slice(-300);
         break;
       case "artifact":
         if (kind.kind === "iso") this.lastIso = kind.path;
@@ -2227,7 +2255,12 @@ class ProjectStore {
         this.renderLogs = [...this.renderLogs, kind.summary].slice(-300);
         break;
       case "failed":
-        this.renderError = kind.message;
+        // Rust failure text is technical and in Spanish; keep it as detail
+        // under a localized headline.
+        this.renderError =
+          i18n.locale === "es" || t(kind.message) !== kind.message
+            ? t(kind.message)
+            : `${t("La producción del disco falló.")} ${t("Detalle técnico:")} ${kind.message}`;
         this.renderStage = t("Error");
         this.renderLogs = [...this.renderLogs, `✕ ${kind.message}`].slice(-300);
         break;

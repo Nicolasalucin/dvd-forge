@@ -163,7 +163,7 @@
             {#each episode.audio as track, index (index)}
               <div class="grid grid-cols-[94px_minmax(0,1fr)] items-center gap-2">
                 <span class="truncate text-[10px] text-slate-400">
-                  Audio {index + 1}{track.default ? " · DEF" : ""}
+                  {t("Audio {number}", { number: index + 1 })}{track.default ? ` · ${t("DEF")}` : ""}
                 </span>
                 <div class="relative h-6 overflow-hidden rounded-md border border-slate-800 bg-slate-950">
                   <div class="absolute inset-y-0 left-0 w-full bg-amber-500/10"></div>
@@ -502,7 +502,7 @@
         <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
           <h2 class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Rutas de origen")}</h2>
           <ul class="mt-1.5 space-y-1 text-[9px] text-slate-500">
-            <li class="truncate" title={asset?.displayName ?? ""}>Vídeo: {asset?.displayName ?? "—"}</li>
+            <li class="truncate" title={asset?.displayName ?? ""}>{t("Vídeo")}: {asset?.displayName ?? "—"}</li>
             {#each episode.subtitles as track, index (index)}
               <li class="truncate" title={track.sourcePath ?? ""}>
                 S{index + 1}: {track.sourcePath ? basename(track.sourcePath) : `stream ${track.sourceStream}`}
