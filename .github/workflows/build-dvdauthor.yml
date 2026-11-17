@@ -31,7 +31,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git zip autotools gettext-devel
+            git zip autotools gettext-devel flex bison
             mingw-w64-ucrt-x86_64-gettext-tools
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-toolchain
@@ -67,6 +67,9 @@ jobs:
           ])
           EOF
           sed -i 's/^          //' m4/xml2-compat.m4
+          # Windows mkdir() takes only the path (three calls in dvdauthor.c).
+          sed -i 's/mkdir(\([a-z]*\), 0777)/mkdir()/' src/dvdauthor.c
+          grep -n "mkdir(" src/dvdauthor.c
           cp /usr/share/gettext/config.rpath autotools/
           autoreconf -fi -I m4
           # MSYS2 FreeType has no freetype-config; configure.ac requires it.
