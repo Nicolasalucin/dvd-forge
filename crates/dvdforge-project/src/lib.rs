@@ -3,6 +3,8 @@
 //! Phase 0 intentionally keeps the format as a versioned JSON document. SQLite
 //! will be used later for job history and caches, not as the project format.
 
+pub mod bundle;
+
 use dvdforge_domain::{Diagnostic, Project, Severity};
 use std::path::Path;
 

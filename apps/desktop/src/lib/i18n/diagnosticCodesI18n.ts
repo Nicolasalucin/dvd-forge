@@ -143,6 +143,11 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   W_TITLESET_ZERO: "O conjunto de títulos 0 não é válido.",
   W_UNDERFILL: "O conteúdo é curto demais para encher o disco sem passar do bitrate máximo.",
   W_VOLUME_LABEL: "O rótulo do disco deveria ser ASCII e ter no máximo 32 caracteres.",
+  E_BUNDLE_CORRUPT: "O pacote está danificado ou incompleto; nada foi restaurado.",
+  E_BUNDLE_DESTINATION: "Escolha uma pasta vazia para descompactar o pacote.",
+  E_BUNDLE_IO: "Não foi possível ler ou gravar o pacote (disco cheio ou sem permissão?).",
+  E_BUNDLE_SCHEMA: "Este pacote foi criado por um DVD Forge mais novo; atualize o aplicativo para abri-lo.",
+  W_BUNDLE_EXTERNAL_ASSET: "Um arquivo usado pelo projeto não existe e não foi incluído no pacote.",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -285,6 +290,11 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   W_TITLESET_ZERO: "Le jeu de titres 0 n'est pas valide.",
   W_UNDERFILL: "Le contenu est trop court pour remplir le disque sans dépasser le débit maximal.",
   W_VOLUME_LABEL: "Le nom du disque devrait être en ASCII et faire 32 caractères au maximum.",
+  E_BUNDLE_CORRUPT: "Le paquet est endommagé ou incomplet ; rien n'a été restauré.",
+  E_BUNDLE_DESTINATION: "Choisissez un dossier vide pour décompresser le paquet.",
+  E_BUNDLE_IO: "Impossible de lire ou d'écrire le paquet (disque plein ou pas d'autorisation ?).",
+  E_BUNDLE_SCHEMA: "Ce paquet a été créé par une version plus récente de DVD Forge ; mettez l'application à jour pour l'ouvrir.",
+  W_BUNDLE_EXTERNAL_ASSET: "Un fichier utilisé par le projet est introuvable et n'a pas été inclus dans le paquet.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -427,6 +437,11 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   W_TITLESET_ZERO: "Titelset 0 ist ungültig.",
   W_UNDERFILL: "Der Inhalt ist zu kurz, um die Disc ohne Überschreiten der Höchstbitrate zu füllen.",
   W_VOLUME_LABEL: "Der Disc-Name sollte ASCII sein und höchstens 32 Zeichen lang sein.",
+  E_BUNDLE_CORRUPT: "Das Paket ist beschädigt oder unvollständig; es wurde nichts wiederhergestellt.",
+  E_BUNDLE_DESTINATION: "Wähle zum Entpacken einen leeren Ordner.",
+  E_BUNDLE_IO: "Das Paket konnte nicht gelesen oder geschrieben werden (Datenträger voll oder keine Berechtigung?).",
+  E_BUNDLE_SCHEMA: "Dieses Paket stammt aus einer neueren DVD-Forge-Version; aktualisiere die App, um es zu öffnen.",
+  W_BUNDLE_EXTERNAL_ASSET: "Eine vom Projekt verwendete Datei fehlt und wurde nicht ins Paket aufgenommen.",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -569,6 +584,11 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   W_TITLESET_ZERO: "Il titleset 0 non è valido.",
   W_UNDERFILL: "Il contenuto è troppo breve per riempire il disco senza superare il bitrate massimo.",
   W_VOLUME_LABEL: "Il nome del disco dovrebbe essere ASCII e avere al massimo 32 caratteri.",
+  E_BUNDLE_CORRUPT: "Il pacchetto è danneggiato o incompleto; non è stato ripristinato nulla.",
+  E_BUNDLE_DESTINATION: "Scegli una cartella vuota per estrarre il pacchetto.",
+  E_BUNDLE_IO: "Impossibile leggere o scrivere il pacchetto (disco pieno o permessi mancanti?).",
+  E_BUNDLE_SCHEMA: "Questo pacchetto è stato creato con un DVD Forge più recente; aggiorna l'app per aprirlo.",
+  W_BUNDLE_EXTERNAL_ASSET: "Un file usato dal progetto non esiste e non è stato incluso nel pacchetto.",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -711,4 +731,9 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   W_TITLESET_ZERO: "タイトルセット 0 は無効です。",
   W_UNDERFILL: "内容が短すぎて、最大ビットレートを超えずにディスクを満たせません。",
   W_VOLUME_LABEL: "ディスク名は ASCII で 32 文字以内にしてください。",
+  E_BUNDLE_CORRUPT: "パッケージが破損しているか不完全なため、何も復元されませんでした。",
+  E_BUNDLE_DESTINATION: "パッケージを展開するには空のフォルダーを選択してください。",
+  E_BUNDLE_IO: "パッケージを読み書きできませんでした（ディスクの空き不足または権限がない可能性があります）。",
+  E_BUNDLE_SCHEMA: "このパッケージは新しい DVD Forge で作成されています。開くにはアプリを更新してください。",
+  W_BUNDLE_EXTERNAL_ASSET: "プロジェクトで使用しているファイルが見つからないため、パッケージに含めませんでした。",
 };

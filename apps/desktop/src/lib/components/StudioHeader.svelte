@@ -2,7 +2,9 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { open, save } from "@tauri-apps/plugin-dialog";
   import { onDestroy, onMount } from "svelte";
-  import { messageOf } from "../api/client";
+  import { messageOf, unwrap } from "../api/client";
+  import { commands } from "../api/bindings";
+  import { localizeDiagnostic, localizeError } from "../i18n/diagnostics";
   import { projectStore, type StudioMode } from "../stores/project.svelte";
   import JobHistory from "./JobHistory.svelte";
   import RecentProjects from "./RecentProjects.svelte";
@@ -19,6 +21,7 @@
 
   let busy = $state(false);
   let localError = $state<string | null>(null);
+  let notice = $state<string | null>(null);
   let fullscreen = $state(false);
   let lastPlanSignature = "";
   let planTimer: ReturnType<typeof setTimeout> | null = null;
@@ -96,7 +99,7 @@
       await appWindow.setFullscreen(!isFull);
       fullscreen = !isFull;
     } catch (cause) {
-      localError = messageOf(cause);
+      localError = localizeError(messageOf(cause));
     }
   }
 
@@ -143,15 +146,31 @@
   async function openProject() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
+      filters: [
+        { name: t("Proyecto o paquete de DVD Forge"), extensions: ["json", "dvdforge-bundle"] },
+      ],
     });
     if (typeof picked !== "string") return;
     busy = true;
     localError = null;
     try {
+      if (picked.toLowerCase().endsWith(".dvdforge-bundle")) {
+        // A bundle is unpacked into a folder chosen by the user, then opened.
+        const folder = await open({
+          directory: true,
+          title: t("Elige una carpeta vacía donde descomprimir el paquete"),
+        });
+        if (typeof folder !== "string") return;
+        const base = picked.replace(/^.*[\\/]/, "").replace(/\.dvdforge-bundle$/i, "");
+        const destination = `${folder.replace(/[\\/]+$/, "")}/${base}`;
+        const projectPath = await unwrap(commands.bundleImport(picked, destination));
+        await projectStore.openProject(projectPath);
+        notice = t("Paquete descomprimido en {folder}.", { folder: destination });
+        return;
+      }
       await projectStore.openProject(picked);
     } catch (cause) {
-      localError = messageOf(cause);
+      localError = localizeError(messageOf(cause));
     } finally {
       busy = false;
     }
@@ -170,7 +189,36 @@
     try {
       await projectStore.saveProject(path);
     } catch (cause) {
-      localError = messageOf(cause);
+      localError = localizeError(messageOf(cause));
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function exportBundle() {
+    const current = projectStore.project;
+    if (!current) return;
+    const path = await save({
+      defaultPath: `${current.name.replaceAll(" ", "-").toLowerCase()}.dvdforge-bundle`,
+      filters: [{ name: t("Paquete de DVD Forge"), extensions: ["dvdforge-bundle"] }],
+    });
+    if (!path) return;
+    busy = true;
+    localError = null;
+    notice = t("Empaquetando el proyecto y sus vídeos…");
+    try {
+      const report = await unwrap(commands.bundleExport(current, path));
+      const megabytes = (report.manifest.files.reduce((sum, file) => sum + file.bytes, 0) / 1_000_000).toFixed(1);
+      notice = t("Paquete creado: {count} archivos, {size} MB.", {
+        count: report.manifest.files.length,
+        size: megabytes,
+      });
+      if (report.warnings.length > 0) {
+        localError = report.warnings.map((warning) => localizeDiagnostic(warning)).join(" ");
+      }
+    } catch (cause) {
+      localError = localizeError(messageOf(cause));
+      notice = null;
     } finally {
       busy = false;
     }
@@ -242,6 +290,15 @@
         class="rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
       >
         {t("Guardar")}
+      </button>
+      <button
+        type="button"
+        onclick={exportBundle}
+        disabled={busy || !project}
+        title={t("Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo")}
+        class="rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition hover:border-cyan-500/60 hover:text-white disabled:opacity-50"
+      >
+        📦 {t("Empaquetar")}
       </button>
       <div class="relative">
         <button
@@ -524,6 +581,12 @@
     <ToolchainDoctor onClose={() => (doctorOpen = false)} />
   {/if}
 
+  {#if notice && !localError && !projectStore.error}
+    <div class="flex items-start justify-between gap-3 border-t border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-[11px] text-emerald-200">
+      <span class="truncate">{notice}</span>
+      <button type="button" onclick={() => (notice = null)} aria-label={t("Cerrar")}>✕</button>
+    </div>
+  {/if}
   {#if localError || projectStore.error}
     <div class="flex items-start justify-between gap-3 border-t border-rose-500/20 bg-rose-500/10 px-4 py-1.5 text-[11px] text-rose-200">
       <span class="truncate">{localError ?? projectStore.error}</span>

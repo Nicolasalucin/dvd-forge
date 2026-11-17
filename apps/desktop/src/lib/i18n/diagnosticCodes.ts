@@ -147,4 +147,9 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_TITLESET_ZERO: "Title set 0 is not valid.",
   W_UNDERFILL: "The content is too short to fill the disc without exceeding the maximum bitrate.",
   W_VOLUME_LABEL: "The disc label should be ASCII and at most 32 characters long.",
+  E_BUNDLE_CORRUPT: "The bundle is damaged or incomplete; nothing was restored.",
+  E_BUNDLE_DESTINATION: "Choose an empty folder to unpack the bundle.",
+  E_BUNDLE_IO: "The bundle could not be read or written (disk full or no permission?).",
+  E_BUNDLE_SCHEMA: "This bundle was made by a newer DVD Forge; update the app to open it.",
+  W_BUNDLE_EXTERNAL_ASSET: "A file used by the project is missing and was not included in the bundle.",
 };

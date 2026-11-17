@@ -735,6 +735,14 @@ export const es: Dictionary = {
   "Área segura": "Área segura",
   "← Menú": "← Menú",
   "Tipografía": "Tipografía",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Elige una carpeta vacía donde descomprimir el paquete",
+  "Empaquetando el proyecto y sus vídeos…": "Empaquetando el proyecto y sus vídeos…",
+  "Empaquetar": "Empaquetar",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo",
+  "Paquete creado: {count} archivos, {size} MB.": "Paquete creado: {count} archivos, {size} MB.",
+  "Paquete de DVD Forge": "Paquete de DVD Forge",
+  "Paquete descomprimido en {folder}.": "Paquete descomprimido en {folder}.",
+  "Proyecto o paquete de DVD Forge": "Proyecto o paquete de DVD Forge",
 };
 
 export const en: Dictionary = {
@@ -1560,6 +1568,14 @@ export const en: Dictionary = {
   "El episodio está recortado al principio; para copiar sin recodificar no puede haber recorte inicial.": "The episode is trimmed at the start; copying without re-encoding requires no start trim.",
   "El bitrate del vídeo es desconocido o supera el máximo del disco; se recodifica.": "The video bitrate is unknown or exceeds the disc maximum; it will be re-encoded.",
   "Tipografía": "Font",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Choose an empty folder to unpack the bundle into",
+  "Empaquetando el proyecto y sus vídeos…": "Packing the project and its videos…",
+  "Empaquetar": "Bundle",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Saves the project and all its videos, audio and subtitles in a single file to move it to another computer or share it",
+  "Paquete creado: {count} archivos, {size} MB.": "Bundle created: {count} files, {size} MB.",
+  "Paquete de DVD Forge": "DVD Forge bundle",
+  "Paquete descomprimido en {folder}.": "Bundle unpacked into {folder}.",
+  "Proyecto o paquete de DVD Forge": "DVD Forge project or bundle",
 };
 
 export const pt: Dictionary = {
@@ -2384,6 +2400,14 @@ export const pt: Dictionary = {
   "X": "X",
   "Y": "Y",
   "Tipografía": "Fonte",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Escolha uma pasta vazia para descompactar o pacote",
+  "Empaquetando el proyecto y sus vídeos…": "Empacotando o projeto e seus vídeos…",
+  "Empaquetar": "Empacotar",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Salva o projeto e todos os vídeos, áudios e legendas em um único arquivo para levá-lo a outro computador ou compartilhá-lo",
+  "Paquete creado: {count} archivos, {size} MB.": "Pacote criado: {count} arquivos, {size} MB.",
+  "Paquete de DVD Forge": "Pacote do DVD Forge",
+  "Paquete descomprimido en {folder}.": "Pacote descompactado em {folder}.",
+  "Proyecto o paquete de DVD Forge": "Projeto ou pacote do DVD Forge",
 };
 
 export const fr: Dictionary = {
@@ -3276,6 +3300,14 @@ export const fr: Dictionary = {
   "X": "X",
   "Y": "Y",
   "Tipografía": "Police",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Choisissez un dossier vide où décompresser le paquet",
+  "Empaquetando el proyecto y sus vídeos…": "Empaquetage du projet et de ses vidéos…",
+  "Empaquetar": "Empaqueter",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Enregistre le projet et toutes ses vidéos, pistes audio et sous-titres dans un seul fichier pour le déplacer ou le partager",
+  "Paquete creado: {count} archivos, {size} MB.": "Paquet créé : {count} fichiers, {size} Mo.",
+  "Paquete de DVD Forge": "Paquet DVD Forge",
+  "Paquete descomprimido en {folder}.": "Paquet décompressé dans {folder}.",
+  "Proyecto o paquete de DVD Forge": "Projet ou paquet DVD Forge",
 };
 
 export const de: Dictionary = {
@@ -4167,6 +4199,14 @@ export const de: Dictionary = {
   "X": "X",
   "Y": "Y",
   "Tipografía": "Schriftart",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Wähle einen leeren Ordner zum Entpacken des Pakets",
+  "Empaquetando el proyecto y sus vídeos…": "Projekt und Videos werden gepackt…",
+  "Empaquetar": "Paket",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Speichert das Projekt mit allen Videos, Audios und Untertiteln in einer Datei, um es auf einen anderen Computer zu bringen oder zu teilen",
+  "Paquete creado: {count} archivos, {size} MB.": "Paket erstellt: {count} Dateien, {size} MB.",
+  "Paquete de DVD Forge": "DVD-Forge-Paket",
+  "Paquete descomprimido en {folder}.": "Paket entpackt nach {folder}.",
+  "Proyecto o paquete de DVD Forge": "DVD-Forge-Projekt oder -Paket",
 };
 
 export const it: Dictionary = {
@@ -5058,6 +5098,14 @@ export const it: Dictionary = {
   "X": "X",
   "Y": "Y",
   "Tipografía": "Carattere",
+  "Elige una carpeta vacía donde descomprimir el paquete": "Scegli una cartella vuota in cui estrarre il pacchetto",
+  "Empaquetando el proyecto y sus vídeos…": "Creazione del pacchetto con il progetto e i video…",
+  "Empaquetar": "Pacchetto",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "Salva il progetto con tutti i video, gli audio e i sottotitoli in un unico file per spostarlo su un altro computer o condividerlo",
+  "Paquete creado: {count} archivos, {size} MB.": "Pacchetto creato: {count} file, {size} MB.",
+  "Paquete de DVD Forge": "Pacchetto DVD Forge",
+  "Paquete descomprimido en {folder}.": "Pacchetto estratto in {folder}.",
+  "Proyecto o paquete de DVD Forge": "Progetto o pacchetto DVD Forge",
 };
 
 export const ja: Dictionary = {
@@ -5949,5 +5997,13 @@ export const ja: Dictionary = {
   "X": "X",
   "Y": "Y",
   "Tipografía": "フォント",
+  "Elige una carpeta vacía donde descomprimir el paquete": "パッケージを展開する空のフォルダーを選択してください",
+  "Empaquetando el proyecto y sus vídeos…": "プロジェクトと動画をパッケージ化しています…",
+  "Empaquetar": "パッケージ化",
+  "Guarda el proyecto y todos sus vídeos, audios y subtítulos en un solo archivo para moverlo a otro ordenador o compartirlo": "プロジェクトと動画・音声・字幕をすべて1つのファイルにまとめ、別のPCへの移動や共有ができるようにします",
+  "Paquete creado: {count} archivos, {size} MB.": "パッケージを作成しました: {count} ファイル、{size} MB。",
+  "Paquete de DVD Forge": "DVD Forge パッケージ",
+  "Paquete descomprimido en {folder}.": "パッケージを {folder} に展開しました。",
+  "Proyecto o paquete de DVD Forge": "DVD Forge プロジェクトまたはパッケージ",
 };
 

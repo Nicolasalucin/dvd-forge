@@ -1,3 +1,4 @@
+mod bundle;
 mod render;
 mod support;
 
@@ -32,6 +33,7 @@ async fn main() -> ExitCode {
         "verify" => verify_command(&args[1..]).await,
         "devices" => devices_command(&args[1..]).await,
         "burn" => burn_command(&args[1..]).await,
+        "bundle" => bundle::run(&args[1..]),
         "version" | "--version" | "-V" => {
             println!("dvdforge-cli {VERSION}");
             ExitCode::SUCCESS
@@ -671,6 +673,9 @@ fn print_help() {
     println!(
         "  dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject] [--skip-verify]"
     );
+    println!("  dvdforge-cli bundle export <project.json> [-o <archivo.dvdforge-bundle>]");
+    println!("  dvdforge-cli bundle import <archivo.dvdforge-bundle> -o <carpeta>");
+    println!("  dvdforge-cli bundle info <archivo.dvdforge-bundle> [--json]");
     println!("  dvdforge-cli version");
     println!("  dvdforge-cli help");
     println!();

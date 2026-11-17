@@ -8,6 +8,16 @@ export const commands = {
 	projectSave: (path: string, project: Project_Deserialize) => typedError<null, string>(__TAURI_INVOKE("project_save", { path, project })),
 	projectOpen: (path: string) => typedError<Project_Serialize, string>(__TAURI_INVOKE("project_open", { path })),
 	/**
+	 *  Packs the project and every file it uses into one `.dvdforge-bundle`.
+	 *  Relative paths are resolved against the folder of the current project.
+	 */
+	bundleExport: (project: Project_Deserialize, path: string) => typedError<BundleReport_Serialize, string>(__TAURI_INVOKE("bundle_export", { project, path })),
+	/**
+	 *  Restores a bundle into `destination` (empty or new folder), verifying
+	 *  every file, and opens the restored project.
+	 */
+	bundleImport: (bundle: string, destination: string) => typedError<string, string>(__TAURI_INVOKE("bundle_import", { bundle, destination })),
+	/**
 	 *  Creates a blank DVD-Video project shell. Media and episodes are added by the
 	 *  editor once the user imports files.
 	 *  Permite abrir un proyecto al arrancar para integración/automatización de UI.
@@ -232,6 +242,35 @@ export type BudgetPolicy = {
 	minVideoKbps: number,
 	maxVideoKbps: number,
 	defaultAc3Kbps: number,
+};
+
+export type BundleFile = {
+	path: string,
+	bytes: number,
+	sha256: string,
+};
+
+export type BundleManifest = {
+	format: string,
+	formatVersion: number,
+	schemaVersion: number,
+	createdBy: string,
+	projectName: string,
+	files: BundleFile[],
+};
+
+export type BundleReport = BundleReport_Serialize | BundleReport_Deserialize;
+
+export type BundleReport_Deserialize = {
+	path: string,
+	manifest: BundleManifest,
+	warnings: Diagnostic_Deserialize[],
+};
+
+export type BundleReport_Serialize = {
+	path: string,
+	manifest: BundleManifest,
+	warnings: Diagnostic_Serialize[],
 };
 
 export type BurnBackend = "growisofs" | "xorriso" | "drutil" | "hdiutil" | "imapi2";

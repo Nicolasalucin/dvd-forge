@@ -17,7 +17,9 @@ pub use menu::{
     menu_apply_template, menu_navigation, menu_save_background, menu_save_labels, menu_templates,
 };
 pub use plan::plan_calculate;
-pub use project::{project_new, project_open, project_save, startup_project_path};
+pub use project::{
+    bundle_export, bundle_import, project_new, project_open, project_save, startup_project_path,
+};
 pub use render::{render_cancel, render_start};
 pub use store::{job_history_list, recent_project_forget, recent_projects_list};
 pub use system::{open_folder, system_fonts, tools_doctor};

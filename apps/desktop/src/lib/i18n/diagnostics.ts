@@ -154,3 +154,14 @@ const JOB_STAGES = new Set([
 export function localizeJobStage(label: string): string {
   return JOB_STAGES.has(label) ? t(label) : label;
 }
+
+/**
+ * Localizes a backend error string of the form `E_CODE: detalle`. Other
+ * locales show the per-code meaning followed by the technical detail.
+ */
+export function localizeError(message: string): string {
+  const match = /^([EW]_[A-Z0-9_]+): ([\s\S]*)$/.exec(message.trim());
+  if (!match) return message;
+  const localized = localizeDiagnostic({ code: match[1], message: match[2] });
+  return localized === match[2] ? localized : `${localized} (${match[2]})`;
+}

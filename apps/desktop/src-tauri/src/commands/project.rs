@@ -234,6 +234,34 @@ pub fn project_save(path: String, project: Project) -> Result<(), String> {
     Ok(())
 }
 
+/// Packs the project and every file it uses into one `.dvdforge-bundle`.
+/// Relative paths are resolved against the folder of the current project.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn bundle_export(
+    project: Project,
+    path: String,
+) -> Result<dvdforge_project::bundle::BundleReport, String> {
+    let project_dir = context::project_dir()
+        .or_else(|| std::env::current_dir().ok())
+        .ok_or_else(|| "No se pudo determinar la carpeta del proyecto.".to_string())?;
+    dvdforge_project::bundle::export_bundle(&project, &project_dir, std::path::Path::new(&path))
+        .map_err(|error| error.to_string())
+}
+
+/// Restores a bundle into `destination` (empty or new folder), verifying
+/// every file, and opens the restored project.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn bundle_import(bundle: String, destination: String) -> Result<String, String> {
+    let imported = dvdforge_project::bundle::import_bundle(
+        std::path::Path::new(&bundle),
+        std::path::Path::new(&destination),
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(imported.project_path)
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn project_open(path: String) -> Result<Project, String> {
