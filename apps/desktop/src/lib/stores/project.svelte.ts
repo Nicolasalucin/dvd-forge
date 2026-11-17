@@ -2292,7 +2292,7 @@ class ProjectStore {
         // Rust failure text is technical and in Spanish; keep it as detail
         // under a localized headline.
         this.renderError =
-          i18n.locale === "es" || t(kind.message) !== kind.message
+          i18n.has(kind.message)
             ? t(kind.message)
             : `${t("La producción del disco falló.")} ${t("Detalle técnico:")} ${kind.message}`;
         this.renderStage = t("Error");
