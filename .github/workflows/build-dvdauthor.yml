@@ -58,7 +58,11 @@ jobs:
           # aclocal from MSYS must also see the UCRT64 macros (libxml.m4…).
           export ACLOCAL_PATH="/ucrt64/share/aclocal:/usr/share/aclocal"
           cd src
-          ./bootstrap
+          # Same steps as upstream ./bootstrap, but -f lets autopoint replace
+          # the copied config.rpath with its own matching version.
+          mkdir -p autotools m4
+          cp /usr/share/gettext/config.rpath autotools/
+          autoreconf -fi
           ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || ./configure --prefix="$PWD/../stage"
           make -j4
           make install
