@@ -16,8 +16,8 @@ pub use media::{
     render_quality_sample, slideshow_create, PlaybackSupport,
 };
 pub use menu::{
-    menu_apply_chapter_menus, menu_apply_template, menu_navigation, menu_save_background,
-    menu_save_labels, menu_templates,
+    image_save_png, menu_apply_chapter_menus, menu_apply_template, menu_navigation,
+    menu_save_background, menu_save_labels, menu_templates,
 };
 pub use plan::{plan_calculate, project_split};
 pub use project::{

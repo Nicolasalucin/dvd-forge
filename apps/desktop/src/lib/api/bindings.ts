@@ -155,6 +155,12 @@ export const commands = {
 	 *  a los vídeos de los botones en un menú animado.
 	 */
 	menuSaveLabels: (projectId: string, menuId: string, dataUrl: string) => typedError<string, string>(__TAURI_INVOKE("menu_save_labels", { projectId, menuId, dataUrl })),
+	/**
+	 *  Saves a cover or disc label (a PNG drawn by the app) where the user chose
+	 *  in the save dialog. Only `.png` paths and real PNG data are accepted, so
+	 *  this can never write any other kind of file.
+	 */
+	imageSavePng: (path: string, dataUrl: string) => typedError<null, string>(__TAURI_INVOKE("image_save_png", { path, dataUrl })),
 	recentProjectsList: (limit: number | null) => typedError<RecentProject_Serialize[], string>(__TAURI_INVOKE("recent_projects_list", { limit })),
 	recentProjectForget: (filePath: string) => typedError<null, string>(__TAURI_INVOKE("recent_project_forget", { filePath })),
 	jobHistoryList: (limit: number | null) => typedError<JobHistoryEntry_Serialize[], string>(__TAURI_INVOKE("job_history_list", { limit })),

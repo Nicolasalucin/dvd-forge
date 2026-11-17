@@ -21,6 +21,7 @@ class UiState {
   inspector = $state(false);
   slideshow = $state(false);
   join = $state(false);
+  cover = $state(false);
   history = $state(false);
   recent = $state(false);
   notice = $state<string | null>(null);

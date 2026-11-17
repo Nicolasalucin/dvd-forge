@@ -35,6 +35,7 @@
     about: () => import("./lib/components/AboutDialog.svelte"),
     slideshow: () => import("./lib/components/SlideshowDialog.svelte"),
     join: () => import("./lib/components/JoinDialog.svelte"),
+    cover: () => import("./lib/components/CoverDialog.svelte"),
     inspector: () => import("./lib/components/DiscInspector.svelte"),
   };
 
@@ -238,6 +239,10 @@
   {#if ui.about}
     <Lazy loader={screens.about} props={{ onclose: () => (ui.about = false) }} />
   {/if}
+  {#if ui.cover}
+    <Lazy loader={screens.cover} props={{ onclose: () => (ui.cover = false) }} />
+  {/if}
+
   {#if ui.join}
     <Lazy loader={screens.join} props={{ onclose: () => (ui.join = false) }} />
   {/if}

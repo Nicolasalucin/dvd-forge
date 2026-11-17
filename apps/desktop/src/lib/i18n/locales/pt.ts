@@ -1168,6 +1168,23 @@ export const pt: Dictionary = {
   "Lista sobria de seis títulos sobre gris claro.": "Lista sóbria de seis títulos sobre cinza claro.",
   "Celeste con confeti y botones redondos amarillos.": "Azul-celeste com confete e botões redondos amarelos.",
   "Negro profundo, píldoras de cristal y un marco dorado.": "Preto profundo, pílulas de vidro e uma moldura dourada.",
+  "Carátula y etiqueta…": "Capa e etiqueta…",
+  "Carátula y etiqueta": "Capa e etiqueta",
+  "Para imprimir a tamaño real, con los colores y la letra del menú.": "Para imprimir em tamanho real, com as cores e a fonte do menu.",
+  "Carátula": "Capa",
+  "Etiqueta del disco": "Etiqueta do disco",
+  "Preparando…": "Preparando…",
+  "Subtítulo": "Subtítulo",
+  "Por ejemplo, la fecha o el lugar": "Por exemplo, a data ou o lugar",
+  "Texto de la contraportada": "Texto da contracapa",
+  "Tamaño: {width} × {height} mm (lomo de {spine} mm).": "Tamanho: {width} × {height} mm (lombada de {spine} mm).",
+  "Tamaño: {size} mm, con el centro en blanco.": "Tamanho: {size} mm, com o centro em branco.",
+  "Imprimir…": "Imprimir…",
+  "Guardar PNG…": "Salvar PNG…",
+  "carátula": "capa",
+  "etiqueta": "etiqueta",
+  "Guardado a 300 ppp: imprímelo al 100 % (tamaño real).": "Salvo a 300 ppp: imprima a 100 % (tamanho real).",
+  "{minutes} min": "{minutes} min",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

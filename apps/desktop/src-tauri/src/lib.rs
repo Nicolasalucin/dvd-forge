@@ -13,8 +13,8 @@ use tauri_specta::{collect_commands, Builder};
 
 use commands::{
     autosave_discard, autosave_list, autosave_write, bundle_export, bundle_import, burn_cancel,
-    burn_list_devices, burn_start, disc_import, disc_inspect, job_history_list, join_create,
-    media_detect_crop, media_detect_scenes, media_extract_frame, media_filter_preview,
+    burn_list_devices, burn_start, disc_import, disc_inspect, image_save_png, job_history_list,
+    join_create, media_detect_crop, media_detect_scenes, media_extract_frame, media_filter_preview,
     media_missing, media_playback_support, media_prepare_preview, media_preview_url,
     media_probe_file, menu_apply_chapter_menus, menu_apply_template, menu_navigation,
     menu_save_background, menu_save_labels, menu_templates, open_folder, open_release_page,
@@ -73,6 +73,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             open_release_page,
             menu_save_background,
             menu_save_labels,
+            image_save_png,
             recent_projects_list,
             recent_project_forget,
             job_history_list,

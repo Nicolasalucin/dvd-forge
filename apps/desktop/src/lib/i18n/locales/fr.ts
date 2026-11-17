@@ -1235,6 +1235,23 @@ export const fr: Dictionary = {
   "Lista sobria de seis títulos sobre gris claro.": "Liste sobre de six titres sur gris clair.",
   "Celeste con confeti y botones redondos amarillos.": "Bleu ciel avec confettis et boutons ronds jaunes.",
   "Negro profundo, píldoras de cristal y un marco dorado.": "Noir profond, pilules de verre et un cadre doré.",
+  "Carátula y etiqueta…": "Jaquette et étiquette…",
+  "Carátula y etiqueta": "Jaquette et étiquette",
+  "Para imprimir a tamaño real, con los colores y la letra del menú.": "À imprimer en taille réelle, avec les couleurs et la police du menu.",
+  "Carátula": "Jaquette",
+  "Etiqueta del disco": "Étiquette du disque",
+  "Preparando…": "Préparation…",
+  "Subtítulo": "Sous-titre",
+  "Por ejemplo, la fecha o el lugar": "Par exemple, la date ou le lieu",
+  "Texto de la contraportada": "Texte du dos",
+  "Tamaño: {width} × {height} mm (lomo de {spine} mm).": "Taille : {width} × {height} mm (dos de {spine} mm).",
+  "Tamaño: {size} mm, con el centro en blanco.": "Taille : {size} mm, centre laissé blanc.",
+  "Imprimir…": "Imprimer…",
+  "Guardar PNG…": "Enregistrer en PNG…",
+  "carátula": "jaquette",
+  "etiqueta": "étiquette",
+  "Guardado a 300 ppp: imprímelo al 100 % (tamaño real).": "Enregistré à 300 ppp : imprimez-le à 100 % (taille réelle).",
+  "{minutes} min": "{minutes} min",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

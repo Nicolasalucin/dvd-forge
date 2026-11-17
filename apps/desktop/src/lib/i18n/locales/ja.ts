@@ -1234,6 +1234,23 @@ export const ja: Dictionary = {
   "Lista sobria de seis títulos sobre gris claro.": "薄いグレーに6タイトルのシンプルなリスト。",
   "Celeste con confeti y botones redondos amarillos.": "水色に紙吹雪と黄色の丸いボタン。",
   "Negro profundo, píldoras de cristal y un marco dorado.": "深い黒、ガラス調のボタンと金の枠。",
+  "Carátula y etiqueta…": "ジャケットとレーベル…",
+  "Carátula y etiqueta": "ジャケットとレーベル",
+  "Para imprimir a tamaño real, con los colores y la letra del menú.": "メニューの色と書体で、実寸で印刷できます。",
+  "Carátula": "ジャケット",
+  "Etiqueta del disco": "ディスクレーベル",
+  "Preparando…": "準備中…",
+  "Subtítulo": "サブタイトル",
+  "Por ejemplo, la fecha o el lugar": "例：日付や場所",
+  "Texto de la contraportada": "裏表紙のテキスト",
+  "Tamaño: {width} × {height} mm (lomo de {spine} mm).": "サイズ：{width} × {height} mm（背 {spine} mm）。",
+  "Tamaño: {size} mm, con el centro en blanco.": "サイズ：{size} mm（中央は白）。",
+  "Imprimir…": "印刷…",
+  "Guardar PNG…": "PNGで保存…",
+  "carátula": "ジャケット",
+  "etiqueta": "レーベル",
+  "Guardado a 300 ppp: imprímelo al 100 % (tamaño real).": "300 dpiで保存しました。100％（実寸）で印刷してください。",
+  "{minutes} min": "{minutes}分",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
