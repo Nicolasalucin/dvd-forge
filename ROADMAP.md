@@ -1,6 +1,6 @@
 # DVD Forge Roadmap — v0.5.0 to v1.0.0
 
-Status: v0.7.0 released (Smart Stream Copy for AVCHD/Blu-ray; Play-All and ISO inspector next)  
+Status: v0.8.0 released (bundles, batch queue, resume, FFmpeg provisioner); Play-All, ISO inspector and native DVD ISO next  
 Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
 Scope: native authoring, determinism, player compatibility, desktop UX and LTS packaging
 
@@ -416,6 +416,11 @@ Targets: `dvdforge-verify/src/inspect.rs` (new), `report.rs`,
 ---
 
 ## 5. v0.8.0 — Crash-Safe Checkpointing, Batch Queue, Toolchain Provisioner
+
+> Estado (0.8.0): §5.4 bundles, §5.2 cola por lotes (CLI) y §5.3 provisioner
+> (FFmpeg Windows) implementados. §5.1 se resuelve a nivel de episodio con la
+> Smart Cache (reanudación visible); el panel de cola en escritorio y §5.5
+> presets de reproductor quedan pendientes.
 
 ### 5.1 Render checkpoint and resume
 

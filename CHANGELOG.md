@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.8.0 — 2026-11-17
+
+Move projects between computers, render many discs in one go, resume
+interrupted renders and install FFmpeg with one click.
+
+### Project bundles
+
+- New **📦 Bundle** button and `dvdforge-cli bundle export|import|info`: the
+  project plus every video, external audio, subtitle and font file in one
+  `.dvdforge-bundle` (deterministic tar + zstd, manifest with size and
+  SHA-256 of every file, all paths rewritten to `assets/…`).
+- **Open** accepts bundles and unpacks them into a chosen folder. Import
+  verifies every file while streaming, rejects path traversal, refuses
+  non-empty folders and removes everything if a check fails.
+- New codes `E_BUNDLE_CORRUPT`, `E_BUNDLE_SCHEMA`, `E_BUNDLE_DESTINATION`,
+  `E_BUNDLE_IO`, `W_BUNDLE_EXTERNAL_ASSET`.
+
+### Batch render queue
+
+- `dvdforge-cli batch <queue.json> [--json] [--resume] [--fail-fast]` renders
+  several projects one after another, saves progress to
+  `<queue>.state.json` after every item and resumes skipping finished
+  items. New codes `E_BATCH_QUEUE`, `E_BATCH_ITEM`, `W_BATCH_PARTIAL`.
+
+### Resume interrupted renders
+
+- Episodes finished by an earlier (interrupted or failed) render are reused
+  from the Smart Cache; the log now says which ones and how many, the CLI
+  prints these notices, and the production dialog explains that producing
+  again does not start over. Verified by killing a render in the middle of
+  an episode.
+
+### One-click FFmpeg
+
+- **Health → Install automatically** and `dvdforge-cli toolchain install
+  ffmpeg` download the pinned FFmpeg 9.0.2 essentials build (Windows x86_64),
+  check its size and SHA-256 before extracting, extract only `ffmpeg.exe` and
+  `ffprobe.exe` into the per-user folder (searched before PATH) and record
+  their provenance. Other systems get the package-manager command.
+- New codes `E_TOOLCHAIN_UNAVAILABLE`, `E_TOOLCHAIN_DOWNLOAD`,
+  `E_TOOLCHAIN_CHECKSUM`, `E_TOOLCHAIN_ARCHIVE`, `E_TOOLCHAIN_IO`.
+
+### Engineering
+
+- All new texts and codes are translated in the 6 interface languages
+  (`npm run i18n:check` clean). 302 workspace tests pass; clippy clean.
+- Known limitation: DVD-Video ISOs still need `genisoimage`/`mkisofs`
+  (xorriso) installed; Blu-ray/AVCHD use the built-in UDF writer.
+
 ## 0.7.0 — 2026-11-16
 
 Community feedback release: frame rates, menus, localization, audio, direct

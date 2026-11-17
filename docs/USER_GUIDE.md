@@ -22,7 +22,9 @@ see what is installed.
 | tsMuxeR | Blu-ray/AVCHD | No (a built-in muxer is used) |
 | xorriso / growisofs | Burning on Linux | Linux burning only |
 
-On **Windows**: `winget install Gyan.FFmpeg`. Burning uses Windows' own API
+On **Windows** the easiest way is **⚕ Health → Install automatically**: DVD
+Forge downloads FFmpeg, checks its SHA-256 and installs it for you. You can also
+run `winget install Gyan.FFmpeg`. Burning uses Windows' own API
 (IMAPI2); nothing else is needed.
 
 You can put the tools in a `toolchain\` folder next to the DVD Forge executable
@@ -152,6 +154,18 @@ warning appears.
    **ISO + burn** and the burner.
 4. Before burning, DVD Forge checks the disc structure. If it finds a blocking
    error it does not burn, so no disc is wasted.
+
+### Move or share a project
+
+Press **📦 Bundle** to save the project and every video, audio, subtitle and
+font it uses into a single `.dvdforge-bundle` file. On the other computer use
+**Open**, pick the bundle and choose an empty folder: everything is checked
+(SHA-256) and the project opens.
+
+### If production stops halfway
+
+Just press **Produce disc** again: episodes that were already encoded are
+reused, so it continues instead of starting from scratch.
 
 ## 8. Common problems
 

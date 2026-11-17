@@ -22,7 +22,9 @@ en la cabecera para ver qué está instalado.
 | tsMuxeR | Blu-ray/AVCHD | No (hay un muxer integrado) |
 | xorriso / growisofs | Grabar en Linux | Solo para grabar en Linux |
 
-En **Windows**: `winget install Gyan.FFmpeg`. La grabación usa la función de
+En **Windows** lo más fácil es **⚕ Salud → Instalar automáticamente**: DVD
+Forge descarga FFmpeg, comprueba su SHA-256 y lo instala solo. También puedes
+ejecutar `winget install Gyan.FFmpeg`. La grabación usa la función de
 Windows (IMAPI2), no hace falta nada más.
 
 Puedes poner los programas en una carpeta `toolchain\` junto al ejecutable de
@@ -154,6 +156,18 @@ puede alcanzar, aparece un aviso.
    **ISO + grabar** y la grabadora.
 4. Antes de grabar, DVD Forge comprueba la estructura del disco. Si encuentra
    un error grave, no graba, para no estropear un disco.
+
+### Llevar o compartir un proyecto
+
+Pulsa **📦 Empaquetar** para guardar el proyecto y todos sus vídeos, audios,
+subtítulos y fuentes en un solo archivo `.dvdforge-bundle`. En el otro
+ordenador usa **Abrir**, elige el paquete y una carpeta vacía: se comprueba
+todo (SHA-256) y se abre el proyecto.
+
+### Si la producción se corta a la mitad
+
+Vuelve a pulsar **Producir disco**: los episodios que ya estaban codificados
+se reutilizan, así que continúa en vez de empezar de cero.
 
 ## 8. Problemas frecuentes
 

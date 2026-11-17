@@ -232,6 +232,18 @@ Smart Render Cache v2:
 - `reconcile_episode_audio` and `harmonize_avchd_audio` run before every
   encode; never map an audio stream index the probe does not list.
 
+### 14. Bundles, batch and provisioning
+
+- `dvdforge-project::bundle` is the only bundle reader/writer: manifest
+  first, deterministic headers (mtime 0, uid/gid 0, mode 0644), streamed
+  hashing, traversal-safe import with full rollback. Never trust an entry
+  that is not in the manifest.
+- `dvdforge-cli batch` reuses `render::render`; keep concurrency 1.
+- `dvdforge-toolchain::provision::DOWNLOADS` entries must carry the exact
+  size and SHA-256 published for the asset; never extract or run anything
+  before the checksum matches. The per-user toolchain folder is searched
+  right after `DVDFORGE_TOOLCHAIN_DIR`.
+
 ### 13. Localization
 
 - Spanish is the source language; English must stay complete. Run

@@ -49,6 +49,17 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Guía](docs/screenshots/es-02-guia.png) | ![Proyecto nuevo](docs/screenshots/08-new-project.png) |
 
+## Novedades de v0.8.0
+
+- **📦 Paquetes de proyecto**: el proyecto con todos sus vídeos, audios,
+  subtítulos y fuentes en un solo `.dvdforge-bundle` verificado para llevarlo
+  a otro ordenador o compartirlo; **Abrir** lo descomprime.
+- **Instala FFmpeg con un clic** desde **⚕ Salud** (Windows), con
+  verificación SHA-256.
+- **Reanudar**: si un render se corta, al volver a producir el disco se
+  reutilizan los episodios ya codificados.
+- **Cola por lotes** en la CLI: `dvdforge-cli batch cola.json --resume`.
+
 ## Novedades de v0.7.0
 
 - **¿Primera vez?** Lee la [guía de uso](docs/GUIA-DE-USO.md) o pulsa

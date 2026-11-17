@@ -49,6 +49,17 @@ work.
 |---|---|
 | ![Guide](docs/screenshots/07-guide.png) | ![New project](docs/screenshots/08-new-project.png) |
 
+## v0.8.0 highlights
+
+- **📦 Project bundles**: put a project and all its videos, audio, subtitles
+  and fonts into one verified `.dvdforge-bundle` to move it to another
+  computer or share it; **Open** unpacks it.
+- **Install FFmpeg with one click** from **⚕ Health** (Windows), with SHA-256
+  verification.
+- **Resume**: producing a disc again after an interruption reuses every
+  episode that was already encoded.
+- **Batch queue** for the CLI: `dvdforge-cli batch queue.json --resume`.
+
 ## v0.7.0 highlights
 
 - **New to DVD Forge?** Read the [user guide](docs/USER_GUIDE.md) or press
