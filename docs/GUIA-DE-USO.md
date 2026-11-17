@@ -18,7 +18,7 @@ en la cabecera para ver qué está instalado.
 | Herramienta | ¿Para qué? | ¿Obligatoria? |
 |---|---|---|
 | FFmpeg / FFprobe | Analizar y convertir vídeo y audio | Sí |
-| DVDAuthor + Spumux | Discos DVD-Video | Solo para DVD |
+| DVDAuthor + Spumux | Discos DVD-Video | Solo para DVD (Windows: **⚕ Salud → Instalar**) |
 | tsMuxeR | Blu-ray/AVCHD | No (hay un muxer integrado) |
 | xorriso / growisofs | Grabar en Linux | Solo para grabar en Linux |
 
@@ -169,12 +169,30 @@ todo (SHA-256) y se abre el proyecto.
 Vuelve a pulsar **Producir disco**: los episodios que ya estaban codificados
 se reutilizan, así que continúa en vez de empezar de cero.
 
+### Varios discos seguidos
+
+Pulsa **📋 Cola**, añade el proyecto actual o cualquier proyecto guardado y
+pulsa **Generar todo**. Cada disco se crea junto a su proyecto. Si cierras la
+aplicación, los que quedaban en espera siguen en la cola.
+
+### ¿Para qué reproductor es?
+
+Usa el selector **Reproductor** de la cabecera (PS2, PS3/4/5, Blu-ray de
+salón, DVD antiguo): DVD Forge ajusta los límites y avisa de lo que ese
+reproductor podría no reproducir bien.
+
+### Teclado
+
+En el editor de menú: las flechas mueven el botón seleccionado (Mayús = más
+rápido), `[` y `]` cambian de botón, Supr lo borra y Esc deselecciona. Esc
+también cierra los diálogos.
+
 ## 8. Problemas frecuentes
 
 | Problema | Solución |
 |---|---|
 | «Falta FFmpeg» | Instálalo (`winget install Gyan.FFmpeg`) y reinicia DVD Forge. |
-| El DVD no se genera en Windows | Falta DVDAuthor/Spumux: ponlos en `toolchain\` junto a DVD Forge. Blu-ray/AVCHD no los necesitan. |
+| El DVD no se genera en Windows | Abre **⚕ Salud** y pulsa **Instalar** en DVDAuthor. |
 | El menú de Blu-ray no aparece | Actualiza a 0.7.0: con FFmpeg 9 el menú se descartaba al generarse sin tsMuxeR. |
 | El fondo se ve aplastado | Actualiza a 0.7.0: los menús HD usan ahora un lienzo de 1920×1080. Al abrir un proyecto antiguo se adapta solo. |
 | Aviso de audio | Lee el aviso en el registro de producción: DVD Forge indica qué pista ajustó. |

@@ -49,6 +49,20 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Guía](docs/screenshots/es-02-guia.png) | ![Proyecto nuevo](docs/screenshots/08-new-project.png) |
 
+## Novedades de v0.9.0
+
+- **DVD-Video en Windows sin herramientas extra**: un generador UDF/ISO 9660
+  propio reemplaza a genisoimage/mkisofs, y **⚕ Salud → Instalar** trae
+  DVDAuthor/Spumux (verificados) con un clic.
+- **📋 Cola de discos** en la aplicación y **presets por reproductor** (PS2,
+  PS3/4/5, Blu-ray y DVD antiguos).
+- **Arranca 3 veces más liviana**, editor de menú manejable con teclado y
+  tests de robustez en la CI.
+
+| Cola de discos | Herramientas con un clic |
+|---|---|
+| ![Cola](docs/screenshots/10-disc-queue.png) | ![Salud](docs/screenshots/11-health-install.png) |
+
 ## Novedades de v0.8.0
 
 - **📦 Paquetes de proyecto**: el proyecto con todos sus vídeos, audios,

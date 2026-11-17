@@ -18,7 +18,7 @@ see what is installed.
 | Tool | What for | Required? |
 |---|---|---|
 | FFmpeg / FFprobe | Analyse and convert video and audio | Yes |
-| DVDAuthor + Spumux | DVD-Video discs | DVD only |
+| DVDAuthor + Spumux | DVD-Video discs | DVD only (Windows: **⚕ Health → Install**) |
 | tsMuxeR | Blu-ray/AVCHD | No (a built-in muxer is used) |
 | xorriso / growisofs | Burning on Linux | Linux burning only |
 
@@ -167,12 +167,29 @@ font it uses into a single `.dvdforge-bundle` file. On the other computer use
 Just press **Produce disc** again: episodes that were already encoded are
 reused, so it continues instead of starting from scratch.
 
+### Several discs in a row
+
+Press **📋 Queue**, add the current project or any saved projects and press
+**Produce all**. Each disc is created next to its project file. If the app is
+closed, the waiting projects stay in the queue.
+
+### Which player is it for?
+
+Use the **Player** selector in the header (PS2, PS3/4/5, Blu-ray player,
+older DVD player): DVD Forge adjusts the limits and warns about anything that
+player may not play smoothly.
+
+### Keyboard
+
+In the menu editor: arrows move the selected button (Shift = faster), `[` and
+`]` switch button, Delete removes it, Esc deselects. Esc also closes dialogs.
+
 ## 8. Common problems
 
 | Problem | Solution |
 |---|---|
 | “FFmpeg missing” | Install it (`winget install Gyan.FFmpeg`) and restart DVD Forge. |
-| DVD is not produced on Windows | DVDAuthor/Spumux are missing: put them in `toolchain\` next to DVD Forge. Blu-ray/AVCHD do not need them. |
+| DVD is not produced on Windows | Open **⚕ Health** and press **Install** for DVDAuthor. |
 | Blu-ray menu does not appear | Update to 0.7.0: with FFmpeg 9 the menu was dropped when tsMuxeR was absent. |
 | Background looks squeezed | Update to 0.7.0: HD menus now use a 1920×1080 canvas. Older projects are adapted when opened. |
 | Audio warning | Read the warning in the production log: DVD Forge says which track it adjusted. |

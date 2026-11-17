@@ -1,6 +1,6 @@
 # DVD Forge Roadmap — v0.5.0 to v1.0.0
 
-Status: v0.8.0 released (bundles, batch queue, resume, FFmpeg provisioner); Play-All, ISO inspector and native DVD ISO next  
+Status: v0.9.0 released (native DVD ISO, one-click DVDAuthor, desktop queue, presets, code splitting, accessibility, robustness tests); v1.0.0 next  
 Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
 Scope: native authoring, determinism, player compatibility, desktop UX and LTS packaging
 
@@ -502,6 +502,11 @@ Targets: `crates/dvdforge-domain/src/presets.rs` (new),
 ---
 
 ## 6. v0.9.0 — Frontend Splitting, Full Localization, Fuzzing, RC Hardening
+
+> Estado (0.9.0): §6.1 code splitting (1072→376 kB) y accesibilidad de teclado;
+> §6.2 seis idiomas completos con control en CI; §6.3 tests de robustez con
+> semillas (cargo-fuzz nightly queda para 1.0). Además: ISO DVD nativa, DVDAuthor
+> Windows con un clic, cola de escritorio y presets (§5.5).
 
 ### 6.1 Frontend code-splitting and accessibility
 

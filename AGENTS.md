@@ -244,6 +244,19 @@ Smart Render Cache v2:
   before the checksum matches. The per-user toolchain folder is searched
   right after `DVDFORGE_TOOLCHAIN_DIR`.
 
+### 15. Native DVD ISO, tool builds and accessibility
+
+- `dvdforge-iso::dvd_native` writes the DVD-Video image; keep the
+  canonical contiguous file order (IFO sector offsets depend on it) and
+  validate with `dvdforge-verify` plus the dual-reader test. Never put
+  anything but DVD-Video files in VIDEO_TS.
+- `.github/workflows/build-dvdauthor.yml` builds the Windows DVDAuthor
+  from the checksummed 0.7.2 tarball; changing it changes the zip SHA-256,
+  so update `provision::DOWNLOADS` together with a new pre-release.
+- Header dialogs must not live under an element with `backdrop-filter`
+  (it becomes their containing block). Secondary screens and non-es/en
+  locales are lazy; keep start-up JavaScript under 500 kB.
+
 ### 13. Localization
 
 - Spanish is the source language; English must stay complete. Run

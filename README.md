@@ -49,6 +49,20 @@ work.
 |---|---|
 | ![Guide](docs/screenshots/07-guide.png) | ![New project](docs/screenshots/08-new-project.png) |
 
+## v0.9.0 highlights
+
+- **DVD-Video on Windows with no extra tools**: a built-in UDF/ISO 9660
+  writer replaces genisoimage/mkisofs, and **⚕ Health → Install** gets
+  DVDAuthor/Spumux (checksum verified) with one click.
+- **📋 Disc queue** in the app and **player presets** (PS2, PS3/4/5,
+  Blu-ray and older DVD players).
+- **Starts 3× lighter**, keyboard-friendly menu editor, and fuzz-style
+  robustness tests in CI.
+
+| Disc queue | One-click tools |
+|---|---|
+| ![Queue](docs/screenshots/10-disc-queue.png) | ![Health](docs/screenshots/11-health-install.png) |
+
 ## v0.8.0 highlights
 
 - **📦 Project bundles**: put a project and all its videos, audio, subtitles

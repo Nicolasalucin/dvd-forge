@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.9.0 — 2026-11-17
+
+DVD-Video now works on Windows with one-click tools, a disc queue in the
+app, player presets, a much faster start-up, keyboard accessibility and
+robustness tests.
+
+### DVD-Video without external ISO tools
+
+- New native **UDF 1.02 + ISO 9660 bridge** writer for DVD-Video
+  (`dvdforge-iso::write_dvd_video_iso`): canonical contiguous layout the
+  IFO sector offsets rely on, streamed payload, cancellable, deterministic
+  with `SOURCE_DATE_EPOCH`. `genisoimage`/`mkisofs`/xorriso are no longer
+  needed (`DVDFORGE_DVD_ISO_BUILDER=external` keeps the old path).
+  Verified with `dvdforge-verify --deep`, Windows mounting (byte-identical
+  VOBs) and libmkiso's independent UDF and ISO 9660 readers.
+- **DVDAuthor/Spumux for Windows with one click**: built from the official
+  0.7.2 sources by a new CI workflow and published as the
+  `tools-dvdauthor-0.7.2` pre-release; **Health → Install** downloads it,
+  checks size and SHA-256 and installs it with its DLLs. A full DVD-Video
+  renders on Windows with only one-click-installed tools.
+
+### Disc queue in the app
+
+- **📋 Queue**: add the current or any saved projects, reorder, retry and
+  **Produce all**; each project is rendered next to its file. The queue
+  survives restarts and can be stopped.
+
+### Player presets
+
+- **Player** selector: PlayStation 2, PlayStation 3/4/5, living-room
+  Blu-ray player, older DVD player. Tightens bitrate/level limits and adds
+  `W_PLAYER_PRESET_STRICT` / `E_PLAYER_PRESET_CONFLICT` notes to the plan.
+
+### Faster start-up and accessibility
+
+- Languages other than Spanish/English and every secondary screen (menu
+  canvas, editing, tracks, simulator, VM map, motion, VBR, production) load
+  on demand: start-up JavaScript **1072 kB → 376 kB**.
+- Visible keyboard focus, `prefers-reduced-motion`, Escape closes dialogs,
+  and the menu canvas can be edited with the keyboard (arrows, Shift,
+  `[ ]`, Delete, Esc).
+- Fix: dialogs opened from the header (Health, Queue, History) were clipped
+  and drawn under the canvas.
+
+### Robustness
+
+- Seeded fuzz-style tests in the normal test suite: corrupted DVD images
+  for the verifier, HDMV PMT/MovieObject/command parsers, malformed
+  SRT/ASS/VTT and corrupted bundles. They found and fixed a verifier crash
+  on truncated images.
+- CI now fails if any of the 6 languages or any diagnostic code is missing
+  a translation (`npm run i18n:check`).
+
 ## 0.8.0 — 2026-11-17
 
 Move projects between computers, render many discs in one go, resume
