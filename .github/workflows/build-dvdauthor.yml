@@ -150,10 +150,8 @@ jobs:
           cd dist
           a=$(./dvdauthor.exe -h 2>&1 || true)
           b=$(./spumux.exe -h 2>&1 || true)
-          printf '%s
----
-%s
-' "$a" "$b" | head -12
+          echo "$a" | head -4
+          echo "$b" | head -4
           case "$a" in *"version $DVDAUTHOR_TAG"*) ;; *) echo "dvdauthor did not run"; exit 1 ;; esac
           case "$b" in *"version $DVDAUTHOR_TAG"*) ;; *) echo "spumux did not run"; exit 1 ;; esac
 
