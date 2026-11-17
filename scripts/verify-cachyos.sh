@@ -15,7 +15,7 @@ check_binary() {
     fi
 }
 
-echo "== DVD Forge: verificación de CachyOS =="
+echo "== Kinodisc: verificación de CachyOS =="
 echo "Directorio: $ROOT"
 echo
 
@@ -80,8 +80,8 @@ if [[ "$failures" -ne 0 ]]; then
     exit 1
 fi
 
-echo "== Ejecutando dvdforge-cli doctor --json =="
-cargo run --quiet -p dvdforge-cli -- doctor --json
+echo "== Ejecutando kinodisc-cli doctor --json =="
+cargo run --quiet -p kinodisc-cli -- doctor --json
 
 echo
 echo "Toolchain verificado."

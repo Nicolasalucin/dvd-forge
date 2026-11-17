@@ -1,4 +1,4 @@
-# DVD Forge Desktop
+# Kinodisc Desktop
 
 Aplicación Tauri v2 con Svelte 5, TypeScript, Vite y Tailwind CSS 4.
 
@@ -25,7 +25,7 @@ y tipos registrados en `src-tauri/src/lib.rs`. No editar a mano.
 El binario `export-bindings` permite regenerarlo sin abrir la ventana:
 
 ```bash
-cargo run -q -p dvdforge-desktop --bin export-bindings
+cargo run -q -p kinodisc-desktop --bin export-bindings
 ```
 
 ## Comandos IPC
@@ -47,7 +47,7 @@ nativo de cada sistema: growisofs/xorriso en Linux, `drutil`/`hdiutil` en macOS
 e IMAPI2 en Windows.
 
 La pantalla **Render Queue** usa un `Channel<JobEvent>` y el pipeline compartido
-`dvdforge-render`; antes de renderizar rasteriza el menú activo con
+`kinodisc-render`; antes de renderizar rasteriza el menú activo con
 `exportMenu`, lo guarda con `menu_save_background` y el backend usa esa
 composición (textos y miniaturas incluidos) como fondo del menú. Al terminar
 habilita “Abrir carpeta” y propaga el ISO a la pantalla **Burn**, que usa un

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/screenshots/01-menu-studio.png" alt="DVD Forge Studio" width="100%" />
+  <img src="docs/screenshots/01-menu-studio.png" alt="Kinodisc Studio" width="100%" />
 </p>
 
-<h1 align="center">DVD Forge</h1>
+<h1 align="center">Kinodisc</h1>
 
 <p align="center">
   Estudio de autoría óptica para DVD-Video, AVCHD y Blu-ray, con menús interactivos,
@@ -25,7 +25,7 @@
 
 ## Un solo taller para todo el disco
 
-DVD Forge reúne en una única ventana la biblioteca de medios, el editor visual de
+Kinodisc reúne en una única ventana la biblioteca de medios, el editor visual de
 menús, el recortador, los capítulos, las pistas de audio y subtítulos, la
 simulación del mando a distancia, el mapa de navegación y la producción final.
 El mismo proyecto puede entregarse como DVD-Video clásico o como AVCHD/Blu-ray
@@ -66,13 +66,13 @@ de alta definición, sin duplicar el trabajo creativo.
 ## Novedades de v0.8.0
 
 - **📦 Paquetes de proyecto**: el proyecto con todos sus vídeos, audios,
-  subtítulos y fuentes en un solo `.dvdforge-bundle` verificado para llevarlo
+  subtítulos y fuentes en un solo `.kinodisc-bundle` verificado para llevarlo
   a otro ordenador o compartirlo; **Abrir** lo descomprime.
 - **Instala FFmpeg con un clic** desde **⚕ Salud** (Windows), con
   verificación SHA-256.
 - **Reanudar**: si un render se corta, al volver a producir el disco se
   reutilizan los episodios ya codificados.
-- **Cola por lotes** en la CLI: `dvdforge-cli batch cola.json --resume`.
+- **Cola por lotes** en la CLI: `kinodisc-cli batch cola.json --resume`.
 
 ## Novedades de v0.7.0
 
@@ -116,7 +116,7 @@ de alta definición, sin duplicar el trabajo creativo.
   5.1, ganancia/retardo por pista, paso directo DTS/LPCM/AC-3 y AVCHD multi-audio.
 - **Verificador**: display sets/PTS PGS, streams de audio BDMV y paquetes/paleta
   SPU de DVD.
-- Nueva crate `dvdforge-subtitle` con estilos por pista persistidos, rasterizado
+- Nueva crate `kinodisc-subtitle` con estilos por pista persistidos, rasterizado
   1080p acotado y pruebas de parser, PGS y Spumux.
 
 ## Correcciones de v0.4.1
@@ -145,7 +145,7 @@ de alta definición, sin duplicar el trabajo creativo.
 
 ### Toolchain portable y sin dependencia de 32 bits
 
-- Se buscan `DVDFORGE_TOOLCHAIN_DIR` y carpetas junto al ejecutable
+- Se buscan `KINODISC_TOOLCHAIN_DIR` y carpetas junto al ejecutable
   (`toolchain/`, `toolchain/<plataforma>-<arch>/`, `bin/`) antes de los
   recursos empaquetados y del PATH.
 - tsMuxeR pasa a ser opcional: un muxer nativo Rust + FFmpeg construye el M2TS
@@ -241,7 +241,7 @@ de alta definición, sin duplicar el trabajo creativo.
 - Siete idiomas de interfaz: **español, inglés, portugués, francés, alemán,
   italiano y japonés**.
 - Detección automática en el primer arranque desde `navigator.language`,
-  persistencia en `localStorage` (`dvdforge_locale`) y cambio en vivo desde la
+  persistencia en `localStorage` (`kinodisc_locale`) y cambio en vivo desde la
   cabecera.
 - Catálogo oficial de idiomas ISO 639 para pistas de audio y subtítulos: códigos
   ISO 639-1 de 2 letras para DVD-Video e ISO 639-2/T de 3 letras para
@@ -336,7 +336,7 @@ sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
 
 `tsMuxeR` es opcional en hosts de 64 bits: AVCHD/Blu-ray puede autorarse con la
 ruta nativa de FFmpeg. Coloca las herramientas en `toolchain/` junto al binario,
-define `DVDFORGE_TOOLCHAIN_DIR` o usa el `PATH`. `libbluray`/`bd_info` son
+define `KINODISC_TOOLCHAIN_DIR` o usa el `PATH`. `libbluray`/`bd_info` son
 opcionales.
 
 ### Windows
@@ -365,11 +365,11 @@ La grabación usa `camcontrol`, `growisofs` y `xorriso`; tsMuxeR es opcional.
 Descarga el instalador correspondiente desde la página de releases:
 
 - Linux x86_64: `.AppImage`, `.deb` y CLI tar.gz.
-- Linux i686: `dvdforge-cli-i686-unknown-linux.tar.gz`.
+- Linux i686: `kinodisc-cli-i686-unknown-linux.tar.gz`.
 - Windows x86_64/i686: `.msi`, instalador NSIS y CLI portátil.
-- Windows i686 CLI: `dvdforge-cli-i686-pc-windows-msvc.zip`.
+- Windows i686 CLI: `kinodisc-cli-i686-pc-windows-msvc.zip`.
 - macOS Apple Silicon/Intel: `.dmg` y CLI tar.gz.
-- CLI universal: `dvdforge-cli` para automatizar planes, renders y grabación.
+- CLI universal: `kinodisc-cli` para automatizar planes, renders y grabación.
 
 ### Compilar desde el código
 
@@ -383,14 +383,14 @@ npm run tauri build
 
 # CLI
 cd ../..
-cargo build --release -p dvdforge-cli
+cargo build --release -p kinodisc-cli
 ```
 
 Para compilar la CLI de 32 bits:
 
 ```bash
 rustup target add i686-unknown-linux-gnu
-cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
+cargo build --release -p kinodisc-cli --target i686-unknown-linux-gnu
 ```
 
 ## Uso rápido
@@ -408,23 +408,23 @@ cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
 
 ```bash
 # Comprobar herramientas del sistema
-dvdforge-cli doctor
+kinodisc-cli doctor
 
 # Inspeccionar un archivo
-dvdforge-cli probe pelicula.mkv --json
+kinodisc-cli probe pelicula.mkv --json
 
 # Calcular el presupuesto de un proyecto
-dvdforge-cli plan proyecto.json -o plan.json --probe
+kinodisc-cli plan proyecto.json -o plan.json --probe
 
 # Generar el ISO con el mismo pipeline que la aplicación
-dvdforge-cli render proyecto.json -o salida
+kinodisc-cli render proyecto.json -o salida
 
 # Verificación estructural (UDF/BDMV/DVD) antes de grabar
-dvdforge-cli verify salida/disc.iso --deep --strict
+kinodisc-cli verify salida/disc.iso --deep --strict
 
 # Listar unidades y grabar
-dvdforge-cli devices
-dvdforge-cli burn salida/disc.iso --device /dev/sr0 --speed 4
+kinodisc-cli devices
+kinodisc-cli burn salida/disc.iso --device /dev/sr0 --speed 4
 ```
 
 La CLI comparte el renderizador, los menús HDMV, los subtítulos de DVD, las
@@ -460,5 +460,5 @@ Gracias a estas personas de la comunidad por encontrar errores y proponer mejora
 
 ## Licencia
 
-DVD Forge se distribuye bajo **GNU General Public License v3.0 or later**
+Kinodisc se distribuye bajo **GNU General Public License v3.0 or later**
 (`GPL-3.0-or-later`). Consulta [LICENSE](LICENSE) para el texto completo.

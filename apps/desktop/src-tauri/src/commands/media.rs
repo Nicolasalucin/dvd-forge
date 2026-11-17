@@ -1,6 +1,6 @@
 use base64::Engine;
-use dvdforge_domain::MediaProbe;
-use dvdforge_toolchain::MEDIA_PROTOCOL_WHITELIST;
+use kinodisc_domain::MediaProbe;
+use kinodisc_toolchain::MEDIA_PROTOCOL_WHITELIST;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
@@ -74,24 +74,24 @@ fn cache_root() -> PathBuf {
 fn default_cache_root() -> PathBuf {
     #[cfg(target_os = "linux")]
     if let Some(cache) = std::env::var_os("XDG_CACHE_HOME") {
-        return PathBuf::from(cache).join("dvdforge");
+        return PathBuf::from(cache).join("kinodisc");
     }
     #[cfg(target_os = "linux")]
     if let Some(home) = std::env::var_os("HOME") {
-        return PathBuf::from(home).join(".cache/dvdforge");
+        return PathBuf::from(home).join(".cache/kinodisc");
     }
     #[cfg(target_os = "windows")]
     if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-        return PathBuf::from(local).join("dvdforge").join("cache");
+        return PathBuf::from(local).join("kinodisc").join("cache");
     }
     #[cfg(target_os = "macos")]
     if let Some(home) = std::env::var_os("HOME") {
         return PathBuf::from(home)
             .join("Library")
             .join("Caches")
-            .join("dvdforge");
+            .join("kinodisc");
     }
-    std::env::temp_dir().join(format!("dvdforge-cache-{}", std::process::id()))
+    std::env::temp_dir().join(format!("kinodisc-cache-{}", std::process::id()))
 }
 
 pub(crate) fn cache_dir(name: &str) -> PathBuf {
@@ -136,7 +136,7 @@ fn media_server() -> Result<&'static MediaServer, String> {
     let registry = Arc::clone(&files);
     let active = Arc::new(AtomicUsize::new(0));
     std::thread::Builder::new()
-        .name("dvdforge-media-server".to_string())
+        .name("kinodisc-media-server".to_string())
         .spawn(move || {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else {
@@ -155,7 +155,7 @@ fn media_server() -> Result<&'static MediaServer, String> {
                 let registry = Arc::clone(&registry);
                 let worker_active = Arc::clone(&active);
                 let spawn = std::thread::Builder::new()
-                    .name("dvdforge-media-http".to_string())
+                    .name("kinodisc-media-http".to_string())
                     .spawn(move || {
                         let _guard = ConnectionGuard {
                             active: worker_active,
@@ -444,7 +444,7 @@ fn mime_for_path(path: &Path) -> &'static str {
 #[tauri::command]
 #[specta::specta]
 pub async fn media_probe_file(path: String) -> Result<MediaProbe, String> {
-    dvdforge_media::probe(path)
+    kinodisc_media::probe(path)
         .await
         .map_err(|error| error.to_string())
 }
@@ -496,13 +496,13 @@ async fn probe_gst_element(element: &str) -> Result<bool, String> {
 }
 
 fn gst_inspect_binary() -> PathBuf {
-    if let Some(custom) = std::env::var_os("DVD_FORGE_GST_INSPECT") {
+    if let Some(custom) = kinodisc_toolchain::legacy::env_var_os("KINODISC_GST_INSPECT") {
         return PathBuf::from(custom);
     }
-    dvdforge_toolchain::find_binary_in_dirs(
+    kinodisc_toolchain::find_binary_in_dirs(
         &["gst-inspect-1.0"],
         std::env::consts::OS,
-        &dvdforge_toolchain::default_search_directories(),
+        &kinodisc_toolchain::default_search_directories(),
     )
     .unwrap_or_else(|| PathBuf::from("gst-inspect-1.0"))
 }
@@ -540,7 +540,7 @@ fn playback_support_from_missing(platform: &str, missing: Vec<String>) -> Playba
 }
 
 /// Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
-/// escribe en el directorio temporal de DVD Forge y se devuelve su ruta.
+/// escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
 #[tauri::command]
 #[specta::specta]
 pub async fn media_extract_frame(
@@ -582,7 +582,7 @@ pub async fn media_extract_frame(
     let args = build_frame_args(&input, &target, &seconds);
     let output_result = match tokio::time::timeout(
         FRAME_TIMEOUT,
-        Command::from(dvdforge_toolchain::background_command(ffmpeg_binary()))
+        Command::from(kinodisc_toolchain::background_command(ffmpeg_binary()))
             .args(&args)
             .stdin(Stdio::null())
             .kill_on_drop(true)
@@ -677,8 +677,7 @@ fn frame_output_path(
         .map_err(|error| format!("No se pudo resolver la caché de fotogramas: {error}"))?;
     if !parent.starts_with(&cache) {
         return Err(
-            "Las capturas solo pueden guardarse en la caché de fotogramas de DVD Forge."
-                .to_string(),
+            "Las capturas solo pueden guardarse en la caché de fotogramas de Kinodisc.".to_string(),
         );
     }
     let output = parent.join(file_name);
@@ -713,7 +712,7 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
     if std::fs::metadata(&cached_proxy).is_ok_and(|meta| meta.is_file() && meta.len() > 0) {
         return Ok(cached_proxy.display().to_string());
     }
-    let probe = dvdforge_media::probe(&input)
+    let probe = kinodisc_media::probe(&input)
         .await
         .map_err(|error| format!("No se pudo analizar el vídeo: {error}"))?;
     let codec = probe
@@ -753,7 +752,7 @@ pub async fn media_prepare_preview(video_path: String) -> Result<String, String>
     let args = build_preview_args(&input, &partial, &codec);
     let result = tokio::time::timeout(
         PREVIEW_TIMEOUT,
-        Command::from(dvdforge_toolchain::background_command(ffmpeg_binary()))
+        Command::from(kinodisc_toolchain::background_command(ffmpeg_binary()))
             .args(&args)
             .stdin(Stdio::null())
             .kill_on_drop(true)
@@ -1001,14 +1000,14 @@ fn resolve_media_path(path: &str) -> Result<PathBuf, String> {
 }
 
 fn ffmpeg_binary() -> PathBuf {
-    dvdforge_toolchain::resolve_binary("ffmpeg")
+    kinodisc_toolchain::resolve_binary("ffmpeg")
 }
 
 fn path_fingerprint(path: &Path) -> String {
     use sha2::{Digest, Sha256};
 
     let mut hasher = Sha256::new();
-    hasher.update(b"dvdforge-preview-v3");
+    hasher.update(b"kinodisc-preview-v3");
     hasher.update(path.to_string_lossy().as_bytes());
     if let Ok(metadata) = std::fs::metadata(path) {
         hasher.update(metadata.len().to_le_bytes());
@@ -1069,7 +1068,7 @@ mod tests {
     fn private_cache_directories_reject_symlinks() {
         use std::os::unix::fs::symlink;
         let root = std::env::temp_dir().join(format!(
-            "dvdforge-cache-test-{}-{}",
+            "kinodisc-cache-test-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1204,7 +1203,7 @@ mod proxy_tests {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
         let source = root.join("fixtures/projects/assets/episode-01.mp4");
         let dir = std::env::temp_dir().join(format!(
-            "dvdforge-proxy-test-{}-{}",
+            "kinodisc-proxy-test-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -1251,7 +1250,7 @@ mod proxy_transcode_tests {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
         let source = root.join("fixtures/projects/assets/episode-01.mp4");
         let dir = std::env::temp_dir().join(format!(
-            "dvdforge-proxy-avi-test-{}-{}",
+            "kinodisc-proxy-avi-test-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(UNIX_EPOCH)

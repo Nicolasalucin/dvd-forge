@@ -87,10 +87,10 @@ jobs:
           sudo apt-get install -y gcc-multilib libc6-dev-i386
 
       - name: Linux i686 CLI and authoring stack
-        run: cargo check --workspace --exclude dvdforge-desktop --target i686-unknown-linux-gnu
+        run: cargo check --workspace --exclude kinodisc-desktop --target i686-unknown-linux-gnu
 
       - name: Linux i686 core tests
-        run: cargo test -p dvdforge-plan -p dvdforge-verify -p dvdforge-hdmv --target i686-unknown-linux-gnu
+        run: cargo test -p kinodisc-plan -p kinodisc-verify -p kinodisc-hdmv --target i686-unknown-linux-gnu
 
       - name: Vendor libmkiso i686 tests
         working-directory: vendor/libmkiso
@@ -99,10 +99,10 @@ jobs:
           cargo test --target i686-unknown-linux-gnu --locked
 
       - name: Windows i686 IMAPI2 backend
-        run: cargo check -p dvdforge-burn --target i686-pc-windows-msvc
+        run: cargo check -p kinodisc-burn --target i686-pc-windows-msvc
 
       - name: FreeBSD pure crates cross-check
-        run: cargo check -p dvdforge-burn -p dvdforge-toolchain -p dvdforge-hdmv -p dvdforge-verify --target x86_64-unknown-freebsd
+        run: cargo check -p kinodisc-burn -p kinodisc-toolchain -p kinodisc-hdmv -p kinodisc-verify --target x86_64-unknown-freebsd
 
       - name: Large-address-aware linker flag
         run: grep -q LARGEADDRESSAWARE .cargo/config.toml
@@ -119,5 +119,5 @@ jobs:
           prepare: |
             pkg install -y rust
           run: |
-            cargo check --workspace --exclude dvdforge-desktop
-            cargo test -p dvdforge-burn -p dvdforge-toolchain
+            cargo check --workspace --exclude kinodisc-desktop
+            cargo test -p kinodisc-burn -p kinodisc-toolchain

@@ -1,8 +1,8 @@
-use dvdforge_burn::{
+use kinodisc_burn::{
     platform_burner, BurnProgress, BurnReport, BurnRequest, CancellationToken, DeviceId,
     OpticalDevice,
 };
-use dvdforge_domain::JobId;
+use kinodisc_domain::JobId;
 use std::sync::{Mutex, OnceLock};
 use tauri::ipc::Channel;
 use tokio::sync::mpsc;
@@ -101,17 +101,17 @@ pub async fn burn_start(
     }
     let verification_path = iso.clone();
     let verification =
-        tokio::task::spawn_blocking(move || dvdforge_verify::verify_iso(&verification_path, false))
+        tokio::task::spawn_blocking(move || kinodisc_verify::verify_iso(&verification_path, false))
             .await
             .map_err(|error| {
                 format!("La verificación estructural terminó inesperadamente: {error}")
             })?
             .map_err(|error| format!("No se pudo verificar la ISO antes de grabar: {error}"))?;
-    if verification.verdict == dvdforge_verify::report::VerifyVerdict::Fail {
+    if verification.verdict == kinodisc_verify::report::VerifyVerdict::Fail {
         let failures: Vec<String> = verification
             .checks
             .iter()
-            .filter(|check| matches!(check.status, dvdforge_verify::report::CheckStatus::Fail))
+            .filter(|check| matches!(check.status, kinodisc_verify::report::CheckStatus::Fail))
             .map(|check| format!("{}: {}", check.id, check.message))
             .collect();
         return Err(format!(
@@ -144,7 +144,7 @@ pub async fn burn_start(
     let label = iso
         .file_stem()
         .and_then(|value| value.to_str())
-        .unwrap_or("DVD_FORGE")
+        .unwrap_or("KINODISC")
         .to_string();
     let request = BurnRequest {
         iso_path: iso,

@@ -753,274 +753,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
-name = "dvdforge-avchd"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "dvdforge-hdmv",
- "dvdforge-iso",
- "dvdforge-toolchain",
- "dvdforge-verify",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-burn"
-version = "0.9.0"
-dependencies = [
- "async-trait",
- "dvdforge-toolchain",
- "hex",
- "libc",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "windows",
- "windows-core",
-]
-
-[[package]]
-name = "dvdforge-cli"
-version = "0.9.0"
-dependencies = [
- "dvdforge-burn",
- "dvdforge-domain",
- "dvdforge-jobs",
- "dvdforge-media",
- "dvdforge-plan",
- "dvdforge-project",
- "dvdforge-render",
- "dvdforge-toolchain",
- "dvdforge-verify",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-desktop"
-version = "0.9.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "dvdforge-burn",
- "dvdforge-domain",
- "dvdforge-jobs",
- "dvdforge-media",
- "dvdforge-menu",
- "dvdforge-plan",
- "dvdforge-project",
- "dvdforge-render",
- "dvdforge-store",
- "dvdforge-toolchain",
- "dvdforge-verify",
- "fontdb",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "specta-typescript",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-specta",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "dvdforge-domain"
-version = "0.9.0"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "uuid",
-]
-
-[[package]]
-name = "dvdforge-dvd"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "dvdforge-project",
- "dvdforge-toolchain",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-hdmv"
-version = "0.9.0"
-dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dvdforge-iso"
-version = "0.9.0"
-dependencies = [
- "anyhow",
- "dvdforge-toolchain",
- "libmkiso",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-jobs"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "serde",
- "specta",
-]
-
-[[package]]
-name = "dvdforge-media"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "dvdforge-toolchain",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-menu"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "dvdforge-project",
- "dvdforge-toolchain",
- "image",
- "serde",
- "specta",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-plan"
-version = "0.9.0"
-dependencies = [
- "dvdforge-avchd",
- "dvdforge-domain",
- "dvdforge-project",
- "serde_json",
- "specta",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dvdforge-project"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "tar",
- "thiserror 2.0.21",
- "zstd",
-]
-
-[[package]]
-name = "dvdforge-render"
-version = "0.9.0"
-dependencies = [
- "dvdforge-avchd",
- "dvdforge-domain",
- "dvdforge-dvd",
- "dvdforge-hdmv",
- "dvdforge-iso",
- "dvdforge-jobs",
- "dvdforge-media",
- "dvdforge-menu",
- "dvdforge-plan",
- "dvdforge-project",
- "dvdforge-store",
- "dvdforge-subtitle",
- "dvdforge-toolchain",
- "dvdforge-verify",
- "hex",
- "image",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "dvdforge-store"
-version = "0.9.0"
-dependencies = [
- "chrono",
- "hex",
- "rusqlite",
- "serde",
- "sha2",
- "specta",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dvdforge-subtitle"
-version = "0.9.0"
-dependencies = [
- "ab_glyph",
- "dvdforge-hdmv",
- "fontdb",
- "image",
- "thiserror 2.0.21",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "dvdforge-testkit"
-version = "0.9.0"
-
-[[package]]
-name = "dvdforge-toolchain"
-version = "0.9.0"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "specta",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dvdforge-verify"
-version = "0.9.0"
-dependencies = [
- "dvdforge-domain",
- "dvdforge-iso",
- "hex",
- "libmkiso",
- "serde",
- "sha2",
- "specta",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2072,6 +1804,275 @@ checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
 dependencies = [
  "bitflags 2.13.2",
  "serde",
+]
+
+[[package]]
+name = "kinodisc-avchd"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-domain",
+ "kinodisc-hdmv",
+ "kinodisc-iso",
+ "kinodisc-toolchain",
+ "kinodisc-verify",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-burn"
+version = "0.9.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "kinodisc-toolchain",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
+name = "kinodisc-cli"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-burn",
+ "kinodisc-domain",
+ "kinodisc-jobs",
+ "kinodisc-media",
+ "kinodisc-plan",
+ "kinodisc-project",
+ "kinodisc-render",
+ "kinodisc-toolchain",
+ "kinodisc-verify",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-desktop"
+version = "0.9.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "fontdb",
+ "kinodisc-burn",
+ "kinodisc-domain",
+ "kinodisc-jobs",
+ "kinodisc-media",
+ "kinodisc-menu",
+ "kinodisc-plan",
+ "kinodisc-project",
+ "kinodisc-render",
+ "kinodisc-store",
+ "kinodisc-toolchain",
+ "kinodisc-verify",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "specta-typescript",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-specta",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "kinodisc-domain"
+version = "0.9.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "uuid",
+]
+
+[[package]]
+name = "kinodisc-dvd"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-domain",
+ "kinodisc-project",
+ "kinodisc-toolchain",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-hdmv"
+version = "0.9.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kinodisc-iso"
+version = "0.9.0"
+dependencies = [
+ "anyhow",
+ "kinodisc-toolchain",
+ "libmkiso",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-jobs"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-domain",
+ "serde",
+ "specta",
+]
+
+[[package]]
+name = "kinodisc-media"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-domain",
+ "kinodisc-toolchain",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-menu"
+version = "0.9.0"
+dependencies = [
+ "image",
+ "kinodisc-domain",
+ "kinodisc-project",
+ "kinodisc-toolchain",
+ "serde",
+ "specta",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-plan"
+version = "0.9.0"
+dependencies = [
+ "kinodisc-avchd",
+ "kinodisc-domain",
+ "kinodisc-project",
+ "serde_json",
+ "specta",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kinodisc-project"
+version = "0.9.0"
+dependencies = [
+ "hex",
+ "kinodisc-domain",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "tar",
+ "thiserror 2.0.21",
+ "zstd",
+]
+
+[[package]]
+name = "kinodisc-render"
+version = "0.9.0"
+dependencies = [
+ "hex",
+ "image",
+ "kinodisc-avchd",
+ "kinodisc-domain",
+ "kinodisc-dvd",
+ "kinodisc-hdmv",
+ "kinodisc-iso",
+ "kinodisc-jobs",
+ "kinodisc-media",
+ "kinodisc-menu",
+ "kinodisc-plan",
+ "kinodisc-project",
+ "kinodisc-store",
+ "kinodisc-subtitle",
+ "kinodisc-toolchain",
+ "kinodisc-verify",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "kinodisc-store"
+version = "0.9.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "kinodisc-toolchain",
+ "rusqlite",
+ "serde",
+ "sha2",
+ "specta",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kinodisc-subtitle"
+version = "0.9.0"
+dependencies = [
+ "ab_glyph",
+ "fontdb",
+ "image",
+ "kinodisc-hdmv",
+ "thiserror 2.0.21",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "kinodisc-testkit"
+version = "0.9.0"
+
+[[package]]
+name = "kinodisc-toolchain"
+version = "0.9.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "specta",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kinodisc-verify"
+version = "0.9.0"
+dependencies = [
+ "hex",
+ "kinodisc-domain",
+ "kinodisc-iso",
+ "libmkiso",
+ "serde",
+ "sha2",
+ "specta",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

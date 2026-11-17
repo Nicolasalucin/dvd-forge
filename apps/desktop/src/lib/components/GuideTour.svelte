@@ -32,8 +32,8 @@
   const steps: Step[] = [
     {
       icon: "👋",
-      title: "Bienvenido a DVD Forge",
-      body: "Con DVD Forge conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.",
+      title: "Bienvenido a Kinodisc",
+      body: "Con Kinodisc conviertes tus vídeos en un disco con menú, como los de las películas. Son 5 pasos y esta guía te acompaña en cada uno.",
       tips: [
         "Puedes abrir esta guía cuando quieras con el botón ❓ Guía de arriba.",
         "Todo se guarda en un archivo de proyecto; tus vídeos originales nunca se modifican.",
@@ -62,7 +62,7 @@
     {
       icon: "🎨",
       title: "3 · Diseña el menú",
-      body: "En la pestaña Menú ves la pantalla que aparecerá en la tele. Lo más fácil: abre la pestaña «Plantillas» del panel izquierdo (o la galería debajo del menú) y elige una; DVD Forge crea un botón por episodio.",
+      body: "En la pestaña Menú ves la pantalla que aparecerá en la tele. Lo más fácil: abre la pestaña «Plantillas» del panel izquierdo (o la galería debajo del menú) y elige una; Kinodisc crea un botón por episodio.",
       tips: [
         "Para cambiar el fondo, elige una imagen en «Medios» y pulsa «Fondo».",
         "Para la miniatura de un botón: selecciónalo y pulsa «Usar imagen de…» en el Inspector (derecha).",
@@ -83,7 +83,7 @@
     {
       icon: "🔥",
       title: "5 · Crea el disco",
-      body: "Pulsa «Producir disco» (arriba a la derecha). DVD Forge prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.",
+      body: "Pulsa «Producir disco» (arriba a la derecha). Kinodisc prepara un archivo ISO y, si tienes grabadora, puede grabarlo directamente.",
       tips: [
         "La barra de capacidad indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa (DVD-9 o BD-50).",
         "Antes de grabar, el disco se comprueba automáticamente para evitar discos defectuosos.",
@@ -105,7 +105,7 @@
 
   function finish() {
     try {
-      window.localStorage.setItem("dvdforge_guide_done", "1");
+      window.localStorage.setItem("kinodisc_guide_done", "1");
     } catch {
       // Best effort.
     }

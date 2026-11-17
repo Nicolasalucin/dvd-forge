@@ -2,7 +2,7 @@ name: Build DVDAuthor for Windows
 
 # Builds the official dvdauthor sources (github.com/ldo/dvdauthor, pinned tag
 # and commit) with MSYS2 UCRT64 and publishes a zip with dvdauthor.exe,
-# spumux.exe and their DLLs. DVD Forge's one-click installer downloads that
+# spumux.exe and their DLLs. Kinodisc's one-click installer downloads that
 # zip and checks its SHA-256 before extracting it.
 on:
   workflow_dispatch:
@@ -114,7 +114,7 @@ jobs:
           #define bcopy(s, d, n) memmove((d), (s), (n))
           EOF
           WINFLAGS="CPPFLAGS=-I$PWD/../winshim -include wincompat.h"
-          # Only the two programs DVD Forge runs (mpeg2desc/spuunmux are
+          # Only the two programs Kinodisc runs (mpeg2desc/spuunmux are
           # debugging tools that use POSIX select()).
           make -C src -j4 "$WINFLAGS" dvdauthor.exe spumux.exe || make -C src "$WINFLAGS" dvdauthor.exe spumux.exe
           mkdir -p ../stage/bin
@@ -178,5 +178,5 @@ jobs:
           tag="tools-dvdauthor-$DVDAUTHOR_TAG"
           gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --prerelease --title "Tools: DVDAuthor $DVDAUTHOR_TAG for Windows" \
-            --notes "dvdauthor $DVDAUTHOR_TAG (official release tarball, SHA-256 $DVDAUTHOR_SHA256) built by the 'Build DVDAuthor for Windows' workflow. Used by DVD Forge's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
+            --notes "dvdauthor $DVDAUTHOR_TAG (official release tarball, SHA-256 $DVDAUTHOR_SHA256) built by the 'Build DVDAuthor for Windows' workflow. Used by Kinodisc's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
           gh release upload "$tag" -R "$GITHUB_REPOSITORY" dvdauthor-*-windows-x86_64.zip dvdauthor-*-windows-x86_64.zip.sha256 --clobber

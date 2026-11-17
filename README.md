@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/screenshots/01-menu-studio.png" alt="DVD Forge Studio" width="100%" />
+  <img src="docs/screenshots/01-menu-studio.png" alt="Kinodisc Studio" width="100%" />
 </p>
 
-<h1 align="center">DVD Forge</h1>
+<h1 align="center">Kinodisc</h1>
 
 <p align="center">
   Optical authoring studio for DVD-Video, AVCHD and Blu-ray, with interactive menus,
@@ -25,7 +25,7 @@
 
 ## One workshop for the whole disc
 
-DVD Forge brings the media library, visual menu editor, trimmer, chapters, audio
+Kinodisc brings the media library, visual menu editor, trimmer, chapters, audio
 and subtitle tracks, remote-control simulation, navigation map and final
 production into a single window. The same project can be delivered as a classic
 DVD-Video or as high-definition AVCHD/Blu-ray without duplicating the creative
@@ -66,17 +66,17 @@ work.
 ## v0.8.0 highlights
 
 - **📦 Project bundles**: put a project and all its videos, audio, subtitles
-  and fonts into one verified `.dvdforge-bundle` to move it to another
+  and fonts into one verified `.kinodisc-bundle` to move it to another
   computer or share it; **Open** unpacks it.
 - **Install FFmpeg with one click** from **⚕ Health** (Windows), with SHA-256
   verification.
 - **Resume**: producing a disc again after an interruption reuses every
   episode that was already encoded.
-- **Batch queue** for the CLI: `dvdforge-cli batch queue.json --resume`.
+- **Batch queue** for the CLI: `kinodisc-cli batch queue.json --resume`.
 
 ## v0.7.0 highlights
 
-- **New to DVD Forge?** Read the [user guide](docs/USER_GUIDE.md) or press
+- **New to Kinodisc?** Read the [user guide](docs/USER_GUIDE.md) or press
   **❓ Guide** in the app: a step-by-step tour opens on first run, and a simple
   mode hides the advanced tools until you enable **Expert mode**.
 - **1080p at 25/29.97 fps (PsF) and 50/59.94 fps (AVCHD 2.0)** for TV and
@@ -117,7 +117,7 @@ work.
   per-track gain/delay, DTS/LPCM/AC-3 pass-through and multi-audio AVCHD.
 - **Verifier**: PGS display-set/timestamp checks, BDMV audio-stream checks and
   DVD SPU packet/palette checks.
-- New `dvdforge-subtitle` crate with bounded 1080p rasterization, deterministic
+- New `kinodisc-subtitle` crate with bounded 1080p rasterization, deterministic
   font fingerprints, persisted per-track styles and parser/PGS/Spumux tests.
 
 ## v0.4.1 bug-fix release
@@ -150,7 +150,7 @@ work.
 
 ### Portable, 32-bit-independent toolchain
 
-- `DVDFORGE_TOOLCHAIN_DIR` and directories beside the executable
+- `KINODISC_TOOLCHAIN_DIR` and directories beside the executable
   (`toolchain/`, `toolchain/<platform>-<arch>/`, `bin/`) are searched before
   packaged resources and PATH, so a release can run as a zero-setup portable
   bundle.
@@ -183,7 +183,7 @@ work.
 
 ### Pre-burn structural verifier
 
-- New independent, read-only crate **`dvdforge-verify`**. It parses the image
+- New independent, read-only crate **`kinodisc-verify`**. It parses the image
   itself instead of trusting the writer that produced it.
 - **UDF 1.02/2.50:** AVDP, VRS, PVD, partition map, FSD, root ICB, Tag 266
   Extended File Entries (`information_length`, checksum and protected length),
@@ -197,9 +197,9 @@ work.
 - CLI:
 
   ```bash
-  dvdforge-cli verify disc.iso
-  dvdforge-cli verify disc.iso --deep --json
-  dvdforge-cli verify disc.iso --strict
+  kinodisc-cli verify disc.iso
+  kinodisc-cli verify disc.iso --deep --json
+  kinodisc-cli verify disc.iso --strict
   ```
 
 - The desktop renderer runs the verifier automatically after building the ISO;
@@ -341,7 +341,7 @@ work.
 - Seven interface locales: **Spanish, English, Portuguese, French, German,
   Italian and Japanese**.
 - Automatic first-run detection from `navigator.language`, persisted in
-  `localStorage` (`dvdforge_locale`) and switchable live from the header.
+  `localStorage` (`kinodisc_locale`) and switchable live from the header.
 - Official ISO 639 language catalog for audio and subtitle tracks: 2-letter
   ISO 639-1 codes for DVD-Video and 3-letter ISO 639-2/T codes for
   Blu-ray/AVCHD, including bibliographic aliases (`fre`, `ger`, `chi`, `baq`).
@@ -437,7 +437,7 @@ sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
 
 `tsMuxeR` is optional on 64-bit hosts: AVCHD/Blu-ray can be authored by the
 native FFmpeg path when it is absent. Place tools in `toolchain/` next to the
-binary, set `DVDFORGE_TOOLCHAIN_DIR`, or put them on `PATH`.
+binary, set `KINODISC_TOOLCHAIN_DIR`, or put them on `PATH`.
 `libbluray`/`bd_info` are optional and are used to validate the ISO.
 
 ### Windows
@@ -466,11 +466,11 @@ Burning uses `camcontrol`, `growisofs` and `xorriso`; tsMuxeR is optional.
 Download the appropriate installer from the releases page:
 
 - Linux x86_64: `.AppImage`, `.deb` and CLI tarball.
-- Linux i686: `dvdforge-cli-i686-unknown-linux.tar.gz`.
+- Linux i686: `kinodisc-cli-i686-unknown-linux.tar.gz`.
 - Windows x86_64/i686: `.msi`, NSIS installer and portable CLI.
-- Windows i686 CLI: `dvdforge-cli-i686-pc-windows-msvc.zip`.
+- Windows i686 CLI: `kinodisc-cli-i686-pc-windows-msvc.zip`.
 - macOS Apple Silicon/Intel: `.dmg` and CLI tarball.
-- Universal CLI: `dvdforge-cli` to automate plans, renders and burning.
+- Universal CLI: `kinodisc-cli` to automate plans, renders and burning.
 
 ### Build from source
 
@@ -484,14 +484,14 @@ npm run tauri build
 
 # CLI
 cd ../..
-cargo build --release -p dvdforge-cli
+cargo build --release -p kinodisc-cli
 ```
 
 To build the 32-bit CLI:
 
 ```bash
 rustup target add i686-unknown-linux-gnu
-cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
+cargo build --release -p kinodisc-cli --target i686-unknown-linux-gnu
 ```
 
 ## Quick start
@@ -509,23 +509,23 @@ cargo build --release -p dvdforge-cli --target i686-unknown-linux-gnu
 
 ```bash
 # Check system tools
-dvdforge-cli doctor
+kinodisc-cli doctor
 
 # Inspect a file
-dvdforge-cli probe movie.mkv --json
+kinodisc-cli probe movie.mkv --json
 
 # Calculate a project budget
-dvdforge-cli plan project.json -o plan.json --probe
+kinodisc-cli plan project.json -o plan.json --probe
 
 # Build the ISO with the same pipeline as the desktop app
-dvdforge-cli render project.json -o output
+kinodisc-cli render project.json -o output
 
 # Structural verification (UDF/BDMV/DVD) before burning
-dvdforge-cli verify output/disc.iso --deep --strict
+kinodisc-cli verify output/disc.iso --deep --strict
 
 # List drives and burn
-dvdforge-cli devices
-dvdforge-cli burn output/disc.iso --device /dev/sr0 --speed 4
+kinodisc-cli devices
+kinodisc-cli burn output/disc.iso --device /dev/sr0 --speed 4
 ```
 
 The CLI shares the renderer, HDMV menus, DVD subtitles, regions, BD-25/BD-50
@@ -562,5 +562,5 @@ Thanks to these community members for finding bugs and suggesting improvements:
 
 ## License
 
-DVD Forge is distributed under the **GNU General Public License v3.0 or later**
+Kinodisc is distributed under the **GNU General Public License v3.0 or later**
 (`GPL-3.0-or-later`). See [LICENSE](LICENSE) for the full text.

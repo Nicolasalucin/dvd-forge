@@ -354,7 +354,7 @@ class ProjectStore {
    * Simple mode (default) hides the technical studios (VM map, motion, VBR)
    * so first-time users only see the everyday steps.
    */
-  expertMode = $state(readFlag("dvdforge_expert_mode"));
+  expertMode = $state(readFlag("kinodisc_expert_mode"));
   leftCollapsed = $state(false);
   rightCollapsed = $state(false);
 
@@ -489,7 +489,7 @@ class ProjectStore {
   setExpertMode(enabled: boolean): void {
     this.expertMode = enabled;
     try {
-      window.localStorage.setItem("dvdforge_expert_mode", enabled ? "1" : "0");
+      window.localStorage.setItem("kinodisc_expert_mode", enabled ? "1" : "0");
     } catch {
       // Best effort.
     }
@@ -500,7 +500,7 @@ class ProjectStore {
 
   /** True until the user finishes or dismisses the guided tour once. */
   get guidePending(): boolean {
-    return !readFlag("dvdforge_guide_done");
+    return !readFlag("kinodisc_guide_done");
   }
 
   clearProject(): void {
@@ -2084,7 +2084,7 @@ class ProjectStore {
   }
 
   /**
-   * Target player. Mirrors `PlayerPreset::apply` in dvdforge-domain: it only
+   * Target player. Mirrors `PlayerPreset::apply` in kinodisc-domain: it only
    * tightens limits; compatibility warnings come back with the plan.
    */
   setPlayerPreset(preset: PlayerPreset): void {

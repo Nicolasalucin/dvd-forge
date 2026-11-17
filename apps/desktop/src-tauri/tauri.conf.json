@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DVD Forge",
+  "productName": "Kinodisc",
   "version": "0.9.0",
-  "identifier": "org.dvdforge.desktop",
+  "identifier": "org.kinodisc.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "DVD Forge",
+        "title": "Kinodisc",
         "width": 1280,
         "height": 820,
         "minWidth": 1024,

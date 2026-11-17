@@ -23,8 +23,8 @@ npx tauri build --debug --no-bundle --config ../../.claude/skills/app-walkthroug
 Launch with a project (or none, for a first-run test):
 
 ```powershell
-$env:DVD_FORGE_PROJECT = "<path to a project.json>"   # omit for first run
-Start-Process "<repo>\target\debug\dvdforge-desktop.exe"
+$env:KINODISC_PROJECT = "<path to a project.json>"   # omit for first run
+Start-Process "<repo>\target\debug\kinodisc-desktop.exe"
 ```
 
 Reset first-run state when testing onboarding:
@@ -49,7 +49,7 @@ window.__set=(sel,val)=>{sel.value=val;sel.dispatchEvent(new Event('change',{bub
 ```
 
 Keyboard: `window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))`.
-Native file dialogs cannot be scripted: open projects with `DVD_FORGE_PROJECT`,
+Native file dialogs cannot be scripted: open projects with `KINODISC_PROJECT`,
 or call the store from the console for the step after the dialog, and note
 that the dialog itself was not tested.
 
@@ -75,4 +75,4 @@ Write `docs/walkthroughs/<date>-<persona>.md`:
 - What worked well (keep it).
 
 Fix-and-verify: after fixing a finding, rerun that task and attach the new
-screenshot. Close the app when done (`taskkill /IM dvdforge-desktop.exe /F`).
+screenshot. Close the app when done (`taskkill /IM kinodisc-desktop.exe /F`).

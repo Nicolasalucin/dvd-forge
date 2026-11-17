@@ -1,0 +1,15 @@
+[package]
+name = "kinodisc-media"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+kinodisc-domain = { path = "../kinodisc-domain" }
+kinodisc-toolchain = { path = "../kinodisc-toolchain" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true

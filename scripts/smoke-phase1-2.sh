@@ -11,7 +11,7 @@ cargo test --workspace
 
 echo
 echo "== Render completo del fixture =="
-cargo run --quiet -p dvdforge-cli -- render \
+cargo run --quiet -p kinodisc-cli -- render \
   fixtures/projects/minimal.json \
   -o build/out
 

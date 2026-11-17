@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://dvdforge.local/schemas/project.schema.json",
-  "title": "DVD Forge Project",
-  "description": "Versioned project document consumed by dvdforge-cli and the Tauri backend.",
+  "$id": "https://kinodisc.local/schemas/project.schema.json",
+  "title": "Kinodisc Project",
+  "description": "Versioned project document consumed by kinodisc-cli and the Tauri backend.",
   "type": "object",
   "additionalProperties": false,
   "required": [

@@ -150,21 +150,21 @@
     const picked = await open({
       multiple: false,
       filters: [
-        { name: t("Proyecto o paquete de DVD Forge"), extensions: ["json", "dvdforge-bundle"] },
+        { name: t("Proyecto o paquete de Kinodisc"), extensions: ["json", "kinodisc", "dvdforge-bundle"] },
       ],
     });
     if (typeof picked !== "string") return;
     busy = true;
     localError = null;
     try {
-      if (picked.toLowerCase().endsWith(".dvdforge-bundle")) {
+      if (/\.(kinodisc|dvdforge-bundle)$/i.test(picked)) {
         // A bundle is unpacked into a folder chosen by the user, then opened.
         const folder = await open({
           directory: true,
           title: t("Elige una carpeta vacía donde descomprimir el paquete"),
         });
         if (typeof folder !== "string") return;
-        const base = picked.replace(/^.*[\\/]/, "").replace(/\.dvdforge-bundle$/i, "");
+        const base = picked.replace(/^.*[\\/]/, "").replace(/\.(kinodisc|dvdforge-bundle)$/i, "");
         const destination = `${folder.replace(/[\\/]+$/, "")}/${base}`;
         const projectPath = await unwrap(commands.bundleImport(picked, destination));
         await projectStore.openProject(projectPath);
@@ -184,7 +184,7 @@
     if (!current) return;
     const path = await save({
       defaultPath: `${current.name.replaceAll(" ", "-").toLowerCase()}.json`,
-      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de Kinodisc"), extensions: ["json"] }],
     });
     if (!path) return;
     busy = true;
@@ -202,8 +202,8 @@
     const current = projectStore.project;
     if (!current) return;
     const path = await save({
-      defaultPath: `${current.name.replaceAll(" ", "-").toLowerCase()}.dvdforge-bundle`,
-      filters: [{ name: t("Paquete de DVD Forge"), extensions: ["dvdforge-bundle"] }],
+      defaultPath: `${current.name.replaceAll(" ", "-").toLowerCase()}.kinodisc`,
+      filters: [{ name: t("Paquete de Kinodisc"), extensions: ["kinodisc"] }],
     });
     if (!path) return;
     busy = true;
@@ -262,7 +262,7 @@
                   : "DVD-5"}
           </p>
         {:else}
-          <p class="truncate text-sm font-semibold tracking-tight text-white">{t("DVD Forge Studio")}</p>
+          <p class="truncate text-sm font-semibold tracking-tight text-white">{t("Kinodisc Studio")}</p>
           <p class="text-[10px] uppercase tracking-[0.18em] text-slate-500">{t("Sin proyecto")}</p>
         {/if}
       </div>

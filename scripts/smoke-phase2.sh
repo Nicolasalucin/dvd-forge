@@ -11,7 +11,7 @@ cargo test --workspace
 
 echo
 echo "== Detección de unidades ópticas =="
-DEVICES_JSON="$(cargo run --quiet -p dvdforge-cli -- devices --json)"
+DEVICES_JSON="$(cargo run --quiet -p kinodisc-cli -- devices --json)"
 printf '%s\n' "$DEVICES_JSON" | jq -e 'type == "array"' >/dev/null
 COUNT="$(printf '%s\n' "$DEVICES_JSON" | jq 'length')"
 printf 'Unidades detectadas: %s\n' "$COUNT"

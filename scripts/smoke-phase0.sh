@@ -11,4 +11,4 @@ cargo test --workspace
 
 echo
 echo "== Fase 0: doctor =="
-cargo run --quiet -p dvdforge-cli -- doctor --json
+cargo run --quiet -p kinodisc-cli -- doctor --json

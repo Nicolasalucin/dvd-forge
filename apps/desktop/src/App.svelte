@@ -49,7 +49,7 @@
   async function openProject() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de Kinodisc"), extensions: ["json"] }],
     });
     if (typeof picked !== "string") return;
     try {
@@ -72,7 +72,7 @@
         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-sky-600 text-lg font-black text-slate-950">
           {t("DF")}
         </div>
-        <h1 class="mt-4 text-2xl font-semibold tracking-tight text-white">{t("DVD Forge Studio")}</h1>
+        <h1 class="mt-4 text-2xl font-semibold tracking-tight text-white">{t("Kinodisc Studio")}</h1>
         <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
           {t("Convierte tus vídeos en un DVD o Blu-ray con menú, como los de las películas: importa, diseña el menú, pruébalo con el mando y graba.")}
         </p>

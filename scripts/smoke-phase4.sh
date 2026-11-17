@@ -27,7 +27,7 @@ cargo build --workspace
 echo
 echo "== Render AVCHD end-to-end =="
 rm -rf "$OUT"
-cargo run -q -p dvdforge-cli -- render "$PROJECT" --mode avchd -o "$OUT"
+cargo run -q -p kinodisc-cli -- render "$PROJECT" --mode avchd -o "$OUT"
 test -f "$ISO"
 
 echo

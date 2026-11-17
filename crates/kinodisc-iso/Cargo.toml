@@ -1,0 +1,14 @@
+[package]
+name = "kinodisc-iso"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+kinodisc-toolchain = { path = "../kinodisc-toolchain" }
+libmkiso = { path = "../../vendor/libmkiso" }
+thiserror.workspace = true
+tokio.workspace = true

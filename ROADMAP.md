@@ -1,4 +1,4 @@
-# DVD Forge Roadmap — v0.5.0 to v1.0.0
+# Kinodisc Roadmap — v0.5.0 to v1.0.0
 
 Status: v0.9.0 released (native DVD ISO, one-click DVDAuthor, desktop queue, presets, code splitting, accessibility, robustness tests); v1.0.0 next  
 Baseline: v0.4.0 (2026-10-30); v0.5.0 native subtitles and mastering landed  
@@ -15,23 +15,23 @@ diagnostic codes become stable API once released: do not rename them later.
 
 ```text
 crates/
-  dvdforge-domain/       project schema v1, validation, menus, navigation, geometry
-  dvdforge-project/      JSON load/save/validate
-  dvdforge-media/        FFprobe adapter
-  dvdforge-menu/         SPU rasterization, Spumux/TextSub XML
-  dvdforge-plan/         rate planning, DVD-9 ECC, capacity budgets
-  dvdforge-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
-  dvdforge-avchd/        H.264/AC-3 encode, tsMuxeR metadata, native BDMV muxer
-  dvdforge-hdmv/         IG compiler, native M2TS/MPLS/CLPI/MovieObject builders
-  dvdforge-iso/          DVD ISO builder, BDMV UDF 2.50 builder
-  dvdforge-burn/         growisofs/xorriso, FreeBSD camcontrol, IMAPI2, drutil
-  dvdforge-jobs/         job events, stages, diagnostics
-  dvdforge-toolchain/    portable discovery, doctor, encoder probes
-  dvdforge-store/        SQLite recent projects, jobs, Smart Cache v2
-  dvdforge-testkit/      fixtures and test helpers
-  dvdforge-cli/          doctor, probe, plan, render, verify, devices, burn
-  dvdforge-render/       end-to-end orchestration, cache, streaming I/O
-  dvdforge-verify/       independent read-only UDF/BDMV/DVD verifier
+  kinodisc-domain/       project schema v1, validation, menus, navigation, geometry
+  kinodisc-project/      JSON load/save/validate
+  kinodisc-media/        FFprobe adapter
+  kinodisc-menu/         SPU rasterization, Spumux/TextSub XML
+  kinodisc-plan/         rate planning, DVD-9 ECC, capacity budgets
+  kinodisc-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
+  kinodisc-avchd/        H.264/AC-3 encode, tsMuxeR metadata, native BDMV muxer
+  kinodisc-hdmv/         IG compiler, native M2TS/MPLS/CLPI/MovieObject builders
+  kinodisc-iso/          DVD ISO builder, BDMV UDF 2.50 builder
+  kinodisc-burn/         growisofs/xorriso, FreeBSD camcontrol, IMAPI2, drutil
+  kinodisc-jobs/         job events, stages, diagnostics
+  kinodisc-toolchain/    portable discovery, doctor, encoder probes
+  kinodisc-store/        SQLite recent projects, jobs, Smart Cache v2
+  kinodisc-testkit/      fixtures and test helpers
+  kinodisc-cli/          doctor, probe, plan, render, verify, devices, burn
+  kinodisc-render/       end-to-end orchestration, cache, streaming I/O
+  kinodisc-verify/       independent read-only UDF/BDMV/DVD verifier
 vendor/libmkiso/         UDF/ISO writer + independent reader
 apps/desktop/            Svelte 5 + Vite + Tailwind + Konva
 apps/desktop/src-tauri/  Tauri v2 commands, Spectra bindings
@@ -56,7 +56,7 @@ Current render/toolchain diagnostics relevant to future work include
 1. **Bounded memory.** No production path may whole-file read an ISO, M2TS,
    VOB or BD payload. New code uses 64 KiB–1 MiB buffers or stream-copy APIs;
    i686 remains a release target with the 256 MB RSS budget.
-2. **Independent verifier.** `dvdforge-verify` never reuses writer code to
+2. **Independent verifier.** `kinodisc-verify` never reuses writer code to
    validate. New checks are read-only, stable-ID, and fail/warn/block burning
    with the existing semantics.
 3. **Schema v1 compatibility.** Additive project fields use `#[serde(default)]`
@@ -81,8 +81,8 @@ Every release, including point releases, must pass:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo check --workspace --exclude dvdforge-desktop --target i686-unknown-linux-gnu
-cargo test -p dvdforge-plan -p dvdforge-verify -p dvdforge-hdmv --target i686-unknown-linux-gnu
+cargo check --workspace --exclude kinodisc-desktop --target i686-unknown-linux-gnu
+cargo test -p kinodisc-plan -p kinodisc-verify -p kinodisc-hdmv --target i686-unknown-linux-gnu
 cd apps/desktop && npm run check && npm run build
 cd vendor/libmkiso && cargo fmt -- --check && cargo test --all-features --locked
 ```
@@ -103,7 +103,7 @@ stage before AC-3/MPEG-2/TS muxing.
 
 ### 2.2 Native subtitle engine
 
-**New crate:** `crates/dvdforge-subtitle/`
+**New crate:** `crates/kinodisc-subtitle/`
 
 Suggested modules:
 
@@ -140,15 +140,15 @@ Deliverables:
   per-title style sets.
 - Forced-track routing metadata and default/forced dispositions in PGS/SPU.
 - Integration:
-  - `dvdforge-domain/src/project.rs`: `SubtitleStyle`, `FontSpec`,
+  - `kinodisc-domain/src/project.rs`: `SubtitleStyle`, `FontSpec`,
     `SafeArea` (all `serde(default)` on `SubtitleTrack`).
-  - `dvdforge-menu/src/lib.rs`: render native SPU files without Spumux for the
+  - `kinodisc-menu/src/lib.rs`: render native SPU files without Spumux for the
     DVD path.
-  - `dvdforge-avchd/src/lib.rs`/`native.rs`: mux generated PGS into the
+  - `kinodisc-avchd/src/lib.rs`/`native.rs`: mux generated PGS into the
     combined MKV/M2TS and register tracks in MPLS/CLPI (reuse v0.4.0 paths).
-  - `dvdforge-render/src/lib.rs`: choose text-subtitle pipeline (native) or
+  - `kinodisc-render/src/lib.rs`: choose text-subtitle pipeline (native) or
     legacy Spumux path; cache hashes include style/font identity.
-  - `dvdforge-plan/src/lib.rs`: estimate PGS/SPU overhead per track and add
+  - `kinodisc-plan/src/lib.rs`: estimate PGS/SPU overhead per track and add
     capacity warnings.
 
 **New diagnostics:**
@@ -177,8 +177,8 @@ Deliverables:
 
 ### 2.3 Audio mastering pipeline
 
-**Primary module:** `crates/dvdforge-render/src/audio.rs`, with argument
-builders in `dvdforge-dvd/src/lib.rs` and `dvdforge-avchd/src/lib.rs`.
+**Primary module:** `crates/kinodisc-render/src/audio.rs`, with argument
+builders in `kinodisc-dvd/src/lib.rs` and `kinodisc-avchd/src/lib.rs`.
 
 Deliverables:
 
@@ -192,7 +192,7 @@ Deliverables:
   LPCM; explicit `E_AUDIO_CODEC_UNSUPPORTED` when a target cannot carry it.
 - Per-track delay compensation applied before muxing, not by dropping samples;
   exact frame/sample accounting for AC-3 frame boundaries and MPEG-2 PES.
-- `dvdforge-plan` budget accounts for AC-3/LPCM/DTS payload and container
+- `kinodisc-plan` budget accounts for AC-3/LPCM/DTS payload and container
   overhead.
 
 **New diagnostics:**
@@ -221,7 +221,7 @@ Deliverables:
 - Golden-file tests for SRT/ASS/VTT → PGS/SPU, including styles, forced flags,
   safe areas and 23.976/25/29.97 timelines.
 - Decode generated PGS with FFmpeg/`sup` and libbluray; generated SPU parsed by
-  an independent test parser and by `dvdforge-verify`.
+  an independent test parser and by `kinodisc-verify`.
 - Native and tsMuxeR BDMV paths both pass `bd_info` and the verifier.
 - Loudness: measured output within ±0.5 LU of target for fixture tones; AC-3
   frame boundary test; 5.1 up/downmix null tests.
@@ -231,9 +231,9 @@ Deliverables:
 ### 2.5 v0.5.1 — Live subtitle style preview and forced routing
 
 Targets: `apps/desktop/src/lib/components/studio/`, `stores/project.svelte.ts`,
-`apps/desktop/src-tauri/src/commands/menu.rs`, `dvdforge-domain/src/project.rs`.
+`apps/desktop/src-tauri/src/commands/menu.rs`, `kinodisc-domain/src/project.rs`.
 
-- Canvas overlay preview using the same `dvdforge-subtitle` layout data as the
+- Canvas overlay preview using the same `kinodisc-subtitle` layout data as the
   final render (no divergent CSS approximation).
 - Inspector controls for font/outline/shadow/safe area, with debounced
   regeneration of a low-res preview only.
@@ -259,8 +259,8 @@ system that still produces valid DVD VM commands and HDMV IG streams.
 
 ### 3.2 Template library
 
-Targets: `crates/dvdforge-domain/src/menu.rs`, new
-`crates/dvdforge-menu/src/templates.rs`, `apps/desktop/src/lib/components/menu/`.
+Targets: `crates/kinodisc-domain/src/menu.rs`, new
+`crates/kinodisc-menu/src/templates.rs`, `apps/desktop/src/lib/components/menu/`.
 
 Deliverables:
 
@@ -280,8 +280,8 @@ Deliverables:
 
 ### 3.3 Motion thumbnails and transitions
 
-Targets: `dvdforge-render/src/lib.rs` (FFmpeg filtergraph builders),
-`dvdforge-menu/src/lib.rs`, `dvdforge-domain/src/menu.rs`.
+Targets: `kinodisc-render/src/lib.rs` (FFmpeg filtergraph builders),
+`kinodisc-menu/src/lib.rs`, `kinodisc-domain/src/menu.rs`.
 
 - Clip loops inside buttons: source in/out, loop duration, crop/scale, overlays,
   and background compositing, all expressed as a deterministic filtergraph.
@@ -295,8 +295,8 @@ Targets: `dvdforge-render/src/lib.rs` (FFmpeg filtergraph builders),
 
 ### 3.4 Deterministic D-Pad auto-router
 
-Targets: `crates/dvdforge-domain/src/navigation.rs`, menu serializers in
-`dvdforge-menu`/`dvdforge-hdmv`.
+Targets: `crates/kinodisc-domain/src/navigation.rs`, menu serializers in
+`kinodisc-menu`/`kinodisc-hdmv`.
 
 - Solve a conflict-free directional graph over button rectangles using a
   deterministic ordering (row/column bands, then nearest-center with stable
@@ -322,7 +322,7 @@ Targets: `crates/dvdforge-domain/src/navigation.rs`, menu serializers in
 
 ### 3.6 v0.6.1 — Chapter sub-menus and audio crossfade
 
-Targets: `dvdforge-domain/src/menu.rs`, `dvdforge-render/src/lib.rs`, menu
+Targets: `kinodisc-domain/src/menu.rs`, `kinodisc-render/src/lib.rs`, menu
 serializers, Studio canvas.
 
 - Multi-page chapter selection sub-menus generated per title/episode.
@@ -337,15 +337,15 @@ serializers, Studio canvas.
 
 ## 4. v0.7.0 — Smart Stream Copy, Play-All Logic, ISO Inspector
 
-> Estado (0.7.0): §4.1 implementado para AVCHD/Blu-ray (`dvdforge-plan::stream_copy`,
+> Estado (0.7.0): §4.1 implementado para AVCHD/Blu-ray (`kinodisc-plan::stream_copy`,
 > `Episode.videoMode`, `W_STREAM_COPY_FALLBACK`); copia DVD-Video, §4.2 Play-All y
 > §4.3 inspector quedan pendientes.
 
 ### 4.1 Smart Stream Copy
 
-Targets: `crates/dvdforge-plan/src/stream_copy.rs` (new),
-`crates/dvdforge-render/src/lib.rs`, `crates/dvdforge-media/src/lib.rs`,
-`crates/dvdforge-dvd/src/lib.rs`, `crates/dvdforge-avchd/src/lib.rs`.
+Targets: `crates/kinodisc-plan/src/stream_copy.rs` (new),
+`crates/kinodisc-render/src/lib.rs`, `crates/kinodisc-media/src/lib.rs`,
+`crates/kinodisc-dvd/src/lib.rs`, `crates/kinodisc-avchd/src/lib.rs`.
 
 Deliverables:
 
@@ -367,8 +367,8 @@ Deliverables:
 
 ### 4.2 True Play-All vs. single-episode return
 
-Targets: `dvdforge-dvd/src/authoring.rs`, `dvdforge-hdmv/src/opcodes.rs`,
-`dvdforge-hdmv/src/native.rs`, `dvdforge-render/src/lib.rs`,
+Targets: `kinodisc-dvd/src/authoring.rs`, `kinodisc-hdmv/src/opcodes.rs`,
+`kinodisc-hdmv/src/native.rs`, `kinodisc-render/src/lib.rs`,
 menu action compiler.
 
 Deliverables:
@@ -385,7 +385,7 @@ Deliverables:
 
 ### 4.3 Standalone ISO and folder inspector
 
-Targets: `dvdforge-verify/src/inspect.rs` (new), `report.rs`,
+Targets: `kinodisc-verify/src/inspect.rs` (new), `report.rs`,
 `apps/desktop/src-tauri/src/commands/inspect.rs` (new),
 `apps/desktop/src/lib/components/inspector/`, generated bindings.
 
@@ -424,9 +424,9 @@ Targets: `dvdforge-verify/src/inspect.rs` (new), `report.rs`,
 
 ### 5.1 Render checkpoint and resume
 
-Targets: `crates/dvdforge-render/src/checkpoint.rs` (new),
-`crates/dvdforge-store/src/lib.rs` (DB migration),
-`crates/dvdforge-jobs/src/lib.rs` (stage IDs), Smart Cache v2.
+Targets: `crates/kinodisc-render/src/checkpoint.rs` (new),
+`crates/kinodisc-store/src/lib.rs` (DB migration),
+`crates/kinodisc-jobs/src/lib.rs` (stage IDs), Smart Cache v2.
 
 Deliverables:
 
@@ -444,13 +444,13 @@ Deliverables:
 
 ### 5.2 Batch render queue
 
-Targets: `crates/dvdforge-cli/src/batch.rs` (new),
+Targets: `crates/kinodisc-cli/src/batch.rs` (new),
 `apps/desktop/src/lib/stores/queue.svelte.ts`, `commands/render.rs`,
-`dvdforge-jobs`.
+`kinodisc-jobs`.
 
 - Queue manifest (JSON): multiple projects, output dirs, options, concurrency 1
   (optical authoring is memory-bound), fail-fast vs. continue-on-error.
-- CLI `dvdforge-cli batch queue.json [--json]` with per-item status, resume and
+- CLI `kinodisc-cli batch queue.json [--json]` with per-item status, resume and
   aggregate exit code.
 - Desktop queue panel with reorder, cancel, retry and persistent history.
 - New diagnostics: `W_BATCH_PARTIAL`, `E_BATCH_ITEM`, `W_BATCH_CANCELLED`.
@@ -459,7 +459,7 @@ Targets: `crates/dvdforge-cli/src/batch.rs` (new),
 
 ### 5.3 Portable toolchain provisioner
 
-Targets: `crates/dvdforge-toolchain/src/provision.rs` (new),
+Targets: `crates/kinodisc-toolchain/src/provision.rs` (new),
 `toolchains/manifest.json`, `ToolchainDoctor.svelte`, release assets.
 
 - One-click download of verified archives into `<exe_dir>/toolchain/` with
@@ -474,10 +474,10 @@ Targets: `crates/dvdforge-toolchain/src/provision.rs` (new),
 
 ### 5.4 Self-contained project bundles
 
-Targets: `crates/dvdforge-project/src/bundle.rs` (new), CLI import/export,
+Targets: `crates/kinodisc-project/src/bundle.rs` (new), CLI import/export,
 desktop open/save.
 
-- `.dvdforge-bundle` format: project JSON + referenced assets + font/style
+- `.kinodisc-bundle` format: project JSON + referenced assets + font/style
   sidecars + manifest (schema version, hashes, toolchain notes). Use a
   deterministic tar + zstd container; no absolute paths.
 - Import validates hashes before writing; missing assets produce warnings.
@@ -488,8 +488,8 @@ desktop open/save.
 
 ### 5.5 v0.8.1 — Player compatibility presets
 
-Targets: `crates/dvdforge-domain/src/presets.rs` (new),
-`dvdforge-render` encoder/mux flags, verifier profile checks.
+Targets: `crates/kinodisc-domain/src/presets.rs` (new),
+`kinodisc-render` encoder/mux flags, verifier profile checks.
 
 - Presets: PS2 DVD-Video strict, PS3/PS4/PS5 BDMV/AVCHD, Sony standalone,
   Panasonic standalone.
@@ -535,7 +535,7 @@ Targets: `apps/desktop/src/lib/i18n/messages.ts`, locale catalogs.
 ### 6.3 Fuzzing and property tests
 
 Targets: `fuzz/Cargo.toml` (new), `fuzz/fuzz_targets/*.rs`,
-`vendor/libmkiso/tests`, `dvdforge-verify`, `dvdforge-hdmv`.
+`vendor/libmkiso/tests`, `kinodisc-verify`, `kinodisc-hdmv`.
 
 - cargo-fuzz targets: UDF/ISO descriptor parser, BDMV navigation parser,
   M2TS/PMT parser, DVD IFO/PGC parser, subtitle PGS/SPU parser.
@@ -552,8 +552,8 @@ Targets: `fuzz/Cargo.toml` (new), `fuzz/fuzz_targets/*.rs`,
 
 ### 7.1 Schema freeze and deterministic builds
 
-Targets: `crates/dvdforge-domain/src/project.rs`, `dvdforge-project`,
-`vendor/libmkiso`, `dvdforge-iso`, release scripts.
+Targets: `crates/kinodisc-domain/src/project.rs`, `kinodisc-project`,
+`vendor/libmkiso`, `kinodisc-iso`, release scripts.
 
 - Freeze Project Schema v1: add `docs/schema-v1.md`, deprecation policy,
   migration stubs for any future v2, golden old-project fixtures.
@@ -601,12 +601,12 @@ Targets: `docs/certification/`, `scripts/player-matrix/`, verifier profiles.
 
 | Workstream | Depends on |
 |---|---|
-| Native subtitle engine | v0.4 bounded I/O, `dvdforge-menu` SPU model, `dvdforge-avchd` PGS mux |
-| Audio mastering | v0.4 native mux, render cache keys, `dvdforge-plan` budget |
+| Native subtitle engine | v0.4 bounded I/O, `kinodisc-menu` SPU model, `kinodisc-avchd` PGS mux |
+| Audio mastering | v0.4 native mux, render cache keys, `kinodisc-plan` budget |
 | Menu templates/D-pad | v0.5 subtitle style preview only for typography reuse |
 | Motion thumbnails | v0.6 templates + render filtergraph + cache v2 |
 | Smart stream copy | v0.7 plan/media probe; Play-All independent |
-| ISO inspector | `dvdforge-verify` read-only API; Tauri command plumbing |
+| ISO inspector | `kinodisc-verify` read-only API; Tauri command plumbing |
 | Checkpointing | Smart Cache v2 and store migrations |
 | Batch/queue | checkpointing and job model |
 | Toolchain provisioner | v0.4 portable discovery + manifest |

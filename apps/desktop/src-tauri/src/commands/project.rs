@@ -1,6 +1,6 @@
 use crate::context;
 use chrono::Utc;
-use dvdforge_domain::{
+use kinodisc_domain::{
     AspectRatio, AssetId, AssetSource, AudioDefaults, AuthoringMode, AvchdResolution,
     AvchdVideoConfig, BudgetPolicy, BurnPreferences, CanvasSpec, DiscCapacity, DiscConfig,
     DvdVideoConfig, FrameRate, MediaAsset, MediaKind, MediaProbe, Menu, MenuBackground, MenuId,
@@ -11,11 +11,12 @@ use dvdforge_domain::{
 /// Creates a blank DVD-Video project shell. Media and episodes are added by the
 /// editor once the user imports files.
 /// Permite abrir un proyecto al arrancar para integración/automatización de UI.
-/// Se activa con la variable de entorno `DVD_FORGE_PROJECT`.
+/// Se activa con la variable de entorno `KINODISC_PROJECT`.
 #[tauri::command]
 #[specta::specta]
 pub fn startup_project_path() -> Option<String> {
-    std::env::var("DVD_FORGE_PROJECT")
+    kinodisc_toolchain::legacy::env_var("KINODISC_PROJECT")
+        .ok_or(())
         .ok()
         .map(|path| path.trim().to_string())
         .filter(|path| !path.is_empty())
@@ -73,7 +74,7 @@ pub fn project_new(
                 background: MenuBackground::Static {
                     asset: background_id,
                 },
-                scale_mode: dvdforge_domain::MenuScaleMode::Cover,
+                scale_mode: kinodisc_domain::MenuScaleMode::Cover,
                 dim_percent: 0,
                 blur_px: 0,
                 audio: None,
@@ -116,7 +117,7 @@ pub fn project_new(
             let errors: Vec<String> = config
                 .validate()
                 .into_iter()
-                .filter(dvdforge_domain::Diagnostic::is_error)
+                .filter(kinodisc_domain::Diagnostic::is_error)
                 .map(|diagnostic| diagnostic.to_string())
                 .collect();
             if !errors.is_empty() {
@@ -163,7 +164,7 @@ pub fn project_new(
                 background: MenuBackground::Static {
                     asset: background_id,
                 },
-                scale_mode: dvdforge_domain::MenuScaleMode::Cover,
+                scale_mode: kinodisc_domain::MenuScaleMode::Cover,
                 dim_percent: 0,
                 blur_px: 0,
                 audio: None,
@@ -226,9 +227,9 @@ pub fn project_new(
 #[tauri::command(async)]
 #[specta::specta]
 pub fn project_save(path: String, project: Project) -> Result<(), String> {
-    dvdforge_project::ensure_valid(&project)
+    kinodisc_project::ensure_valid(&project)
         .map_err(|error| format!("No se puede guardar un proyecto inválido: {error}"))?;
-    dvdforge_project::save_project(&project, &path).map_err(|error| error.to_string())?;
+    kinodisc_project::save_project(&project, &path).map_err(|error| error.to_string())?;
     context::set_from_file(std::path::Path::new(&path));
     if let Err(error) = super::store::record_project(&path, &project) {
         eprintln!("No se pudo actualizar la lista de proyectos recientes: {error}");
@@ -236,18 +237,18 @@ pub fn project_save(path: String, project: Project) -> Result<(), String> {
     Ok(())
 }
 
-/// Packs the project and every file it uses into one `.dvdforge-bundle`.
+/// Packs the project and every file it uses into one `.kinodisc-bundle`.
 /// Relative paths are resolved against the folder of the current project.
 #[tauri::command(async)]
 #[specta::specta]
 pub fn bundle_export(
     project: Project,
     path: String,
-) -> Result<dvdforge_project::bundle::BundleReport, String> {
+) -> Result<kinodisc_project::bundle::BundleReport, String> {
     let project_dir = context::project_dir()
         .or_else(|| std::env::current_dir().ok())
         .ok_or_else(|| "No se pudo determinar la carpeta del proyecto.".to_string())?;
-    dvdforge_project::bundle::export_bundle(&project, &project_dir, std::path::Path::new(&path))
+    kinodisc_project::bundle::export_bundle(&project, &project_dir, std::path::Path::new(&path))
         .map_err(|error| error.to_string())
 }
 
@@ -256,7 +257,7 @@ pub fn bundle_export(
 #[tauri::command(async)]
 #[specta::specta]
 pub fn bundle_import(bundle: String, destination: String) -> Result<String, String> {
-    let imported = dvdforge_project::bundle::import_bundle(
+    let imported = kinodisc_project::bundle::import_bundle(
         std::path::Path::new(&bundle),
         std::path::Path::new(&destination),
     )
@@ -267,7 +268,7 @@ pub fn bundle_import(bundle: String, destination: String) -> Result<String, Stri
 #[tauri::command(async)]
 #[specta::specta]
 pub fn project_open(path: String) -> Result<Project, String> {
-    let project = dvdforge_project::load_and_validate(&path).map_err(|error| error.to_string())?;
+    let project = kinodisc_project::load_and_validate(&path).map_err(|error| error.to_string())?;
     context::set_from_file(std::path::Path::new(&path));
     if let Err(error) = super::store::record_project(&path, &project) {
         eprintln!("No se pudo actualizar la lista de proyectos recientes: {error}");
@@ -305,7 +306,7 @@ fn sanitize_volume_label(name: &str) -> String {
         .collect();
     label = label.trim_matches('_').to_string();
     if label.is_empty() {
-        label = "DVD_FORGE".to_string();
+        label = "KINODISC".to_string();
     }
     label.truncate(32);
     label

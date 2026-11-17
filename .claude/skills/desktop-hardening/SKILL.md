@@ -17,7 +17,7 @@ item as OK / Fixed / Risk accepted (with reason).
 ## 1. Process launching (FFmpeg, DVDAuthor, burners)
 
 - Spawn by **absolute, resolved path** from a fixed search order
-  (`dvdforge-toolchain::resolve_binary`). Never resolve executables from the
+  (`kinodisc-toolchain::resolve_binary`). Never resolve executables from the
   current working directory, the project folder or a media folder.
 - Arguments as a vector, **never through a shell**. File names that start
   with `-` must not become options (prefix `./` or use `file:`/`--`).
@@ -43,7 +43,7 @@ item as OK / Fixed / Risk accepted (with reason).
 - Project JSON paths: absolute paths are allowed only for user-chosen media;
   never let a project point the app at writing outside the output folder.
 - Bundles: manifest-first, traversal-safe, size+hash per entry, full rollback
-  (`dvdforge-project::bundle`). Keep the corrupted-bundle tests.
+  (`kinodisc-project::bundle`). Keep the corrupted-bundle tests.
 - Parsers (UDF/IFO/BDMV/PGS/SRT/ASS/VTT): bounded allocations, checked
   integer math (i686!), no panics — keep the seeded robustness tests green.
 - Output: refuse to overwrite system folders; write via temp + rename.

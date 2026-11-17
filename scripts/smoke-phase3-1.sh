@@ -28,7 +28,7 @@ cargo test --workspace
 if compgen -G "/dev/sr*" >/dev/null; then
   echo
   echo "== Comando burn_list_devices con hardware =="
-  cargo test -p dvdforge-desktop --test commands_smoke -- --ignored
+  cargo test -p kinodisc-desktop --test commands_smoke -- --ignored
 else
   echo
   echo "Sin /dev/sr*: se omite la prueba de hardware."

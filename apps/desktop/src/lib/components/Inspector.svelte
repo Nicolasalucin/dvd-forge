@@ -416,7 +416,7 @@
               <span class="mb-1 block text-[10px] text-slate-500">{t("Tipografía")}</span>
               <input
                 class="w-full rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
-                list="dvdforge-font-families"
+                list="kinodisc-font-families"
                 value={button.fontFamily}
                 style={`font-family: "${button.fontFamily.replaceAll('"', "")}", sans-serif`}
                 placeholder={t("Escribe para buscar…")}
@@ -426,7 +426,7 @@
                   if (family) projectStore.updateButton(button.id, { fontFamily: family });
                 }}
               />
-              <datalist id="dvdforge-font-families">
+              <datalist id="kinodisc-font-families">
                 {#each fontFamilies as family}
                   <option value={family}></option>
                 {/each}

@@ -31,7 +31,7 @@ const LOADERS: Partial<Record<Locale, () => Promise<LoadedLocale>>> = {
   ja: () => import("./locales/ja").then((m) => ({ messages: m.ja, diagnostics: m.DIAGNOSTIC_JA })),
 };
 
-const STORAGE_KEY = "dvdforge_locale";
+const STORAGE_KEY = "kinodisc_locale";
 const supported = new Set<Locale>(LOCALES.map((locale) => locale.id));
 
 function normalizeLocale(value: string | null | undefined): Locale | null {

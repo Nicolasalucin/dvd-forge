@@ -12,7 +12,7 @@ fn sparse_udf_250_file_over_four_gib_round_trips_without_buffering_it() {
     let dir = tempfile::tempdir().unwrap();
     let mut image = UdfImage::new();
     let head = vec![0x41; BLOCK as usize];
-    let tail = b"DVD Forge large extent tail".to_vec();
+    let tail = b"Kinodisc large extent tail".to_vec();
     image
         .add_sparse_file(
             "movies/huge.m2ts",

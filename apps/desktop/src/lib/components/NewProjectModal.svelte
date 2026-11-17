@@ -117,7 +117,7 @@
   async function openProject() {
     const picked = await open({
       multiple: false,
-      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de Kinodisc"), extensions: ["json"] }],
     });
     if (typeof picked !== "string") return;
     busy = true;
@@ -147,7 +147,7 @@
   <div class="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl shadow-black/60">
     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-800 px-5 py-4">
       <div>
-        <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400">{t("DVD Forge")}</p>
+        <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400">{t("Kinodisc")}</p>
         <h2 class="mt-1 text-lg font-semibold text-white">{t("Nuevo proyecto")}</h2>
         <p class="mt-0.5 text-[11px] text-slate-500">
           {t("Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.")}

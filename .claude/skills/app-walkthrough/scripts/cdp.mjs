@@ -1,4 +1,4 @@
-// Minimal CDP client for the DVD Forge webview.
+// Minimal CDP client for the Kinodisc webview.
 //   node cdp.mjs eval "<js>"            -> prints result
 //   node cdp.mjs shot <out.png> [js]    -> optional js, waits, screenshot
 import { writeFileSync } from "node:fs";

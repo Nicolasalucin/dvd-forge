@@ -10,7 +10,7 @@
     "standard": "ntsc",
     "aspect": "fourThree",
     "capacity": "dvd5",
-    "volumeLabel": "DVD_FORGE_MINIMAL",
+    "volumeLabel": "KINODISC_MINIMAL",
     "video": {
       "kind": "dvd",
       "profile": "auto",

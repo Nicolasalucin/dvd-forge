@@ -1,4 +1,4 @@
-# DVD Forge user guide
+# Kinodisc user guide
 
 > [Versión en español](GUIA-DE-USO.md)
 
@@ -12,7 +12,7 @@ with the **❓ Guide** button (top right).
 
 ## 1. Before you start
 
-DVD Forge uses free tools to encode video. Press **⚕ Health** in the header to
+Kinodisc uses free tools to encode video. Press **⚕ Health** in the header to
 see what is installed.
 
 | Tool | What for | Required? |
@@ -27,7 +27,7 @@ Forge downloads FFmpeg, checks its SHA-256 and installs it for you. You can also
 run `winget install Gyan.FFmpeg`. Burning uses Windows' own API
 (IMAPI2); nothing else is needed.
 
-You can put the tools in a `toolchain\` folder next to the DVD Forge executable
+You can put the tools in a `toolchain\` folder next to the Kinodisc executable
 and they will be found automatically.
 
 ## 2. Create a project
@@ -80,7 +80,7 @@ In the **Editing** tab you can:
 
 When a video already matches the disc format (for example `.m2ts`/`.mts` files
 from an AVCHD camcorder, or an H.264 MP4 with the project's resolution and
-frame rate), DVD Forge **copies it without re-encoding**: much faster and with
+frame rate), Kinodisc **copies it without re-encoding**: much faster and with
 no quality loss.
 
 In the **Inspector** (right), with the episode selected, the **Video** field
@@ -100,7 +100,7 @@ copied, the episode must not be trimmed at the start.
 The **Menu** tab shows the screen you will see on the TV.
 
 - **Fastest**: open **Templates** in the left panel, or the *Menu templates*
-  gallery below the canvas, and pick one. DVD Forge creates one button per
+  gallery below the canvas, and pick one. Kinodisc creates one button per
   episode and, when there are many, several pages with “Next ›”.
 - **Background**: in **Media**, press **Background** on an image or video. On
   Blu-ray the canvas is 1920×1080, so your HD artwork is shown 1:1.
@@ -134,7 +134,7 @@ In the **Tracks** tab:
   format automatically.
 
 When episodes come from different files (for example one with “English” audio
-and one “undetermined”), on Blu-ray/AVCHD DVD Forge adapts the tracks so the
+and one “undetermined”), on Blu-ray/AVCHD Kinodisc adapts the tracks so the
 whole disc is consistent and tells you what changed.
 
 ## 6. Test
@@ -152,13 +152,13 @@ warning appears.
 2. Press **Produce disc**.
 3. Choose **ISO only** (a file you can burn later or test in VLC) or
    **ISO + burn** and the burner.
-4. Before burning, DVD Forge checks the disc structure. If it finds a blocking
+4. Before burning, Kinodisc checks the disc structure. If it finds a blocking
    error it does not burn, so no disc is wasted.
 
 ### Move or share a project
 
 Press **📦 Bundle** to save the project and every video, audio, subtitle and
-font it uses into a single `.dvdforge-bundle` file. On the other computer use
+font it uses into a single `.kinodisc-bundle` file. On the other computer use
 **Open**, pick the bundle and choose an empty folder: everything is checked
 (SHA-256) and the project opens.
 
@@ -176,7 +176,7 @@ closed, the waiting projects stay in the queue.
 ### Which player is it for?
 
 Use the **Player** selector in the header (PS2, PS3/4/5, Blu-ray player,
-older DVD player): DVD Forge adjusts the limits and warns about anything that
+older DVD player): Kinodisc adjusts the limits and warns about anything that
 player may not play smoothly.
 
 ### Keyboard
@@ -188,11 +188,11 @@ In the menu editor: arrows move the selected button (Shift = faster), `[` and
 
 | Problem | Solution |
 |---|---|
-| “FFmpeg missing” | Install it (`winget install Gyan.FFmpeg`) and restart DVD Forge. |
+| “FFmpeg missing” | Install it (`winget install Gyan.FFmpeg`) and restart Kinodisc. |
 | DVD is not produced on Windows | Open **⚕ Health** and press **Install** for DVDAuthor. |
 | Blu-ray menu does not appear | Update to 0.7.0: with FFmpeg 9 the menu was dropped when tsMuxeR was absent. |
 | Background looks squeezed | Update to 0.7.0: HD menus now use a 1920×1080 canvas. Older projects are adapted when opened. |
-| Audio warning | Read the warning in the production log: DVD Forge says which track it adjusted. |
+| Audio warning | Read the warning in the production log: Kinodisc says which track it adjusted. |
 | Not sure which frame rate | See the table in section 2. |
 | Advanced tools | Turn on **Expert mode** (next to the tabs) to see Animation, VM map and VBR quality. |
 
@@ -209,5 +209,5 @@ thumbnails), the VM map (every jump the player can make) and VBR quality
 ## 10. Languages
 
 Change the interface language with the selector in the header. The default
-names DVD Forge puts on the disc (“Main menu”, “Next ›”…) follow the interface
+names Kinodisc puts on the disc (“Main menu”, “Next ›”…) follow the interface
 language.

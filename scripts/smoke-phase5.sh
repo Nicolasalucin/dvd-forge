@@ -24,15 +24,15 @@ cargo test --workspace
 
 echo
 echo "== Tests de parsers macOS (ejecutables en Linux) =="
-cargo test -p dvdforge-burn --lib macos:: -- --nocapture
+cargo test -p kinodisc-burn --lib macos:: -- --nocapture
 
 echo
 echo "== Tests de lógica IMAPI2 (ejecutables en Linux) =="
-cargo test -p dvdforge-burn --lib windows:: -- --nocapture
+cargo test -p kinodisc-burn --lib windows:: -- --nocapture
 
 echo
 echo "== Tests de resolución de toolchain por plataforma =="
-cargo test -p dvdforge-toolchain -- --nocapture
+cargo test -p kinodisc-toolchain -- --nocapture
 
 echo
 echo "== Build del workspace =="
@@ -42,7 +42,7 @@ cargo build --workspace
 echo
 echo "== Doctor de herramientas en CachyOS =="
 mkdir -p build
-cargo run -q -p dvdforge-cli -- doctor --json > build/toolchain-phase5.json
+cargo run -q -p kinodisc-cli -- doctor --json > build/toolchain-phase5.json
 python3 - <<'PY'
 import json
 from pathlib import Path

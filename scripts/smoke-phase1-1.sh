@@ -11,7 +11,7 @@ cargo test --workspace
 
 echo
 echo "== Plan de bitrate del fixture =="
-cargo run --quiet -p dvdforge-cli -- plan \
+cargo run --quiet -p kinodisc-cli -- plan \
   fixtures/projects/minimal.json \
   -o build/plan.json
 
@@ -20,14 +20,14 @@ jq -e '.feasible == true and .fillPpm >= 980000' build/plan.json
 if [[ -f fixtures/projects/assets/episode-01.mp4 ]]; then
     echo
     echo "== FFprobe sobre el fixture generado =="
-    cargo run --quiet -p dvdforge-cli -- probe \
+    cargo run --quiet -p kinodisc-cli -- probe \
       fixtures/projects/assets/episode-01.mp4 \
       --json > build/probe.json
     jq -e '.video.width == 1280 and .audio[0].sampleRate == 48000' build/probe.json
 
     echo
     echo "== Codificación corta MPEG-2 + AC-3 + DVD-PS =="
-    cargo test -p dvdforge-dvd --test encode_smoke -- --ignored
+    cargo test -p kinodisc-dvd --test encode_smoke -- --ignored
 else
     echo
     echo "fixtures/projects/assets/episode-01.mp4 no existe; se omite la prueba de codificación."

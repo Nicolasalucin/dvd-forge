@@ -1,6 +1,6 @@
 use base64::Engine;
-use dvdforge_domain::{ButtonId, Menu, MenuTemplateId, NavigationGraph, Project};
-use dvdforge_menu::templates::{
+use kinodisc_domain::{ButtonId, Menu, MenuTemplateId, NavigationGraph, Project};
+use kinodisc_menu::templates::{
     all_templates, apply_template, MenuTemplateInfo, TemplateApplyResult,
 };
 use std::io::Write;

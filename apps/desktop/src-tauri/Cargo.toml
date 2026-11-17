@@ -1,18 +1,18 @@
 [package]
-name = "dvdforge-desktop"
+name = "kinodisc-desktop"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
-default-run = "dvdforge-desktop"
+default-run = "kinodisc-desktop"
 
 [lib]
-name = "dvdforge_desktop"
+name = "kinodisc_desktop"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "dvdforge-desktop"
+name = "kinodisc-desktop"
 path = "src/main.rs"
 
 [[bin]]
@@ -25,17 +25,17 @@ tauri-build = { version = "2.6.3", features = [] }
 [dependencies]
 base64.workspace = true
 chrono.workspace = true
-dvdforge-burn = { path = "../../../crates/dvdforge-burn" }
-dvdforge-domain = { path = "../../../crates/dvdforge-domain" }
-dvdforge-jobs = { path = "../../../crates/dvdforge-jobs" }
-dvdforge-media = { path = "../../../crates/dvdforge-media" }
-dvdforge-menu = { path = "../../../crates/dvdforge-menu" }
-dvdforge-plan = { path = "../../../crates/dvdforge-plan" }
-dvdforge-project = { path = "../../../crates/dvdforge-project" }
-dvdforge-render = { path = "../../../crates/dvdforge-render" }
-dvdforge-store = { path = "../../../crates/dvdforge-store" }
-dvdforge-toolchain = { path = "../../../crates/dvdforge-toolchain" }
-dvdforge-verify = { path = "../../../crates/dvdforge-verify" }
+kinodisc-burn = { path = "../../../crates/kinodisc-burn" }
+kinodisc-domain = { path = "../../../crates/kinodisc-domain" }
+kinodisc-jobs = { path = "../../../crates/kinodisc-jobs" }
+kinodisc-media = { path = "../../../crates/kinodisc-media" }
+kinodisc-menu = { path = "../../../crates/kinodisc-menu" }
+kinodisc-plan = { path = "../../../crates/kinodisc-plan" }
+kinodisc-project = { path = "../../../crates/kinodisc-project" }
+kinodisc-render = { path = "../../../crates/kinodisc-render" }
+kinodisc-store = { path = "../../../crates/kinodisc-store" }
+kinodisc-toolchain = { path = "../../../crates/kinodisc-toolchain" }
+kinodisc-verify = { path = "../../../crates/kinodisc-verify" }
 fontdb.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "kinodisc-plan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+kinodisc-avchd = { path = "../kinodisc-avchd" }
+kinodisc-domain = { path = "../kinodisc-domain" }
+specta.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+kinodisc-project = { path = "../kinodisc-project" }
+serde_json.workspace = true

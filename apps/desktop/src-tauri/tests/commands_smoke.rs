@@ -1,12 +1,12 @@
 use base64::Engine;
-use dvdforge_desktop::commands::{
+use kinodisc_desktop::commands::{
     burn_list_devices, menu_apply_template, menu_save_background, menu_templates, plan_calculate,
     project_new, project_open, project_save, read_image_data_url,
 };
-use dvdforge_domain::{
+use kinodisc_domain::{
     AspectRatio, AuthoringMode, AvchdResolution, FrameRate, MenuTemplateId, TvStandard,
 };
-use dvdforge_project::load_project;
+use kinodisc_project::load_project;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -43,7 +43,7 @@ fn project_save_and_open_round_trip() {
     let _context = CONTEXT_LOCK.lock().expect("context lock");
     let project = load_project(fixture_path()).expect("fixture");
     let path = std::env::temp_dir().join(format!(
-        "dvdforge-desktop-roundtrip-{}.json",
+        "kinodisc-desktop-roundtrip-{}.json",
         std::process::id()
     ));
     project_save(path.display().to_string(), project.clone()).expect("save");
@@ -64,7 +64,7 @@ fn menu_templates_are_exposed_and_applied_through_tauri_commands() {
     assert!(result
         .diagnostics
         .iter()
-        .all(|diagnostic| diagnostic.severity != dvdforge_domain::Severity::Error));
+        .all(|diagnostic| diagnostic.severity != kinodisc_domain::Severity::Error));
 }
 
 #[test]
@@ -98,8 +98,8 @@ fn burn_list_devices_sees_the_physical_drive() {
 #[tokio::test]
 #[ignore = "render completo de ~1 minuto; requiere ffmpeg/dvdauthor/xorriso"]
 async fn render_start_forwards_job_events_and_produces_iso() {
-    use dvdforge_desktop::commands::{project_open, render_start};
-    use dvdforge_jobs::{JobEvent, JobEventKind};
+    use kinodisc_desktop::commands::{project_open, render_start};
+    use kinodisc_jobs::{JobEvent, JobEventKind};
     use std::path::Path;
     use std::sync::{Arc, Mutex};
     use tauri::ipc::{Channel, InvokeResponseBody};
@@ -107,7 +107,7 @@ async fn render_start_forwards_job_events_and_produces_iso() {
     let path = fixture_path();
     let project = project_open(path.display().to_string()).expect("fixture");
     let output =
-        std::env::temp_dir().join(format!("dvdforge-command-render-{}", std::process::id()));
+        std::env::temp_dir().join(format!("kinodisc-command-render-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&output);
 
     let events = Arc::new(Mutex::new(Vec::<JobEvent>::new()));
@@ -124,7 +124,7 @@ async fn render_start_forwards_job_events_and_produces_iso() {
     let outcome = render_start(
         project,
         output.display().to_string(),
-        dvdforge_toolchain::EncoderPreference::CpuOnly,
+        kinodisc_toolchain::EncoderPreference::CpuOnly,
         channel,
     )
     .await
@@ -171,7 +171,7 @@ fn menu_save_background_writes_a_png_for_the_render() {
     let _ = std::fs::remove_file(&path);
     let _ = std::fs::remove_dir_all(
         std::env::temp_dir()
-            .join("dvdforge-ui-layers")
+            .join("kinodisc-ui-layers")
             .join(project_id),
     );
 }
@@ -185,7 +185,7 @@ fn read_image_data_url_resolves_project_relative_assets() {
         .expect("clock")
         .as_nanos();
     let project_dir = std::env::temp_dir().join(format!(
-        "dvdforge-read-image-{}-{unique}",
+        "kinodisc-read-image-{}-{unique}",
         std::process::id()
     ));
     std::fs::create_dir_all(project_dir.join("assets")).expect("assets dir");
@@ -221,6 +221,6 @@ fn project_new_creates_an_avchd_shell_with_a_menu() {
     assert_eq!(project.root_menu, project.menus[0].id);
     assert!(matches!(
         project.disc.video,
-        dvdforge_domain::VideoConfig::Avchd(_)
+        kinodisc_domain::VideoConfig::Avchd(_)
     ));
 }

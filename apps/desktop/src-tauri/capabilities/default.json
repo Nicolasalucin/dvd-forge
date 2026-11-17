@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permisos base de DVD Forge: ventana, eventos y diálogos nativos.",
+  "description": "Permisos base de Kinodisc: ventana, eventos y diálogos nativos.",
   "windows": ["main"],
   "permissions": [
     "core:default",

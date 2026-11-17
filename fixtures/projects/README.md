@@ -16,13 +16,13 @@ Los archivos de `projects/assets/` se generan con:
 
 El clip generado para el episodio dura 20 segundos, mientras que el metadato
 del fixture declara 2 horas para poder validar un plan de llenado cercano al
-99 %. `dvdforge-cli plan` usa los metadatos guardados por defecto; con
+99 %. `kinodisc-cli plan` usa los metadatos guardados por defecto; con
 `--probe` refresca la duración real con FFprobe:
 
 ```bash
-dvdforge-cli plan fixtures/projects/minimal.json -o build/plan.json
-dvdforge-cli plan fixtures/projects/minimal.json --probe -o build/plan-probed.json
-dvdforge-cli render fixtures/projects/minimal.json -o build/out
+kinodisc-cli plan fixtures/projects/minimal.json -o build/plan.json
+kinodisc-cli plan fixtures/projects/minimal.json --probe -o build/plan-probed.json
+kinodisc-cli render fixtures/projects/minimal.json -o build/out
 ```
 
 Las rutas, tamaños y hashes del JSON son metadatos de ejemplo hasta que la
@@ -37,9 +37,9 @@ Blu-ray:
 - sin menús interactivos (el fixture declara `menus: []`).
 
 ```bash
-dvdforge-cli plan fixtures/projects/avchd-dvd5.json --probe -o build/avchd-plan.json
-dvdforge-cli render fixtures/projects/avchd-dvd5.json --mode avchd -o build/avchd
-dvdforge-cli render fixtures/projects/avchd-dvd5.json --mode avchd --avchd-folder -o build/avchd
+kinodisc-cli plan fixtures/projects/avchd-dvd5.json --probe -o build/avchd-plan.json
+kinodisc-cli render fixtures/projects/avchd-dvd5.json --mode avchd -o build/avchd
+kinodisc-cli render fixtures/projects/avchd-dvd5.json --mode avchd --avchd-folder -o build/avchd
 ```
 
 `bd25-menu.json` es el fixture de regresión para el menú HDMV IG nativo:
@@ -50,8 +50,8 @@ dvdforge-cli render fixtures/projects/avchd-dvd5.json --mode avchd --avchd-folde
   UDF 2.50 con playlist de menú y `MovieObject` de First Play/Top Menu.
 
 ```bash
-cargo test -p dvdforge-render --test render_smoke \
+cargo test -p kinodisc-render --test render_smoke \
   renders_bd25_with_native_hdmv_menu -- --ignored
-cargo test -p dvdforge-render --test render_smoke \
+cargo test -p kinodisc-render --test render_smoke \
   renders_avchd_dvd5_with_native_hdmv_menu -- --ignored
 ```

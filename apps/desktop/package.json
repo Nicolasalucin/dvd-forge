@@ -1,5 +1,5 @@
 {
-  "name": "dvdforge-desktop",
+  "name": "kinodisc-desktop",
   "private": true,
   "version": "0.9.0",
   "license": "GPL-3.0-or-later",
@@ -9,7 +9,7 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "i18n:check": "node scripts/i18n-check.mjs --strict",
-    "bindings": "cargo run -q -p dvdforge-desktop --bin export-bindings",
+    "bindings": "cargo run -q -p kinodisc-desktop --bin export-bindings",
     "tauri": "tauri"
   },
   "dependencies": {

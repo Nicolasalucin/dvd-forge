@@ -1,0 +1,25 @@
+[package]
+name = "kinodisc-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "kinodisc-cli"
+path = "src/main.rs"
+
+[dependencies]
+kinodisc-burn = { path = "../kinodisc-burn" }
+kinodisc-domain = { path = "../kinodisc-domain" }
+kinodisc-jobs = { path = "../kinodisc-jobs" }
+kinodisc-media = { path = "../kinodisc-media" }
+kinodisc-plan = { path = "../kinodisc-plan" }
+kinodisc-project = { path = "../kinodisc-project" }
+kinodisc-render = { path = "../kinodisc-render" }
+kinodisc-toolchain = { path = "../kinodisc-toolchain" }
+kinodisc-verify = { path = "../kinodisc-verify" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "kinodisc-dvd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+kinodisc-domain = { path = "../kinodisc-domain" }
+kinodisc-toolchain = { path = "../kinodisc-toolchain" }
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+kinodisc-project = { path = "../kinodisc-project" }

@@ -4,7 +4,7 @@ Este directorio documenta las versiones esperadas de las herramientas externas.
 No se versionan binarios grandes.
 
 - `manifest.json`: versiones mínimas y candidatos de búsqueda.
-- `dvdforge-cli doctor --json`: fuente de verdad sobre lo que hay instalado.
+- `kinodisc-cli doctor --json`: fuente de verdad sobre lo que hay instalado.
 
 En CachyOS, `tsMuxeR` está disponible en `/usr/local/bin/tsMuxeR`. La copia de
 `/home/tobias/Descargas/tsMuxeR` puede colocarse aquí para pruebas de

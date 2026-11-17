@@ -1,19 +1,19 @@
-# AGENTS.md — DVD Forge engineering guide
+# AGENTS.md — Kinodisc engineering guide
 
 This file is the high-signal orientation for any AI coding agent working in this
 repository. Read it before changing code. The project ships optical disc images;
 several invariants are hardware- or format-critical and are not obvious from a
 single crate.
 
-## What DVD Forge is
+## What Kinodisc is
 
-DVD Forge is a Rust + Tauri v2 + Svelte 5 optical authoring studio for:
+Kinodisc is a Rust + Tauri v2 + Svelte 5 optical authoring studio for:
 
 - **DVD-Video** (DVD-5/DVD-9, MPEG-2, AC-3, DVDAuthor/Spumux, DVD-9 layer break).
 - **AVCHD** (H.264 on DVD media, HDMV Interactive Graphics menus).
 - **Blu-ray** (BD-25/BD-50, UDF 2.50 metadata partition, HDMV menus).
 
-The desktop app and CLI share the same render pipeline in `dvdforge-render`.
+The desktop app and CLI share the same render pipeline in `kinodisc-render`.
 
 > Roadmap: [ROADMAP.md](ROADMAP.md) is the authoritative v0.6.0–v1.0.0 plan.
 > New check IDs and diagnostic codes proposed there are reserved before
@@ -23,27 +23,27 @@ The desktop app and CLI share the same render pipeline in `dvdforge-render`.
 
 ```text
 crates/
-  dvdforge-domain/       Pure models, validation, geometry, menus, diagnostics
-  dvdforge-project/      Project JSON load/save/validate (schema v1)
-  dvdforge-media/        FFprobe adapter: streams, tags, chapters, dispositions
-  dvdforge-menu/         SPU/menu layer rasterization, templates, Spumux/TextSub XML
-  dvdforge-subtitle/     Native SRT/ASS/VTT parsing, ab_glyph rasterizer, PGS/SPU
-  dvdforge-plan/         Bitrate planning, DVD-9 ECC layer-break sector math
-  dvdforge-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
-  dvdforge-avchd/        H.264/AC-3 encoding, tsMuxeR metadata, native BDMV muxer
-  dvdforge-hdmv/         HDMV IG segments, opcodes, native M2TS/MPLS/CLPI/MovieObject
-  dvdforge-iso/          DVD-Video ISO builder and BDMV UDF 2.50 builder
-  dvdforge-burn/         Platform burners: growisofs/xorriso, camcontrol, IMAPI2, drutil
-  dvdforge-jobs/         Job events, stages, diagnostics-facing types
-  dvdforge-toolchain/    Binary discovery, tool doctor, hardware encoder probes
-  dvdforge-store/        SQLite recent projects, job history, artifact cache v2
-  dvdforge-testkit/      Shared test helpers
-  dvdforge-cli/          CLI: doctor, probe, plan, render, verify, devices, burn
-  dvdforge-render/       End-to-end DVD/AVCHD render orchestration and cache
-  dvdforge-verify/       Independent read-only UDF/BDMV/DVD structural verifier
+  kinodisc-domain/       Pure models, validation, geometry, menus, diagnostics
+  kinodisc-project/      Project JSON load/save/validate (schema v1)
+  kinodisc-media/        FFprobe adapter: streams, tags, chapters, dispositions
+  kinodisc-menu/         SPU/menu layer rasterization, templates, Spumux/TextSub XML
+  kinodisc-subtitle/     Native SRT/ASS/VTT parsing, ab_glyph rasterizer, PGS/SPU
+  kinodisc-plan/         Bitrate planning, DVD-9 ECC layer-break sector math
+  kinodisc-dvd/          MPEG-2/AC-3 encoding, DVDAuthor XML, IFO patching
+  kinodisc-avchd/        H.264/AC-3 encoding, tsMuxeR metadata, native BDMV muxer
+  kinodisc-hdmv/         HDMV IG segments, opcodes, native M2TS/MPLS/CLPI/MovieObject
+  kinodisc-iso/          DVD-Video ISO builder and BDMV UDF 2.50 builder
+  kinodisc-burn/         Platform burners: growisofs/xorriso, camcontrol, IMAPI2, drutil
+  kinodisc-jobs/         Job events, stages, diagnostics-facing types
+  kinodisc-toolchain/    Binary discovery, tool doctor, hardware encoder probes
+  kinodisc-store/        SQLite recent projects, job history, artifact cache v2
+  kinodisc-testkit/      Shared test helpers
+  kinodisc-cli/          CLI: doctor, probe, plan, render, verify, devices, burn
+  kinodisc-render/       End-to-end DVD/AVCHD render orchestration and cache
+  kinodisc-verify/       Independent read-only UDF/BDMV/DVD structural verifier
 
 vendor/libmkiso/         Vendored UDF/ISO writer+reader (upstream 0.1.5 + patches)
-vendor/libmkiso/DVDFORGE-PATCH.md
+vendor/libmkiso/KINODISC-PATCH.md
                          Local patch rationale; read before touching vendor code
 
 apps/desktop/            Svelte 5 + Vite + Tailwind frontend
@@ -57,7 +57,7 @@ apps/desktop/src/lib/api/bindings.ts
 ```
 
 Do not edit that file manually. Regenerate it with `npm run bindings` (or
-`cargo run -p dvdforge-desktop --bin export-bindings`).
+`cargo run -p kinodisc-desktop --bin export-bindings`).
 
 ## Critical invariants — do not break
 
@@ -68,7 +68,7 @@ Do not edit that file manually. Regenerate it with `npm run bindings` (or
   for **i686** and must handle BD-25/BD-50 and >4 GiB M2TS files.
 - UDF 2.50 metadata files must use **Extended File Entries (Tag 266)** with long
   allocation descriptors. The local patch is documented in
-  `vendor/libmkiso/DVDFORGE-PATCH.md`; the rest is upstream 0.1.5.
+  `vendor/libmkiso/KINODISC-PATCH.md`; the rest is upstream 0.1.5.
 - UDF images must keep the trailing AVDPs within the final 32-sector/64 KiB
   boundary, and metadata mirrors must remain readable.
 - Do not replace the reader with the writer for validation. The verifier needs
@@ -76,7 +76,7 @@ Do not edit that file manually. Regenerate it with `npm run bindings` (or
 - Run `vendor/libmkiso` tests from inside `vendor/libmkiso`; it is intentionally
   excluded from the workspace.
 
-### 2. `dvdforge-render`: MPEG-2 flags and cache determinism
+### 2. `kinodisc-render`: MPEG-2 flags and cache determinism
 
 The DVD-Video software encode path is tuned deliberately:
 
@@ -108,7 +108,7 @@ Smart Render Cache v2:
 - DVD/AVCHD artifacts are published through `cached_artifact_path`; menu cache
   hits must be materialized into the output tree before Spumux.
 
-### 3. `dvdforge-dvd`: DVD-9 layer break and IFO consistency
+### 3. `kinodisc-dvd`: DVD-9 layer break and IFO consistency
 
 - The planner computes an ECC-aligned layer-break sector (16 DVD sectors).
 - Authoring must call `apply_layer_break` (or equivalent) and set the **SPLIP**
@@ -120,7 +120,7 @@ Smart Render Cache v2:
 - Do not claim in the UI that the layer break is applied unless the authoring
   path actually does it.
 
-### 4. `dvdforge-verify`: independent and read-only
+### 4. `kinodisc-verify`: independent and read-only
 
 - The verifier is a read-only parser. It must not reuse writer code paths for
   structural validation.
@@ -147,7 +147,7 @@ Smart Render Cache v2:
 
 ### 6. Native subtitles and audio mastering
 
-- Text subtitle authoring goes through `dvdforge-subtitle`; do not route ASS/VTT
+- Text subtitle authoring goes through `kinodisc-subtitle`; do not route ASS/VTT
   through the legacy TextSub XML. DVD uses four-color PNGs plus Spumux `<spu>`;
   Blu-ray/AVCHD uses generated PGS `.sup` files in the combined MKV.
 - PGS and SPU buffers are bounded; render one 1080p bitmap at a time. Resolved
@@ -198,8 +198,8 @@ Smart Render Cache v2:
 ### 9. Bounded memory and 32-bit I/O
 
 - No production path may `fs::read` an ISO, M2TS, VOB or other multi-gigabyte
-  payload. Use the 256 KiB streaming helpers in `dvdforge-verify::stream`,
-  `dvdforge-hdmv::inject_ig_into_menu_m2ts_file` or equivalent.
+  payload. Use the 256 KiB streaming helpers in `kinodisc-verify::stream`,
+  `kinodisc-hdmv::inject_ig_into_menu_m2ts_file` or equivalent.
 - Buffers are 64 KiB–1 MiB. `vendor/libmkiso` uses a 1 MiB payload/digest
   buffer and a file-backed `FileSource`; never add a full-image allocation.
 - `i686` is a first-class target: sector/extent math uses `u64`/`u128`, packet
@@ -209,12 +209,12 @@ Smart Render Cache v2:
 
 ### 10. Native BDMV muxer and portable toolchain
 
-- `dvdforge-hdmv::native` emits canonical INDX0200/MOBJ0200/MPLS0200/HDMV0200
-  structures; keep its tests and the `dvdforge-verify` integration test green.
+- `kinodisc-hdmv::native` emits canonical INDX0200/MOBJ0200/MPLS0200/HDMV0200
+  structures; keep its tests and the `kinodisc-verify` integration test green.
 - tsMuxeR is optional. `MuxBackend::Auto` chooses native on 32-bit hosts or
   when tsMuxeR is absent, and tsMuxeR otherwise. A native failure on 64-bit may
   fall back with `W_NATIVE_MUX_FALLBACK`; on 32-bit it must fail structurally.
-- Portable discovery checks `DVDFORGE_TOOLCHAIN_DIR`, `<exe>/toolchain/`,
+- Portable discovery checks `KINODISC_TOOLCHAIN_DIR`, `<exe>/toolchain/`,
   `<exe>/bin/` and platform-arch variants before resources and PATH.
 - Native menu clips are encoded to **Matroska** (`menu.mkv`), not raw
   `.h264`: FFmpeg ≥ 9 refuses to stream-copy timestamp-less H.264 ES into
@@ -225,7 +225,7 @@ Smart Render Cache v2:
 
 - 1080p 25/29.97 is **PsF** (`HdScan::Psf`): x264 `fake-interlaced=1:pic-struct=1`,
   CPU only, signalled as 1080i in BDMV. 1080p 50/59.94 forces Level 4.2.
-- `dvdforge-plan::stream_copy::avchd_copy_decision` is the single authority
+- `kinodisc-plan::stream_copy::avchd_copy_decision` is the single authority
   for Smart Stream Copy; unknown probe data means re-encode. The render reads
   the decision from the plan (`EpisodeBitrate.stream_copy`) and includes it in
   the cache `profile`.
@@ -234,21 +234,21 @@ Smart Render Cache v2:
 
 ### 14. Bundles, batch and provisioning
 
-- `dvdforge-project::bundle` is the only bundle reader/writer: manifest
+- `kinodisc-project::bundle` is the only bundle reader/writer: manifest
   first, deterministic headers (mtime 0, uid/gid 0, mode 0644), streamed
   hashing, traversal-safe import with full rollback. Never trust an entry
   that is not in the manifest.
-- `dvdforge-cli batch` reuses `render::render`; keep concurrency 1.
-- `dvdforge-toolchain::provision::DOWNLOADS` entries must carry the exact
+- `kinodisc-cli batch` reuses `render::render`; keep concurrency 1.
+- `kinodisc-toolchain::provision::DOWNLOADS` entries must carry the exact
   size and SHA-256 published for the asset; never extract or run anything
   before the checksum matches. The per-user toolchain folder is searched
-  right after `DVDFORGE_TOOLCHAIN_DIR`.
+  right after `KINODISC_TOOLCHAIN_DIR`.
 
 ### 15. Native DVD ISO, tool builds and accessibility
 
-- `dvdforge-iso::dvd_native` writes the DVD-Video image; keep the
+- `kinodisc-iso::dvd_native` writes the DVD-Video image; keep the
   canonical contiguous file order (IFO sector offsets depend on it) and
-  validate with `dvdforge-verify` plus the dual-reader test. Never put
+  validate with `kinodisc-verify` plus the dual-reader test. Never put
   anything but DVD-Video files in VIDEO_TS.
 - `.github/workflows/build-dvdauthor.yml` builds the Windows DVDAuthor
   from the checksummed 0.7.2 tarball; changing it changes the zip SHA-256,
@@ -265,7 +265,7 @@ Smart Render Cache v2:
 
 ### 11. FreeBSD and multi-arch release
 
-- `dvdforge-burn` FreeBSD uses `camcontrol` for enumeration/eject,
+- `kinodisc-burn` FreeBSD uses `camcontrol` for enumeration/eject,
   `dvd+rw-mediainfo` for media, and `growisofs` with `xorriso` fallback.
 - The headless workspace must compile on FreeBSD (CI VM) and the pure crates are
   cross-checked with `x86_64-unknown-freebsd`.
@@ -280,8 +280,8 @@ Run these before committing. They are also the CI gate:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo check --workspace --exclude dvdforge-desktop --target i686-unknown-linux-gnu
-cargo test -p dvdforge-plan -p dvdforge-verify -p dvdforge-hdmv --target i686-unknown-linux-gnu
+cargo check --workspace --exclude kinodisc-desktop --target i686-unknown-linux-gnu
+cargo test -p kinodisc-plan -p kinodisc-verify -p kinodisc-hdmv --target i686-unknown-linux-gnu
 cd apps/desktop && npm run check && npm run build
 ```
 
@@ -298,14 +298,14 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 FreeBSD (CI uses a native VM):
 
 ```bash
-cargo check --workspace --exclude dvdforge-desktop
+cargo check --workspace --exclude kinodisc-desktop
 ```
 
 Ignored render smoke tests (require FFmpeg, DVDAuthor, Spumux, xorriso, tsMuxeR
 and fixtures):
 
 ```bash
-cargo test -p dvdforge-render --test render_smoke -- --ignored
+cargo test -p kinodisc-render --test render_smoke -- --ignored
 ```
 
 Bindings:

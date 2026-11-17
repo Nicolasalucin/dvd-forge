@@ -1,0 +1,33 @@
+[package]
+name = "kinodisc-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+kinodisc-avchd = { path = "../kinodisc-avchd" }
+kinodisc-domain = { path = "../kinodisc-domain" }
+kinodisc-dvd = { path = "../kinodisc-dvd" }
+kinodisc-hdmv = { path = "../kinodisc-hdmv" }
+kinodisc-iso = { path = "../kinodisc-iso" }
+kinodisc-jobs = { path = "../kinodisc-jobs" }
+kinodisc-media = { path = "../kinodisc-media" }
+kinodisc-menu = { path = "../kinodisc-menu" }
+kinodisc-plan = { path = "../kinodisc-plan" }
+kinodisc-store = { path = "../kinodisc-store" }
+kinodisc-subtitle = { path = "../kinodisc-subtitle" }
+kinodisc-toolchain = { path = "../kinodisc-toolchain" }
+kinodisc-verify = { path = "../kinodisc-verify" }
+hex.workspace = true
+image.workspace = true
+sha2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+kinodisc-project = { path = "../kinodisc-project" }

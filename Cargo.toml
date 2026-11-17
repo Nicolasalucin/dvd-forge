@@ -1,24 +1,24 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/dvdforge-domain",
-    "crates/dvdforge-project",
-    "crates/dvdforge-media",
-    "crates/dvdforge-menu",
-    "crates/dvdforge-plan",
-    "crates/dvdforge-dvd",
-    "crates/dvdforge-avchd",
-    "crates/dvdforge-hdmv",
-    "crates/dvdforge-iso",
-    "crates/dvdforge-burn",
-    "crates/dvdforge-jobs",
-    "crates/dvdforge-toolchain",
-    "crates/dvdforge-store",
-    "crates/dvdforge-testkit",
-    "crates/dvdforge-cli",
-    "crates/dvdforge-verify",
-    "crates/dvdforge-render",
-    "crates/dvdforge-subtitle",
+    "crates/kinodisc-domain",
+    "crates/kinodisc-project",
+    "crates/kinodisc-media",
+    "crates/kinodisc-menu",
+    "crates/kinodisc-plan",
+    "crates/kinodisc-dvd",
+    "crates/kinodisc-avchd",
+    "crates/kinodisc-hdmv",
+    "crates/kinodisc-iso",
+    "crates/kinodisc-burn",
+    "crates/kinodisc-jobs",
+    "crates/kinodisc-toolchain",
+    "crates/kinodisc-store",
+    "crates/kinodisc-testkit",
+    "crates/kinodisc-cli",
+    "crates/kinodisc-verify",
+    "crates/kinodisc-render",
+    "crates/kinodisc-subtitle",
     "apps/desktop/src-tauri",
 ]
 exclude = ["vendor/libmkiso"]
@@ -28,8 +28,8 @@ version = "0.9.0"
 edition = "2021"
 rust-version = "1.96"
 license = "GPL-3.0-or-later"
-authors = ["DVD Forge contributors"]
-repository = "https://github.com/Nicolasalucin/dvd-forge"
+authors = ["Kinodisc contributors"]
+repository = "https://github.com/Nicolasalucin/kinodisc"
 
 [profile.release]
 lto = "thin"

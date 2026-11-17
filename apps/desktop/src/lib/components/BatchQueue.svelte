@@ -23,7 +23,7 @@
     error?: string;
   }
 
-  const STORAGE_KEY = "dvdforge_batch_queue";
+  const STORAGE_KEY = "kinodisc_batch_queue";
 
   function load(): Item[] {
     try {
@@ -65,7 +65,7 @@
   async function addFiles() {
     const picked = await open({
       multiple: true,
-      filters: [{ name: t("Proyecto de DVD Forge"), extensions: ["json"] }],
+      filters: [{ name: t("Proyecto de Kinodisc"), extensions: ["json"] }],
     });
     const paths = Array.isArray(picked) ? picked : typeof picked === "string" ? [picked] : [];
     for (const path of paths) add(path);
@@ -114,7 +114,7 @@
           });
           const channel = new Channel<JobEvent_Deserialize>();
           channel.onmessage = (event) => projectStore.applyJobEvent(event);
-          const output = `${folder(items[index].path)}/dvdforge-${items[index].name}`;
+          const output = `${folder(items[index].path)}/kinodisc-${items[index].name}`;
           const outcome = await unwrap(commands.renderStart(project, output, "auto", channel));
           items[index] = { ...items[index], status: "done", iso: outcome.isoPath };
         } catch (cause) {

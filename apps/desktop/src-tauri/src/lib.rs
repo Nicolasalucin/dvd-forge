@@ -3,11 +3,11 @@
 pub mod commands;
 pub mod context;
 
-use dvdforge_burn::{BurnProgress, BurnReport, OpticalDevice};
-use dvdforge_domain::{DiscConfig, Episode, MediaProbe, Menu, NavigationGraph, Project};
-use dvdforge_jobs::{JobEvent, JobEventKind};
-use dvdforge_plan::BitratePlan;
-use dvdforge_render::RenderOutcome;
+use kinodisc_burn::{BurnProgress, BurnReport, OpticalDevice};
+use kinodisc_domain::{DiscConfig, Episode, MediaProbe, Menu, NavigationGraph, Project};
+use kinodisc_jobs::{JobEvent, JobEventKind};
+use kinodisc_plan::BitratePlan;
+use kinodisc_render::RenderOutcome;
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
 
@@ -63,8 +63,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .typ::<DiscConfig>()
         .typ::<Menu>()
         .typ::<NavigationGraph>()
-        .typ::<dvdforge_menu::templates::MenuTemplateInfo>()
-        .typ::<dvdforge_menu::templates::TemplateApplyResult>()
+        .typ::<kinodisc_menu::templates::MenuTemplateInfo>()
+        .typ::<kinodisc_menu::templates::TemplateApplyResult>()
         .typ::<Episode>()
         .typ::<MediaProbe>()
         .typ::<PlaybackSupport>()
@@ -75,10 +75,10 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .typ::<RenderOutcome>()
         .typ::<BurnProgress>()
         .typ::<BurnReport>()
-        .typ::<dvdforge_store::RecentProject>()
-        .typ::<dvdforge_store::JobHistoryEntry>()
-        .typ::<dvdforge_toolchain::ToolchainReport>()
-        .typ::<dvdforge_verify::report::VerifyReport>()
+        .typ::<kinodisc_store::RecentProject>()
+        .typ::<kinodisc_store::JobHistoryEntry>()
+        .typ::<kinodisc_toolchain::ToolchainReport>()
+        .typ::<kinodisc_verify::report::VerifyReport>()
         .dangerously_cast_bigints_to_number()
 }
 
@@ -112,5 +112,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error al ejecutar DVD Forge");
+        .expect("error al ejecutar Kinodisc");
 }

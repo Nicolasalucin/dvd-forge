@@ -68,9 +68,9 @@ rg -q 'shapeMask' apps/desktop/src/lib/editor/exportMenu.ts
 rg -q 'media_playback_support' apps/desktop/src-tauri/src/commands/media.rs
 rg -q 'media_preview_url' apps/desktop/src-tauri/src/commands/media.rs
 rg -q 'previewUrlFor' apps/desktop/src/lib/playback.ts
-rg -q 'layer_break_sector' crates/dvdforge-plan/src/lib.rs
-rg -q 'shift_srt' crates/dvdforge-menu/src/lib.rs
-rg -q 'AuthoredSubtitleTrack' crates/dvdforge-dvd/src/authoring.rs
+rg -q 'layer_break_sector' crates/kinodisc-plan/src/lib.rs
+rg -q 'shift_srt' crates/kinodisc-menu/src/lib.rs
+rg -q 'AuthoredSubtitleTrack' crates/kinodisc-dvd/src/authoring.rs
 rg -q 'menu_save_background' apps/desktop/src-tauri/src/commands/menu.rs
 rg -q 'Channel<JobEvent>' apps/desktop/src-tauri/src/commands/render.rs
 rg -q 'Channel<BurnProgress>' apps/desktop/src-tauri/src/commands/burn.rs
@@ -80,7 +80,7 @@ rg -q 'burn_start' apps/desktop/src-tauri/src/commands/burn.rs
 if compgen -G "/dev/sr*" >/dev/null; then
   echo
   echo "== burn_list_devices con hardware =="
-  cargo test -p dvdforge-desktop --test commands_smoke \
+  cargo test -p kinodisc-desktop --test commands_smoke \
     burn_list_devices_sees_the_physical_drive -- --ignored
 else
   echo
@@ -89,7 +89,7 @@ fi
 
 echo
 echo "== Render end-to-end desde el comando IPC render_start =="
-cargo test -p dvdforge-desktop --test commands_smoke \
+cargo test -p kinodisc-desktop --test commands_smoke \
   render_start_forwards_job_events_and_produces_iso -- --ignored
 
 echo

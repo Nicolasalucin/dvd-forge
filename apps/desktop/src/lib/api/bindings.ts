@@ -8,7 +8,7 @@ export const commands = {
 	projectSave: (path: string, project: Project_Deserialize) => typedError<null, string>(__TAURI_INVOKE("project_save", { path, project })),
 	projectOpen: (path: string) => typedError<Project_Serialize, string>(__TAURI_INVOKE("project_open", { path })),
 	/**
-	 *  Packs the project and every file it uses into one `.dvdforge-bundle`.
+	 *  Packs the project and every file it uses into one `.kinodisc-bundle`.
 	 *  Relative paths are resolved against the folder of the current project.
 	 */
 	bundleExport: (project: Project_Deserialize, path: string) => typedError<BundleReport_Serialize, string>(__TAURI_INVOKE("bundle_export", { project, path })),
@@ -21,13 +21,13 @@ export const commands = {
 	 *  Creates a blank DVD-Video project shell. Media and episodes are added by the
 	 *  editor once the user imports files.
 	 *  Permite abrir un proyecto al arrancar para integración/automatización de UI.
-	 *  Se activa con la variable de entorno `DVD_FORGE_PROJECT`.
+	 *  Se activa con la variable de entorno `KINODISC_PROJECT`.
 	 */
 	startupProjectPath: () => __TAURI_INVOKE<string | null>("startup_project_path"),
 	mediaProbeFile: (path: string) => typedError<MediaProbe_Serialize, string>(__TAURI_INVOKE("media_probe_file", { path })),
 	/**
 	 *  Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
-	 *  escribe en el directorio temporal de DVD Forge y se devuelve su ruta.
+	 *  escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
 	 */
 	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
 	/**
