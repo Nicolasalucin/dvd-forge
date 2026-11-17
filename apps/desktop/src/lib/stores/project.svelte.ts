@@ -22,6 +22,7 @@ import {
   type MediaProbe_Serialize,
   type MenuButton_Serialize,
   type MenuTemplateId,
+  type PlayerPreset,
   type Menu_Serialize,
   type MotionMenuConfig_Serialize,
   type OpticalDevice,
@@ -2080,6 +2081,30 @@ class ProjectStore {
     }
     this.plan = null;
     this.touch();
+  }
+
+  /**
+   * Target player. Mirrors `PlayerPreset::apply` in dvdforge-domain: it only
+   * tightens limits; compatibility warnings come back with the plan.
+   */
+  setPlayerPreset(preset: PlayerPreset): void {
+    const project = this.project;
+    if (!project) return;
+    const video = project.disc.video;
+    if (video.kind === "dvd" && (preset === "ps2" || preset === "dvdPlayer")) {
+      const cap = preset === "ps2" ? 8_000 : 8_500;
+      video.maxVideoKbps = Math.min(video.maxVideoKbps, cap);
+      video.minVideoKbps = Math.min(video.minVideoKbps, cap);
+    }
+    if (video.kind === "avchd" && (preset === "bluRayPlayer" || preset === "playStation")) {
+      video.vbvMaxrateKbps = Math.min(video.vbvMaxrateKbps, 35_000);
+      const fps = video.frameRate.num / video.frameRate.den;
+      const highFrameRate = video.resolution === "1080p" && fps > 31;
+      if (!highFrameRate) video.level = "level41";
+    }
+    project.disc.playerPreset = preset;
+    this.touch();
+    this.plan = null;
   }
 
   setRegionMask(mask: number): void {

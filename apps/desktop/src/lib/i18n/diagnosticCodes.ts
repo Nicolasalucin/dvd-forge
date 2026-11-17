@@ -160,4 +160,6 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "The downloaded file does not match the published version (SHA-256); it was discarded.",
   E_TOOLCHAIN_ARCHIVE: "The downloaded archive could not be unpacked safely.",
   E_TOOLCHAIN_IO: "The tool could not be saved (disk full or no permission?).",
+  E_PLAYER_PRESET_CONFLICT: "The selected player cannot play this kind of disc.",
+  W_PLAYER_PRESET_STRICT: "Part of the project may not play smoothly on the selected player.",
 };

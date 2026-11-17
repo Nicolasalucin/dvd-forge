@@ -766,6 +766,11 @@ export const es: Dictionary = {
   "Reintentar": "Reintentar",
   "Subir": "Subir",
   "{count} en espera": "{count} en espera",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Ajusta el disco para un reproductor concreto (más compatible)",
+  "Cualquier reproductor": "Cualquier reproductor",
+  "Reproductor": "Reproductor",
+  "Reproductor Blu-ray de salón": "Reproductor Blu-ray de salón",
+  "Reproductor DVD antiguo": "Reproductor DVD antiguo",
 };
 
 export const en: Dictionary = {
@@ -1622,6 +1627,11 @@ export const en: Dictionary = {
   "Reintentar": "Retry",
   "Subir": "Move up",
   "{count} en espera": "{count} waiting",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Tune the disc for a specific player (more compatible)",
+  "Cualquier reproductor": "Any player",
+  "Reproductor": "Player",
+  "Reproductor Blu-ray de salón": "Living-room Blu-ray player",
+  "Reproductor DVD antiguo": "Older DVD player",
 };
 
 export const pt: Dictionary = {
@@ -2477,6 +2487,11 @@ export const pt: Dictionary = {
   "Reintentar": "Tentar de novo",
   "Subir": "Subir",
   "{count} en espera": "{count} em espera",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Ajusta o disco para um reprodutor específico (mais compatível)",
+  "Cualquier reproductor": "Qualquer reprodutor",
+  "Reproductor": "Reprodutor",
+  "Reproductor Blu-ray de salón": "Reprodutor Blu-ray de sala",
+  "Reproductor DVD antiguo": "Reprodutor de DVD antigo",
 };
 
 export const fr: Dictionary = {
@@ -3400,6 +3415,11 @@ export const fr: Dictionary = {
   "Reintentar": "Réessayer",
   "Subir": "Monter",
   "{count} en espera": "{count} en attente",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Adapte le disque à un lecteur précis (plus compatible)",
+  "Cualquier reproductor": "N'importe quel lecteur",
+  "Reproductor": "Lecteur",
+  "Reproductor Blu-ray de salón": "Lecteur Blu-ray de salon",
+  "Reproductor DVD antiguo": "Ancien lecteur DVD",
 };
 
 export const de: Dictionary = {
@@ -4322,6 +4342,11 @@ export const de: Dictionary = {
   "Reintentar": "Erneut versuchen",
   "Subir": "Nach oben",
   "{count} en espera": "{count} wartend",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Passt die Disc an einen bestimmten Player an (kompatibler)",
+  "Cualquier reproductor": "Beliebiger Player",
+  "Reproductor": "Player",
+  "Reproductor Blu-ray de salón": "Blu-ray-Player (Wohnzimmer)",
+  "Reproductor DVD antiguo": "Älterer DVD-Player",
 };
 
 export const it: Dictionary = {
@@ -5244,6 +5269,11 @@ export const it: Dictionary = {
   "Reintentar": "Riprova",
   "Subir": "Sposta su",
   "{count} en espera": "{count} in attesa",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "Adatta il disco a un lettore specifico (più compatibile)",
+  "Cualquier reproductor": "Qualsiasi lettore",
+  "Reproductor": "Lettore",
+  "Reproductor Blu-ray de salón": "Lettore Blu-ray da salotto",
+  "Reproductor DVD antiguo": "Lettore DVD vecchio",
 };
 
 export const ja: Dictionary = {
@@ -6166,5 +6196,10 @@ export const ja: Dictionary = {
   "Reintentar": "再試行",
   "Subir": "上へ",
   "{count} en espera": "待機中 {count} 件",
+  "Ajusta el disco para un reproductor concreto (más compatible)": "特定のプレーヤー向けにディスクを調整します（互換性向上）",
+  "Cualquier reproductor": "すべてのプレーヤー",
+  "Reproductor": "プレーヤー",
+  "Reproductor Blu-ray de salón": "据え置きブルーレイプレーヤー",
+  "Reproductor DVD antiguo": "古い DVD プレーヤー",
 };
 

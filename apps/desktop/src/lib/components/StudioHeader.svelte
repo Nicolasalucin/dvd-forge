@@ -6,6 +6,7 @@
   import { commands } from "../api/bindings";
   import { localizeDiagnostic, localizeError } from "../i18n/diagnostics";
   import { projectStore, type StudioMode } from "../stores/project.svelte";
+  import type { PlayerPreset } from "../api/bindings";
   import JobHistory from "./JobHistory.svelte";
   import RecentProjects from "./RecentProjects.svelte";
   import ToolchainDoctor from "./ToolchainDoctor.svelte";
@@ -520,6 +521,19 @@
         <option value="dvd9">{t("DVD-9 · 8,5 GB")}</option>
         <option value="bd25">{t("BD-25 · 25 GB")}</option>
         <option value="bd50">{t("BD-50 · 50 GB")}</option>
+      </select>
+      <select
+        class="shrink-0 rounded-md border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-300 outline-none focus:border-cyan-500/60"
+        value={project.disc.playerPreset ?? "any"}
+        onchange={(event) => projectStore.setPlayerPreset(event.currentTarget.value as PlayerPreset)}
+        title={t("Ajusta el disco para un reproductor concreto (más compatible)")}
+        aria-label={t("Reproductor")}
+      >
+        <option value="any">{t("Cualquier reproductor")}</option>
+        <option value="ps2">PlayStation 2</option>
+        <option value="playStation">PlayStation 3/4/5</option>
+        <option value="bluRayPlayer">{t("Reproductor Blu-ray de salón")}</option>
+        <option value="dvdPlayer">{t("Reproductor DVD antiguo")}</option>
       </select>
       {#if project.disc.capacity === "dvd5" || project.disc.capacity === "dvd9"}
         <select

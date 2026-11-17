@@ -432,6 +432,8 @@ export type DiscConfig_Deserialize = {
 	layerBreakMode?: LayerBreakMode,
 	video: VideoConfig_Deserialize,
 	audio?: AudioDefaults,
+	/**  Target player; tightens limits and adds compatibility warnings. */
+	playerPreset?: PlayerPreset,
 };
 
 export type DiscConfig_Serialize = {
@@ -445,6 +447,8 @@ export type DiscConfig_Serialize = {
 	layerBreakMode: LayerBreakMode,
 	video: VideoConfig_Serialize,
 	audio: AudioDefaults,
+	/**  Target player; tightens limits and adds compatibility warnings. */
+	playerPreset: PlayerPreset,
 };
 
 export type DvdProfile = "d1" | "halfD1" | "auto";
@@ -1136,6 +1140,18 @@ export type PlaybackSupport_Serialize = {
 	detail: string,
 	installHint: string | null,
 };
+
+export type PlayerPreset = 
+/**  No extra restriction (format limits only). */
+"any" | 
+/**  PlayStation 2 (DVD-Video only). */
+"ps2" | 
+/**  PlayStation 3 / 4 / 5. */
+"playStation" | 
+/**  Living-room Blu-ray player (Sony, Panasonic, LG, Samsung…). */
+"bluRayPlayer" | 
+/**  Older living-room DVD player. */
+"dvdPlayer";
 
 /**  Point in pixel space. Used for navigation centers and debugging. */
 export type Point = {

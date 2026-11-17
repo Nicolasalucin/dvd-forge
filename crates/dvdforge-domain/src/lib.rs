@@ -11,6 +11,7 @@ pub mod ids;
 pub mod language;
 pub mod menu;
 pub mod navigation;
+pub mod presets;
 pub mod project;
 
 pub use budget::{AvchdPlanDetails, BitratePlan, BudgetPolicy, EpisodeBitrate, PlanFallback};
@@ -31,6 +32,7 @@ pub use menu::{
 pub use navigation::{
     resolve_navigation, EdgeSource, NavDirection, NavEdge, NavNode, NavPolicy, NavigationGraph,
 };
+pub use presets::PlayerPreset;
 pub use project::{
     bdmv_frame_rate_code, AssetSource, AudioCodec, AudioDefaults, AudioFormat, AudioMastering,
     AudioStreamInfo, AuthoringMode, AvchdResolution, AvchdVideoConfig, BurnPreferences,

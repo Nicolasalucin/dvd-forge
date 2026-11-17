@@ -113,6 +113,9 @@ pub struct DiscConfig {
     pub video: VideoConfig,
     #[serde(default)]
     pub audio: AudioDefaults,
+    /// Target player; tightens limits and adds compatibility warnings.
+    #[serde(default)]
+    pub player_preset: crate::presets::PlayerPreset,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -1772,6 +1775,7 @@ mod tests {
                 layer_break_mode: LayerBreakMode::Otp,
                 video: VideoConfig::Dvd(DvdVideoConfig::default()),
                 audio: AudioDefaults::default(),
+                player_preset: Default::default(),
             },
             assets: vec![MediaAsset {
                 id: asset_id,

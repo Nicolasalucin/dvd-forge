@@ -156,6 +156,8 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "O arquivo baixado não corresponde à versão publicada (SHA-256); foi descartado.",
   E_TOOLCHAIN_ARCHIVE: "Não foi possível extrair o arquivo baixado com segurança.",
   E_TOOLCHAIN_IO: "Não foi possível salvar a ferramenta (disco cheio ou sem permissão?).",
+  E_PLAYER_PRESET_CONFLICT: "O reprodutor escolhido não reproduz este tipo de disco.",
+  W_PLAYER_PRESET_STRICT: "Parte do projeto pode não ser reproduzida com fluidez no reprodutor escolhido.",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -311,6 +313,8 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "Le fichier téléchargé ne correspond pas à la version publiée (SHA-256) ; il a été supprimé.",
   E_TOOLCHAIN_ARCHIVE: "L'archive téléchargée n'a pas pu être extraite en toute sécurité.",
   E_TOOLCHAIN_IO: "Impossible d'enregistrer l'outil (disque plein ou pas d'autorisation ?).",
+  E_PLAYER_PRESET_CONFLICT: "Le lecteur choisi ne lit pas ce type de disque.",
+  W_PLAYER_PRESET_STRICT: "Une partie du projet risque de ne pas être lue de façon fluide sur le lecteur choisi.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -466,6 +470,8 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "Die heruntergeladene Datei stimmt nicht mit der veröffentlichten Version überein (SHA-256) und wurde verworfen.",
   E_TOOLCHAIN_ARCHIVE: "Das heruntergeladene Archiv konnte nicht sicher entpackt werden.",
   E_TOOLCHAIN_IO: "Das Werkzeug konnte nicht gespeichert werden (Datenträger voll oder keine Berechtigung?).",
+  E_PLAYER_PRESET_CONFLICT: "Der gewählte Player kann diese Art von Disc nicht abspielen.",
+  W_PLAYER_PRESET_STRICT: "Teile des Projekts laufen auf dem gewählten Player eventuell nicht flüssig.",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -621,6 +627,8 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "Il file scaricato non corrisponde alla versione pubblicata (SHA-256); è stato scartato.",
   E_TOOLCHAIN_ARCHIVE: "Impossibile estrarre l'archivio scaricato in modo sicuro.",
   E_TOOLCHAIN_IO: "Impossibile salvare lo strumento (disco pieno o permessi mancanti?).",
+  E_PLAYER_PRESET_CONFLICT: "Il lettore scelto non riproduce questo tipo di disco.",
+  W_PLAYER_PRESET_STRICT: "Parte del progetto potrebbe non essere riprodotta in modo fluido sul lettore scelto.",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -776,4 +784,6 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   E_TOOLCHAIN_CHECKSUM: "ダウンロードしたファイルが公開版と一致しません（SHA-256）。破棄しました。",
   E_TOOLCHAIN_ARCHIVE: "ダウンロードしたアーカイブを安全に展開できませんでした。",
   E_TOOLCHAIN_IO: "ツールを保存できませんでした（ディスクの空き不足または権限がない可能性があります）。",
+  E_PLAYER_PRESET_CONFLICT: "選択したプレーヤーはこの種類のディスクを再生できません。",
+  W_PLAYER_PRESET_STRICT: "選択したプレーヤーでは一部がスムーズに再生されない可能性があります。",
 };

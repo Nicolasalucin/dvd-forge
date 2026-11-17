@@ -84,6 +84,18 @@ pub fn calculate_bitrate_plan(
     project: &Project,
     probes: &HashMap<AssetId, MediaProbe>,
 ) -> Result<BitratePlan, PlanError> {
+    let mut plan = calculate_plan_for_format(project, probes)?;
+    // Player preset: compatibility notes travel with the plan so the UI and
+    // the render log show them next to the capacity warnings.
+    plan.warnings
+        .extend(project.disc.player_preset.check(project));
+    Ok(plan)
+}
+
+fn calculate_plan_for_format(
+    project: &Project,
+    probes: &HashMap<AssetId, MediaProbe>,
+) -> Result<BitratePlan, PlanError> {
     let errors: Vec<String> = project
         .validate()
         .into_iter()
