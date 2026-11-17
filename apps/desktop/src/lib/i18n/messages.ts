@@ -993,6 +993,9 @@ export const es: Dictionary = {
   "Abriendo…": "Abriendo…",
   "No se encuentra": "No se encuentra",
   "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.",
+  "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.",
+  "Tipo de letra": "Tipo de letra",
+  "Tamaño de los archivos": "Tamaño de los archivos",
 };
 
 export const en: Dictionary = {
@@ -2071,4 +2074,7 @@ export const en: Dictionary = {
   "Abriendo…": "Opening…",
   "No se encuentra": "Not found",
   "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "The project file cannot be found; it may have been moved, deleted or be on a disconnected drive.",
+  "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Try the menu as on a player: the remote's arrows and OK, or the keyboard.",
+  "Tipo de letra": "Font",
+  "Tamaño de los archivos": "Files size",
 };

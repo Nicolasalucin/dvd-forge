@@ -412,8 +412,8 @@
         </label>
       {/if}
 
-      <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div class="space-y-3">
+      <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div class="min-w-0 space-y-3">
           {#if mode === "existing"}
             <div class="rounded-md border border-slate-700 p-3">
               <div class="flex items-center justify-between">
@@ -533,7 +533,7 @@
 
           {#if projectStore.renderLogs.length > 0}
             <details class="rounded-xl border border-slate-800 p-3">
-              <summary class="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <summary class="ui-section-title cursor-pointer select-none">
                 {t("Registro")} · {projectStore.renderLogs.length} {t("líneas")}
               </summary>
               <div class="mt-2 max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-2 font-mono text-[12px] leading-5 text-slate-500">

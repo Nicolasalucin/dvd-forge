@@ -1143,6 +1143,9 @@ export const it: Dictionary = {
   "Abriendo…": "Apertura…",
   "No se encuentra": "Non trovato",
   "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "Il file del progetto non si trova; potrebbe essere stato spostato, eliminato o trovarsi su un disco scollegato.",
+  "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Prova il menu come su un lettore: frecce e OK del telecomando, o la tastiera.",
+  "Tipo de letra": "Carattere",
+  "Tamaño de los archivos": "Dimensione dei file",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -1304,4 +1307,5 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   I_SPLIT_CUSTOM_MENU: "I menu fatti a mano mantengono il design; su ogni disco vengono rimossi i pulsanti degli episodi presenti su un altro disco.",
   W_SCENES_INDEX_OVERFLOW: "Solo i primi episodi entrano nell'indice delle scene; usa un modello con più caselle.",
   E_PROJECT_NOT_FOUND: "Il file del progetto non si trova; potrebbe essere stato spostato, eliminato o trovarsi su un disco scollegato.",
+  W_MENU_COMPOSE: "Non è stato possibile disegnare i menu senza l'editor; vengono prodotti solo con sfondo ed evidenziazioni.",
 };

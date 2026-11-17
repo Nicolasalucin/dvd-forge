@@ -1144,6 +1144,9 @@ export const fr: Dictionary = {
   "Abriendo…": "Ouverture…",
   "No se encuentra": "Introuvable",
   "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "Le fichier du projet est introuvable ; il a peut-être été déplacé, supprimé ou se trouve sur un disque déconnecté.",
+  "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Testez le menu comme sur un lecteur : flèches et OK de la télécommande, ou le clavier.",
+  "Tipo de letra": "Police",
+  "Tamaño de los archivos": "Taille des fichiers",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -1305,4 +1308,5 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   I_SPLIT_CUSTOM_MENU: "Les menus faits à la main gardent leur design ; sur chaque disque, les boutons des épisodes d'un autre disque sont retirés.",
   W_SCENES_INDEX_OVERFLOW: "Seuls les premiers épisodes tiennent dans l'index des scènes ; utilisez un modèle avec plus d'emplacements.",
   E_PROJECT_NOT_FOUND: "Le fichier du projet est introuvable ; il a peut-être été déplacé, supprimé ou se trouve sur un disque déconnecté.",
+  W_MENU_COMPOSE: "Les menus n'ont pas pu être dessinés sans l'éditeur ; ils sont produits avec seulement leur fond et leurs surbrillances.",
 };

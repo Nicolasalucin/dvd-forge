@@ -380,7 +380,7 @@
             </div>
             <div class="space-y-3">
               <FontPicker
-                label={t("Fuente")}
+                label={t("Tipo de letra")}
                 value={item.fontFamily}
                 recommended={recommendedFonts}
                 installed={systemFonts}
@@ -506,7 +506,7 @@
               >{button.label?.text || button.name || t("Texto del botón")}</span>
             </div>
             <FontPicker
-              label={t("Fuente")}
+              label={t("Tipo de letra")}
               value={button.fontFamily}
               recommended={recommendedFonts}
               installed={systemFonts}
@@ -1029,7 +1029,7 @@
         <div class="rounded-lg border border-slate-800 p-2.5">
           <p class="ui-section-title">{t("Simulación")}</p>
           <p class="mt-1 text-[12px] leading-5 text-slate-500">
-            {t("El simulador usa el grafo de navegación calculado por Rust, incluidos los overrides del inspector y las acciones de cada botón.")}
+            {t("Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.")}
           </p>
         </div>
         <label class="flex items-center justify-between rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] text-slate-400">
@@ -1088,7 +1088,7 @@
               </dd>
             </div>
             <div class="flex justify-between gap-2">
-              <dt class="text-slate-500">{t("Tamaño fuente")}</dt>
+              <dt class="text-slate-500">{t("Tamaño de los archivos")}</dt>
               <dd class="text-slate-300">
                 {formatBytes(episodes.reduce((total, item) => total + (projectStore.assetFor(item.video)?.probe.sizeBytes ?? 0), 0))}
               </dd>
@@ -1294,7 +1294,7 @@
               </dd>
             </div>
             <div class="flex justify-between gap-2">
-              <dt class="text-slate-500">{t("Tamaño fuente")}</dt>
+              <dt class="text-slate-500">{t("Tamaño de los archivos")}</dt>
               <dd class="text-slate-300">
                 {formatBytes(episodes.reduce((total, item) => total + (projectStore.assetFor(item.video)?.probe.sizeBytes ?? 0), 0))}
               </dd>

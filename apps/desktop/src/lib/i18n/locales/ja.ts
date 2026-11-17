@@ -1143,6 +1143,9 @@ export const ja: Dictionary = {
   "Abriendo…": "開いています…",
   "No se encuentra": "見つかりません",
   "No se encuentra el archivo del proyecto; puede que se haya movido, borrado o que esté en un disco desconectado.": "プロジェクトファイルが見つかりません。移動・削除されたか、接続されていないドライブにある可能性があります。",
+  "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "プレーヤーと同じようにメニューを試せます：リモコンの矢印とOK、またはキーボード。",
+  "Tipo de letra": "フォント",
+  "Tamaño de los archivos": "ファイルサイズ",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -1304,4 +1307,5 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   I_SPLIT_CUSTOM_MENU: "手作りのメニューはデザインを保ちます。各ディスクでは、別のディスクにあるエピソードのボタンが削除されます。",
   W_SCENES_INDEX_OVERFLOW: "シーン一覧に入るのは最初のエピソードだけです。枠の多いテンプレートを使ってください。",
   E_PROJECT_NOT_FOUND: "プロジェクトファイルが見つかりません。移動・削除されたか、接続されていないドライブにある可能性があります。",
+  W_MENU_COMPOSE: "エディターなしではメニューを描画できませんでした。背景とハイライトのみで作成されます。",
 };

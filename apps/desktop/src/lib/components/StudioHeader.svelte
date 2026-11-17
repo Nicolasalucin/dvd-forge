@@ -23,7 +23,11 @@
   $effect(() => {
     const signature = planSignature;
     if (!projectStore.hasProject) return;
-    if (signature === lastPlanSignature) return;
+    // Some edits (template, undo, priority, disc settings) clear the plan
+    // without changing the signature: recalculate whenever it is missing.
+    const missing =
+      hasEpisodes && projectStore.plan === null && !projectStore.planBusy && !projectStore.planError;
+    if (signature === lastPlanSignature && !missing) return;
     lastPlanSignature = signature;
     if (planTimer) clearTimeout(planTimer);
     planTimer = setTimeout(() => {

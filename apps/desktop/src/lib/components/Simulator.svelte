@@ -544,7 +544,7 @@
       <button
         type="button"
         onclick={goBack}
-        class="ui-btn ui-btn-sm ui-btn-ghost absolute left-2 top-2"
+        class="absolute left-2 top-2 rounded-md bg-slate-950/80 px-2 py-1 text-[12px] font-medium text-[#fff] hover:bg-slate-950"
       >
         {t("← Menú")}
       </button>
@@ -690,7 +690,7 @@
         onclick={refreshGraph}
         class="ui-btn ui-btn-sm"
       >
-        {t("Refrescar grafo")}
+        {t("Actualizar")}
       </button>
     </div>
   </div>
@@ -802,9 +802,6 @@
         {#if !tvFullscreen}
           <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-slate-500">
             <span>{t("Flechas para navegar · Enter para activar · Retroceso para volver.")}</span>
-            <span>
-              {graph?.nodes.length ?? 0} {t("nodos")} · {graph?.edges.length ?? 0} {t("aristas")}
-            </span>
           </div>
         {/if}
         {#if tvFullscreen}{@render tvRemoteOverlay()}{/if}
@@ -896,19 +893,7 @@
           {:else}
             <p class="mt-1.5 text-[11px] text-slate-500">{t("Sin botón enfocado")}</p>
           {/if}
-          {#if graph}
-            <p class="mt-2 text-[11px] text-slate-500">
-              {graph.nodes.length} {t("botones")} · {graph.edges.length} {t("direcciones")}
-            </p>
-          {/if}
         </div>
-
-        {#if graph?.routeHash}
-          <div class="rounded-lg border border-slate-800 p-2.5">
-            <p class="text-[11px] font-semibold text-slate-500">{t("Huella de rutas D-Pad")}</p>
-            <p class="mt-1 truncate font-mono text-[11px] text-cyan-300">{graph.routeHash.slice(0, 24)}…</p>
-          </div>
-        {/if}
 
         {#if warnings.length > 0}
           <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5">
