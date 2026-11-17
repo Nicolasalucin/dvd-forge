@@ -544,13 +544,13 @@
             </div>
           </section>
 
-          <div>
-            <span class="ui-section-title mb-1 block">{t("Acción")}</span>
+          <div class="space-y-2">
+            <span class="ui-section-title block">{t("Al pulsar")}</span>
             <select
-              class="ui-input w-full"
+              class="ui-input"
               value={actionKind}
-              onchange={(event) =>
-                setActionKind(event.currentTarget.value as ButtonAction["kind"])}
+              aria-label={t("Acción")}
+              onchange={(event) => setActionKind(event.currentTarget.value as ButtonAction["kind"])}
             >
               {#each actionKinds as action}
                 <option value={action.id}>{t(action.label)}</option>
@@ -558,60 +558,50 @@
             </select>
 
             {#if button.action.kind === "playEpisode"}
-              <select
-                class="ui-input ui-input-sm mt-1.5 w-full"
-                value={button.action.episode}
-                onchange={(event) => patchAction({ episode: event.currentTarget.value })}
-              >
-                {#each episodes as item}
-                  <option value={item.id}>E{item.number} · {item.title}</option>
-                {/each}
-              </select>
-            {:else if button.action.kind === "gotoMenu"}
-              <select
-                class="ui-input ui-input-sm mt-1.5 w-full"
-                value={button.action.menu}
-                onchange={(event) => patchAction({ menu: event.currentTarget.value })}
-              >
-                {#each menus as item}
-                  <option value={item.id}>{item.name}</option>
-                {/each}
-              </select>
-            {:else if button.action.kind === "jumpTitleChapter"}
-              <div class="mt-1.5 grid grid-cols-[1fr_64px] gap-1.5">
-                <select
-                  class="ui-input ui-input-sm w-full"
-                  value={button.action.episode}
-                  onchange={(event) =>
-                    patchAction({ episode: event.currentTarget.value, chapter: 0 })}
-                >
+              <label class="block">
+                <span class="ui-label">{t("Episodio")}</span>
+                <select class="ui-input" value={button.action.episode} onchange={(event) => patchAction({ episode: event.currentTarget.value })}>
                   {#each episodes as item}
-                    <option value={item.id}>E{item.number} · {item.title}</option>
+                    <option value={item.id}>{item.number} · {item.title}</option>
                   {/each}
                 </select>
-                <select
-                  class="ui-input ui-input-sm w-full"
-                  value={button.action.chapter}
-                  onchange={(event) =>
-                    patchAction({ chapter: Number(event.currentTarget.value) })}
-                >
-                  {#each chaptersForAction()?.chapters ?? [] as chapter, index}
-                    <option value={index}>{index + 1}</option>
+              </label>
+            {:else if button.action.kind === "gotoMenu"}
+              <label class="block">
+                <span class="ui-label">{t("Menú")}</span>
+                <select class="ui-input" value={button.action.menu} onchange={(event) => patchAction({ menu: event.currentTarget.value })}>
+                  {#each menus as item}
+                    <option value={item.id}>{item.name}</option>
                   {/each}
                 </select>
+              </label>
+            {:else if button.action.kind === "jumpTitleChapter"}
+              <div class="grid grid-cols-[1fr_88px] gap-2">
+                <label class="block">
+                  <span class="ui-label">{t("Episodio")}</span>
+                  <select class="ui-input" value={button.action.episode} onchange={(event) => patchAction({ episode: event.currentTarget.value, chapter: 0 })}>
+                    {#each episodes as item}
+                      <option value={item.id}>{item.number} · {item.title}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="ui-label">{t("Capítulo")}</span>
+                  <select class="ui-input" value={button.action.chapter} onchange={(event) => patchAction({ chapter: Number(event.currentTarget.value) })}>
+                    {#each chaptersForAction()?.chapters ?? [] as chapter, index}
+                      <option value={index}>{index + 1}</option>
+                    {/each}
+                  </select>
+                </label>
               </div>
             {:else if button.action.kind === "setAudioTrack"}
-              <input
-                type="number"
-                min="0"
-                max="7"
-                class="ui-input ui-input-sm mt-1.5 w-full font-mono"
-                value={button.action.track}
-                onchange={(event) =>
-                  patchAction({ track: Math.max(0, Number(event.currentTarget.value)) })}
-              />
+              <label class="block">
+                <span class="ui-label">{t("Pista de audio")}</span>
+                <input type="number" min="1" max="8" class="ui-input tabular-nums" value={button.action.track + 1}
+                  onchange={(event) => patchAction({ track: Math.max(0, Number(event.currentTarget.value) - 1) })} />
+              </label>
             {:else}
-              <p class="mt-1 text-[12px] leading-5 text-slate-600">
+              <p class="ui-hint">
                 {actionKind === "playAll"
                   ? t("Reproduce todos los episodios en orden.")
                   : actionKind === "playFirstPlay"
@@ -623,106 +613,72 @@
             {/if}
           </div>
 
-          <div>
-            <span class="ui-section-title mb-1 block">{t("Miniatura")}</span>
+          <div class="space-y-2">
+            <span class="ui-section-title block">{t("Miniatura")}</span>
             {#if button.thumbnail}
-              <div class="flex items-center gap-2 rounded-lg border border-slate-800 p-2">
+              <div class="overflow-hidden rounded-md border border-slate-700">
                 {#if projectStore.previewForAsset(button.thumbnail.asset)}
-                  <img
-                    src={projectStore.previewForAsset(button.thumbnail.asset)}
-                    alt=""
-                    class="h-10 w-14 rounded border border-slate-800 object-cover"
-                  />
+                  <img src={projectStore.previewForAsset(button.thumbnail.asset)} alt="" class="aspect-video w-full bg-black object-cover" />
                 {/if}
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-[11px] text-slate-300">
+                <div class="flex items-center gap-2 px-2 py-1.5">
+                  <span class="min-w-0 flex-1 truncate text-[12px] text-slate-300">
                     {thumbnailAsset ? basename(thumbnailAsset.displayName) : t("Medio")}
-                  </p>
-                  <p class="text-[11px] text-slate-600">{t("Fotograma {frame}", { frame: button.thumbnail.inFrame })}</p>
+                  </span>
+                  <button type="button" class="ui-btn ui-btn-sm ui-btn-ghost ui-btn-icon ui-btn-danger" onclick={removeThumbnail} title={t("Quitar miniatura")} aria-label={t("Quitar miniatura")}>
+                    <Icon name="close" size={14} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onclick={removeThumbnail}
-                  class="ui-btn ui-btn-sm ui-btn-danger"
-                >
-                  ✕
-                </button>
               </div>
             {:else}
-              <div class="space-y-1.5 rounded-lg border border-dashed border-slate-800 px-2 py-2">
-                {#if buttonEpisode}
-                  <button
-                    type="button"
-                    onclick={useEpisodeThumbnail}
-                    class="w-full rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
-                  >
-                    {t("Usar imagen de «{episode}»", { episode: buttonEpisode.title })}
-                  </button>
-                {/if}
-                <p class="text-[12px] leading-5 text-slate-500">
-                  {t("O elige cualquier imagen o vídeo en «Medios» (panel izquierdo) y pulsa «Miniatura».")}
-                </p>
-              </div>
+              <p class="ui-hint">{t("Sin miniatura. Usa la del episodio o «⋯ › Usar como miniatura del botón» en Medios.")}</p>
             {/if}
             {#if buttonEpisode}
-              <button
-                type="button"
-                onclick={pickThumbnailFrame}
-                class="mt-1 w-full rounded-md border border-slate-700 px-2 py-1 text-[11px] text-slate-300 transition hover:border-slate-500 hover:text-white"
-                title={t("Abre el recortador; busca el momento y pulsa 📸 Miniatura")}
-              >
-                {t("📸 Elegir el fotograma exacto…")}
-              </button>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" class="ui-btn ui-btn-sm" onclick={useEpisodeThumbnail}>
+                  <Icon name="film" size={14} />{t("Del episodio")}
+                </button>
+                <button type="button" class="ui-btn ui-btn-sm" onclick={pickThumbnailFrame} title={t("Abre el recorte del episodio para elegir el fotograma exacto")}>
+                  <Icon name="photo" size={14} />{t("Fotograma…")}
+                </button>
+              </div>
             {/if}
           </div>
 
-          <div>
-            <span class="ui-section-title mb-1 block">{t("Navegación")}</span>
-            <div class="grid grid-cols-2 gap-1.5">
+          <div class="space-y-2">
+            <span class="ui-section-title block">{t("Navegación con el mando")}</span>
+            <!-- D-pad: each arrow chooses the button reached from this one. -->
+            <div class="grid grid-cols-3 items-center gap-1.5">
               {#each [
-                { key: "up" as const, label: "↑" },
-                { key: "down" as const, label: "↓" },
-                { key: "left" as const, label: "←" },
-                { key: "right" as const, label: "→" },
+                { key: "up" as const, label: "↑", cell: "col-start-2" },
+                { key: "left" as const, label: "←", cell: "col-start-1 row-start-2" },
+                { key: "right" as const, label: "→", cell: "col-start-3 row-start-2" },
+                { key: "down" as const, label: "↓", cell: "col-start-2 row-start-3" },
               ] as direction}
-                <label class="flex items-center gap-1 rounded-md border border-slate-800 bg-slate-900/60 px-1.5 py-1">
-                  <span class="w-3 text-center text-[11px] text-slate-500">{direction.label}</span>
+                <label class={`relative block ${direction.cell}`} title={t("Botón al pulsar {arrow}", { arrow: direction.label })}>
+                  <span class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[12px] text-slate-500">{direction.label}</span>
                   <select
-                    class="ui-input min-w-0 flex-1"
+                    class="ui-input ui-input-sm pl-5"
                     value={button.navOverride[direction.key] ?? ""}
-                    onchange={(event) =>
-                      projectStore.setButtonNavOverride(
-                        button.id,
-                        direction.key,
-                        event.currentTarget.value || null,
-                      )}
+                    onchange={(event) => projectStore.setButtonNavOverride(button.id, direction.key, event.currentTarget.value || null)}
                   >
-                    <option value="">{t("Automático")}</option>
+                    <option value="">{t("Auto")}</option>
                     {#each menu.buttons.filter((item) => item.id !== button.id) as target}
                       <option value={target.id}>{target.name}</option>
                     {/each}
                   </select>
                 </label>
               {/each}
+              <span class="col-start-2 row-start-2 truncate rounded-md bg-cyan-500/15 px-2 py-1 text-center text-[12px] text-slate-100">{button.name}</span>
             </div>
           </div>
 
-          <div class="flex items-center justify-between gap-2 border-t border-slate-800 pt-2">
-            <label class="flex items-center gap-1.5 text-[11px] text-slate-400">
-              <input
-                type="checkbox"
-                checked={button.enabled}
-                onchange={(event) => setEnabled(event.currentTarget.checked)}
-                class="accent-cyan-500"
-              />
+          <div class="flex items-center justify-between gap-2">
+            <label class="flex items-center gap-2 text-[13px] text-slate-300">
+              <input type="checkbox" class="ui-check" checked={button.enabled} onchange={(event) => setEnabled(event.currentTarget.checked)} />
               {t("Activo")}
             </label>
-            <button
-              type="button"
-              onclick={() => projectStore.deleteSelectedButton()}
-              class="rounded-md border border-rose-500/30 px-2 py-1 text-[11px] text-rose-300 transition hover:bg-rose-500/10"
-            >
-              {t("Eliminar botón")}
+            <button type="button" class="ui-btn ui-btn-sm ui-btn-danger" onclick={() => projectStore.deleteSelectedButton()}>
+              <Icon name="trash" size={14} />{t("Eliminar botón")}
             </button>
           </div>
         </section>
