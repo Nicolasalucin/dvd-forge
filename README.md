@@ -550,6 +550,16 @@ fuzzing, packaging and the v1.0.0 LTS schema freeze. See
 [ROADMAP.md](ROADMAP.md) for target crates, deliverables, check IDs and
 verification criteria.
 
+## Acknowledgements
+
+Thanks to these community members for finding bugs and suggesting improvements:
+
+- **OhItsStefan**
+- **Infinite_Silver483**
+- **Narrow-Chard4152**
+- **Mirandopacuenca67**
+- **Carllito7**
+
 ## License
 
 DVD Forge is distributed under the **GNU General Public License v3.0 or later**

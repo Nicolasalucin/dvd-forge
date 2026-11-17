@@ -448,6 +448,16 @@ checkpointing, fuzzing, empaquetado y el congelamiento del esquema LTS v1.0.0.
 Consulta [ROADMAP.md](ROADMAP.md) para crates objetivo, entregables, IDs de
 verificación y criterios de aceptación.
 
+## Agradecimientos
+
+Gracias a estas personas de la comunidad por encontrar errores y proponer mejoras:
+
+- **OhItsStefan**
+- **Infinite_Silver483**
+- **Narrow-Chard4152**
+- **Mirandopacuenca67**
+- **Carllito7**
+
 ## Licencia
 
 DVD Forge se distribuye bajo **GNU General Public License v3.0 or later**
