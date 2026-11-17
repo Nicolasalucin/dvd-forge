@@ -50,6 +50,12 @@ pub fn avchd_copy_decision(
             "Recodificación elegida para este episodio.",
         );
     }
+    if !episode.filters.is_neutral() {
+        return CopyDecision::no(
+            "COPY_FILTERS",
+            "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.",
+        );
+    }
     let Some(video) = probe.video.as_ref() else {
         return CopyDecision::no("COPY_NO_VIDEO", "El archivo no tiene vídeo analizable.");
     };

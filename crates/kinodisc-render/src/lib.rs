@@ -1,6 +1,7 @@
 //! Reusable end-to-end DVD-Video render pipeline shared by the CLI and Tauri.
 
 pub mod compose;
+pub mod picture;
 pub mod slideshow;
 pub mod split;
 
@@ -1030,6 +1031,10 @@ struct EpisodeRenderInputs<'a> {
     standard: TvStandard,
     aspect: AspectRatio,
     subtitles_hash: String,
+    /// Picture fixes chain; absent (not serialized) when neutral so 1.0
+    /// cache entries stay valid for untouched episodes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    picture: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -1721,6 +1726,19 @@ async fn render_avchd_project(
             }
             Some(_) => {}
         }
+        let pre_filter = if video_copy {
+            None
+        } else {
+            picture::picture_filter(
+                &episode.filters,
+                picture::PictureSource::from_probe(probe),
+                picture::PictureTarget {
+                    display_aspect: 16.0 / 9.0,
+                    progressive: !config.resolution.interlaced(),
+                    scale_mode: episode.scale_mode,
+                },
+            )
+        };
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
             // Hash the reconciled/harmonized audio actually encoded, so a
@@ -1763,6 +1781,7 @@ async fn render_avchd_project(
                 standard: project.disc.standard,
                 aspect: project.disc.aspect,
                 subtitles_hash,
+                picture: pre_filter.clone(),
             })?;
             Some(ArtifactKey {
                 kind: CacheArtifactKind::Episode,
@@ -1896,6 +1915,7 @@ async fn render_avchd_project(
             trim_start_ms: episode.trim_start_ms,
             trim_end_ms: episode.trim_end_ms,
             scale_mode: episode.scale_mode,
+            pre_filter,
             fps: source_fps,
             duration_ms,
             hardware_encoder: if video_copy { None } else { hardware_encoder },
@@ -2618,6 +2638,7 @@ async fn encode_intro(
             standard: project.disc.standard,
             aspect: project.disc.aspect,
             subtitles_hash: String::new(),
+            picture: None,
         })?;
         Some(ArtifactKey {
             kind: CacheArtifactKind::Intro,
@@ -2679,6 +2700,7 @@ async fn encode_intro(
             interlaced: is_interlaced(probe),
             top_field_first: is_top_field_first(probe),
             scale_mode: VideoScaleMode::Letterbox,
+            pre_filter: None,
         },
         audio_tracks: first_play
             .audio
@@ -3175,6 +3197,21 @@ async fn encode_episodes(
             .unwrap_or(plan.video_kbps);
         let video_kbps = planned.min(cap).max(1);
         let maxrate_kbps = (video_kbps + 3_000).min(cap).max(video_kbps);
+        let source_interlaced = is_interlaced(probe);
+        let interlaced = picture::keeps_interlacing(&episode.filters, source_interlaced);
+        let pre_filter = picture::picture_filter(
+            &episode.filters,
+            picture::PictureSource::from_probe(probe),
+            picture::PictureTarget {
+                display_aspect: match project.disc.aspect {
+                    AspectRatio::SixteenNine => 16.0 / 9.0,
+                    _ => 4.0 / 3.0,
+                },
+                // DVD keeps interlaced sources interlaced (Auto does nothing).
+                progressive: !source_interlaced,
+                scale_mode: episode.scale_mode,
+            },
+        );
         let cache_key = if cache.is_some() {
             let source_fp = source_fingerprint_for_asset(&input, asset).await?;
             let audio_hash = audio_params_hash(&Episode {
@@ -3198,13 +3235,14 @@ async fn encode_episodes(
                 gop_frames: gop_for(project.disc.standard),
                 b_frames: 2,
                 b_strategy: 2,
-                interlaced: is_interlaced(probe),
+                interlaced,
                 top_field_first: is_top_field_first(probe),
                 dc_precision: dc_precision_for_kbps(video_kbps),
                 resolution: None,
                 standard: project.disc.standard,
                 aspect: project.disc.aspect,
                 subtitles_hash,
+                picture: pre_filter.clone(),
             })?;
             Some(ArtifactKey {
                 kind: CacheArtifactKind::Episode,
@@ -3234,9 +3272,10 @@ async fn encode_episodes(
                 aspect: project.disc.aspect,
                 gop_frames: gop_for(project.disc.standard),
                 b_frames: 2,
-                interlaced: is_interlaced(probe),
+                interlaced,
                 top_field_first: is_top_field_first(probe),
                 scale_mode: episode.scale_mode,
+                pre_filter: pre_filter.clone(),
             },
             audio_tracks,
             trim: episode.trim,

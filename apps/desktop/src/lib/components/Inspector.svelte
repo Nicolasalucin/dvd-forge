@@ -202,6 +202,7 @@
   const COPY_NOTES: Record<string, string> = {
     COPY_OK: "Compatible: el vídeo se copia sin recodificar (más rápido y sin pérdida).",
     COPY_DISABLED: "Recodificación elegida para este episodio.",
+    COPY_FILTERS: "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.",
     COPY_NO_VIDEO: "El archivo no tiene vídeo analizable.",
     COPY_CODEC: "El vídeo no es H.264; se recodifica.",
     COPY_PROFILE: "El perfil H.264 no es High o Main; se recodifica.",

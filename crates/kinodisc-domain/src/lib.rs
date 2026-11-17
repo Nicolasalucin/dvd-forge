@@ -6,6 +6,7 @@
 
 pub mod budget;
 pub mod diagnostic;
+pub mod filters;
 pub mod geometry;
 pub mod ids;
 pub mod language;
@@ -16,6 +17,7 @@ pub mod project;
 
 pub use budget::{AvchdPlanDetails, BitratePlan, BudgetPolicy, EpisodeBitrate, PlanFallback};
 pub use diagnostic::{Diagnostic, Severity};
+pub use filters::{CropMargins, Deinterlace, Denoise, Rotation, SideFill, VideoFilters};
 pub use geometry::{
     even_ceil, even_floor, has_gap, normalize_rect, validate_layout, AspectRatio, CanvasSpec,
     FrameRange, FrameRate, LogicalRect, PixelRect, Point, TvStandard,

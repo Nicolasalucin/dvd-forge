@@ -46,6 +46,8 @@ pub struct VideoEncodeConfig {
     pub interlaced: bool,
     pub top_field_first: bool,
     pub scale_mode: VideoScaleMode,
+    /// Picture fixes (crop, rotate, colour…) run before the scale chain.
+    pub pre_filter: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -521,7 +523,10 @@ fn tail(value: &str, max_chars: usize) -> String {
 /// The scale chain plus, for interlaced output, the field order the encoder
 /// writes (`setfield`, valid in every FFmpeg version).
 fn encode_filter(video: &VideoEncodeConfig) -> String {
-    let mut filter = build_scale_filter(video);
+    let mut filter = match &video.pre_filter {
+        Some(pre) => format!("{pre},{}", build_scale_filter(video)),
+        None => build_scale_filter(video),
+    };
     if video.interlaced {
         filter.push_str(if video.top_field_first {
             ",setfield=tff"
@@ -737,6 +742,7 @@ pub fn build_menu_encode_args(request: &MenuEncodeRequest) -> Vec<String> {
         // The PNG is already a DVD storage-resolution frame whose pixels the
         // spumux button rectangles reference; letterboxing it would move them.
         scale_mode: VideoScaleMode::Stretch,
+        pre_filter: None,
     };
     let mut args = vec![
         "-hide_banner".to_string(),
@@ -1213,6 +1219,7 @@ mod tests {
             interlaced: false,
             top_field_first: true,
             scale_mode: VideoScaleMode::Letterbox,
+            pre_filter: None,
         }
     }
 

@@ -32,6 +32,7 @@ async fn encodes_a_short_episode_end_to_end() {
             interlaced: false,
             top_field_first: true,
             scale_mode: kinodisc_domain::VideoScaleMode::Letterbox,
+            pre_filter: None,
         },
         audio_tracks: vec![AudioEncodeConfig {
             source_stream: 1,

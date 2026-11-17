@@ -40,6 +40,18 @@ export const commands = {
 	 *  disc's limit (99 on DVD, 999 on Blu-ray).
 	 */
 	mediaDetectScenes: (path: string, sensitivity: number | null, minGapMs: number, startMs: number, endMs: number | null, maxChapters: number) => typedError<number[], string>(__TAURI_INVOKE("media_detect_scenes", { path, sensitivity, minGapMs, startMs, endMs, maxChapters })),
+	/**
+	 *  Black borders of a video (FFmpeg cropdetect on three short samples; the
+	 *  widest picture found wins, so no real picture is ever cut). `None` when
+	 *  the borders are under 4 px.
+	 */
+	mediaDetectCrop: (videoPath: string) => typedError<CropMargins | null, string>(__TAURI_INVOKE("media_detect_crop", { videoPath })),
+	/**
+	 *  A frame of `video_path` with the episode's picture fixes, framed like the
+	 *  disc (16:9 or 4:3, bars or fill): the same filter builder as the encoder,
+	 *  so the preview matches what gets burned. Returns a cached PNG path.
+	 */
+	mediaFilterPreview: (videoPath: string, timestampMs: number, filters: VideoFilters_Deserialize, wide: boolean, progressive: boolean, scaleMode: VideoScaleMode) => typedError<string, string>(__TAURI_INVOKE("media_filter_preview", { videoPath, timestampMs, filters, wide, progressive, scaleMode })),
 	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
 	/**  Builds (or reuses) a photo slideshow video in the per-user cache. */
 	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
@@ -473,6 +485,21 @@ export type Chapter_Serialize = {
 
 export type CheckStatus = "pass" | "warn" | "fail" | "skipped";
 
+export type CropMargins = {
+	left: number,
+	top: number,
+	right: number,
+	bottom: number,
+};
+
+export type Deinterlace = 
+/**  Only when an interlaced source goes to a progressive disc. */
+"auto" | 
+/**  Always (combing visible even on an interlaced disc). */
+"on" | "off";
+
+export type Denoise = "off" | "light" | "strong";
+
 export type DeviceId = string;
 
 /**
@@ -716,6 +743,8 @@ export type Episode_Deserialize = {
 	encodeOverride?: EncodeOverride_Deserialize | null,
 	/**  Whether the video may be copied without re-encoding (AVCHD/Blu-ray). */
 	videoMode?: VideoEncodeMode,
+	/**  Picture fixes (rotate, crop, colour, denoise…); neutral by default. */
+	filters?: VideoFilters_Deserialize,
 };
 
 export type Episode_Serialize = {
@@ -737,6 +766,8 @@ export type Episode_Serialize = {
 	encodeOverride: EncodeOverride_Serialize | null,
 	/**  Whether the video may be copied without re-encoding (AVCHD/Blu-ray). */
 	videoMode: VideoEncodeMode,
+	/**  Picture fixes (rotate, crop, colour, denoise…); neutral by default. */
+	filters: VideoFilters_Serialize,
 };
 
 export type FileHash = {
@@ -1450,6 +1481,8 @@ export type RenderOutcome_Serialize = {
 	verification: VerifyReport_Serialize | null,
 };
 
+export type Rotation = "none" | "clockwise" | "half" | "counterClockwise";
+
 /**  Severity of a validation or planning diagnostic. */
 export type Severity = "info" | "warning" | "error";
 
@@ -1470,6 +1503,12 @@ export type ShapeItem_Serialize = {
 	stroke: string | null,
 	strokeWidth: number | null,
 };
+
+export type SideFill = 
+/**  Black bars (the classic letterbox/pillarbox). */
+"bars" | 
+/**  The same video, enlarged and blurred, behind it (phone videos). */
+"blur";
 
 export type SlideshowOutcome = {
 	path: string,
@@ -1860,6 +1899,42 @@ export type VideoEncodeMode =
 "reencode" | 
 /**  Copy whenever the stream complies; warns and re-encodes otherwise. */
 "copy";
+
+export type VideoFilters = VideoFilters_Serialize | VideoFilters_Deserialize;
+
+export type VideoFilters_Deserialize = {
+	rotate?: Rotation,
+	flipHorizontal?: boolean,
+	/**  Pixels removed from each side of the source (before rotation). */
+	crop?: CropMargins | null,
+	/**  -100..100 (0 = unchanged). */
+	brightness?: number,
+	/**  -100..100 (0 = unchanged). */
+	contrast?: number,
+	/**  -100..100 (0 = unchanged; -100 = black and white). */
+	saturation?: number,
+	denoise?: Denoise,
+	deinterlace?: Deinterlace,
+	/**  What fills the sides of a video narrower than the screen. */
+	sideFill?: SideFill,
+};
+
+export type VideoFilters_Serialize = {
+	rotate: Rotation,
+	flipHorizontal: boolean,
+	/**  Pixels removed from each side of the source (before rotation). */
+	crop: CropMargins | null,
+	/**  -100..100 (0 = unchanged). */
+	brightness: number,
+	/**  -100..100 (0 = unchanged). */
+	contrast: number,
+	/**  -100..100 (0 = unchanged; -100 = black and white). */
+	saturation: number,
+	denoise: Denoise,
+	deinterlace: Deinterlace,
+	/**  What fills the sides of a video narrower than the screen. */
+	sideFill: SideFill,
+};
 
 export type VideoScaleMode = "letterbox" | "cropFill" | "stretch" | 
 /**  Sinónimo explícito de `Letterbox` usado por la UI avanzada. */

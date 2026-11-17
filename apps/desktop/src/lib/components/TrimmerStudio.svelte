@@ -21,6 +21,7 @@
     if (first) projectStore.selectEpisode(first.id);
   }
   import { t } from "../i18n/index.svelte";
+  import PictureFixes from "./PictureFixes.svelte";
   import { onMount } from "svelte";
   import {
     commands,
@@ -675,6 +676,8 @@
             </select>
           </label>
         </div>
+
+        <PictureFixes {episode} timeMs={currentTimeMs} />
       </div>
 
       <aside class="flex min-h-0 flex-col gap-2">

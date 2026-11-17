@@ -489,6 +489,185 @@ pub async fn media_detect_scenes(
         .collect())
 }
 
+/// A frame of `video_path` with the episode's picture fixes, framed like the
+/// disc (16:9 or 4:3, bars or fill): the same filter builder as the encoder,
+/// so the preview matches what gets burned. Returns a cached PNG path.
+#[tauri::command]
+#[specta::specta]
+pub async fn media_filter_preview(
+    video_path: String,
+    timestamp_ms: u32,
+    filters: kinodisc_domain::VideoFilters,
+    wide: bool,
+    progressive: bool,
+    scale_mode: kinodisc_domain::VideoScaleMode,
+) -> Result<String, String> {
+    use kinodisc_render::picture::{picture_filter, PictureSource, PictureTarget};
+    let input = resolve_media_path(&video_path)?;
+    if !input.is_file() {
+        return Err(format!(
+            "El vídeo no existe o no es accesible: {}",
+            input.display()
+        ));
+    }
+    let probe = kinodisc_media::probe(&input).await.ok();
+    let pre = picture_filter(
+        &filters,
+        probe.as_ref().and_then(PictureSource::from_probe),
+        PictureTarget {
+            display_aspect: if wide { 16.0 / 9.0 } else { 4.0 / 3.0 },
+            progressive,
+            scale_mode,
+        },
+    );
+    let (width, height) = if wide { (640, 360) } else { (480, 360) };
+    let frame = match scale_mode {
+        kinodisc_domain::VideoScaleMode::CropFill | kinodisc_domain::VideoScaleMode::Cover => format!(
+            "scale=iw*sar:ih,setsar=1,scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+        ),
+        kinodisc_domain::VideoScaleMode::Stretch => {
+            format!("scale=iw*sar:ih,setsar=1,scale={width}:{height}")
+        }
+        _ => format!(
+            "scale=iw*sar:ih,setsar=1,scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
+        ),
+    };
+    let filter = match pre {
+        Some(pre) => format!("{pre},{frame}"),
+        None => frame,
+    };
+    let cache = frame_cache_dir();
+    create_private_dir(&cache)
+        .map_err(|error| format!("No se pudo crear la caché de fotogramas: {error}"))?;
+    let key = {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(path_fingerprint(&input).as_bytes());
+        hasher.update(timestamp_ms.to_le_bytes());
+        hasher.update(filter.as_bytes());
+        hasher
+            .finalize()
+            .iter()
+            .take(12)
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    };
+    let output = cache.join(format!("pv-{key}.png"));
+    if png_is_complete(&output) {
+        return Ok(output.display().to_string());
+    }
+    let target = output.with_extension(format!("{}.part.png", uuid::Uuid::new_v4().simple()));
+    let result = tokio::time::timeout(
+        FRAME_TIMEOUT,
+        Command::from(kinodisc_toolchain::background_command(ffmpeg_binary()))
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-ss"])
+            .arg(format!("{:.3}", f64::from(timestamp_ms) / 1000.0))
+            .arg("-protocol_whitelist")
+            .arg(MEDIA_PROTOCOL_WHITELIST)
+            .arg("-i")
+            .arg(&input)
+            .args(["-frames:v", "1", "-vf", &filter])
+            .arg(&target)
+            .stdin(Stdio::null())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .map_err(|_| "FFmpeg agotó el tiempo al preparar la vista previa.".to_string())?
+    .map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?;
+    if !result.status.success() || !png_is_complete(&target) {
+        let _ = std::fs::remove_file(&target);
+        return Err(format!(
+            "FFmpeg no pudo preparar la vista previa: {}",
+            String::from_utf8_lossy(&result.stderr).trim()
+        ));
+    }
+    std::fs::rename(&target, &output).map_err(|error| error.to_string())?;
+    Ok(output.display().to_string())
+}
+
+/// Black borders of a video (FFmpeg cropdetect on three short samples; the
+/// widest picture found wins, so no real picture is ever cut). `None` when
+/// the borders are under 4 px.
+#[tauri::command]
+#[specta::specta]
+pub async fn media_detect_crop(
+    video_path: String,
+) -> Result<Option<kinodisc_domain::CropMargins>, String> {
+    let input = resolve_media_path(&video_path)?;
+    let probe = kinodisc_media::probe(&input)
+        .await
+        .map_err(|error| error.to_string())?;
+    let video = probe.video.as_ref().ok_or("El archivo no tiene vídeo.")?;
+    let duration = probe.duration_ms.unwrap_or(10_000).max(1);
+    let mut found: Option<(u32, u32, u32, u32)> = None;
+    for fraction in [0.15f64, 0.5, 0.85] {
+        let start = (duration as f64 * fraction / 1000.0).max(0.0);
+        let output = tokio::time::timeout(
+            FRAME_TIMEOUT,
+            Command::from(kinodisc_toolchain::background_command(ffmpeg_binary()))
+                .args(["-hide_banner", "-ss"])
+                .arg(format!("{start:.3}"))
+                .arg("-protocol_whitelist")
+                .arg(MEDIA_PROTOCOL_WHITELIST)
+                .arg("-i")
+                .arg(&input)
+                .args([
+                    "-t",
+                    "2",
+                    "-an",
+                    "-vf",
+                    "cropdetect=limit=24:round=2:reset=0",
+                    "-f",
+                    "null",
+                    "-",
+                ])
+                .stdin(Stdio::null())
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await
+        .map_err(|_| "FFmpeg agotó el tiempo al buscar bordes.".to_string())?
+        .map_err(|error| format!("No se pudo ejecutar FFmpeg: {error}"))?;
+        if let Some((w, h, x, y)) = last_cropdetect(&String::from_utf8_lossy(&output.stderr)) {
+            found = Some(match found {
+                None => (x, y, x + w, y + h),
+                Some((x0, y0, x1, y1)) => (x0.min(x), y0.min(y), x1.max(x + w), y1.max(y + h)),
+            });
+        }
+    }
+    let Some((x0, y0, x1, y1)) = found else {
+        return Ok(None);
+    };
+    let margins = kinodisc_domain::CropMargins {
+        left: x0,
+        top: y0,
+        right: video.width.saturating_sub(x1),
+        bottom: video.height.saturating_sub(y1),
+    };
+    let significant = [margins.left, margins.top, margins.right, margins.bottom]
+        .iter()
+        .any(|side| *side >= 4);
+    Ok(significant.then_some(margins))
+}
+
+/// The last `crop=W:H:X:Y` cropdetect printed.
+fn last_cropdetect(stderr: &str) -> Option<(u32, u32, u32, u32)> {
+    stderr.lines().rev().find_map(|line| {
+        let value = &line[line.rfind("crop=")? + 5..];
+        let mut parts = value
+            .split(|ch: char| ch == ':' || ch.is_whitespace())
+            .filter(|part| !part.is_empty())
+            .map(|part| part.parse::<u32>().ok());
+        Some((
+            parts.next()??,
+            parts.next()??,
+            parts.next()??,
+            parts.next()??,
+        ))
+    })
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_probe_file(path: String) -> Result<MediaProbe, String> {
@@ -1137,6 +1316,13 @@ fn preview_cache_dir() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cropdetect_output_is_parsed() {
+        let stderr = "[Parsed_cropdetect_0 @ 0x1] w:1920 h:800 x:0 y:140 crop=1920:800:0:140\n[Parsed_cropdetect_0 @ 0x1] w:1920 h:802 x:0 y:138 crop=1920:802:0:138";
+        assert_eq!(super::last_cropdetect(stderr), Some((1920, 802, 0, 138)));
+        assert_eq!(super::last_cropdetect("nothing"), None);
+    }
+
     use super::*;
 
     #[test]

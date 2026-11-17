@@ -21,6 +21,7 @@ import {
   type MediaAsset_Serialize,
   type MediaKind,
   type MediaProbe_Serialize,
+  type VideoFilters_Serialize,
   type MenuButton_Serialize,
   type MenuTemplateId,
   type PlayerPreset,
@@ -318,6 +319,37 @@ function normalizeProject(project: Project_Serialize): void {
       }
     }
   }
+}
+
+/** Neutral picture fixes (`VideoFilters::default()` in kinodisc-domain). */
+export function defaultVideoFilters(): VideoFilters_Serialize {
+  return {
+    rotate: "none",
+    flipHorizontal: false,
+    crop: null,
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    denoise: "off",
+    deinterlace: "auto",
+    sideFill: "bars",
+  };
+}
+
+export function filtersAreNeutral(filters: VideoFilters_Serialize | undefined | null): boolean {
+  if (!filters) return true;
+  const crop = filters.crop;
+  return (
+    filters.rotate === "none" &&
+    !filters.flipHorizontal &&
+    (!crop || (crop.left === 0 && crop.top === 0 && crop.right === 0 && crop.bottom === 0)) &&
+    filters.brightness === 0 &&
+    filters.contrast === 0 &&
+    filters.saturation === 0 &&
+    filters.denoise === "off" &&
+    filters.deinterlace === "auto" &&
+    filters.sideFill === "bars"
+  );
 }
 
 export function guessMediaKind(path: string, probe: MediaProbe_Serialize): MediaKind {
@@ -763,6 +795,8 @@ class ProjectStore {
         trim: episode.trim,
         priority: episode.encodingPriority,
         videoMode: episode.videoMode,
+        // Picture fixes turn off Blu-ray stream copy, which changes the plan.
+        filters: episode.filters,
         chapters: episode.chapters.length,
         audio: episode.audio.map((track) => ({
           stream: track.sourceStream,
@@ -1060,6 +1094,14 @@ class ProjectStore {
     return count;
   }
 
+  /** Changes some of an episode's picture fixes (rotate, crop, colour…). */
+  updateEpisodeFilters(episodeId: string, patch: Partial<VideoFilters_Serialize>): void {
+    const episode = this.project?.episodes.find((item) => item.id === episodeId);
+    if (!episode) return;
+    episode.filters = { ...(episode.filters ?? defaultVideoFilters()), ...patch };
+    this.touch();
+  }
+
   async ensureVideoThumbnail(assetId: string, timestampMs?: number): Promise<void> {
     if (this.previewUrls[assetId]) return;
     const existing = this.thumbnailJobs.get(assetId);
@@ -1200,6 +1242,7 @@ class ProjectStore {
       postAction: "returnToMenu",
       encodeOverride: null,
       videoMode: "auto",
+      filters: defaultVideoFilters(),
     };
     project.episodes = [...project.episodes, episode];
     this.selectedEpisodeId = episode.id;

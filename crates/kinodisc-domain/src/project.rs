@@ -678,6 +678,9 @@ pub struct Episode {
     /// Whether the video may be copied without re-encoding (AVCHD/Blu-ray).
     #[serde(default)]
     pub video_mode: VideoEncodeMode,
+    /// Picture fixes (rotate, crop, colour, denoise…); neutral by default.
+    #[serde(default)]
+    pub filters: crate::filters::VideoFilters,
 }
 
 /// Per-episode video handling.
@@ -1853,6 +1856,7 @@ mod tests {
                 post_action: PostAction::ReturnToMenu,
                 encode_override: None,
                 video_mode: VideoEncodeMode::Auto,
+                filters: Default::default(),
             }],
             play_all: PlayAllConfig::default(),
             budget: BudgetPolicy::default(),

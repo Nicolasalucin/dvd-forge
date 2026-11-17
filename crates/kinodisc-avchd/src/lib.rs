@@ -154,6 +154,8 @@ pub struct AvchdEncodeRequest {
     pub trim_start_ms: Option<u64>,
     pub trim_end_ms: Option<u64>,
     pub scale_mode: VideoScaleMode,
+    /// Picture fixes (crop, rotate, colour…) run before the scale chain.
+    pub pre_filter: Option<String>,
     pub fps: FrameRate,
     pub duration_ms: u64,
     /// Resolved hardware encoder, or `None` for the CPU/libx264 path.
@@ -446,7 +448,10 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         args.extend(["-c:v".to_string(), "copy".to_string()]);
     } else {
         let spec = ResolutionSpec::from_config(&request.config);
-        let mut filter = build_filter(request, spec);
+        let mut filter = match &request.pre_filter {
+            Some(pre) => format!("{pre},{}", build_filter(request, spec)),
+            None => build_filter(request, spec),
+        };
         let keyint = request.config.keyint_frames.max(1);
         let maxrate = request.maxrate_kbps.max(request.video_kbps);
         let bufsize = request.vbv_bufsize_kbps.max(1);
@@ -1168,6 +1173,7 @@ mod tests {
             trim_start_ms: None,
             trim_end_ms: None,
             scale_mode: VideoScaleMode::Letterbox,
+            pre_filter: None,
             fps: FrameRate::NTSC,
             duration_ms: 20_000,
             hardware_encoder: None,
