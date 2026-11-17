@@ -31,7 +31,8 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git zip
+            git zip autotools gettext-devel
+            mingw-w64-ucrt-x86_64-gettext-tools
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-pkgconf
@@ -53,8 +54,29 @@ jobs:
 
       - name: Build
         run: |
+          export ACLOCAL_PATH="/ucrt64/share/aclocal:/usr/share/aclocal"
           cd src
-          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { cat config.log | tail -60; exit 1; }
+          mkdir -p autotools m4
+          # libxml2 no longer ships libxml.m4 (AM_PATH_XML2): provide it via pkg-config.
+          cat > m4/xml2-compat.m4 <<'EOF'
+          AC_DEFUN([AM_PATH_XML2], [
+            PKG_CHECK_MODULES([XML2], [libxml-2.0 >= $1],
+              [XML_CPPFLAGS="$XML2_CFLAGS"; XML_LIBS="$XML2_LIBS"; $2], [$3])
+            AC_SUBST(XML_CPPFLAGS)
+            AC_SUBST(XML_LIBS)
+          ])
+          EOF
+          sed -i 's/^          //' m4/xml2-compat.m4
+          cp /usr/share/gettext/config.rpath autotools/
+          autoreconf -fi -I m4
+          # MSYS2 FreeType has no freetype-config; configure.ac requires it.
+          mkdir -p ../shim
+          printf '#!/bin/sh
+case "$1" in --cflags) pkg-config --cflags freetype2;; --libs) pkg-config --libs freetype2;; --version) pkg-config --modversion freetype2;; esac
+' > ../shim/freetype-config
+          chmod +x ../shim/freetype-config
+          export PATH="$PWD/../shim:$PATH"
+          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { tail -80 config.log; exit 1; }
           make -j4 || make
           make install
 
@@ -75,7 +97,7 @@ jobs:
           done
           cp src/COPYING dist/COPYING.dvdauthor.txt 2>/dev/null || true
           printf 'dvdauthor %s (commit %s) built by GitHub Actions run %s\nSource: https://github.com/ldo/dvdauthor\nLicense: GPL-2.0-or-later\n' \
-            "$DVDAUTHOR_TAG" "$DVDAUTHOR_COMMIT" "$GITHUB_RUN_ID" > dist/README.txt
+            "$DVDAUTHOR_TAG" "$DVDAUTHOR_SHA256" "$GITHUB_RUN_ID" > dist/README.txt
           ls -la dist
 
       - name: Smoke test
