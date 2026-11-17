@@ -148,10 +148,14 @@ jobs:
       - name: Smoke test
         run: |
           cd dist
-          ./dvdauthor.exe -h 2>&1 | head -3 || true
-          ./spumux.exe -h 2>&1 | head -3 || true
-          ./dvdauthor.exe -h 2>&1 | grep -qi dvdauthor
-          ./spumux.exe -h 2>&1 | grep -qi spumux
+          a=$(./dvdauthor.exe -h 2>&1 || true)
+          b=$(./spumux.exe -h 2>&1 || true)
+          printf '%s
+---
+%s
+' "$a" "$b" | head -12
+          case "$a" in *"version $DVDAUTHOR_TAG"*) ;; *) echo "dvdauthor did not run"; exit 1 ;; esac
+          case "$b" in *"version $DVDAUTHOR_TAG"*) ;; *) echo "spumux did not run"; exit 1 ;; esac
 
       - name: Package
         run: |
