@@ -185,7 +185,7 @@ export type BitratePlan_Deserialize = {
 	/**  Sector ECC-aligned donde debería caer el cambio de capa en DVD-9. */
 	layerBreakSector?: number | null,
 	layerBreakMode?: LayerBreakMode | null,
-	perEpisode: EpisodeBitrate[],
+	perEpisode: EpisodeBitrate_Deserialize[],
 	fillPpm: number,
 	feasible: boolean,
 	fallback?: PlanFallback | null,
@@ -211,7 +211,7 @@ export type BitratePlan_Serialize = {
 	/**  Sector ECC-aligned donde debería caer el cambio de capa en DVD-9. */
 	layerBreakSector: number | null,
 	layerBreakMode: LayerBreakMode | null,
-	perEpisode: EpisodeBitrate[],
+	perEpisode: EpisodeBitrate_Serialize[],
 	fillPpm: number,
 	feasible: boolean,
 	fallback: PlanFallback | null,
@@ -494,13 +494,36 @@ export type EpisodeAudio_Serialize = {
 	mastering: AudioMastering_Serialize,
 };
 
-export type EpisodeBitrate = {
+export type EpisodeBitrate = EpisodeBitrate_Serialize | EpisodeBitrate_Deserialize;
+
+export type EpisodeBitrate_Deserialize = {
 	episode: EpisodeId,
 	durationMs: number,
 	videoKbps: number,
 	audioKbps: number,
 	priority: EncodingPriority,
 	estimatedBytes: number,
+	/**  The video stream is copied as-is (no re-encode). */
+	streamCopy?: boolean,
+	/**  Why the stream is or is not copied (Spanish explanation). */
+	streamCopyNote?: string | null,
+	/**  Stable code of the stream-copy decision (`COPY_OK`, `COPY_CODEC`…). */
+	streamCopyCode?: string | null,
+};
+
+export type EpisodeBitrate_Serialize = {
+	episode: EpisodeId,
+	durationMs: number,
+	videoKbps: number,
+	audioKbps: number,
+	priority: EncodingPriority,
+	estimatedBytes: number,
+	/**  The video stream is copied as-is (no re-encode). */
+	streamCopy: boolean,
+	/**  Why the stream is or is not copied (Spanish explanation). */
+	streamCopyNote: string | null,
+	/**  Stable code of the stream-copy decision (`COPY_OK`, `COPY_CODEC`…). */
+	streamCopyCode: string | null,
 };
 
 export type EpisodeId = string;
@@ -522,6 +545,8 @@ export type Episode_Deserialize = {
 	encodingPriority?: EncodingPriority,
 	postAction?: PostAction,
 	encodeOverride?: EncodeOverride_Deserialize | null,
+	/**  Whether the video may be copied without re-encoding (AVCHD/Blu-ray). */
+	videoMode?: VideoEncodeMode,
 };
 
 export type Episode_Serialize = {
@@ -541,6 +566,8 @@ export type Episode_Serialize = {
 	encodingPriority: EncodingPriority,
 	postAction: PostAction,
 	encodeOverride: EncodeOverride_Serialize | null,
+	/**  Whether the video may be copied without re-encoding (AVCHD/Blu-ray). */
+	videoMode: VideoEncodeMode,
 };
 
 export type FirstPlay = FirstPlay_Serialize | FirstPlay_Deserialize;
@@ -1472,6 +1499,18 @@ export type VideoConfig_Serialize = {
 	kind: "avchd",
 } & AvchdVideoConfig;
 
+/**  Per-episode video handling. */
+export type VideoEncodeMode = 
+/**
+ *  Copy the stream when it already complies with the disc format and is
+ *  not trimmed at the start; re-encode otherwise.
+ */
+"auto" | 
+/**  Always re-encode (previous behaviour). */
+"reencode" | 
+/**  Copy whenever the stream complies; warns and re-encodes otherwise. */
+"copy";
+
 export type VideoScaleMode = "letterbox" | "cropFill" | "stretch" | 
 /**  Sinónimo explícito de `Letterbox` usado por la UI avanzada. */
 "contain" | 
@@ -1491,6 +1530,12 @@ export type VideoStreamInfo_Deserialize = {
 	pixFmt?: string | null,
 	fieldOrder?: string | null,
 	bitDepth?: number | null,
+	/**  Codec profile as reported by FFprobe (`High`, `Main`…). */
+	profile?: string | null,
+	/**  Codec level as reported by FFprobe (H.264: 41 = 4.1). */
+	level?: number | null,
+	/**  Video stream bitrate when the container reports it. */
+	bitrateBps?: number | null,
 };
 
 export type VideoStreamInfo_Serialize = {
@@ -1504,6 +1549,12 @@ export type VideoStreamInfo_Serialize = {
 	pixFmt: string | null,
 	fieldOrder: string | null,
 	bitDepth: number | null,
+	/**  Codec profile as reported by FFprobe (`High`, `Main`…). */
+	profile: string | null,
+	/**  Codec level as reported by FFprobe (H.264: 41 = 4.1). */
+	level: number | null,
+	/**  Video stream bitrate when the container reports it. */
+	bitrateBps: number | null,
 };
 
 export type VideoThumbnailItem = VideoThumbnailItem_Serialize | VideoThumbnailItem_Deserialize;

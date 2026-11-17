@@ -14,3 +14,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 dvdforge-project = { path = "../dvdforge-project" }
+serde_json.workspace = true

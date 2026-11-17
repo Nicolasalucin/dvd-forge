@@ -159,6 +159,10 @@ struct FfprobeStream {
     #[serde(default)]
     bits_per_sample: Option<u32>,
     #[serde(default)]
+    profile: Option<String>,
+    #[serde(default)]
+    level: Option<i32>,
+    #[serde(default)]
     channels: Option<u16>,
     #[serde(default)]
     sample_rate: Option<String>,
@@ -212,6 +216,13 @@ fn parse_probe_json(bytes: &[u8]) -> Result<MediaProbe, MediaError> {
                     .or(stream
                         .bits_per_sample
                         .and_then(|value| u8::try_from(value).ok())),
+                profile: stream.profile.clone(),
+                level: stream.level.filter(|level| *level > 0),
+                bitrate_bps: stream
+                    .bit_rate
+                    .as_deref()
+                    .and_then(|value| value.trim().parse::<u64>().ok())
+                    .filter(|value| *value > 0),
             })
         }
         None => None,

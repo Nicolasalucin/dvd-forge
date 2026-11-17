@@ -147,6 +147,15 @@ pub struct EpisodeBitrate {
     pub audio_kbps: u32,
     pub priority: EncodingPriority,
     pub estimated_bytes: u64,
+    /// The video stream is copied as-is (no re-encode).
+    #[serde(default)]
+    pub stream_copy: bool,
+    /// Why the stream is or is not copied (Spanish explanation).
+    #[serde(default)]
+    pub stream_copy_note: Option<String>,
+    /// Stable code of the stream-copy decision (`COPY_OK`, `COPY_CODEC`…).
+    #[serde(default)]
+    pub stream_copy_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

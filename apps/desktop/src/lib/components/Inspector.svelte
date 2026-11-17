@@ -186,6 +186,28 @@
     projectStore.updateButton(button.id, { enabled });
   }
 
+  // Stream-copy notes come from Rust in Spanish with values; other locales
+  // use the per-code explanation.
+  const COPY_NOTES: Record<string, string> = {
+    COPY_OK: "Compatible: el vídeo se copia sin recodificar (más rápido y sin pérdida).",
+    COPY_DISABLED: "Recodificación elegida para este episodio.",
+    COPY_NO_VIDEO: "El archivo no tiene vídeo analizable.",
+    COPY_CODEC: "El vídeo no es H.264; se recodifica.",
+    COPY_PROFILE: "El perfil H.264 no es High o Main; se recodifica.",
+    COPY_LEVEL: "El nivel H.264 supera el máximo del disco; se recodifica.",
+    COPY_PIXEL_FORMAT: "El formato de color no es yuv420p (8 bits); se recodifica.",
+    COPY_RESOLUTION: "La resolución del vídeo no coincide con la del proyecto; se recodifica.",
+    COPY_FRAME_RATE: "Los fps del vídeo no coinciden con los del proyecto; se recodifica.",
+    COPY_SCAN: "El barrido (progresivo/entrelazado) no coincide con el proyecto; se recodifica.",
+    COPY_TRIM: "El episodio está recortado al principio; para copiar sin recodificar no puede haber recorte inicial.",
+    COPY_BITRATE: "El bitrate del vídeo es desconocido o supera el máximo del disco; se recodifica.",
+  };
+
+  function copyNote(code: string | null | undefined, note: string): string {
+    if (i18n.locale === "es" || !code || !COPY_NOTES[code]) return t(note);
+    return t(COPY_NOTES[code]);
+  }
+
   function removeThumbnail() {
     if (!button) return;
     projectStore.updateButton(button.id, { thumbnail: null });
@@ -881,6 +903,36 @@
               {/each}
             </select>
           </label>
+
+          {#if project?.disc.mode === "avchd"}
+            {@const planEntry = projectStore.plan?.perEpisode.find((entry) => entry.episode === episode.id)}
+            <label class="block">
+              <span class="mb-1 block text-[10px] text-slate-500">{t("Vídeo")}</span>
+              <select
+                class="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                value={episode.videoMode ?? "auto"}
+                onchange={(event) =>
+                  projectStore.updateEpisode(episode.id, {
+                    videoMode: event.currentTarget.value as Episode_Serialize["videoMode"],
+                  })}
+              >
+                <option value="auto">{t("Automático: copiar si ya es compatible")}</option>
+                <option value="copy">{t("Copiar sin recodificar")}</option>
+                <option value="reencode">{t("Recodificar siempre")}</option>
+              </select>
+              {#if planEntry?.streamCopyNote}
+                <p
+                  class={`mt-1 rounded-md px-2 py-1 text-[10px] leading-4 ${
+                    planEntry.streamCopy
+                      ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+                      : "border border-slate-800 bg-slate-900/60 text-slate-400"
+                  }`}
+                >
+                  {planEntry.streamCopy ? "⚡ " : "↻ "}{copyNote(planEntry.streamCopyCode, planEntry.streamCopyNote)}
+                </p>
+              {/if}
+            </label>
+          {/if}
 
           <label class="block">
             <span class="mb-1 block text-[10px] text-slate-500">{t("Al terminar")}</span>

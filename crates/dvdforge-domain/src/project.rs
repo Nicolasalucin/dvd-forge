@@ -545,6 +545,15 @@ pub struct VideoStreamInfo {
     pub field_order: Option<String>,
     #[serde(default)]
     pub bit_depth: Option<u8>,
+    /// Codec profile as reported by FFprobe (`High`, `Main`…).
+    #[serde(default)]
+    pub profile: Option<String>,
+    /// Codec level as reported by FFprobe (H.264: 41 = 4.1).
+    #[serde(default)]
+    pub level: Option<i32>,
+    /// Video stream bitrate when the container reports it.
+    #[serde(default)]
+    pub bitrate_bps: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -648,6 +657,23 @@ pub struct Episode {
     pub post_action: PostAction,
     #[serde(default)]
     pub encode_override: Option<EncodeOverride>,
+    /// Whether the video may be copied without re-encoding (AVCHD/Blu-ray).
+    #[serde(default)]
+    pub video_mode: VideoEncodeMode,
+}
+
+/// Per-episode video handling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum VideoEncodeMode {
+    /// Copy the stream when it already complies with the disc format and is
+    /// not trimmed at the start; re-encode otherwise.
+    #[default]
+    Auto,
+    /// Always re-encode (previous behaviour).
+    Reencode,
+    /// Copy whenever the stream complies; warns and re-encodes otherwise.
+    Copy,
 }
 
 impl Episode {
@@ -1807,6 +1833,7 @@ mod tests {
                 encoding_priority: EncodingPriority::Medium,
                 post_action: PostAction::ReturnToMenu,
                 encode_override: None,
+                video_mode: VideoEncodeMode::Auto,
             }],
             play_all: PlayAllConfig::default(),
             budget: BudgetPolicy::default(),

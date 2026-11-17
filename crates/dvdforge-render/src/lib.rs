@@ -1581,6 +1581,19 @@ async fn render_avchd_project(
             .map(|entry| entry.video_kbps)
             .unwrap_or(plan.video_kbps)
             .clamp(1, max_video_cap);
+        // Smart Stream Copy decision made by the planner on fresh probes.
+        let video_copy = plan
+            .per_episode
+            .iter()
+            .find(|entry| entry.episode == episode.id)
+            .is_some_and(|entry| entry.stream_copy);
+        if video_copy {
+            log(
+                &events,
+                format!("«{}»: el vídeo se copia sin recodificar.", episode.title),
+            )
+            .await;
+        }
         let (reconciled_audio, reconcile_warnings) = reconcile_episode_audio(episode, probe);
         let reconciled_episode = Episode {
             audio: reconciled_audio,
@@ -1636,7 +1649,12 @@ async fn render_avchd_project(
                 scale_mode: episode.scale_mode,
                 video_kbps: planned_kbps,
                 maxrate_kbps: config.vbv_maxrate_kbps,
-                profile: format!("{:?}:{:?}", config.resolution, hardware_encoder),
+                profile: format!(
+                    "{:?}:{:?}:{}",
+                    config.resolution,
+                    hardware_encoder,
+                    if video_copy { "copy" } else { "encode" }
+                ),
                 gop_frames: config.keyint_frames,
                 b_frames: 3,
                 b_strategy: 2,
@@ -1775,7 +1793,8 @@ async fn render_avchd_project(
             scale_mode: episode.scale_mode,
             fps: source_fps,
             duration_ms,
-            hardware_encoder,
+            hardware_encoder: if video_copy { None } else { hardware_encoder },
+            video_copy,
         };
         let stream_mkv = if let Some(artifact) = cached {
             PathBuf::from(artifact.artifact_path)

@@ -38,5 +38,5 @@ pub use project::{
     Episode, EpisodeAudio, FirstPlay, H264Level, LayerBreakMode, LoudnessTarget, MediaAsset,
     MediaChapter, MediaKind, MediaProbe, PlayAllConfig, PostAction, Project, ProxyInfo,
     SubtitleAlignment, SubtitleStreamInfo, SubtitleStyle, SubtitleTrack, VideoConfig,
-    VideoScaleMode, VideoStreamInfo,
+    VideoEncodeMode, VideoScaleMode, VideoStreamInfo,
 };

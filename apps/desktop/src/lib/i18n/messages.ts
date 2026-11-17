@@ -1543,6 +1543,21 @@ export const en: Dictionary = {
   "Imagen HD con menús. Necesita reproductor Blu-ray, PS3/PS4/PS5 o similar.": "HD picture with menus. Needs a Blu-ray player, PS3/PS4/PS5 or similar.",
   "NTSC · 720×480 (América, Japón)": "NTSC · 720×480 (USA, Japan)",
   "PAL · 720×576 (Europa, Argentina, Australia…)": "PAL · 720×576 (Europe, Argentina, Australia…)",
+  "Automático: copiar si ya es compatible": "Automatic: copy when already compatible",
+  "Copiar sin recodificar": "Copy without re-encoding",
+  "Recodificar siempre": "Always re-encode",
+  "Compatible: el vídeo se copia sin recodificar (más rápido y sin pérdida).": "Compatible: the video is copied without re-encoding (faster and lossless).",
+  "Recodificación elegida para este episodio.": "Re-encoding chosen for this episode.",
+  "El archivo no tiene vídeo analizable.": "The file has no readable video.",
+  "El vídeo no es H.264; se recodifica.": "The video is not H.264; it will be re-encoded.",
+  "El perfil H.264 no es High o Main; se recodifica.": "The H.264 profile is not High or Main; it will be re-encoded.",
+  "El nivel H.264 supera el máximo del disco; se recodifica.": "The H.264 level exceeds the disc maximum; it will be re-encoded.",
+  "El formato de color no es yuv420p (8 bits); se recodifica.": "The colour format is not yuv420p (8-bit); it will be re-encoded.",
+  "La resolución del vídeo no coincide con la del proyecto; se recodifica.": "The video resolution does not match the project; it will be re-encoded.",
+  "Los fps del vídeo no coinciden con los del proyecto; se recodifica.": "The video frame rate does not match the project; it will be re-encoded.",
+  "El barrido (progresivo/entrelazado) no coincide con el proyecto; se recodifica.": "The scan type (progressive/interlaced) does not match the project; it will be re-encoded.",
+  "El episodio está recortado al principio; para copiar sin recodificar no puede haber recorte inicial.": "The episode is trimmed at the start; copying without re-encoding requires no start trim.",
+  "El bitrate del vídeo es desconocido o supera el máximo del disco; se recodifica.": "The video bitrate is unknown or exceeds the disc maximum; it will be re-encoded.",
 };
 
 export const pt: Dictionary = {

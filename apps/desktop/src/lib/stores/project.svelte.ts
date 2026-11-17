@@ -617,6 +617,7 @@ class ProjectStore {
         trimEnd: episode.trimEndMs,
         trim: episode.trim,
         priority: episode.encodingPriority,
+        videoMode: episode.videoMode,
         chapters: episode.chapters.length,
         audio: episode.audio.map((track) => ({
           stream: track.sourceStream,
@@ -881,6 +882,7 @@ class ProjectStore {
       encodingPriority: "medium",
       postAction: "returnToMenu",
       encodeOverride: null,
+      videoMode: "auto",
     };
     project.episodes = [...project.episodes, episode];
     this.selectedEpisodeId = episode.id;

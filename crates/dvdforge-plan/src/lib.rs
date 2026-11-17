@@ -11,6 +11,9 @@ use dvdforge_domain::{
 };
 use std::collections::HashMap;
 
+pub mod stream_copy;
+pub use stream_copy::{avchd_copy_decision, CopyDecision};
+
 pub use dvdforge_domain::budget::{BitratePlan, BudgetPolicy, EpisodeBitrate, PlanFallback};
 pub use dvdforge_domain::TvStandard;
 
@@ -287,6 +290,9 @@ pub fn calculate_bitrate_plan(
             audio_kbps: episode.audio_kbps,
             priority: episode.priority,
             estimated_bytes: vob_bytes,
+            stream_copy: false,
+            stream_copy_note: None,
+            stream_copy_code: None,
         });
     }
 
@@ -412,7 +418,18 @@ fn calculate_avchd_plan(
         ));
     }
 
+    let max_video_cap = if capacity.is_blu_ray() {
+        dvdforge_avchd::BLURAY_MAX_VIDEO_KBPS
+    } else {
+        dvdforge_avchd::AVCHD_MAX_VIDEO_KBPS
+    };
+    let max_video_kbps = config
+        .vbv_maxrate_kbps
+        .min(project.budget.max_video_kbps)
+        .clamp(1, max_video_cap);
+
     let mut episodes = Vec::with_capacity(project.episodes.len());
+    let mut copy_decisions: HashMap<EpisodeId, CopyDecision> = HashMap::new();
     let mut audio_total = 0u64;
     let mut total_duration_ms = 0u64;
     for episode in &project.episodes {
@@ -422,6 +439,17 @@ fn calculate_avchd_plan(
                 asset: episode.video,
             })?;
         let probe = probe_for(asset, probes);
+        let decision = avchd_copy_decision(episode, probe, config, capacity, max_video_kbps);
+        if !decision.copy && episode.video_mode == dvdforge_domain::VideoEncodeMode::Copy {
+            warnings.push(Diagnostic::warning(
+                "W_STREAM_COPY_FALLBACK",
+                format!(
+                    "El episodio {} no se puede copiar sin recodificar: {} Se recodificará.",
+                    episode.number, decision.note
+                ),
+            ));
+        }
+        copy_decisions.insert(episode.id, decision);
         let duration_ms = episode_duration_ms(episode, probe, project.disc.standard.frame_rate())
             .ok_or(PlanError::MissingEpisodeDuration {
             episode: episode.id,
@@ -460,16 +488,29 @@ fn calculate_avchd_plan(
     if video_budget_bytes == 0 {
         return Err(PlanError::NoVideoBudget);
     }
-    let raw_video_kbps = (video_budget_bytes as u128 * 8 / total_duration_ms as u128) as u64;
-    let max_video_cap = if capacity.is_blu_ray() {
-        dvdforge_avchd::BLURAY_MAX_VIDEO_KBPS
-    } else {
-        dvdforge_avchd::AVCHD_MAX_VIDEO_KBPS
+    // Copied streams have a fixed size; the rest of the budget is shared by
+    // the episodes that are re-encoded.
+    let copied = |episode: &EpisodeInput| {
+        copy_decisions
+            .get(&episode.id)
+            .filter(|decision| decision.copy)
+            .and_then(|decision| decision.video_kbps)
     };
-    let max_video_kbps = config
-        .vbv_maxrate_kbps
-        .min(project.budget.max_video_kbps)
-        .clamp(1, max_video_cap);
+    let copied_bytes: u64 = episodes
+        .iter()
+        .filter_map(|episode| copied(episode).map(|kbps| bytes_for(episode.duration_ms, kbps)))
+        .sum();
+    let encoded_duration_ms: u64 = episodes
+        .iter()
+        .filter(|episode| copied(episode).is_none())
+        .map(|episode| episode.duration_ms)
+        .sum();
+    let encode_budget_bytes = video_budget_bytes.saturating_sub(copied_bytes);
+    let raw_video_kbps = if encoded_duration_ms == 0 {
+        max_video_kbps as u64
+    } else {
+        (encode_budget_bytes as u128 * 8 / encoded_duration_ms as u128) as u64
+    };
     let video_kbps = raw_video_kbps.min(max_video_kbps as u64).max(1) as u32;
     if raw_video_kbps > max_video_kbps as u64 {
         warnings.push(Diagnostic::warning(
@@ -495,10 +536,22 @@ fn calculate_avchd_plan(
     }
 
     let (width, height) = config.resolution.dimensions();
-    let allocated = priority_video_kbps(&episodes, video_kbps, max_video_kbps);
+    let encoded: Vec<EpisodeInput> = episodes
+        .iter()
+        .filter(|episode| copied(episode).is_none())
+        .cloned()
+        .collect();
+    let mut encoded_kbps = priority_video_kbps(&encoded, video_kbps, max_video_kbps).into_iter();
+    let allocated: Vec<u32> = episodes
+        .iter()
+        .map(|episode| {
+            copied(episode).unwrap_or_else(|| encoded_kbps.next().unwrap_or(video_kbps))
+        })
+        .collect();
     let mut per_episode = Vec::with_capacity(episodes.len());
     let mut estimated_total = 0u64;
     for (episode, episode_video_kbps) in episodes.iter().zip(allocated) {
+        let decision = copy_decisions.get(&episode.id);
         let video_bytes = bytes_for(episode.duration_ms, episode_video_kbps);
         let audio_bytes = bytes_for(episode.duration_ms, episode.audio_kbps);
         let es_bytes = video_bytes.saturating_add(audio_bytes);
@@ -512,6 +565,9 @@ fn calculate_avchd_plan(
             audio_kbps: episode.audio_kbps,
             priority: episode.priority,
             estimated_bytes,
+            stream_copy: decision.is_some_and(|decision| decision.copy),
+            stream_copy_note: decision.map(|decision| decision.note.clone()),
+            stream_copy_code: decision.map(|decision| decision.code.to_string()),
         });
     }
 
@@ -963,6 +1019,9 @@ mod tests {
                 display_aspect_ratio: None,
                 pix_fmt: None,
                 field_order: None,
+                profile: None,
+                level: None,
+                bitrate_bps: None,
                 bit_depth: None,
             }),
             audio: vec![],

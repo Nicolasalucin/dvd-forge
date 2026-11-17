@@ -158,6 +158,8 @@ pub struct AvchdEncodeRequest {
     pub duration_ms: u64,
     /// Resolved hardware encoder, or `None` for the CPU/libx264 path.
     pub hardware_encoder: Option<dvdforge_toolchain::HardwareEncoder>,
+    /// Copy the compliant source video stream instead of re-encoding it.
+    pub video_copy: bool,
 }
 
 impl AvchdEncodeRequest {
@@ -438,99 +440,105 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
     };
     args.extend(["-t".to_string(), format_millis(duration_ms)]);
 
-    let spec = ResolutionSpec::from_config(&request.config);
-    let mut filter = build_filter(request, spec);
-    let keyint = request.config.keyint_frames.max(1);
-    let maxrate = request.maxrate_kbps.max(request.video_kbps);
-    let bufsize = request.vbv_bufsize_kbps.max(1);
-    // Hardware encoders cannot emit PsF (fake-interlaced) streams.
-    let hardware = request.hardware_encoder.filter(|_| !spec.psf);
-    let level = x264_level(&request.config);
-    let codec = hardware
-        .map(dvdforge_toolchain::HardwareEncoder::ffmpeg_name)
-        .unwrap_or("libx264");
-    if hardware == Some(dvdforge_toolchain::HardwareEncoder::VaapiH264) {
-        filter.push_str(",format=nv12,hwupload");
-    }
-    args.extend([
-        "-vf".to_string(),
-        filter,
-        "-c:v".to_string(),
-        codec.to_string(),
-    ]);
-    if let Some(hardware) = hardware {
-        if hardware == dvdforge_toolchain::HardwareEncoder::NvencH264 {
-            args.extend(["-preset".to_string(), "p5".to_string()]);
-        } else if hardware == dvdforge_toolchain::HardwareEncoder::QsvH264 {
-            args.extend(["-preset".to_string(), "medium".to_string()]);
-        }
-        args.extend([
-            "-profile:v".to_string(),
-            "high".to_string(),
-            "-level:v".to_string(),
-            level.to_string(),
-            "-pix_fmt".to_string(),
-            "yuv420p".to_string(),
-            "-b:v".to_string(),
-            format!("{}k", request.video_kbps),
-            "-maxrate".to_string(),
-            format!("{maxrate}k"),
-            "-bufsize".to_string(),
-            format!("{bufsize}k"),
-            "-g".to_string(),
-            keyint.to_string(),
-            "-bf".to_string(),
-            "0".to_string(),
-        ]);
+    if request.video_copy {
+        // Smart Stream Copy: the planner verified codec, profile, level,
+        // geometry, rate, scan and bitrate. Only the container changes.
+        args.extend(["-c:v".to_string(), "copy".to_string()]);
     } else {
-        let mut x264 = format!(
-            "bluray-compat=1:open-gop=0:slices=4:nal-hrd=vbr:vbv-maxrate={maxrate}:vbv-bufsize={bufsize}:aud=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:keyint={keyint}:min-keyint={keyint}:scenecut=0"
-        );
-        if spec.interlaced {
-            x264.push_str(":tff=1");
-        } else if spec.psf {
-            x264.push_str(":fake-interlaced=1:pic-struct=1");
+        let spec = ResolutionSpec::from_config(&request.config);
+        let mut filter = build_filter(request, spec);
+        let keyint = request.config.keyint_frames.max(1);
+        let maxrate = request.maxrate_kbps.max(request.video_kbps);
+        let bufsize = request.vbv_bufsize_kbps.max(1);
+        // Hardware encoders cannot emit PsF (fake-interlaced) streams.
+        let hardware = request.hardware_encoder.filter(|_| !spec.psf);
+        let level = x264_level(&request.config);
+        let codec = hardware
+            .map(dvdforge_toolchain::HardwareEncoder::ffmpeg_name)
+            .unwrap_or("libx264");
+        if hardware == Some(dvdforge_toolchain::HardwareEncoder::VaapiH264) {
+            filter.push_str(",format=nv12,hwupload");
         }
         args.extend([
-            "-preset".to_string(),
-            "medium".to_string(),
-            "-profile:v".to_string(),
-            "high".to_string(),
-            "-level:v".to_string(),
-            level.to_string(),
-            "-pix_fmt".to_string(),
-            "yuv420p".to_string(),
-            "-b:v".to_string(),
-            format!("{}k", request.video_kbps),
-            "-maxrate".to_string(),
-            format!("{maxrate}k"),
-            "-bufsize".to_string(),
-            format!("{bufsize}k"),
-            "-g".to_string(),
-            keyint.to_string(),
-            "-bf".to_string(),
-            "0".to_string(),
-            "-x264-params".to_string(),
-            x264,
+            "-vf".to_string(),
+            filter,
+            "-c:v".to_string(),
+            codec.to_string(),
         ]);
-    }
-    args.extend([
-        "-color_primaries".to_string(),
-        "bt709".to_string(),
-        "-color_trc".to_string(),
-        "bt709".to_string(),
-        "-colorspace".to_string(),
-        "bt709".to_string(),
-    ]);
-    if spec.interlaced {
+        if let Some(hardware) = hardware {
+            if hardware == dvdforge_toolchain::HardwareEncoder::NvencH264 {
+                args.extend(["-preset".to_string(), "p5".to_string()]);
+            } else if hardware == dvdforge_toolchain::HardwareEncoder::QsvH264 {
+                args.extend(["-preset".to_string(), "medium".to_string()]);
+            }
+            args.extend([
+                "-profile:v".to_string(),
+                "high".to_string(),
+                "-level:v".to_string(),
+                level.to_string(),
+                "-pix_fmt".to_string(),
+                "yuv420p".to_string(),
+                "-b:v".to_string(),
+                format!("{}k", request.video_kbps),
+                "-maxrate".to_string(),
+                format!("{maxrate}k"),
+                "-bufsize".to_string(),
+                format!("{bufsize}k"),
+                "-g".to_string(),
+                keyint.to_string(),
+                "-bf".to_string(),
+                "0".to_string(),
+            ]);
+        } else {
+            let mut x264 = format!(
+                "bluray-compat=1:open-gop=0:slices=4:nal-hrd=vbr:vbv-maxrate={maxrate}:vbv-bufsize={bufsize}:aud=1:colorprim=bt709:transfer=bt709:colormatrix=bt709:keyint={keyint}:min-keyint={keyint}:scenecut=0"
+            );
+            if spec.interlaced {
+                x264.push_str(":tff=1");
+            } else if spec.psf {
+                x264.push_str(":fake-interlaced=1:pic-struct=1");
+            }
+            args.extend([
+                "-preset".to_string(),
+                "medium".to_string(),
+                "-profile:v".to_string(),
+                "high".to_string(),
+                "-level:v".to_string(),
+                level.to_string(),
+                "-pix_fmt".to_string(),
+                "yuv420p".to_string(),
+                "-b:v".to_string(),
+                format!("{}k", request.video_kbps),
+                "-maxrate".to_string(),
+                format!("{maxrate}k"),
+                "-bufsize".to_string(),
+                format!("{bufsize}k"),
+                "-g".to_string(),
+                keyint.to_string(),
+                "-bf".to_string(),
+                "0".to_string(),
+                "-x264-params".to_string(),
+                x264,
+            ]);
+        }
         args.extend([
-            "-flags".to_string(),
-            "+ildct+ilme".to_string(),
-            "-top".to_string(),
-            "1".to_string(),
+            "-color_primaries".to_string(),
+            "bt709".to_string(),
+            "-color_trc".to_string(),
+            "bt709".to_string(),
+            "-colorspace".to_string(),
+            "bt709".to_string(),
         ]);
-    }
+        if spec.interlaced {
+            args.extend([
+                "-flags".to_string(),
+                "+ildct+ilme".to_string(),
+                "-top".to_string(),
+                "1".to_string(),
+            ]);
+        }
 
+    }
     args.extend(["-map".to_string(), "0:v:0".to_string()]);
     if request.audios.is_empty() {
         args.extend(["-map".to_string(), "1:a:0".to_string()]);
@@ -1165,6 +1173,7 @@ mod tests {
             fps: FrameRate::NTSC,
             duration_ms: 20_000,
             hardware_encoder: None,
+            video_copy: false,
         }
     }
 
@@ -1460,6 +1469,19 @@ mod tests {
                 psf: false,
             }
         );
+    }
+
+    #[test]
+    fn stream_copy_skips_filters_and_encoder_options() {
+        let mut req = request();
+        req.video_copy = true;
+        let args = build_encode_args(&req).join(" ");
+        assert!(args.contains("-c:v copy"));
+        assert!(!args.contains("-vf"));
+        assert!(!args.contains("libx264"));
+        assert!(!args.contains("-x264-params"));
+        // Audio is still processed independently.
+        assert!(args.contains("ac3"));
     }
 
     #[test]

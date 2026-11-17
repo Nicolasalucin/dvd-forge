@@ -913,6 +913,7 @@ dependencies = [
  "dvdforge-avchd",
  "dvdforge-domain",
  "dvdforge-project",
+ "serde_json",
  "specta",
  "thiserror 2.0.21",
 ]

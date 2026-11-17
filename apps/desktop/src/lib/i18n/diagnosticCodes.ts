@@ -134,6 +134,7 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_PROBE_FILE_MISSING: "A media file is missing; saved information is used.",
   W_PROBE_PATH_MISSING: "A media file path could not be resolved.",
   W_PROBE_REFRESH_FAILED: "A media file path could not be resolved; saved information is used.",
+  W_STREAM_COPY_FALLBACK: "An episode set to 'copy without re-encoding' is not compatible with the disc and will be re-encoded.",
   W_STRUCTURE_VERIFY_FAILED: "The disc image check found blocking errors.",
   W_STRUCTURE_VERIFY_WARN: "The disc image check found warnings.",
   W_SUBTITLE_DROP: "A subtitle track has no lines after trimming and is skipped.",
