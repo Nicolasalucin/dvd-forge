@@ -1995,6 +1995,7 @@ dependencies = [
 name = "kinodisc-render"
 version = "1.0.1"
 dependencies = [
+ "ab_glyph",
  "hex",
  "image",
  "kinodisc-avchd",

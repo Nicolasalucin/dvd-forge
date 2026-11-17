@@ -1,5 +1,6 @@
 //! Reusable end-to-end DVD-Video render pipeline shared by the CLI and Tauri.
 
+pub mod compose;
 pub mod slideshow;
 pub mod split;
 
@@ -182,6 +183,41 @@ pub async fn render_project_with_options(
     events: EventSink,
 ) -> Result<RenderOutcome, RenderError> {
     ensure_not_cancelled(&options.cancel)?;
+    let mut options = options;
+    if options.composited_backgrounds.is_none() {
+        // No editor composition (CLI, scripted batch): draw the menus here so
+        // titles, labels and thumbnails are not missing from the disc.
+        let directory = output_dir.join("compositions");
+        let (menu_project, menu_dir, target) =
+            (project.clone(), project_dir.clone(), directory.clone());
+        let composed = tokio::task::spawn_blocking(move || {
+            compose::compose_project_menus(&menu_project, &menu_dir, &target)
+        })
+        .await;
+        match composed {
+            Ok(Ok(count)) if count > 0 => {
+                log(&events, format!("Menús compuestos sin el editor: {count}.")).await;
+                options.composited_backgrounds = Some(directory);
+            }
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => {
+                warn(
+                    &events,
+                    "W_MENU_COMPOSE",
+                    format!("No se pudieron componer los menús: {error}"),
+                )
+                .await;
+            }
+            Err(error) => {
+                warn(
+                    &events,
+                    "W_MENU_COMPOSE",
+                    format!("No se pudieron componer los menús: {error}"),
+                )
+                .await;
+            }
+        }
+    }
     match project.disc.mode {
         AuthoringMode::DvdVideo => {
             render_dvd_project(project, project_dir, output_dir, job_id, options, events).await
@@ -1002,6 +1038,10 @@ struct MenuRenderInputs<'a> {
     background_sha: String,
     audio_sha: Option<String>,
     composited_labels_sha: Option<String>,
+    /// The composed artwork itself: thumbnails, fonts or the compositor can
+    /// change it while the menu definition stays the same.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    composited_background_sha: Option<String>,
     motion_sha: String,
     transition_sha: Option<String>,
 }
@@ -1141,6 +1181,10 @@ fn menu_inputs_hash(
         background_sha: menu_background_sha(project, menu),
         audio_sha: menu_audio_sha(project, menu),
         composited_labels_sha: composited_labels_sha(composited_backgrounds, menu.id),
+        composited_background_sha: composited_backgrounds
+            .map(|directory| directory.join(format!("{}.png", menu.id)))
+            .filter(|path| path.is_file())
+            .and_then(|path| kinodisc_verify::stream::hash_file(&path).ok()),
         motion_sha: menu_motion_sha(project, menu),
         transition_sha: menu.transition.as_ref().and_then(|transition| {
             project.asset(transition.asset).map(|asset| {

@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+ab_glyph.workspace = true
 kinodisc-avchd = { path = "../kinodisc-avchd" }
 kinodisc-domain = { path = "../kinodisc-domain" }
 kinodisc-dvd = { path = "../kinodisc-dvd" }

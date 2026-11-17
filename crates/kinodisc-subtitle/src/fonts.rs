@@ -28,6 +28,56 @@ impl FontProvider {
         Self { db }
     }
 
+    /// A system font by family and weight, with the same sans-serif
+    /// fallbacks as subtitles (menu labels drawn by the CLI compositor).
+    pub fn resolve_family(&self, family: &str, weight: u16) -> Option<FontArc> {
+        let family = family.trim().trim_matches('"');
+        let families = [
+            family,
+            "Segoe UI",
+            "DejaVu Sans",
+            "Arial",
+            "Helvetica",
+            "Liberation Sans",
+            "Noto Sans",
+        ];
+        for name in families.into_iter().filter(|name| !name.is_empty()) {
+            let query = fontdb::Query {
+                families: &[fontdb::Family::Name(name)],
+                weight: fontdb::Weight(weight),
+                stretch: fontdb::Stretch::Normal,
+                style: fontdb::Style::Normal,
+            };
+            let Some(id) = self.db.query(&query) else {
+                continue;
+            };
+            let mut font = None;
+            self.db.with_face_data(id, |data, face_index| {
+                font = ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), face_index).ok();
+            });
+            if let Some(font) = font {
+                return Some(FontArc::new(font));
+            }
+        }
+        None
+    }
+
+    /// Only the named family (no fallback): emoji/symbol fallback fonts.
+    pub fn resolve_exact(&self, family: &str, weight: u16) -> Option<FontArc> {
+        let query = fontdb::Query {
+            families: &[fontdb::Family::Name(family)],
+            weight: fontdb::Weight(weight),
+            stretch: fontdb::Stretch::Normal,
+            style: fontdb::Style::Normal,
+        };
+        let id = self.db.query(&query)?;
+        let mut font = None;
+        self.db.with_face_data(id, |data, face_index| {
+            font = ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), face_index).ok();
+        });
+        font.map(FontArc::new)
+    }
+
     pub fn resolve(&self, style: &SubtitleStyle) -> Result<ResolvedFont, SubtitleError> {
         if let Some(path) = &style.font_path {
             let bytes = std::fs::read(path)?;
