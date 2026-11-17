@@ -1,5 +1,6 @@
 //! Reusable end-to-end DVD-Video render pipeline shared by the CLI and Tauri.
 
+pub mod slideshow;
 pub mod split;
 
 use kinodisc_avchd::native::{

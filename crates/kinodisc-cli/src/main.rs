@@ -2,6 +2,7 @@ mod batch;
 mod bundle;
 mod render;
 mod scenes_cmd;
+mod slideshow_cmd;
 mod split_cmd;
 mod support;
 mod toolchain_cmd;
@@ -42,6 +43,7 @@ async fn main() -> ExitCode {
         "toolchain" => toolchain_cmd::run(&args[1..]),
         "split" => split_cmd::run(&args[1..]),
         "scenes" => scenes_cmd::run(&args[1..]),
+        "slideshow" => slideshow_cmd::run(&args[1..]).await,
         "version" | "--version" | "-V" => {
             println!("kinodisc-cli {VERSION}");
             ExitCode::SUCCESS

@@ -25,11 +25,13 @@ export const commands = {
 	 */
 	startupProjectPath: () => __TAURI_INVOKE<string | null>("startup_project_path"),
 	mediaProbeFile: (path: string) => typedError<MediaProbe_Serialize, string>(__TAURI_INVOKE("media_probe_file", { path })),
+	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
 	/**
 	 *  Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 	 *  escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
+	 *  Builds (or reuses) a photo slideshow video in the per-user cache.
 	 */
-	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
+	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
 	/**
 	 *  Devuelve un fichero reproducible por `<video>` en WebKitGTK. Los MP4/WebM
 	 *  con códecs compatibles se usan directamente; el resto se remuxea o se
@@ -1347,6 +1349,40 @@ export type ShapeItem_Serialize = {
 	fill: string,
 	stroke: string | null,
 	strokeWidth: number | null,
+};
+
+export type SlideshowOutcome = {
+	path: string,
+	durationMs: number | null,
+	cached: boolean,
+};
+
+export type SlideshowRequest = SlideshowRequest_Serialize | SlideshowRequest_Deserialize;
+
+export type SlideshowRequest_Deserialize = {
+	images: string[],
+	/**  Seconds each picture stays fully visible (1–60). */
+	secondsPerImage: number | null,
+	/**  Cross-fade length in seconds (0 = hard cut, max 3). */
+	crossfadeSeconds: number | null,
+	music?: string | null,
+	/**  `true` for a 16:9 frame (1920x1080), `false` for 4:3 (1440x1080). */
+	widescreen: boolean,
+	/**  Frames per second of the generated video (25 or 29.97 recommended). */
+	fps: number | null,
+};
+
+export type SlideshowRequest_Serialize = {
+	images: string[],
+	/**  Seconds each picture stays fully visible (1–60). */
+	secondsPerImage: number | null,
+	/**  Cross-fade length in seconds (0 = hard cut, max 3). */
+	crossfadeSeconds: number | null,
+	music: string | null,
+	/**  `true` for a 16:9 frame (1920x1080), `false` for 4:3 (1440x1080). */
+	widescreen: boolean,
+	/**  Frames per second of the generated video (25 or 29.97 recommended). */
+	fps: number | null,
 };
 
 export type SplitResult = SplitResult_Serialize | SplitResult_Deserialize;

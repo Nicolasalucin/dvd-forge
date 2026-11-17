@@ -951,6 +951,18 @@ export const it: Dictionary = {
   "Escena {n}": "Scena {n}",
   "Escenas": "Scene",
   "Menús de escenas": "Menu delle scene",
+  "Añadir fotos…": "Aggiungi foto…",
+  "Crear y añadir": "Crea e aggiungi",
+  "Elegir música…": "Scegli musica…",
+  "Fotos": "Foto",
+  "Fundido (segundos)": "Dissolvenza (secondi)",
+  "Las fotos se convierten en un vídeo con fundidos y se añade como episodio.": "Le foto diventano un video con dissolvenze, aggiunto come episodio.",
+  "Música: {name}": "Musica: {name}",
+  "Presentación de fotos": "Presentazione di foto",
+  "Segundos por foto": "Secondi per foto",
+  "Sin música (pista de audio en silencio)": "Senza musica (traccia audio silenziosa)",
+  "Título del episodio": "Titolo dell'episodio",
+  "{count} fotos · {duration}": "{count} foto · {duration}",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {

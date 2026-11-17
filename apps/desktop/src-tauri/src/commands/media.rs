@@ -541,6 +541,18 @@ fn playback_support_from_missing(platform: &str, missing: Vec<String>) -> Playba
 
 /// Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 /// escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
+/// Builds (or reuses) a photo slideshow video in the per-user cache.
+#[tauri::command]
+#[specta::specta]
+pub async fn slideshow_create(
+    request: kinodisc_render::slideshow::SlideshowRequest,
+) -> Result<kinodisc_render::slideshow::SlideshowOutcome, String> {
+    let cache = kinodisc_toolchain::legacy::app_data_dir()
+        .ok_or_else(|| "No se encontró la carpeta de datos del usuario.".to_string())?
+        .join("slideshows");
+    kinodisc_render::slideshow::build_slideshow(&request, &cache).await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_extract_frame(

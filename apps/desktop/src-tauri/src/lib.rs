@@ -18,8 +18,8 @@ use commands::{
     menu_save_background, menu_save_labels, menu_templates, open_folder, plan_calculate,
     project_new, project_open, project_save, project_split, read_image_data_url,
     recent_project_forget, recent_projects_list, render_cancel, render_export_folder,
-    render_name_part, render_start, startup_project_path, system_fonts, toolchain_install,
-    toolchain_install_options, tools_doctor, verify_iso, PlaybackSupport,
+    render_name_part, render_start, slideshow_create, startup_project_path, system_fonts,
+    toolchain_install, toolchain_install_options, tools_doctor, verify_iso, PlaybackSupport,
 };
 
 pub const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/lib/api/bindings.ts");
@@ -35,6 +35,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             startup_project_path,
             media_probe_file,
             media_extract_frame,
+            slideshow_create,
             media_prepare_preview,
             media_playback_support,
             media_preview_url,

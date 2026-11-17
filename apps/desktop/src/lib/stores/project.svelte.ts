@@ -722,6 +722,59 @@ class ProjectStore {
     return imported;
   }
 
+  /**
+   * Builds a slideshow video from photos (+ optional music) and adds it as
+   * a new episode. Resolution and frame rate follow the disc.
+   */
+  async createSlideshow(options: {
+    images: string[];
+    secondsPerImage: number;
+    crossfadeSeconds: number;
+    music: string | null;
+    title: string;
+  }): Promise<boolean> {
+    const project = this.project;
+    if (!project) return false;
+    const video = project.disc.video;
+    const fps =
+      video.kind === "avchd"
+        ? video.frameRate.num / video.frameRate.den
+        : project.disc.standard === "pal"
+          ? 25
+          : 30000 / 1001;
+    this.busy = true;
+    this.error = null;
+    try {
+      const outcome = await unwrap(
+        commands.slideshowCreate({
+          images: options.images,
+          secondsPerImage: options.secondsPerImage,
+          crossfadeSeconds: options.crossfadeSeconds,
+          music: options.music,
+          widescreen: project.disc.aspect === "sixteenNine",
+          fps,
+        }),
+      );
+      if (this.project !== project) return false;
+      this.busy = false;
+      await this.importMedia([outcome.path]);
+      const asset = project.assets.find((item) => this.assetPath(item) === outcome.path);
+      if (!asset) return false;
+      const episode = this.episodeForAsset(asset.id) ?? this.addEpisodeFromAsset(asset.id);
+      if (episode) {
+        episode.title = options.title;
+        this.selectEpisode(episode.id);
+        this.touch();
+      }
+      return Boolean(episode);
+    } catch (cause) {
+      this.error = messageOf(cause);
+      return false;
+    } finally {
+      this.busy = false;
+    }
+  }
+
   async addImageAssetFromPath(path: string): Promise<string | null> {
     const project = this.project;
     if (!project) return null;

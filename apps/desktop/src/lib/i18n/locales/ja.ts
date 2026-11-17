@@ -951,6 +951,18 @@ export const ja: Dictionary = {
   "Escena {n}": "シーン {n}",
   "Escenas": "シーン",
   "Menús de escenas": "シーンメニュー",
+  "Añadir fotos…": "写真を追加…",
+  "Crear y añadir": "作成して追加",
+  "Elegir música…": "音楽を選択…",
+  "Fotos": "写真",
+  "Fundido (segundos)": "フェード (秒)",
+  "Las fotos se convierten en un vídeo con fundidos y se añade como episodio.": "写真はフェード付きの動画になり、エピソードとして追加されます。",
+  "Música: {name}": "音楽: {name}",
+  "Presentación de fotos": "フォトスライドショー",
+  "Segundos por foto": "1 枚あたりの秒数",
+  "Sin música (pista de audio en silencio)": "音楽なし (無音の音声トラック)",
+  "Título del episodio": "エピソードのタイトル",
+  "{count} fotos · {duration}": "写真 {count} 枚 · {duration}",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SlideshowDialog from "./SlideshowDialog.svelte";
   import { t } from "../i18n/index.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { ButtonStyleKind, MediaAsset_Serialize, MediaKind } from "../api/bindings";
@@ -62,6 +63,8 @@
     { kind: "textOnly", title: "Solo texto", hint: "Texto limpio" },
     { kind: "hotspot", title: "Zona activa", hint: "Zona interactiva invisible" },
   ];
+
+  let slideshowOpen = $state(false);
 
   async function importMedia() {
     if (!project) return;
@@ -276,7 +279,19 @@
         >
           {busy ? "…" : t("+ Importar")}
         </button>
+        <button
+          type="button"
+          onclick={() => (slideshowOpen = true)}
+          disabled={busy || !project}
+          title={t("Presentación de fotos")}
+          class="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 transition hover:border-cyan-500/60 disabled:opacity-50"
+        >
+          {t("Fotos")}
+        </button>
       </div>
+      {#if slideshowOpen}
+        <SlideshowDialog onclose={() => (slideshowOpen = false)} />
+      {/if}
 
       {#if !project}
         <p class="mt-8 px-2 text-center text-xs leading-5 text-slate-500">
