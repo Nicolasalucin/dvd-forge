@@ -9,6 +9,7 @@
   import JobHistory from "./JobHistory.svelte";
   import RecentProjects from "./RecentProjects.svelte";
   import ToolchainDoctor from "./ToolchainDoctor.svelte";
+  import BatchQueue from "./BatchQueue.svelte";
   import { i18n, LOCALES, t } from "../i18n/index.svelte";
   import { formatBytes, formatDuration } from "../utils/format";
 
@@ -106,6 +107,7 @@
   let recentOpen = $state(false);
   let historyOpen = $state(false);
   let doctorOpen = $state(false);
+  let queueOpen = $state(false);
   const project = $derived(projectStore.project);
   const isAvchd = $derived(project?.disc.mode === "avchd");
   const isBluRay = $derived(
@@ -383,6 +385,15 @@
       </label>
       <button
         type="button"
+        onclick={() => (queueOpen = true)}
+        title={t("Genera varios discos seguidos")}
+        class="flex h-9 items-center gap-1.5 rounded-xl border border-slate-800 px-2.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
+      >
+        <span class="text-sm">📋</span>
+        <span class="hidden sm:inline">{t("Cola")}</span>
+      </button>
+      <button
+        type="button"
         onclick={() => (projectStore.guideOpen = !projectStore.guideOpen)}
         title={t("Guía paso a paso")}
         class={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[10px] font-semibold transition ${
@@ -579,6 +590,9 @@
 
   {#if doctorOpen}
     <ToolchainDoctor onClose={() => (doctorOpen = false)} />
+  {/if}
+  {#if queueOpen}
+    <BatchQueue onClose={() => (queueOpen = false)} />
   {/if}
 
   {#if notice && !localError && !projectStore.error}
