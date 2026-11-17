@@ -101,7 +101,7 @@
               {/each}
             </div>
             <div class="mt-1.5 flex items-center justify-between gap-2">
-              <span class="truncate text-[12px] font-medium text-slate-100">{template.name}</span>
+              <span class="truncate text-[12px] font-medium text-slate-100">{t(template.name)}</span>
               <span class="ui-chip font-mono">{template.columns}×{template.rows}</span>
             </div>
             <p class="mt-0.5 line-clamp-2 text-[12px] leading-5 text-slate-500">{t(template.description)}</p>

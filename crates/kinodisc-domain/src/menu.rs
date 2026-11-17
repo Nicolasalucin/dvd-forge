@@ -114,6 +114,16 @@ pub enum MenuTemplateId {
     ClassicCriterion,
     RetroCrt,
     Minimalist,
+    Wedding,
+    Birthday,
+    Travel,
+    Sports,
+    Holidays,
+    OldFilm,
+    Nature,
+    Documentary,
+    Kids,
+    Elegant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

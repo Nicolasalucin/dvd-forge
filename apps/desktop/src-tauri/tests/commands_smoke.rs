@@ -70,7 +70,7 @@ fn project_save_and_open_round_trip() {
 fn menu_templates_are_exposed_and_applied_through_tauri_commands() {
     isolate_user_data();
     let templates = menu_templates();
-    assert_eq!(templates.len(), 5);
+    assert_eq!(templates.len(), 15);
     let project = load_project(fixture_path()).expect("fixture");
     let result = menu_apply_template(project, MenuTemplateId::CinemaDark).expect("template");
     assert!(result.menus.len() >= 2);

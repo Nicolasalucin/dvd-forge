@@ -32,9 +32,9 @@ fn episode_buttons(menus: &[kinodisc_domain::Menu]) -> Vec<&kinodisc_domain::Men
 }
 
 #[test]
-fn all_templates_have_five_entries_and_paginate_1_6_12_24() {
+fn all_fifteen_templates_paginate_1_6_12_24() {
     let templates = all_templates();
-    assert_eq!(templates.len(), 5);
+    assert_eq!(templates.len(), 15);
     for template in templates {
         for count in [1usize, 6, 12, 24] {
             let project = project_with_episodes(count);

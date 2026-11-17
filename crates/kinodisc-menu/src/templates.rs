@@ -1,7 +1,7 @@
 use kinodisc_domain::{
     ButtonAction, ButtonId, ButtonShapeMask, ButtonStyleKind, CanvasSpec, Diagnostic, Episode,
     EpisodeId, FrameRate, LogicalRect, Menu, MenuBackground, MenuButton, MenuId, MenuItem,
-    MenuPlacement, MenuRole, MenuTemplateId, MenuTemplatePage, NavOverride, Project,
+    MenuPlacement, MenuRole, MenuTemplateId, MenuTemplatePage, NavOverride, Project, ShapeItem,
     SubpictureColor, SubpicturePalette, SubpictureSpec, TextAlign, TextItem, ThumbnailSpec,
 };
 use serde::{Deserialize, Serialize};
@@ -58,6 +58,9 @@ pub struct MenuTemplate {
     pub font_size: u16,
     pub font_weight: &'static str,
     pub text_color: &'static str,
+    /// Colour of the page title (differs from the buttons' text when the
+    /// title sits on a band).
+    pub title_color: &'static str,
     pub fill_color: &'static str,
     pub shadow_color: &'static str,
     pub margin_x: f32,
@@ -67,6 +70,45 @@ pub struct MenuTemplate {
     pub footer_ratio: f32,
     pub dim_percent: u8,
     pub blur_px: u8,
+    /// Decorative shapes drawn over the template's background colour.
+    pub decor: Decor,
+}
+
+/// Template decoration, drawn as shape items (`tpl:decor-*`) so the editor,
+/// the disc and the CLI compositor all show the same thing. Sizes are
+/// fractions of the canvas.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Decor {
+    None,
+    /// A thin frame inset from the edges.
+    Frame {
+        color: &'static str,
+    },
+    /// Four L-shaped corner brackets.
+    Corners {
+        color: &'static str,
+    },
+    /// A band across the top (behind the title).
+    TopBand {
+        color: &'static str,
+    },
+    /// Dark bands with sprocket holes at the top and bottom.
+    Filmstrip {
+        band: &'static str,
+        hole: &'static str,
+    },
+    /// Small coloured squares scattered around the title.
+    Confetti {
+        colors: [&'static str; 4],
+    },
+    /// A ground band along the bottom.
+    Horizon {
+        color: &'static str,
+    },
+    /// Three vertical accent stripes on the left.
+    Stripes {
+        color: &'static str,
+    },
 }
 
 impl MenuTemplate {
@@ -118,6 +160,7 @@ fn templates() -> &'static [MenuTemplate] {
                 font_size: 22,
                 font_weight: "bold",
                 text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
                 fill_color: "#111827",
                 shadow_color: "#000000",
                 margin_x: 0.07,
@@ -127,6 +170,7 @@ fn templates() -> &'static [MenuTemplate] {
                 footer_ratio: 0.12,
                 dim_percent: 12,
                 blur_px: 0,
+                decor: Decor::None,
             },
             MenuTemplate {
                 id: MenuTemplateId::MultiPageTvGrid,
@@ -142,6 +186,7 @@ fn templates() -> &'static [MenuTemplate] {
                 font_size: 19,
                 font_weight: "bold",
                 text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
                 fill_color: "#1E293B",
                 shadow_color: "#000000",
                 margin_x: 0.055,
@@ -151,10 +196,11 @@ fn templates() -> &'static [MenuTemplate] {
                 footer_ratio: 0.10,
                 dim_percent: 8,
                 blur_px: 0,
+                decor: Decor::None,
             },
             MenuTemplate {
                 id: MenuTemplateId::ClassicCriterion,
-                name: "Classic Criterion",
+                name: "Classic Editorial",
                 description: "Lista editorial de cuatro títulos, tipografía serif y marco clásico.",
                 columns: 1,
                 rows: 4,
@@ -166,6 +212,7 @@ fn templates() -> &'static [MenuTemplate] {
                 font_size: 24,
                 font_weight: "normal",
                 text_color: "#FAF5EB",
+                title_color: "#FAF5EB",
                 fill_color: "#241E18",
                 shadow_color: "#000000",
                 margin_x: 0.10,
@@ -175,6 +222,7 @@ fn templates() -> &'static [MenuTemplate] {
                 footer_ratio: 0.10,
                 dim_percent: 18,
                 blur_px: 0,
+                decor: Decor::Frame { color: "#D4AF37" },
             },
             MenuTemplate {
                 id: MenuTemplateId::RetroCrt,
@@ -190,6 +238,7 @@ fn templates() -> &'static [MenuTemplate] {
                 font_size: 21,
                 font_weight: "bold",
                 text_color: "#D9FFE8",
+                title_color: "#D9FFE8",
                 fill_color: "#101820",
                 shadow_color: "#39FF14",
                 margin_x: 0.06,
@@ -199,6 +248,7 @@ fn templates() -> &'static [MenuTemplate] {
                 footer_ratio: 0.11,
                 dim_percent: 20,
                 blur_px: 2,
+                decor: Decor::None,
             },
             MenuTemplate {
                 id: MenuTemplateId::Minimalist,
@@ -214,6 +264,7 @@ fn templates() -> &'static [MenuTemplate] {
                 font_size: 17,
                 font_weight: "normal",
                 text_color: "#111827",
+                title_color: "#111827",
                 fill_color: "#F8FAFC",
                 shadow_color: "#FFFFFF",
                 margin_x: 0.05,
@@ -223,6 +274,274 @@ fn templates() -> &'static [MenuTemplate] {
                 footer_ratio: 0.10,
                 dim_percent: 0,
                 blur_px: 0,
+                decor: Decor::None,
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Wedding,
+                name: "Boda",
+                description: "Marfil y dorado, tipografía serif y esquinas finas.",
+                columns: 1,
+                rows: 4,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ClassicFrame,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([245, 240, 230], [59, 47, 47], [176, 141, 87]),
+                font_family: "Georgia",
+                font_size: 21,
+                font_weight: "normal",
+                text_color: "#3B2F2F",
+                title_color: "#3B2F2F",
+                fill_color: "#FFFFFF",
+                shadow_color: "#FFFFFF",
+                margin_x: 0.16,
+                margin_y: 0.09,
+                gap: 0.03,
+                header_ratio: 0.14,
+                footer_ratio: 0.11,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Corners { color: "#B08D57" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Birthday,
+                name: "Cumpleaños",
+                description: "Violeta festivo con confeti de colores.",
+                columns: 3,
+                rows: 2,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ThumbnailCard,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([43, 16, 85], [255, 255, 255], [255, 209, 102]),
+                font_family: "Trebuchet MS",
+                font_size: 19,
+                font_weight: "bold",
+                text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
+                fill_color: "#3C1A78",
+                shadow_color: "#000000",
+                margin_x: 0.055,
+                margin_y: 0.08,
+                gap: 0.02,
+                header_ratio: 0.13,
+                footer_ratio: 0.1,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Confetti {
+                    colors: ["#FFD166", "#EF476F", "#06D6A0", "#4CC9F0"],
+                },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Travel,
+                name: "Viaje",
+                description: "Azul petróleo y arena, como un horizonte de playa.",
+                columns: 3,
+                rows: 2,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ThumbnailCard,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([14, 59, 67], [255, 255, 255], [233, 196, 106]),
+                font_family: "Verdana",
+                font_size: 17,
+                font_weight: "bold",
+                text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
+                fill_color: "#0B2E34",
+                shadow_color: "#000000",
+                margin_x: 0.055,
+                margin_y: 0.075,
+                gap: 0.02,
+                header_ratio: 0.12,
+                footer_ratio: 0.12,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Horizon { color: "#E9C46A" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Sports,
+                name: "Deportes",
+                description: "Negro y rojo intenso, letra condensada y franjas.",
+                columns: 2,
+                rows: 2,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ThumbnailCard,
+                shape_mask: ButtonShapeMask::Rectangle,
+                palette: palette([16, 20, 24], [255, 255, 255], [230, 57, 70]),
+                font_family: "Impact",
+                font_size: 22,
+                font_weight: "normal",
+                text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
+                fill_color: "#1B2128",
+                shadow_color: "#000000",
+                margin_x: 0.1,
+                margin_y: 0.08,
+                gap: 0.025,
+                header_ratio: 0.12,
+                footer_ratio: 0.11,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Stripes { color: "#E63946" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Holidays,
+                name: "Vacaciones",
+                description: "Claro y soleado, con una franja naranja.",
+                columns: 3,
+                rows: 2,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ThumbnailCard,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([255, 247, 230], [38, 70, 83], [255, 140, 66]),
+                font_family: "Trebuchet MS",
+                font_size: 18,
+                font_weight: "bold",
+                text_color: "#FFFFFF",
+                title_color: "#264653",
+                fill_color: "#264653",
+                shadow_color: "#000000",
+                margin_x: 0.055,
+                margin_y: 0.08,
+                gap: 0.02,
+                header_ratio: 0.14,
+                footer_ratio: 0.1,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::TopBand { color: "#FF8C42" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::OldFilm,
+                name: "Cine antiguo",
+                description: "Sepia oscuro con bordes de película.",
+                columns: 1,
+                rows: 4,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ClassicFrame,
+                shape_mask: ButtonShapeMask::Rectangle,
+                palette: palette([26, 22, 18], [245, 230, 200], [200, 160, 90]),
+                font_family: "Georgia",
+                font_size: 21,
+                font_weight: "normal",
+                text_color: "#F5E6C8",
+                title_color: "#F5E6C8",
+                fill_color: "#2A231C",
+                shadow_color: "#000000",
+                margin_x: 0.16,
+                margin_y: 0.15,
+                gap: 0.025,
+                header_ratio: 0.12,
+                footer_ratio: 0.1,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Filmstrip {
+                    band: "#0A0806",
+                    hole: "#3A3128",
+                },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Nature,
+                name: "Naturaleza",
+                description: "Verde bosque con una franja de pradera.",
+                columns: 2,
+                rows: 2,
+                thumbnail: true,
+                style_kind: ButtonStyleKind::ThumbnailCard,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([31, 58, 43], [255, 255, 255], [149, 213, 178]),
+                font_family: "Palatino Linotype",
+                font_size: 21,
+                font_weight: "bold",
+                text_color: "#FFFFFF",
+                title_color: "#FFFFFF",
+                fill_color: "#183024",
+                shadow_color: "#000000",
+                margin_x: 0.08,
+                margin_y: 0.08,
+                gap: 0.025,
+                header_ratio: 0.12,
+                footer_ratio: 0.12,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Horizon { color: "#2D6A4F" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Documentary,
+                name: "Documental",
+                description: "Lista sobria de seis títulos sobre gris claro.",
+                columns: 1,
+                rows: 6,
+                thumbnail: false,
+                style_kind: ButtonStyleKind::TextOnly,
+                shape_mask: ButtonShapeMask::Rectangle,
+                palette: palette([242, 242, 242], [29, 53, 87], [230, 57, 70]),
+                font_family: "Arial",
+                font_size: 18,
+                font_weight: "bold",
+                text_color: "#1D3557",
+                title_color: "#FFFFFF",
+                fill_color: "#F2F2F2",
+                shadow_color: "#FFFFFF",
+                margin_x: 0.12,
+                margin_y: 0.06,
+                gap: 0.012,
+                header_ratio: 0.17,
+                footer_ratio: 0.09,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::TopBand { color: "#1D3557" },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Kids,
+                name: "Infantil",
+                description: "Celeste con confeti y botones redondos amarillos.",
+                columns: 2,
+                rows: 3,
+                thumbnail: false,
+                style_kind: ButtonStyleKind::PlayBadge,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([76, 201, 240], [29, 53, 87], [255, 255, 255]),
+                font_family: "Trebuchet MS",
+                font_size: 20,
+                font_weight: "bold",
+                text_color: "#1D3557",
+                title_color: "#1D3557",
+                fill_color: "#FFFFFF",
+                shadow_color: "#FFFFFF",
+                margin_x: 0.08,
+                margin_y: 0.08,
+                gap: 0.02,
+                header_ratio: 0.15,
+                footer_ratio: 0.09,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Confetti {
+                    colors: ["#FFD166", "#EF476F", "#FFFFFF", "#06D6A0"],
+                },
+            },
+            MenuTemplate {
+                id: MenuTemplateId::Elegant,
+                name: "Elegante",
+                description: "Negro profundo, píldoras de cristal y un marco dorado.",
+                columns: 1,
+                rows: 4,
+                thumbnail: false,
+                style_kind: ButtonStyleKind::GlassPill,
+                shape_mask: ButtonShapeMask::RoundedRect,
+                palette: palette([11, 11, 15], [245, 222, 179], [212, 175, 55]),
+                font_family: "Palatino Linotype",
+                font_size: 22,
+                font_weight: "normal",
+                text_color: "#F5DEB3",
+                title_color: "#F5DEB3",
+                fill_color: "#1A1A22",
+                shadow_color: "#000000",
+                margin_x: 0.2,
+                margin_y: 0.08,
+                gap: 0.025,
+                header_ratio: 0.15,
+                footer_ratio: 0.1,
+                dim_percent: 0,
+                blur_px: 0,
+                decor: Decor::Frame { color: "#D4AF37" },
             },
         ]
     })
@@ -257,6 +576,7 @@ pub fn apply_template(
         return Err(TemplateError::NoEpisodes);
     }
     let disc_title = disc_title(project, root);
+    let bare = bare_background(project, root);
     let mut episodes = project.episodes.clone();
     episodes.sort_by_key(|episode| episode.number);
     let capacity = template.capacity();
@@ -437,6 +757,9 @@ pub fn apply_template(
         if index > 0 {
             menu.items.clear();
         }
+        if bare {
+            menu.items.extend(backdrop_items(menu.canvas, &template));
+        }
         menu.items.extend(template_items(
             root,
             &template,
@@ -517,7 +840,7 @@ pub fn apply_template(
             rect: title_rect(root.canvas),
             font_family: template.font_family.to_string(),
             font_size: template.font_size as f32,
-            color: template.text_color.to_string(),
+            color: template.title_color.to_string(),
             align: TextAlign::Center,
         }));
         menu.buttons.clear();
@@ -745,6 +1068,172 @@ fn disc_title(project: &Project, root: &Menu) -> String {
     }
 }
 
+/// The template's own background colour and decoration, under the title.
+/// Skipped when the user chose a picture or video as the menu background.
+fn backdrop_items(canvas: CanvasSpec, template: &MenuTemplate) -> Vec<MenuItem> {
+    let width = f64::from(canvas.width);
+    let height = f64::from(canvas.height);
+    let rgb = template.palette.colors[0].rgb;
+    let mut items = vec![shape(
+        "tpl:bg",
+        0.0,
+        0.0,
+        width,
+        height,
+        &format!("#{:02X}{:02X}{:02X}", rgb[0], rgb[1], rgb[2]),
+        None,
+        0.0,
+    )];
+    let unit = (height / 480.0).max(1.0);
+    let mut add = |x: f64, y: f64, w: f64, h: f64, fill: &str, stroke: Option<&str>, line: f64| {
+        let id = format!("tpl:decor-{}", items.len());
+        items.push(shape(&id, x, y, w, h, fill, stroke, line));
+    };
+    match template.decor {
+        Decor::None => {}
+        Decor::Frame { color } => {
+            let inset = (width.min(height) * 0.035).round();
+            add(
+                inset,
+                inset,
+                width - inset * 2.0,
+                height - inset * 2.0,
+                "transparent",
+                Some(color),
+                2.0 * unit,
+            );
+        }
+        Decor::Corners { color } => {
+            let inset = (width.min(height) * 0.04).round();
+            let arm = (width.min(height) * 0.09).round();
+            let line = (2.0 * unit).round().max(2.0);
+            for (cx, cy, sx, sy) in [
+                (inset, inset, 1.0, 1.0),
+                (width - inset, inset, -1.0, 1.0),
+                (inset, height - inset, 1.0, -1.0),
+                (width - inset, height - inset, -1.0, -1.0),
+            ] {
+                let x = if sx > 0.0 { cx } else { cx - arm };
+                let y = if sy > 0.0 { cy } else { cy - line };
+                add(x, y, arm, line, color, None, 0.0);
+                let x = if sx > 0.0 { cx } else { cx - line };
+                let y = if sy > 0.0 { cy } else { cy - arm };
+                add(x, y, line, arm, color, None, 0.0);
+            }
+        }
+        Decor::TopBand { color } => {
+            let band = (height
+                * (f64::from(template.header_ratio) + f64::from(template.margin_y) * 0.6))
+                .round();
+            add(0.0, 0.0, width, band, color, None, 0.0);
+        }
+        Decor::Filmstrip { band, hole } => {
+            let band_h = (height * 0.085).round();
+            add(0.0, 0.0, width, band_h, band, None, 0.0);
+            add(0.0, height - band_h, width, band_h, band, None, 0.0);
+            let hole_w = (band_h * 0.42).round();
+            let hole_h = (band_h * 0.5).round();
+            let step = hole_w * 2.2;
+            let mut x = step * 0.4;
+            while x + hole_w < width {
+                add(
+                    x,
+                    ((band_h - hole_h) / 2.0).round(),
+                    hole_w,
+                    hole_h,
+                    hole,
+                    None,
+                    0.0,
+                );
+                add(
+                    x,
+                    (height - band_h + (band_h - hole_h) / 2.0).round(),
+                    hole_w,
+                    hole_h,
+                    hole,
+                    None,
+                    0.0,
+                );
+                x += step;
+            }
+        }
+        Decor::Confetti { colors } => {
+            // Fixed pseudo-random spots around the edges (same every time).
+            const SPOTS: [(f64, f64, f64); 14] = [
+                (0.03, 0.04, 1.0),
+                (0.09, 0.11, 0.7),
+                (0.15, 0.03, 0.8),
+                (0.86, 0.05, 1.0),
+                (0.92, 0.12, 0.7),
+                (0.80, 0.02, 0.6),
+                (0.03, 0.30, 0.6),
+                (0.96, 0.33, 0.8),
+                (0.02, 0.62, 0.8),
+                (0.97, 0.66, 0.6),
+                (0.05, 0.92, 1.0),
+                (0.13, 0.96, 0.6),
+                (0.90, 0.93, 0.9),
+                (0.82, 0.97, 0.6),
+            ];
+            for (index, (fx, fy, scale)) in SPOTS.iter().enumerate() {
+                let side = (12.0 * unit * scale).round().max(6.0);
+                add(
+                    (width * fx).round().min(width - side),
+                    (height * fy).round().min(height - side),
+                    side,
+                    side,
+                    colors[index % colors.len()],
+                    None,
+                    0.0,
+                );
+            }
+        }
+        Decor::Horizon { color } => {
+            let ground = (height * 0.12).round();
+            add(0.0, height - ground, width, ground, color, None, 0.0);
+        }
+        Decor::Stripes { color } => {
+            let stripe = (width * 0.012).round().max(4.0);
+            for index in 0..3 {
+                let x = (width * 0.025).round() + f64::from(index) * stripe * 2.0;
+                add(x, 0.0, stripe, height, color, None, 0.0);
+            }
+        }
+    }
+    items
+}
+
+#[allow(clippy::too_many_arguments)]
+fn shape(
+    id: &str,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    fill: &str,
+    stroke: Option<&str>,
+    stroke_width: f64,
+) -> MenuItem {
+    MenuItem::Shape(ShapeItem {
+        id: id.to_string(),
+        rect: LogicalRect::new(x, y, w, h),
+        fill: fill.to_string(),
+        stroke: stroke.map(str::to_string),
+        stroke_width: stroke_width as f32,
+    })
+}
+
+/// True when the menu shows no user picture/video (only the empty starting
+/// background), so the template may paint its own colour.
+fn bare_background(project: &Project, menu: &Menu) -> bool {
+    match &menu.background {
+        MenuBackground::Static { asset } => project
+            .asset(*asset)
+            .is_none_or(|asset| asset.is_placeholder()),
+        MenuBackground::VideoLoop { .. } => false,
+    }
+}
+
 fn template_items(
     root: &Menu,
     template: &MenuTemplate,
@@ -762,7 +1251,7 @@ fn template_items(
         rect: title_rect(root.canvas),
         font_family: template.font_family.to_string(),
         font_size: template.font_size as f32,
-        color: template.text_color.to_string(),
+        color: template.title_color.to_string(),
         align: TextAlign::Center,
     })]
 }

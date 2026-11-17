@@ -1776,7 +1776,16 @@ class ProjectStore {
     const menu = this.activeMenu;
     if (!menu || !assetId.trim()) return;
     menu.background = { kind: "static", asset: assetId };
+    this.dropTemplateBackdrop(menu);
     this.touch();
+  }
+
+  /** A picture or video chosen as background replaces the template's own
+   *  colour (`tpl:bg`); its decoration stays. */
+  private dropTemplateBackdrop(menu: Menu_Serialize): void {
+    if (menu.items.some((item) => item.kind === "shape" && item.id === "tpl:bg")) {
+      menu.items = menu.items.filter((item) => !(item.kind === "shape" && item.id === "tpl:bg"));
+    }
   }
 
   /// Selects a video asset as the animated menu background. Passing `null`
@@ -1793,6 +1802,7 @@ class ProjectStore {
         loopForever: true,
         muteSource: true,
       };
+      this.dropTemplateBackdrop(menu);
     } else {
       const fallback =
         this.project?.assets.find((asset) => asset.kind === "image")?.id ??

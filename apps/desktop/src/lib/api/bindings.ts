@@ -1141,7 +1141,7 @@ export type MenuScaleMode = "cover" | "contain" | "stretch";
  *  Visual menu definition. Rasterized layers are produced by the frontend and
  *  sent to the backend separately in `MenuCompileRequest`.
  */
-export type MenuTemplateId = "cinemaDark" | "multiPageTvGrid" | "classicCriterion" | "retroCrt" | "minimalist";
+export type MenuTemplateId = "cinemaDark" | "multiPageTvGrid" | "classicCriterion" | "retroCrt" | "minimalist" | "wedding" | "birthday" | "travel" | "sports" | "holidays" | "oldFilm" | "nature" | "documentary" | "kids" | "elegant";
 
 export type MenuTemplateInfo = {
 	id: MenuTemplateId,
