@@ -136,6 +136,34 @@ pub async fn render_export_folder(
     })
 }
 
+/// Moves the `disc.iso` of one part of a multi-disc render next to its work
+/// folder under a friendly name (`<parent>/<file_name>`). Only `disc.iso`
+/// files and single-component `.iso` names are accepted.
+#[tauri::command]
+#[specta::specta]
+pub fn render_name_part(iso_path: String, file_name: String) -> Result<String, String> {
+    let iso = PathBuf::from(&iso_path);
+    let valid_source = iso
+        .file_name()
+        .is_some_and(|name| name.eq_ignore_ascii_case("disc.iso"))
+        && iso.is_file();
+    let name = kinodisc_verify::extract::safe_relative_path(file_name.trim())
+        .filter(|path| path.components().count() == 1)
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
+        });
+    let (true, Some(name)) = (valid_source, name) else {
+        return Err("Nombre de imagen no válido.".to_string());
+    };
+    let work_dir = iso.parent().ok_or("Ruta no válida.")?;
+    let target = work_dir.parent().unwrap_or(work_dir).join(name);
+    let _ = std::fs::remove_file(&target);
+    std::fs::rename(&iso, &target)
+        .map_err(|error| format!("No se pudo mover la imagen: {error}"))?;
+    Ok(target.display().to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn render_start(

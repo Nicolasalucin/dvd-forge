@@ -936,10 +936,17 @@ export const de: Dictionary = {
   "Volver a comprobar": "Erneut prüfen",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} wurde unter {path} gefunden, aber die Version konnte nicht gelesen werden.",
   "Carpeta del disco": "Disc-Ordner",
-  "Carpeta del disco lista: {files} archivos, {size}": "Disc-Ordner fertig: {files} Dateien, {size}",
   "Creando la carpeta del disco": "Disc-Ordner wird erstellt",
   "Generar carpeta": "Ordner erstellen",
   "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS oder BDMV für Player, USB-Sticks oder Kodi",
+  "Carpeta del disco lista en {seconds} s": "Disc-Ordner fertig in {seconds} s",
+  "Disco {index} de {count}": "Disc {index} von {count}",
+  "Discos": "Discs",
+  "Si no entra todo, repártelo en varios discos o crea uno por episodio": "Passt nicht alles darauf, auf mehrere Discs verteilen oder eine pro Folge erstellen",
+  "Un disco por episodio": "Eine Disc pro Folge",
+  "Un solo disco": "Eine einzige Disc",
+  "Varios discos (llenar cada uno)": "Mehrere Discs (jede füllen)",
+  "{count} discos generados en {seconds} s": "{count} Discs in {seconds} s erstellt",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -1097,4 +1104,6 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   E_TOOLCHAIN_IO: "Das Werkzeug konnte nicht gespeichert werden (Datenträger voll oder keine Berechtigung?).",
   E_PLAYER_PRESET_CONFLICT: "Der gewählte Player kann diese Art von Disc nicht abspielen.",
   W_PLAYER_PRESET_STRICT: "Teile des Projekts laufen auf dem gewählten Player eventuell nicht flüssig.",
+  W_SPLIT_EPISODE_TOO_LONG: "Eine Folge passt allein nicht auf eine Disc; Qualität senken oder eine größere Disc wählen.",
+  I_SPLIT_CUSTOM_MENU: "Selbst gestaltete Menüs behalten ihr Design; auf jeder Disc werden Schaltflächen für Folgen auf anderen Discs entfernt.",
 };

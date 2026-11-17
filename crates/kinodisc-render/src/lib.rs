@@ -1,5 +1,7 @@
 //! Reusable end-to-end DVD-Video render pipeline shared by the CLI and Tauri.
 
+pub mod split;
+
 use kinodisc_avchd::native::{
     tsmuxer_is_available, NativeBdmvMuxer, NativeMenuRequest, NativeMovieRequest,
     NativeMovieSubtitle,

@@ -869,10 +869,17 @@ export const pt: Dictionary = {
   "Volver a comprobar": "Verificar de novo",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} foi encontrado em {path}, mas não foi possível ler a versão.",
   "Carpeta del disco": "Pasta do disco",
-  "Carpeta del disco lista: {files} archivos, {size}": "Pasta do disco pronta: {files} arquivos, {size}",
   "Creando la carpeta del disco": "Criando a pasta do disco",
   "Generar carpeta": "Gerar pasta",
   "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS ou BDMV para leitores, USB ou Kodi",
+  "Carpeta del disco lista en {seconds} s": "Pasta do disco pronta em {seconds} s",
+  "Disco {index} de {count}": "Disco {index} de {count}",
+  "Discos": "Discos",
+  "Si no entra todo, repártelo en varios discos o crea uno por episodio": "Se não couber tudo, distribua em vários discos ou crie um por episódio",
+  "Un disco por episodio": "Um disco por episódio",
+  "Un solo disco": "Um único disco",
+  "Varios discos (llenar cada uno)": "Vários discos (encher cada um)",
+  "{count} discos generados en {seconds} s": "{count} discos gerados em {seconds} s",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {
@@ -1030,4 +1037,6 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   E_TOOLCHAIN_IO: "Não foi possível salvar a ferramenta (disco cheio ou sem permissão?).",
   E_PLAYER_PRESET_CONFLICT: "O reprodutor escolhido não reproduz este tipo de disco.",
   W_PLAYER_PRESET_STRICT: "Parte do projeto pode não ser reproduzida com fluidez no reprodutor escolhido.",
+  W_SPLIT_EPISODE_TOO_LONG: "Um episódio não cabe sozinho num disco; reduza a qualidade ou escolha um disco maior.",
+  I_SPLIT_CUSTOM_MENU: "Os menus feitos à mão mantêm o design; em cada disco, os botões de episódios de outro disco são removidos.",
 };

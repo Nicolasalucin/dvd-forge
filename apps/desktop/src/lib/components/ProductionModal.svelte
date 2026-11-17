@@ -28,6 +28,7 @@
   let defaultsReady = $state(false);
   let cancelRequested = $state(false);
   let hardwareEncoding = $state<"auto" | "cpuOnly">("auto");
+  let discSplit = $state<"single" | "fitToDisc" | "perEpisode">("single");
 
   const project = $derived(projectStore.project);
   const devices = $derived(projectStore.devices);
@@ -145,56 +146,90 @@
     }
     projectStore.resetRender();
     projectStore.rendering = true;
-    projectStore.renderStage = t("Componiendo menús");
+    const root = outputDir.trim().replace(/[\\/]+$/, "");
     try {
-      const warnings = await compositeProjectMenus(current, {
-        backgroundColor: projectStore.menuBackgroundColor,
-        previewUrls: projectStore.previewUrls,
-        framePaths: projectStore.framePaths,
-      });
-      for (const warning of warnings) {
-        projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${warning}`].slice(-300);
+      // One project, or one per disc when splitting.
+      let parts: Array<{ project: typeof current; fileName: string; index: number; count: number }> = [
+        { project: current, fileName: "", index: 1, count: 1 },
+      ];
+      if (discSplit !== "single" && mode !== "isoBurn") {
+        const split = await unwrap(commands.projectSplit(current, discSplit));
+        parts = split.parts.map((part) => ({
+          project: part.project as typeof current,
+          fileName: part.fileName,
+          index: part.index,
+          count: part.count,
+        }));
+        for (const diagnostic of split.diagnostics) {
+          projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${diagnostic.message}`].slice(-300);
+        }
+      }
+      const outputs: string[] = [];
+      let elapsedMs = 0;
+      for (const part of parts) {
+        if (cancelRequested) break;
+        const multi = part.count > 1;
+        const prefix = multi ? t("Disco {index} de {count}", { index: part.index, count: part.count }) + " · " : "";
+        projectStore.renderPercent = 0;
+        projectStore.renderStage = prefix + t("Componiendo menús");
+        const warnings = await compositeProjectMenus(part.project, {
+          backgroundColor: projectStore.menuBackgroundColor,
+          previewUrls: projectStore.previewUrls,
+          framePaths: projectStore.framePaths,
+        });
+        for (const warning of warnings) {
+          projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${warning}`].slice(-300);
+        }
+        if (cancelRequested) break;
+        const workDir = multi ? `${root}/${part.fileName.replace(/\.iso$/i, "")}` : root;
+        const channel = new Channel<JobEvent_Deserialize>();
+        channel.onmessage = (event) => {
+          projectStore.applyJobEvent(event);
+          if (multi && projectStore.renderStage && !projectStore.renderStage.startsWith(prefix)) {
+            projectStore.renderStage = prefix + projectStore.renderStage;
+          }
+        };
+        const outcome = await unwrap(commands.renderStart(part.project, workDir, hardwareEncoding, channel));
+        elapsedMs += outcome.elapsedMs;
+        projectStore.renderVerification = outcome.verification ?? null;
+        let produced = outcome.isoPath;
+        if (mode === "folder") {
+          projectStore.renderStage = prefix + t("Creando la carpeta del disco");
+          const label = (part.project.disc.volumeLabel || part.project.name || "DISC")
+            .replace(/[^A-Za-z0-9 _-]/g, "_")
+            .trim();
+          const exported = await unwrap(
+            commands.renderExportFolder(outcome.isoPath, multi ? root : outputDir.trim(), label || "DISC", true),
+          );
+          produced = exported.folder;
+        } else if (multi) {
+          produced = await unwrap(commands.renderNamePart(outcome.isoPath, part.fileName));
+        }
+        outputs.push(produced);
+        projectStore.lastIso = produced;
       }
       if (cancelRequested) {
         projectStore.renderStage = t("Cancelado");
         projectStore.renderSummary = t("Generación cancelada.");
         return;
       }
-      const channel = new Channel<JobEvent_Deserialize>();
-      channel.onmessage = (event) => projectStore.applyJobEvent(event);
-      const outcome = await unwrap(
-        commands.renderStart(current, outputDir.trim(), hardwareEncoding, channel),
-      );
-      projectStore.lastIso = outcome.isoPath;
-      projectStore.renderVerification = outcome.verification ?? null;
       projectStore.renderPercent = 100;
-      if (!projectStore.renderSummary) {
-        projectStore.renderSummary = t("ISO generado en {seconds} s", { seconds: (outcome.elapsedMs / 1000).toFixed(1) });
+      projectStore.renderStage = t("Listo");
+      const seconds = (elapsedMs / 1000).toFixed(1);
+      if (outputs.length > 1) {
+        projectStore.renderSummary = t("{count} discos generados en {seconds} s", { count: outputs.length, seconds });
+      } else if (mode === "folder") {
+        projectStore.renderSummary = t("Carpeta del disco lista en {seconds} s", { seconds });
+      } else if (!projectStore.renderSummary) {
+        projectStore.renderSummary = t("ISO generado en {seconds} s", { seconds });
       }
-      if (mode === "folder") {
-        projectStore.renderStage = t("Creando la carpeta del disco");
-        const label = (current.disc.volumeLabel || current.name || "DISC").replace(/[^A-Za-z0-9 _-]/g, "_").trim();
-        const exported = await unwrap(
-          commands.renderExportFolder(outcome.isoPath, outputDir.trim(), label || "DISC", true),
-        );
-        projectStore.lastIso = exported.folder;
-        projectStore.renderStage = t("Listo");
-        projectStore.renderSummary = t("Carpeta del disco lista: {files} archivos, {size}", {
-          files: exported.files,
-          size: formatBytes(exported.bytes),
-        });
-      }
-      if (mode === "isoBurn") {
-        if (cancelRequested) {
-          projectStore.renderSummary = t("Generación cancelada antes de grabar.");
-          return;
-        }
+      if (mode === "isoBurn" && outputs[0]) {
         if (!effectiveDevice) {
           localError = t("El ISO está listo, pero no hay una unidad seleccionada para grabarlo.");
           return;
         }
         projectStore.rendering = false;
-        await burnIso(outcome.isoPath);
+        await burnIso(outputs[0]);
       }
     } catch (cause) {
       if (cancelRequested) {
@@ -348,6 +383,20 @@
           </button>
         {/each}
       </div>
+
+      {#if mode === "iso" || mode === "folder"}
+        <label class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-[11px] text-slate-300">
+          <span>
+            <span class="font-semibold text-slate-100">{t("Discos")}</span>
+            <span class="block text-[10px] text-slate-500">{t("Si no entra todo, repártelo en varios discos o crea uno por episodio")}</span>
+          </span>
+          <select bind:value={discSplit} disabled={busy} class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px]">
+            <option value="single">{t("Un solo disco")}</option>
+            <option value="fitToDisc">{t("Varios discos (llenar cada uno)")}</option>
+            <option value="perEpisode">{t("Un disco por episodio")}</option>
+          </select>
+        </label>
+      {/if}
 
       {#if isAvchd && mode !== "existing"}
         <label class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2">

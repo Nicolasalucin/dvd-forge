@@ -937,10 +937,17 @@ export const fr: Dictionary = {
   "Volver a comprobar": "Vérifier à nouveau",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} a été trouvé dans {path} mais sa version n'a pas pu être lue.",
   "Carpeta del disco": "Dossier du disque",
-  "Carpeta del disco lista: {files} archivos, {size}": "Dossier du disque prêt : {files} fichiers, {size}",
   "Creando la carpeta del disco": "Création du dossier du disque",
   "Generar carpeta": "Créer le dossier",
   "VIDEO_TS o BDMV para reproductores, USB o Kodi": "VIDEO_TS ou BDMV pour lecteurs, clés USB ou Kodi",
+  "Carpeta del disco lista en {seconds} s": "Dossier du disque prêt en {seconds} s",
+  "Disco {index} de {count}": "Disque {index} sur {count}",
+  "Discos": "Disques",
+  "Si no entra todo, repártelo en varios discos o crea uno por episodio": "Si tout ne tient pas, répartissez sur plusieurs disques ou créez-en un par épisode",
+  "Un disco por episodio": "Un disque par épisode",
+  "Un solo disco": "Un seul disque",
+  "Varios discos (llenar cada uno)": "Plusieurs disques (remplir chacun)",
+  "{count} discos generados en {seconds} s": "{count} disques créés en {seconds} s",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -1098,4 +1105,6 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   E_TOOLCHAIN_IO: "Impossible d'enregistrer l'outil (disque plein ou pas d'autorisation ?).",
   E_PLAYER_PRESET_CONFLICT: "Le lecteur choisi ne lit pas ce type de disque.",
   W_PLAYER_PRESET_STRICT: "Une partie du projet risque de ne pas être lue de façon fluide sur le lecteur choisi.",
+  W_SPLIT_EPISODE_TOO_LONG: "Un épisode ne tient pas seul sur un disque ; baissez la qualité ou choisissez un disque plus grand.",
+  I_SPLIT_CUSTOM_MENU: "Les menus faits à la main gardent leur design ; sur chaque disque, les boutons des épisodes d'un autre disque sont retirés.",
 };

@@ -1,6 +1,7 @@
 mod batch;
 mod bundle;
 mod render;
+mod split_cmd;
 mod support;
 mod toolchain_cmd;
 
@@ -38,6 +39,7 @@ async fn main() -> ExitCode {
         "bundle" => bundle::run(&args[1..]),
         "batch" => batch::run(&args[1..]).await,
         "toolchain" => toolchain_cmd::run(&args[1..]),
+        "split" => split_cmd::run(&args[1..]),
         "version" | "--version" | "-V" => {
             println!("kinodisc-cli {VERSION}");
             ExitCode::SUCCESS
@@ -671,6 +673,7 @@ fn print_help() {
     println!("  kinodisc-cli doctor [--json] [--verbose]");
     println!("  kinodisc-cli plan <project.json> [-o <plan.json>] [--probe]");
     println!("  kinodisc-cli probe <archivo|/dev/srX> [--json]");
+    println!("  kinodisc-cli split <project.json> [--per-episode]   (un proyecto por disco)");
     println!("  kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--folder] [--no-probe]");
     println!("      --folder  también escribe <dir>/disc con VIDEO_TS o BDMV (idéntico al ISO)");
     println!("  kinodisc-cli verify <iso> [--deep] [--json] [--strict]");

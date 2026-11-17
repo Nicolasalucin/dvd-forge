@@ -162,4 +162,6 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   E_TOOLCHAIN_IO: "The tool could not be saved (disk full or no permission?).",
   E_PLAYER_PRESET_CONFLICT: "The selected player cannot play this kind of disc.",
   W_PLAYER_PRESET_STRICT: "Part of the project may not play smoothly on the selected player.",
+  W_SPLIT_EPISODE_TOO_LONG: "An episode does not fit on a disc by itself; lower the quality or choose a larger disc.",
+  I_SPLIT_CUSTOM_MENU: "Hand-made menus keep their design; on each disc, buttons for episodes on another disc are removed.",
 };

@@ -56,6 +56,11 @@ export const commands = {
 	menuTemplates: () => __TAURI_INVOKE<MenuTemplateInfo[]>("menu_templates"),
 	menuApplyTemplate: (project: Project_Deserialize, template: MenuTemplateId) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_template", { project, template })),
 	planCalculate: (project: Project_Deserialize) => typedError<BitratePlan_Serialize, string>(__TAURI_INVOKE("plan_calculate", { project })),
+	/**
+	 *  Splits the project into several discs (fill each disc, or one per
+	 *  episode). Each part is rendered like a normal project.
+	 */
+	projectSplit: (project: Project_Deserialize, strategy: SplitStrategy) => typedError<SplitResult_Serialize, string>(__TAURI_INVOKE("project_split", { project, strategy })),
 	burnListDevices: () => typedError<OpticalDevice[], string>(__TAURI_INVOKE("burn_list_devices")),
 	renderStart: (project: Project_Deserialize, outputDir: string, hardwareEncoding: EncoderPreference, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, hardwareEncoding, channel })),
 	/**
@@ -70,6 +75,12 @@ export const commands = {
 	 *  `remove_iso` is set, deletes the image afterwards.
 	 */
 	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso })),
+	/**
+	 *  Moves the `disc.iso` of one part of a multi-disc render next to its work
+	 *  folder under a friendly name (`<parent>/<file_name>`). Only `disc.iso`
+	 *  files and single-component `.iso` names are accepted.
+	 */
+	renderNamePart: (isoPath: string, fileName: string) => typedError<string, string>(__TAURI_INVOKE("render_name_part", { isoPath, fileName })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),
@@ -455,6 +466,26 @@ export type DiscConfig_Serialize = {
 	audio: AudioDefaults,
 	/**  Target player; tightens limits and adds compatibility warnings. */
 	playerPreset: PlayerPreset,
+};
+
+export type DiscPart = DiscPart_Serialize | DiscPart_Deserialize;
+
+export type DiscPart_Deserialize = {
+	/**  1-based disc number. */
+	index: number,
+	count: number,
+	project: Project_Deserialize,
+	/**  Suggested image file name, e.g. `Mi serie - Disco 2.iso`. */
+	fileName: string,
+};
+
+export type DiscPart_Serialize = {
+	/**  1-based disc number. */
+	index: number,
+	count: number,
+	project: Project_Serialize,
+	/**  Suggested image file name, e.g. `Mi serie - Disco 2.iso`. */
+	fileName: string,
 };
 
 export type DvdProfile = "d1" | "halfD1" | "auto";
@@ -1315,6 +1346,24 @@ export type ShapeItem_Serialize = {
 	stroke: string | null,
 	strokeWidth: number | null,
 };
+
+export type SplitResult = SplitResult_Serialize | SplitResult_Deserialize;
+
+export type SplitResult_Deserialize = {
+	parts: DiscPart_Deserialize[],
+	diagnostics: Diagnostic_Deserialize[],
+};
+
+export type SplitResult_Serialize = {
+	parts: DiscPart_Serialize[],
+	diagnostics: Diagnostic_Serialize[],
+};
+
+export type SplitStrategy = 
+/**  Fill each disc with as many episodes (in order) as the planner accepts. */
+"fitToDisc" | 
+/**  One disc per episode. */
+"perEpisode";
 
 export type SubpictureColor = {
 	rgb: [number, number, number],

@@ -936,10 +936,17 @@ export const ja: Dictionary = {
   "Volver a comprobar": "再確認",
   "{tool} se encontró en {path} pero no se pudo extraer una versión.": "{tool} は {path} にありますが、バージョンを読み取れませんでした。",
   "Carpeta del disco": "ディスクフォルダー",
-  "Carpeta del disco lista: {files} archivos, {size}": "ディスクフォルダーの準備完了: {files} ファイル、{size}",
   "Creando la carpeta del disco": "ディスクフォルダーを作成中",
   "Generar carpeta": "フォルダーを作成",
   "VIDEO_TS o BDMV para reproductores, USB o Kodi": "プレーヤー、USB、Kodi 用の VIDEO_TS または BDMV",
+  "Carpeta del disco lista en {seconds} s": "{seconds} 秒でディスクフォルダーの準備完了",
+  "Disco {index} de {count}": "ディスク {index}/{count}",
+  "Discos": "ディスク",
+  "Si no entra todo, repártelo en varios discos o crea uno por episodio": "収まらない場合は複数のディスクに分けるか、エピソードごとに 1 枚作成します",
+  "Un disco por episodio": "エピソードごとに 1 枚",
+  "Un solo disco": "1 枚のディスク",
+  "Varios discos (llenar cada uno)": "複数のディスク (各ディスクを満たす)",
+  "{count} discos generados en {seconds} s": "{seconds} 秒で {count} 枚のディスクを作成",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -1097,4 +1104,6 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   E_TOOLCHAIN_IO: "ツールを保存できませんでした（ディスクの空き不足または権限がない可能性があります）。",
   E_PLAYER_PRESET_CONFLICT: "選択したプレーヤーはこの種類のディスクを再生できません。",
   W_PLAYER_PRESET_STRICT: "選択したプレーヤーでは一部がスムーズに再生されない可能性があります。",
+  W_SPLIT_EPISODE_TOO_LONG: "1 つのエピソードが単独でディスクに収まりません。画質を下げるか、大容量のディスクを選んでください。",
+  I_SPLIT_CUSTOM_MENU: "手作りのメニューはデザインを保ちます。各ディスクでは、別のディスクにあるエピソードのボタンが削除されます。",
 };
