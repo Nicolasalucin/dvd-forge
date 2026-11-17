@@ -278,9 +278,16 @@ impl NativeBdmvMuxer {
                 "-y".to_string(),
                 "-loglevel".to_string(),
                 "error".to_string(),
-                "-f".to_string(),
-                "h264".to_string(),
             ];
+            // A raw `.h264` elementary stream has no timestamps (FFmpeg 9
+            // refuses to copy it into MPEG-TS); containers are auto-detected.
+            if request
+                .video_h264
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("h264"))
+            {
+                args.extend(["-f".to_string(), "h264".to_string()]);
+            }
             push_file_input(&mut args, request.video_h264);
             args.extend(["-f".to_string(), "ac3".to_string()]);
             push_file_input(&mut args, request.audio_ac3);

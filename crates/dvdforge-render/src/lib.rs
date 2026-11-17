@@ -4186,7 +4186,11 @@ async fn attach_native_hdmv_menu(
     let clip_number = next_bdmv_number(&bdmv_root.join("CLIPINF"), "clpi")?;
     let clip = stream_number.max(clip_number);
     let duration_secs = 60.0;
-    let video_path = work_dir.join("menu.h264");
+    // FFmpeg 9 no longer synthesizes timestamps when stream-copying a raw
+    // H.264 elementary stream ("first pts and dts value must be set"), which
+    // made every native Blu-ray menu fall back to a menu-less disc. The
+    // native muxer gets a Matroska file with real (B-frame aware) timestamps.
+    let video_path = work_dir.join("menu.mkv");
     encode_menu_video(&video_path, spec, duration_secs).await?;
     let audio_path = work_dir.join("menu.ac3");
     encode_hd_menu_audio(&audio_path, spec, duration_secs).await?;
@@ -4501,7 +4505,7 @@ async fn encode_menu_video_with_transition(
     if spec.psf {
         command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);
     }
-    command.args(["-f", "h264"]).arg(path);
+    command.args(["-f", menu_video_format(path)]).arg(path);
     run_menu_ffmpeg(command, path, "video").await
 }
 
@@ -4612,7 +4616,7 @@ async fn encode_menu_video(
     if spec.psf {
         command.args(["-x264opts", "fake-interlaced=1:pic-struct=1"]);
     }
-    command.args(["-f", "h264"]).arg(path);
+    command.args(["-f", menu_video_format(path)]).arg(path);
     run_menu_ffmpeg(command, path, "video").await
 }
 
@@ -4674,6 +4678,19 @@ async fn encode_hd_menu_audio(
     // Pass the OsStr path itself; never fall back to a CWD-relative name.
     command.arg(path);
     run_menu_ffmpeg(command, path, "audio").await
+}
+
+/// Output container for an HD menu video: raw H.264 for tsMuxeR, Matroska
+/// (with timestamps) for the native muxer.
+fn menu_video_format(path: &Path) -> &'static str {
+    if path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mkv"))
+    {
+        "matroska"
+    } else {
+        "h264"
+    }
 }
 
 async fn run_menu_ffmpeg(

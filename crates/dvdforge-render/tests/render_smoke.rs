@@ -209,7 +209,10 @@ async fn renders_bd25_with_native_hdmv_menu() {
     assert!(output.join("avchd/BDMV/PLAYLIST/00001.mpls").is_file());
     assert!(output.join("avchd/BDMV/CLIPINF/00001.clpi").is_file());
     assert!(output.join("avchd/BDMV/STREAM/00001.m2ts").is_file());
-    assert!(output.join("menus/clip-00/menu.meta").is_file());
+    // tsMuxeR writes a .meta file; the native muxer does not need one.
+    if dvdforge_avchd::native::tsmuxer_is_available() {
+        assert!(output.join("menus/clip-00/menu.meta").is_file());
+    }
     let _ = std::fs::remove_dir_all(output);
 }
 
@@ -290,7 +293,12 @@ async fn renders_bd25_with_nested_hdmv_menus() {
     }
     // The root menu uses a video background, so its H.264 clip must be
     // non-trivial and High profile.
-    let video = output.join("menus/clip-00/menu.h264");
+    // Raw H.264 for tsMuxeR, Matroska (with timestamps) for the native muxer.
+    let video = ["menu.h264", "menu.mkv"]
+        .iter()
+        .map(|name| output.join("menus/clip-00").join(name))
+        .find(|path| path.is_file())
+        .expect("menu video");
     assert!(std::fs::metadata(&video).unwrap().len() > 10_000);
 
     let movie_object = std::fs::read(bdmv.join("MovieObject.bdmv")).expect("movie object");
