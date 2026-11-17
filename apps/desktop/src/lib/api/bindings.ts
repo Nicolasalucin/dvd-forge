@@ -67,6 +67,12 @@ export const commands = {
 	recentProjectForget: (filePath: string) => typedError<null, string>(__TAURI_INVOKE("recent_project_forget", { filePath })),
 	jobHistoryList: (limit: number | null) => typedError<JobHistoryEntry_Serialize[], string>(__TAURI_INVOKE("job_history_list", { limit })),
 	toolsDoctor: () => __TAURI_INVOKE<ToolchainReport_Serialize>("tools_doctor"),
+	/**
+	 *  Font families installed on this computer, sorted and de-duplicated, so
+	 *  menu buttons can use any local font (the label raster runs in the webview
+	 *  and therefore renders every installed family).
+	 */
+	systemFonts: () => __TAURI_INVOKE<string[]>("system_fonts"),
 	/**  Verifies a generated ISO before it is presented to the user or burned. */
 	verifyIso: (path: string, deep: boolean) => typedError<VerifyReport_Serialize, string>(__TAURI_INVOKE("verify_iso", { path, deep })),
 };

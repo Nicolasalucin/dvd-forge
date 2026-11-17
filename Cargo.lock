@@ -816,6 +816,7 @@ dependencies = [
  "dvdforge-store",
  "dvdforge-toolchain",
  "dvdforge-verify",
+ "fontdb",
  "serde",
  "serde_json",
  "sha2",

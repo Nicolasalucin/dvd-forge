@@ -7,6 +7,7 @@
     VideoScaleMode,
   } from "../api/bindings";
   import { normalizeRect } from "../editor/exportMenu";
+  import { commands } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { basename, formatBytes, formatDuration } from "../utils/format";
 
@@ -61,7 +62,20 @@
     return t("Sin máscara");
   }
 
-  const fontFamilies = ["Inter", "system-ui", "Arial", "Georgia", "Courier New", "Verdana"];
+  const curatedFonts = ["Inter", "system-ui", "Arial", "Georgia", "Courier New", "Verdana"];
+  // Every font installed on this computer (the label raster runs in the
+  // webview, so any local family renders on the final disc).
+  let systemFonts = $state<string[]>([]);
+  $effect(() => {
+    void commands
+      .systemFonts()
+      .then((fonts) => (systemFonts = fonts))
+      .catch(() => (systemFonts = []));
+  });
+  const fontFamilies = $derived([
+    ...curatedFonts,
+    ...systemFonts.filter((family) => !curatedFonts.includes(family)),
+  ]);
   const actionKinds: Array<{ id: ButtonAction["kind"]; label: string }> = [
     { id: "playEpisode", label: "Reproducir episodio" },
     { id: "playAll", label: "Reproducir todo" },
@@ -360,16 +374,23 @@
           <div class="grid grid-cols-2 gap-1.5">
             <label class="block">
               <span class="mb-1 block text-[10px] text-slate-500">{t("Fuente")}</span>
-              <select
+              <input
                 class="w-full rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
+                list="dvdforge-font-families"
                 value={button.fontFamily}
-                onchange={(event) =>
-                  projectStore.updateButton(button.id, { fontFamily: event.currentTarget.value })}
-              >
+                style={`font-family: "${button.fontFamily.replaceAll('"', "")}", sans-serif`}
+                placeholder={t("Escribe para buscar…")}
+                title={t("{count} fuentes disponibles en este equipo", { count: fontFamilies.length })}
+                onchange={(event) => {
+                  const family = event.currentTarget.value.trim();
+                  if (family) projectStore.updateButton(button.id, { fontFamily: family });
+                }}
+              />
+              <datalist id="dvdforge-font-families">
                 {#each fontFamilies as family}
-                  <option value={family}>{family}</option>
+                  <option value={family}></option>
                 {/each}
-              </select>
+              </datalist>
             </label>
             <label class="block">
               <span class="mb-1 block text-[10px] text-slate-500">{t("Peso")}</span>
