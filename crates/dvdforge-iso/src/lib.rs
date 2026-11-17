@@ -1,5 +1,8 @@
 //! ISO/UDF image creation and DVD-Video validation.
 
+pub mod dvd_native;
+
+pub use dvd_native::write_dvd_video_iso;
 use dvdforge_toolchain::resolve_binary;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};

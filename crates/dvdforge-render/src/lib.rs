@@ -345,10 +345,33 @@ async fn render_dvd_project(
     ensure_not_cancelled(&cancel)?;
     stage(&events, JobStage::Iso, "Construyendo ISO").await;
     let iso_path = output_dir.join("disc.iso");
-    let iso = Xorriso::default()
-        .build_dvd_iso(&dvd_dir, &iso_path, &project.disc.volume_label)
+    // Native UDF 1.02 + ISO 9660 bridge writer (works on every OS, no
+    // genisoimage/mkisofs). DVDFORGE_DVD_ISO_BUILDER=external keeps the old
+    // genisoimage/mkisofs path for comparison.
+    let external = std::env::var("DVDFORGE_DVD_ISO_BUILDER")
+        .map(|value| value.eq_ignore_ascii_case("external"))
+        .unwrap_or(false);
+    let iso = if external {
+        Xorriso::default()
+            .build_dvd_iso(&dvd_dir, &iso_path, &project.disc.volume_label)
+            .await
+            .map_err(|error| RenderError::Iso(error.to_string()))?
+    } else {
+        let source = dvd_dir.clone();
+        let target = iso_path.clone();
+        let label = project.disc.volume_label.clone();
+        let cancel_flag = cancel.clone();
+        tokio::task::spawn_blocking(move || {
+            dvdforge_iso::write_dvd_video_iso(&source, &target, &label, &|| {
+                cancel_flag
+                    .as_ref()
+                    .is_some_and(|flag| flag.load(Ordering::Relaxed))
+            })
+        })
         .await
-        .map_err(|error| RenderError::Iso(error.to_string()))?;
+        .map_err(|error| RenderError::Iso(error.to_string()))?
+        .map_err(|error| RenderError::Iso(error.to_string()))?
+    };
     let _ = events
         .send(JobEventKind::Artifact {
             kind: ArtifactKind::Iso,

@@ -250,7 +250,9 @@ const SPECS: &[ToolSpec] = &[
         version_args: &["-version"],
         accept_any_exit: false,
         markers: &["xorriso"],
-        required: true,
+        // DVD-Video ISOs are written natively since 0.9.0; xorriso is only a
+        // burning fallback on Linux/FreeBSD.
+        required: false,
     },
     ToolSpec {
         id: ToolId::Growisofs,
@@ -292,9 +294,10 @@ pub fn tool_supported_on(id: ToolId, platform: &str) -> bool {
     }
 }
 
-/// tsMuxeR is optional because AVCHD/BDMV has a native FFmpeg fallback.
+/// tsMuxeR is optional because AVCHD/BDMV has a native FFmpeg fallback;
+/// xorriso because DVD-Video ISOs are written natively.
 pub const fn tool_required(id: ToolId) -> bool {
-    !matches!(id, ToolId::TsMuxer)
+    !matches!(id, ToolId::TsMuxer | ToolId::Xorriso)
 }
 
 /// Adds the platform executable suffix and keeps the bare name as a fallback.
