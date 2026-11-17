@@ -155,4 +155,9 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   E_BATCH_ITEM: "A project in the batch queue could not be rendered.",
   E_BATCH_QUEUE: "The batch queue file could not be read or is empty.",
   W_BATCH_PARTIAL: "The batch finished with some projects failed or not run.",
+  E_TOOLCHAIN_UNAVAILABLE: "There is no automatic download of this tool for this system; install it with the package manager.",
+  E_TOOLCHAIN_DOWNLOAD: "The download failed; check the Internet connection and try again.",
+  E_TOOLCHAIN_CHECKSUM: "The downloaded file does not match the published version (SHA-256); it was discarded.",
+  E_TOOLCHAIN_ARCHIVE: "The downloaded archive could not be unpacked safely.",
+  E_TOOLCHAIN_IO: "The tool could not be saved (disk full or no permission?).",
 };

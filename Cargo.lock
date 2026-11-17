@@ -998,8 +998,12 @@ version = "0.7.0"
 name = "dvdforge-toolchain"
 version = "0.7.0"
 dependencies = [
+ "hex",
  "serde",
+ "serde_json",
+ "sha2",
  "specta",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

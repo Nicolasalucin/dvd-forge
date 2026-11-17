@@ -4,6 +4,53 @@ pub fn tools_doctor() -> dvdforge_toolchain::ToolchainReport {
     dvdforge_toolchain::detect_toolchain()
 }
 
+/// How a missing tool can be installed on this computer.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolInstallOption {
+    pub tool: String,
+    /// A pinned, checksum-verified download is available (one click).
+    pub automatic: bool,
+    pub version: Option<String>,
+    pub size_bytes: Option<f64>,
+    pub license: Option<String>,
+    /// Package-manager command when there is no automatic download.
+    pub hint: Option<String>,
+}
+
+#[tauri::command(async)]
+#[specta::specta]
+pub fn toolchain_install_options(tools: Vec<String>) -> Vec<ToolInstallOption> {
+    use dvdforge_toolchain::provision::{download_for, install_hint};
+    tools
+        .into_iter()
+        .map(|tool| {
+            let download = download_for(&tool);
+            ToolInstallOption {
+                automatic: download.is_some(),
+                version: download.map(|download| download.version.to_string()),
+                size_bytes: download.map(|download| download.size as f64),
+                license: download.map(|download| download.license.to_string()),
+                hint: install_hint(&tool),
+                tool,
+            }
+        })
+        .collect()
+}
+
+/// Downloads, verifies (size + SHA-256) and installs a tool into the
+/// per-user toolchain folder, which is searched before PATH.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn toolchain_install(
+    tool: String,
+) -> Result<dvdforge_toolchain::provision::ProvisionReport, String> {
+    let download = dvdforge_toolchain::provision::download_for(&tool).ok_or_else(|| {
+        format!("E_TOOLCHAIN_UNAVAILABLE: no hay descarga automática de {tool} para este sistema")
+    })?;
+    dvdforge_toolchain::provision::provision(download, |_, _| {}).map_err(|error| error.to_string())
+}
+
 /// Font families installed on this computer, sorted and de-duplicated, so
 /// menu buttons can use any local font (the label raster runs in the webview
 /// and therefore renders every installed family).

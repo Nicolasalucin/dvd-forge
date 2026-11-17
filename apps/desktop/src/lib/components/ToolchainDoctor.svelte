@@ -2,6 +2,9 @@
   import { t } from "../i18n/index.svelte";
   import { onMount } from "svelte";
   import { projectStore } from "../stores/project.svelte";
+  import { commands, type ToolInstallOption } from "../api/bindings";
+  import { messageOf, unwrap } from "../api/client";
+  import { localizeError } from "../i18n/diagnostics";
 
   interface Props {
     onClose: () => void;
@@ -14,6 +17,51 @@
   });
 
   const report = $derived(projectStore.toolsReport);
+
+  let options = $state<ToolInstallOption[]>([]);
+  let installing = $state<string | null>(null);
+  let installNotice = $state<string | null>(null);
+  let installError = $state<string | null>(null);
+
+  $effect(() => {
+    const missing = report?.missingRequired ?? [];
+    if (missing.length === 0) {
+      options = [];
+      return;
+    }
+    void commands
+      .toolchainInstallOptions([...missing])
+      .then((result) => (options = result))
+      .catch(() => (options = []));
+  });
+
+  async function install(option: ToolInstallOption) {
+    installing = option.tool;
+    installError = null;
+    installNotice = null;
+    try {
+      const result = await unwrap(commands.toolchainInstall(option.tool));
+      installNotice = t("{tool} {version} instalado y verificado (SHA-256).", {
+        tool: result.tool,
+        version: result.version,
+      });
+      await projectStore.refreshToolsDoctor();
+    } catch (cause) {
+      installError = localizeError(messageOf(cause));
+    } finally {
+      installing = null;
+    }
+  }
+
+  /** One archive can provide several tools (ffmpeg + ffprobe). */
+  const automatic = $derived(
+    options.filter(
+      (option, index) =>
+        option.automatic &&
+        options.findIndex((other) => other.automatic && other.version === option.version) === index,
+    ),
+  );
+  const manual = $derived(options.filter((option) => !option.automatic));
 </script>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -122,6 +170,47 @@
         {#if report.missingRequired.length > 0}
           <div class="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] leading-5 text-rose-200">
             {t("Instala o añade al PATH: {tools}.", { tools: report.missingRequired.join(", ") })}
+          </div>
+        {/if}
+        {#if automatic.length > 0 || manual.length > 0 || installNotice}
+          <div class="mt-3 space-y-2 rounded-xl border border-cyan-500/25 bg-cyan-500/5 px-3 py-2.5">
+            {#each automatic as option (option.tool)}
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0 text-[11px] text-slate-200">
+                  <p class="font-semibold">
+                    {t("Instalar {tool} automáticamente", { tool: option.tool === "ffprobe" ? "FFmpeg" : option.tool })}
+                  </p>
+                  <p class="text-[10px] text-slate-400">
+                    {t("Versión {version} · {size} MB · se comprueba su SHA-256 · {license}", {
+                      version: option.version ?? "",
+                      size: Math.round((option.sizeBytes ?? 0) / 1_000_000),
+                      license: option.license ?? "",
+                    })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onclick={() => install(option)}
+                  disabled={installing !== null}
+                  class="rounded-lg bg-cyan-500 px-3 py-1.5 text-[11px] font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {installing === option.tool ? t("Descargando…") : t("Instalar")}
+                </button>
+              </div>
+            {/each}
+            {#each manual as option (option.tool)}
+              {#if option.hint}
+                <p class="text-[10px] leading-4 text-slate-400">
+                  {option.tool}: <code class="rounded bg-slate-900 px-1 py-0.5 text-cyan-200">{option.hint}</code>
+                </p>
+              {/if}
+            {/each}
+            {#if installNotice}
+              <p class="text-[10px] text-emerald-300">✓ {installNotice}</p>
+            {/if}
+            {#if installError}
+              <p class="text-[10px] text-rose-300">{installError}</p>
+            {/if}
           </div>
         {/if}
         {#if report.warnings.length > 0}

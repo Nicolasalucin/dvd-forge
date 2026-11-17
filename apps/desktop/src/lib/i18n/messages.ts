@@ -744,6 +744,11 @@ export const es: Dictionary = {
   "Paquete descomprimido en {folder}.": "Paquete descomprimido en {folder}.",
   "Proyecto o paquete de DVD Forge": "Proyecto o paquete de DVD Forge",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.",
+  "Descargando…": "Descargando…",
+  "Instalar": "Instalar",
+  "Instalar {tool} automáticamente": "Instalar {tool} automáticamente",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} instalado y verificado (SHA-256).",
 };
 
 export const en: Dictionary = {
@@ -1578,6 +1583,11 @@ export const en: Dictionary = {
   "Paquete descomprimido en {folder}.": "Bundle unpacked into {folder}.",
   "Proyecto o paquete de DVD Forge": "DVD Forge project or bundle",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "If you produce the disc again, episodes that were already encoded are reused: it does not start from scratch.",
+  "Descargando…": "Downloading…",
+  "Instalar": "Install",
+  "Instalar {tool} automáticamente": "Install {tool} automatically",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Version {version} · {size} MB · SHA-256 is verified · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} installed and verified (SHA-256).",
 };
 
 export const pt: Dictionary = {
@@ -2411,6 +2421,11 @@ export const pt: Dictionary = {
   "Paquete descomprimido en {folder}.": "Pacote descompactado em {folder}.",
   "Proyecto o paquete de DVD Forge": "Projeto ou pacote do DVD Forge",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Se você gerar o disco de novo, os episódios já codificados são reaproveitados: não começa do zero.",
+  "Descargando…": "Baixando…",
+  "Instalar": "Instalar",
+  "Instalar {tool} automáticamente": "Instalar {tool} automaticamente",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Versão {version} · {size} MB · o SHA-256 é verificado · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} instalado e verificado (SHA-256).",
 };
 
 export const fr: Dictionary = {
@@ -3312,6 +3327,11 @@ export const fr: Dictionary = {
   "Paquete descomprimido en {folder}.": "Paquet décompressé dans {folder}.",
   "Proyecto o paquete de DVD Forge": "Projet ou paquet DVD Forge",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Si vous relancez la production, les épisodes déjà encodés sont réutilisés : on ne repart pas de zéro.",
+  "Descargando…": "Téléchargement…",
+  "Instalar": "Installer",
+  "Instalar {tool} automáticamente": "Installer {tool} automatiquement",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Version {version} · {size} Mo · SHA-256 vérifié · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} installé et vérifié (SHA-256).",
 };
 
 export const de: Dictionary = {
@@ -4212,6 +4232,11 @@ export const de: Dictionary = {
   "Paquete descomprimido en {folder}.": "Paket entpackt nach {folder}.",
   "Proyecto o paquete de DVD Forge": "DVD-Forge-Projekt oder -Paket",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Wenn du die Disc erneut erstellst, werden bereits kodierte Episoden wiederverwendet: Es beginnt nicht von vorn.",
+  "Descargando…": "Wird heruntergeladen…",
+  "Instalar": "Installieren",
+  "Instalar {tool} automáticamente": "{tool} automatisch installieren",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Version {version} · {size} MB · SHA-256 wird geprüft · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} installiert und geprüft (SHA-256).",
 };
 
 export const it: Dictionary = {
@@ -5112,6 +5137,11 @@ export const it: Dictionary = {
   "Paquete descomprimido en {folder}.": "Pacchetto estratto in {folder}.",
   "Proyecto o paquete de DVD Forge": "Progetto o pacchetto DVD Forge",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Se generi di nuovo il disco, gli episodi già codificati vengono riutilizzati: non si riparte da zero.",
+  "Descargando…": "Download in corso…",
+  "Instalar": "Installa",
+  "Instalar {tool} automáticamente": "Installa {tool} automaticamente",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "Versione {version} · {size} MB · SHA-256 verificato · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} installato e verificato (SHA-256).",
 };
 
 export const ja: Dictionary = {
@@ -6012,5 +6042,10 @@ export const ja: Dictionary = {
   "Paquete descomprimido en {folder}.": "パッケージを {folder} に展開しました。",
   "Proyecto o paquete de DVD Forge": "DVD Forge プロジェクトまたはパッケージ",
   "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "ディスクを再作成すると、エンコード済みのエピソードは再利用されます。最初からやり直す必要はありません。",
+  "Descargando…": "ダウンロード中…",
+  "Instalar": "インストール",
+  "Instalar {tool} automáticamente": "{tool} を自動インストール",
+  "Versión {version} · {size} MB · se comprueba su SHA-256 · {license}": "バージョン {version} · {size} MB · SHA-256 を検証 · {license}",
+  "{tool} {version} instalado y verificado (SHA-256).": "{tool} {version} をインストールし、検証しました（SHA-256）。",
 };
 

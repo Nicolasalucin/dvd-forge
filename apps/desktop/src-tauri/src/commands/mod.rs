@@ -22,5 +22,7 @@ pub use project::{
 };
 pub use render::{render_cancel, render_start};
 pub use store::{job_history_list, recent_project_forget, recent_projects_list};
-pub use system::{open_folder, system_fonts, tools_doctor};
+pub use system::{
+    open_folder, system_fonts, toolchain_install, toolchain_install_options, tools_doctor,
+};
 pub use verify::verify_iso;

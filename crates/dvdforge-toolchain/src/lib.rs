@@ -5,6 +5,7 @@
 //! not implement a conventional `--version` flag. tsMuxeR is also accepted when
 //! it returns a non-zero exit code but prints its version banner.
 
+pub mod provision;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::io::Read;
@@ -318,7 +319,7 @@ pub fn search_directories_for_platform(
     path_dirs: &[PathBuf],
 ) -> Vec<PathBuf> {
     let toolchain_dir = env::var_os("DVDFORGE_TOOLCHAIN_DIR").map(PathBuf::from);
-    search_directories_with(
+    let mut directories = search_directories_with(
         platform,
         env::consts::ARCH,
         exe_dir,
@@ -326,7 +327,24 @@ pub fn search_directories_for_platform(
         resource_root,
         toolchain_dir.as_deref(),
         path_dirs,
-    )
+    );
+    // Tools installed with one click live in the per-user folder; they come
+    // right after an explicit DVDFORGE_TOOLCHAIN_DIR and before PATH.
+    if let Some(user_dir) = provision::user_toolchain_dir() {
+        let position = toolchain_dir
+            .as_deref()
+            .map(|root| {
+                directories
+                    .iter()
+                    .position(|directory| !directory.starts_with(root))
+                    .unwrap_or(directories.len())
+            })
+            .unwrap_or(0);
+        if !directories.contains(&user_dir) {
+            directories.insert(position, user_dir);
+        }
+    }
+    directories
 }
 
 /// Pure search-path builder used by runtime resolution and tests.

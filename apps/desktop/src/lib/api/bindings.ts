@@ -83,6 +83,12 @@ export const commands = {
 	 *  and therefore renders every installed family).
 	 */
 	systemFonts: () => __TAURI_INVOKE<string[]>("system_fonts"),
+	toolchainInstallOptions: (tools: string[]) => __TAURI_INVOKE<ToolInstallOption_Serialize[]>("toolchain_install_options", { tools }),
+	/**
+	 *  Downloads, verifies (size + SHA-256) and installs a tool into the
+	 *  per-user toolchain folder, which is searched before PATH.
+	 */
+	toolchainInstall: (tool: string) => typedError<ProvisionReport, string>(__TAURI_INVOKE("toolchain_install", { tool })),
 	/**  Verifies a generated ISO before it is presented to the user or burned. */
 	verifyIso: (path: string, deep: boolean) => typedError<VerifyReport_Serialize, string>(__TAURI_INVOKE("verify_iso", { path, deep })),
 };
@@ -1179,6 +1185,19 @@ export type Project_Serialize = {
 	burn: BurnPreferences_Serialize,
 };
 
+/**  Result of an installation, also written next to the binaries. */
+export type ProvisionReport = {
+	tool: string,
+	version: string,
+	directory: string,
+	files: string[],
+	sha256: string,
+	url: string,
+	license: string,
+	/**  `false` when a verified copy was already installed (no download). */
+	downloaded: boolean,
+};
+
 export type ProxyInfo = {
 	path: string,
 	width: number,
@@ -1414,6 +1433,33 @@ export type ThumbnailSpec_Serialize = {
 };
 
 export type ToolId = "ffmpeg" | "ffprobe" | "dvdauthor" | "spumux" | "xorriso" | "growisofs" | "dvdRwMediaInfo" | "tsMuxer";
+
+/**  How a missing tool can be installed on this computer. */
+export type ToolInstallOption = ToolInstallOption_Serialize | ToolInstallOption_Deserialize;
+
+/**  How a missing tool can be installed on this computer. */
+export type ToolInstallOption_Deserialize = {
+	tool: string,
+	/**  A pinned, checksum-verified download is available (one click). */
+	automatic: boolean,
+	version?: string | null,
+	sizeBytes?: number | null,
+	license?: string | null,
+	/**  Package-manager command when there is no automatic download. */
+	hint?: string | null,
+};
+
+/**  How a missing tool can be installed on this computer. */
+export type ToolInstallOption_Serialize = {
+	tool: string,
+	/**  A pinned, checksum-verified download is available (one click). */
+	automatic: boolean,
+	version: string | null,
+	sizeBytes: number | null,
+	license: string | null,
+	/**  Package-manager command when there is no automatic download. */
+	hint: string | null,
+};
 
 export type ToolStatus = ToolStatus_Serialize | ToolStatus_Deserialize;
 

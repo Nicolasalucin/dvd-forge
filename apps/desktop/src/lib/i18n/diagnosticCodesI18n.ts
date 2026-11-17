@@ -151,6 +151,11 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   E_BATCH_ITEM: "Um projeto da fila em lote não pôde ser renderizado.",
   E_BATCH_QUEUE: "O arquivo da fila em lote não pôde ser lido ou está vazio.",
   W_BATCH_PARTIAL: "A fila terminou com alguns projetos com erro ou não executados.",
+  E_TOOLCHAIN_UNAVAILABLE: "Não há download automático desta ferramenta para este sistema; instale-a com o gerenciador de pacotes.",
+  E_TOOLCHAIN_DOWNLOAD: "O download falhou; verifique a conexão com a Internet e tente de novo.",
+  E_TOOLCHAIN_CHECKSUM: "O arquivo baixado não corresponde à versão publicada (SHA-256); foi descartado.",
+  E_TOOLCHAIN_ARCHIVE: "Não foi possível extrair o arquivo baixado com segurança.",
+  E_TOOLCHAIN_IO: "Não foi possível salvar a ferramenta (disco cheio ou sem permissão?).",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -301,6 +306,11 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   E_BATCH_ITEM: "Un projet de la file de traitement par lots n'a pas pu être rendu.",
   E_BATCH_QUEUE: "Le fichier de file de traitement par lots est illisible ou vide.",
   W_BATCH_PARTIAL: "La file s'est terminée avec des projets en erreur ou non exécutés.",
+  E_TOOLCHAIN_UNAVAILABLE: "Aucun téléchargement automatique de cet outil pour ce système ; installez-le avec le gestionnaire de paquets.",
+  E_TOOLCHAIN_DOWNLOAD: "Le téléchargement a échoué ; vérifiez la connexion Internet et réessayez.",
+  E_TOOLCHAIN_CHECKSUM: "Le fichier téléchargé ne correspond pas à la version publiée (SHA-256) ; il a été supprimé.",
+  E_TOOLCHAIN_ARCHIVE: "L'archive téléchargée n'a pas pu être extraite en toute sécurité.",
+  E_TOOLCHAIN_IO: "Impossible d'enregistrer l'outil (disque plein ou pas d'autorisation ?).",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -451,6 +461,11 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   E_BATCH_ITEM: "Ein Projekt der Stapelwarteschlange konnte nicht gerendert werden.",
   E_BATCH_QUEUE: "Die Stapelwarteschlangen-Datei ist unlesbar oder leer.",
   W_BATCH_PARTIAL: "Der Stapel wurde mit fehlgeschlagenen oder nicht ausgeführten Projekten beendet.",
+  E_TOOLCHAIN_UNAVAILABLE: "Für dieses System gibt es keinen automatischen Download; installiere das Werkzeug mit dem Paketmanager.",
+  E_TOOLCHAIN_DOWNLOAD: "Der Download ist fehlgeschlagen; prüfe die Internetverbindung und versuche es erneut.",
+  E_TOOLCHAIN_CHECKSUM: "Die heruntergeladene Datei stimmt nicht mit der veröffentlichten Version überein (SHA-256) und wurde verworfen.",
+  E_TOOLCHAIN_ARCHIVE: "Das heruntergeladene Archiv konnte nicht sicher entpackt werden.",
+  E_TOOLCHAIN_IO: "Das Werkzeug konnte nicht gespeichert werden (Datenträger voll oder keine Berechtigung?).",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -601,6 +616,11 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   E_BATCH_ITEM: "Un progetto della coda batch non è stato generato.",
   E_BATCH_QUEUE: "Il file della coda batch non è leggibile o è vuoto.",
   W_BATCH_PARTIAL: "La coda è terminata con alcuni progetti in errore o non eseguiti.",
+  E_TOOLCHAIN_UNAVAILABLE: "Nessun download automatico di questo strumento per questo sistema; installalo con il gestore di pacchetti.",
+  E_TOOLCHAIN_DOWNLOAD: "Download non riuscito; controlla la connessione a Internet e riprova.",
+  E_TOOLCHAIN_CHECKSUM: "Il file scaricato non corrisponde alla versione pubblicata (SHA-256); è stato scartato.",
+  E_TOOLCHAIN_ARCHIVE: "Impossibile estrarre l'archivio scaricato in modo sicuro.",
+  E_TOOLCHAIN_IO: "Impossibile salvare lo strumento (disco pieno o permessi mancanti?).",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -751,4 +771,9 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   E_BATCH_ITEM: "バッチキュー内のプロジェクトをレンダリングできませんでした。",
   E_BATCH_QUEUE: "バッチキューのファイルを読み込めないか、空です。",
   W_BATCH_PARTIAL: "一部のプロジェクトが失敗または未実行のままバッチが終了しました。",
+  E_TOOLCHAIN_UNAVAILABLE: "このシステム向けの自動ダウンロードはありません。パッケージマネージャーでインストールしてください。",
+  E_TOOLCHAIN_DOWNLOAD: "ダウンロードに失敗しました。インターネット接続を確認して、もう一度お試しください。",
+  E_TOOLCHAIN_CHECKSUM: "ダウンロードしたファイルが公開版と一致しません（SHA-256）。破棄しました。",
+  E_TOOLCHAIN_ARCHIVE: "ダウンロードしたアーカイブを安全に展開できませんでした。",
+  E_TOOLCHAIN_IO: "ツールを保存できませんでした（ディスクの空き不足または権限がない可能性があります）。",
 };
