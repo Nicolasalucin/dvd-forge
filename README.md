@@ -45,6 +45,10 @@ work.
 |---|---|
 | ![Tracks](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+| Step-by-step guide | New project (1080p25 PsF) |
+|---|---|
+| ![Guide](docs/screenshots/07-guide.png) | ![New project](docs/screenshots/08-new-project.png) |
+
 ## v0.7.0 highlights
 
 - **New to DVD Forge?** Read the [user guide](docs/USER_GUIDE.md) or press

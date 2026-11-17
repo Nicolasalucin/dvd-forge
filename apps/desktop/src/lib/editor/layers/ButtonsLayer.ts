@@ -225,7 +225,9 @@ export class ButtonsLayer {
           button.styleKind === "thumbnailCard"
             ? Math.min(button.fontSize, 18)
             : button.fontSize,
-        fontFamily: button.fontFamily || "sans-serif",
+        fontFamily: button.fontFamily
+          ? `${/\s/.test(button.fontFamily) ? `"${button.fontFamily.replaceAll('"', "")}"` : button.fontFamily}, sans-serif`
+          : "sans-serif",
         fontStyle: button.fontWeight === "bold" ? "bold" : "normal",
         fill: button.textColor,
         align: layout.align,

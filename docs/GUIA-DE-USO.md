@@ -2,6 +2,8 @@
 
 > [English version](USER_GUIDE.md)
 
+![Guía paso a paso dentro de la aplicación](screenshots/es-02-guia.png)
+
 Esta guía explica, paso a paso y sin tecnicismos, cómo convertir tus vídeos en
 un DVD o un Blu-ray con menú. Dentro de la aplicación tienes la misma ayuda en
 el botón **❓ Guía** (arriba a la derecha).
@@ -27,6 +29,8 @@ Puedes poner los programas en una carpeta `toolchain\` junto al ejecutable de
 DVD Forge y los encontrará solo.
 
 ## 2. Crear un proyecto
+
+![Asistente de proyecto nuevo](screenshots/08-new-project.png)
 
 1. Pulsa **Nuevo proyecto**.
 2. Elige el tipo de disco:
@@ -62,6 +66,8 @@ señal 1080i). Es el método estándar y lo aceptan todos los reproductores.
 
 ### Recortar y capítulos
 
+![Edición: recorte, capítulos y miniatura](screenshots/02-video-trimmer.png)
+
 En la pestaña **Edición** puedes:
 
 - Marcar el principio (**In**) y el final (**Out**) de cada episodio.
@@ -86,6 +92,8 @@ Puedes forzar **Recodificar siempre** o **Copiar sin recodificar**. Para poder
 copiar, el episodio no puede estar recortado al principio.
 
 ## 4. Diseñar el menú
+
+![Editor de menú](screenshots/es-01-editor-de-menu.png)
 
 La pestaña **Menú** muestra la pantalla que verás en la tele.
 
@@ -117,6 +125,8 @@ borrarla.
 
 ## 5. Audio y subtítulos
 
+![Pistas](screenshots/05-audio-subtitles.png)
+
 En la pestaña **Pistas**:
 
 - Elige qué pistas de audio van al disco, su idioma y cuál es la principal.
@@ -128,6 +138,8 @@ Si los episodios vienen de archivos distintos (por ejemplo, uno con audio
 para que todo el disco sea coherente y te avisa de lo que cambió.
 
 ## 6. Probar
+
+![Simulador](screenshots/03-dvd-simulator.png)
 
 La pestaña **Simulador** reproduce el disco como un reproductor real. Usa las
 flechas del teclado y **Enter**, o el mando de la pantalla. Si un botón no se
@@ -155,7 +167,17 @@ puede alcanzar, aparece un aviso.
 | No sé qué fps elegir | Mira la tabla del apartado 2. |
 | Herramientas avanzadas | Activa **Modo experto** (junto a las pestañas) para ver Animación, Mapa VM y Calidad VBR. |
 
-## 9. Idiomas
+## 9. Modo experto
+
+Activa **Modo experto** junto a las pestañas para ver Animación (menús y
+miniaturas en movimiento), el Mapa VM (todos los saltos que puede hacer el
+reproductor) y Calidad VBR (bitrate por episodio y presupuesto del disco).
+
+![Mapa VM](screenshots/04-vm-flowchart.png)
+
+![Calidad VBR](screenshots/06-vbr-optimizer.png)
+
+## 10. Idiomas
 
 Cambia el idioma de la interfaz en el selector de la cabecera. Los nombres que
 DVD Forge pone por defecto en el disco («Menú principal», «Siguiente ›»…) usan

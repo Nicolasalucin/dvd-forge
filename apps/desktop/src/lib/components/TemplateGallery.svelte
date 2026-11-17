@@ -9,6 +9,11 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let applying = $state<string | null>(null);
+  // Open while the menu is empty (that is when templates help most); folded
+  // once it has buttons so the canvas gets the space. The user can toggle.
+  let userOpen = $state<boolean | null>(null);
+  const menuEmpty = $derived((projectStore.activeMenu?.buttons.length ?? 0) === 0);
+  const open = $derived(userOpen ?? menuEmpty);
 
   onMount(() => {
     void load();
@@ -38,12 +43,20 @@
   }
 </script>
 
-<section class="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-  <div class="mb-2 flex items-center justify-between gap-2">
+<section class="shrink-0 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+  <div class={`flex items-center justify-between gap-2 ${open ? "mb-2" : ""}`}>
+    <button
+      type="button"
+      class="flex min-w-0 flex-1 items-center gap-2 text-left"
+      onclick={() => (userOpen = !open)}
+      aria-expanded={open}
+    >
+      <span class="text-[10px] text-slate-500" aria-hidden="true">{open ? "▾" : "▸"}</span>
     <div>
       <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("Plantillas de menú")}</p>
       <p class="mt-0.5 text-[11px] text-slate-400">{t("Aplicación no destructiva con paginación automática.")}</p>
     </div>
+    </button>
     <button
       type="button"
       class="rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:border-cyan-500/60 hover:text-cyan-200"
@@ -51,6 +64,7 @@
       disabled={loading}
     >{t("Recargar")}</button>
   </div>
+  {#if open}
   {#if error}<p class="mb-2 rounded bg-rose-500/10 px-2 py-1 text-[10px] text-rose-200">{error}</p>{/if}
   {#if loading}
     <p class="text-[11px] text-slate-500">{t("Cargando plantillas…")}</p>
@@ -85,5 +99,6 @@
         {/each}
       </ul>
     {/if}
+  {/if}
   {/if}
 </section>

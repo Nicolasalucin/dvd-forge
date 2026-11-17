@@ -45,6 +45,10 @@ de alta definición, sin duplicar el trabajo creativo.
 |---|---|
 | ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
 
+| Guía paso a paso | Proyecto nuevo (1080p25 PsF) |
+|---|---|
+| ![Guía](docs/screenshots/es-02-guia.png) | ![Proyecto nuevo](docs/screenshots/08-new-project.png) |
+
 ## Novedades de v0.7.0
 
 - **¿Primera vez?** Lee la [guía de uso](docs/GUIA-DE-USO.md) o pulsa

@@ -677,7 +677,9 @@ function cssFont(button: MenuButton_Serialize): string {
     button.styleKind === "thumbnailCard"
       ? Math.min(button.fontSize, 18)
       : button.fontSize;
-  return `${weight} ${size}px ${family}`;
+  // Fallback keeps labels sans-serif when the chosen family is not installed
+  // (otherwise the browser default is a serif face, also on the final disc).
+  return `${weight} ${size}px ${family}, sans-serif`;
 }
 
 function roundedRect(

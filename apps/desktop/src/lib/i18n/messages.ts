@@ -733,7 +733,8 @@ export const es: Dictionary = {
   "¿Eliminar el episodio «{episode}» del proyecto?": "¿Eliminar el episodio «{episode}» del proyecto?",
   "¿Eliminar el episodio «{episode}»?": "¿Eliminar el episodio «{episode}»?",
   "Área segura": "Área segura",
-  "← Menú": "← Menú"
+  "← Menú": "← Menú",
+  "Tipografía": "Tipografía",
 };
 
 export const en: Dictionary = {
@@ -1558,6 +1559,7 @@ export const en: Dictionary = {
   "El barrido (progresivo/entrelazado) no coincide con el proyecto; se recodifica.": "The scan type (progressive/interlaced) does not match the project; it will be re-encoded.",
   "El episodio está recortado al principio; para copiar sin recodificar no puede haber recorte inicial.": "The episode is trimmed at the start; copying without re-encoding requires no start trim.",
   "El bitrate del vídeo es desconocido o supera el máximo del disco; se recodifica.": "The video bitrate is unknown or exceeds the disc maximum; it will be re-encoded.",
+  "Tipografía": "Font",
 };
 
 export const pt: Dictionary = {
@@ -2381,6 +2383,7 @@ export const pt: Dictionary = {
   "W": "W",
   "X": "X",
   "Y": "Y",
+  "Tipografía": "Fonte",
 };
 
 export const fr: Dictionary = {
@@ -3272,6 +3275,7 @@ export const fr: Dictionary = {
   "W": "W",
   "X": "X",
   "Y": "Y",
+  "Tipografía": "Police",
 };
 
 export const de: Dictionary = {
@@ -4162,6 +4166,7 @@ export const de: Dictionary = {
   "W": "W",
   "X": "X",
   "Y": "Y",
+  "Tipografía": "Schriftart",
 };
 
 export const it: Dictionary = {
@@ -5052,6 +5057,7 @@ export const it: Dictionary = {
   "W": "W",
   "X": "X",
   "Y": "Y",
+  "Tipografía": "Carattere",
 };
 
 export const ja: Dictionary = {
@@ -5942,5 +5948,6 @@ export const ja: Dictionary = {
   "W": "W",
   "X": "X",
   "Y": "Y",
+  "Tipografía": "フォント",
 };
 

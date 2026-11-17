@@ -413,7 +413,7 @@
 
           <div class="grid grid-cols-2 gap-1.5">
             <label class="block">
-              <span class="mb-1 block text-[10px] text-slate-500">{t("Fuente")}</span>
+              <span class="mb-1 block text-[10px] text-slate-500">{t("Tipografía")}</span>
               <input
                 class="w-full rounded-lg border border-slate-800 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-200 outline-none focus:border-cyan-500/60"
                 list="dvdforge-font-families"

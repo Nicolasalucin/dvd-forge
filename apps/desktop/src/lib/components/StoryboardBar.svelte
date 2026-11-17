@@ -84,7 +84,7 @@
       <p class="mt-0.5 text-[11px] font-medium text-slate-300">
         {episodes.length} {t(episodes.length === 1 ? "episodio" : "episodios")} · {formatDuration(totalDuration)}
       </p>
-      <div class="mt-1.5 flex flex-wrap gap-1">
+      <div class="mt-1.5 flex max-h-[62px] flex-wrap gap-1 overflow-y-auto pr-0.5">
         {#if project?.firstPlay}
           <button
             type="button"

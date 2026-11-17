@@ -2,6 +2,8 @@
 
 > [Versión en español](GUIA-DE-USO.md)
 
+![Step-by-step guide inside the app](screenshots/07-guide.png)
+
 This guide explains, step by step and in plain words, how to turn your videos
 into a DVD or Blu-ray with a menu. The same help is available inside the app
 with the **❓ Guide** button (top right).
@@ -27,6 +29,8 @@ You can put the tools in a `toolchain\` folder next to the DVD Forge executable
 and they will be found automatically.
 
 ## 2. Create a project
+
+![New project dialog](screenshots/08-new-project.png)
 
 1. Press **New project**.
 2. Choose the disc type:
@@ -62,6 +66,8 @@ players, but some older Blu-ray players cannot play it.
 
 ### Trimming and chapters
 
+![Editing: trim, chapters and thumbnail](screenshots/02-video-trimmer.png)
+
 In the **Editing** tab you can:
 
 - Set the start (**In**) and end (**Out**) of each episode.
@@ -86,6 +92,8 @@ You can force **Always re-encode** or **Copy without re-encoding**. To be
 copied, the episode must not be trimmed at the start.
 
 ## 4. Design the menu
+
+![Menu editor](screenshots/01-menu-studio.png)
 
 The **Menu** tab shows the screen you will see on the TV.
 
@@ -115,6 +123,8 @@ name to rename it; hover it and press **✕** to delete it.
 
 ## 5. Audio and subtitles
 
+![Tracks](screenshots/05-audio-subtitles.png)
+
 In the **Tracks** tab:
 
 - Choose which audio tracks go on the disc, their language and the main one.
@@ -126,6 +136,8 @@ and one “undetermined”), on Blu-ray/AVCHD DVD Forge adapts the tracks so the
 whole disc is consistent and tells you what changed.
 
 ## 6. Test
+
+![Simulator](screenshots/03-dvd-simulator.png)
 
 The **Simulator** tab plays the disc like a real player. Use the keyboard
 arrows and **Enter**, or the on-screen remote. If a button cannot be reached, a
@@ -153,7 +165,17 @@ warning appears.
 | Not sure which frame rate | See the table in section 2. |
 | Advanced tools | Turn on **Expert mode** (next to the tabs) to see Animation, VM map and VBR quality. |
 
-## 9. Languages
+## 9. Expert mode
+
+Turn on **Expert mode** next to the tabs to see Animation (moving menus and
+thumbnails), the VM map (every jump the player can make) and VBR quality
+(bitrate per episode and disc budget).
+
+![VM map](screenshots/04-vm-flowchart.png)
+
+![VBR quality](screenshots/06-vbr-optimizer.png)
+
+## 10. Languages
 
 Change the interface language with the selector in the header. The default
 names DVD Forge puts on the disc (“Main menu”, “Next ›”…) follow the interface

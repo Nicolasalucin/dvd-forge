@@ -542,7 +542,7 @@
               {t("Marcar fin")}
             </button>
             <span class="ml-auto rounded-md bg-slate-950/70 px-2 py-1 font-mono text-[10px] text-cyan-300">
-              Recorte {formatMs(effectiveMs)}
+              {t("Recorte")} {formatMs(effectiveMs)}
             </span>
           </div>
         </div>
