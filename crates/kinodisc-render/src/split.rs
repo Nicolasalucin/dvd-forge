@@ -193,6 +193,33 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
         });
     }
 
+    // "2 / 3" in the corner of the root menu so viewers know which disc
+    // they are watching (language-neutral, regenerated on every split).
+    if count > 1 {
+        let root = part.root_menu;
+        if let Some(menu) = part.menus.iter_mut().find(|menu| menu.id == root) {
+            let width = f64::from(menu.canvas.width);
+            let height = f64::from(menu.canvas.height);
+            let scale = (height / 480.0).max(1.0);
+            menu.items.retain(|item| !matches!(item, kinodisc_domain::MenuItem::Text(text) if text.id == "tpl:disc"));
+            menu.items
+                .push(kinodisc_domain::MenuItem::Text(kinodisc_domain::TextItem {
+                    id: "tpl:disc".to_string(),
+                    text: format!("{index} / {count}"),
+                    rect: kinodisc_domain::LogicalRect::new(
+                        (width * 0.70).round(),
+                        (height - 52.0 * scale).round(),
+                        (width * 0.25).round(),
+                        (32.0 * scale).round(),
+                    ),
+                    font_family: "Arial".to_string(),
+                    font_size: (20.0 * scale) as f32,
+                    color: "#ffffff".to_string(),
+                    align: kinodisc_domain::TextAlign::Right,
+                }));
+        }
+    }
+
     let base = sanitize_file_name(&project.name);
     let file_name = if count > 1 {
         format!("{base} - Disco {index}.iso")
@@ -293,6 +320,11 @@ mod tests {
             assert!(part
                 .file_name
                 .ends_with(&format!("Disco {}.iso", part.index)));
+            // Discs with a menu show "N / M" on it (continuous discs have none).
+            if let Some(root) = part.project.menu(part.project.root_menu) {
+                assert!(root.items.iter().any(|item| matches!(item,
+                    kinodisc_domain::MenuItem::Text(text) if text.text == format!("{} / {}", part.index, part.count))));
+            }
             assert_ne!(part.project.id, project.id);
         }
     }
@@ -350,6 +382,10 @@ mod tests {
         let disc2 = &result.parts[1].project;
         assert_eq!(disc2.episodes[0].id, second.id);
         assert!(disc2.menus.iter().all(|menu| !menu.buttons.is_empty()));
+        let root = disc2.menu(disc2.root_menu).unwrap();
+        assert!(root.items.iter().any(
+            |item| matches!(item, kinodisc_domain::MenuItem::Text(text) if text.text == "2 / 2")
+        ));
         let ids: HashSet<_> = disc2.menus.iter().map(|menu| menu.id).collect();
         for menu in &disc2.menus {
             for button in &menu.buttons {
