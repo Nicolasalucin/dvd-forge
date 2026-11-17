@@ -89,7 +89,23 @@ jobs:
           # Only the programs: the man pages need DocBook, not shipped.
           # fsync() is _commit() in the Windows CRT (<io.h>); only for make,
           # configure's own feature tests must not see the forced include.
-          WINFLAGS='CPPFLAGS=-include io.h -Dfsync=_commit'
+          # Two POSIX headers Windows lacks: langinfo.h (charset name) and
+          # netinet/in.h (byte order helpers).
+          mkdir -p ../winshim/netinet
+          cat > ../winshim/langinfo.h <<'EOF'
+          #pragma once
+          #define CODESET 0
+          static inline char *nl_langinfo(int item) { (void)item; return (char *)"UTF-8"; }
+          EOF
+          cat > ../winshim/netinet/in.h <<'EOF'
+          #pragma once
+          #include <stdint.h>
+          static inline uint32_t htonl(uint32_t v) { return __builtin_bswap32(v); }
+          static inline uint32_t ntohl(uint32_t v) { return __builtin_bswap32(v); }
+          static inline uint16_t htons(uint16_t v) { return __builtin_bswap16(v); }
+          static inline uint16_t ntohs(uint16_t v) { return __builtin_bswap16(v); }
+          EOF
+          WINFLAGS="CPPFLAGS=-I$PWD/../winshim -include io.h -Dfsync=_commit
           make -C src -j4 "$WINFLAGS" || make -C src "$WINFLAGS"
           make -C src install "$WINFLAGS"
 
