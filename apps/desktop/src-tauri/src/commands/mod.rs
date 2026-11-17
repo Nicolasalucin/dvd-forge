@@ -10,8 +10,9 @@ pub mod verify;
 
 pub use burn::{burn_cancel, burn_list_devices, burn_start};
 pub use media::{
-    disc_import, disc_inspect, media_extract_frame, media_playback_support, media_prepare_preview,
-    media_preview_url, media_probe_file, read_image_data_url, slideshow_create, PlaybackSupport,
+    disc_import, disc_inspect, media_extract_frame, media_missing, media_playback_support,
+    media_prepare_preview, media_preview_url, media_probe_file, read_image_data_url,
+    slideshow_create, PlaybackSupport,
 };
 pub use menu::{
     menu_apply_chapter_menus, menu_apply_template, menu_navigation, menu_save_background,

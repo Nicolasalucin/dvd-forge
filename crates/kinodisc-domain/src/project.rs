@@ -485,7 +485,13 @@ impl MediaAsset {
     /// 0, all-zero hash): the menu is drawn on its background colour instead.
     /// Never read, packaged or reported as missing.
     pub fn is_placeholder(&self) -> bool {
-        self.bytes == 0 && !self.sha256.is_empty() && self.sha256.bytes().all(|byte| byte == b'0')
+        // Imported files also carry an all-zero hash (and size 0 when FFprobe
+        // reports none): only the project's own starting background counts.
+        matches!(self.source, AssetSource::Project)
+            && self.relative_path.as_deref() == Some("assets/background.png")
+            && self.bytes == 0
+            && !self.sha256.is_empty()
+            && self.sha256.bytes().all(|byte| byte == b'0')
     }
 }
 

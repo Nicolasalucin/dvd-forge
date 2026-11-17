@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isPlaceholderAsset } from "../utils/assets";
+  import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import * as actions from "../actions";
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
@@ -9,6 +10,7 @@
   import { messageOf, unwrap } from "../api/client";
   import { projectStore, type LayoutKind } from "../stores/project.svelte";
   import { basename, formatBytes, formatDuration } from "../utils/format";
+  import { ui } from "../ui/state.svelte";
 
   let search = $state("");
   let busy = $state(false);
@@ -70,9 +72,32 @@
     hint?: string;
   }
 
+  /** Lets the user point a missing file at its new place. */
+  async function locate(asset: MediaAsset_Serialize) {
+    const extension = asset.displayName.split(".").pop()?.toLowerCase();
+    const selected = await openDialog({
+      multiple: false,
+      title: t("Buscar «{name}»", { name: basename(asset.displayName) }),
+      filters: [
+        ...(extension ? [{ name: basename(asset.displayName), extensions: [extension] }] : []),
+        { name: t("Todos los archivos"), extensions: ["*"] },
+      ],
+    });
+    if (!selected || Array.isArray(selected)) return;
+    try {
+      const count = await projectStore.relinkAsset(asset.id, selected);
+      ui.notice = t("Se volvieron a vincular {count} archivo(s).", { count });
+    } catch (cause) {
+      localError = messageOf(cause);
+    }
+  }
+
   /** Actions offered in the "⋯" menu of a media row. */
   function secondaryActions(asset: MediaAsset_Serialize): RowAction[] {
     const list: RowAction[] = [];
+    if (projectStore.isAssetMissing(asset.id)) {
+      list.push({ label: t("Buscar archivo…"), icon: "search", run: () => locate(asset) });
+    }
     if (!noMenus && (asset.kind === "image" || asset.kind === "video")) {
       list.push({
         label: t("Usar como miniatura del botón"),
@@ -341,8 +366,15 @@
                   {/if}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-[13px] text-slate-100">{basename(asset.displayName)}</p>
-                  <p class="truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>
+                  <p class="truncate text-[13px] {projectStore.isAssetMissing(asset.id) ? 'text-slate-400' : 'text-slate-100'}">{basename(asset.displayName)}</p>
+                  {#if projectStore.isAssetMissing(asset.id)}
+                    <p class="flex items-center gap-1.5 text-[11px]">
+                      <span class="ui-chip text-amber-300">{t("No se encuentra")}</span>
+                      <button type="button" class="text-cyan-300 hover:underline" onclick={() => locate(asset)}>{t("Buscar…")}</button>
+                    </p>
+                  {:else}
+                    <p class="truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>
+                  {/if}
                 </div>
                 {#if asset.kind === "video"}
                   {#if episode}

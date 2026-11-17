@@ -996,6 +996,11 @@ export const es: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.",
   "Tipo de letra": "Tipo de letra",
   "Tamaño de los archivos": "Tamaño de los archivos",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».",
+  "Buscar «{name}»": "Buscar «{name}»",
+  "Se volvieron a vincular {count} archivo(s).": "Se volvieron a vincular {count} archivo(s).",
+  "Buscar archivo…": "Buscar archivo…",
+  "Buscar…": "Buscar…",
 };
 
 export const en: Dictionary = {
@@ -2077,4 +2082,9 @@ export const en: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Try the menu as on a player: the remote's arrows and OK, or the keyboard.",
   "Tipo de letra": "Font",
   "Tamaño de los archivos": "Files size",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "{count} file(s) of this project are missing. They are marked “Not found” in Media: use “Find file…”.",
+  "Buscar «{name}»": "Find “{name}”",
+  "Se volvieron a vincular {count} archivo(s).": "{count} file(s) relinked.",
+  "Buscar archivo…": "Find file…",
+  "Buscar…": "Find…",
 };

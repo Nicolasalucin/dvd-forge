@@ -1146,6 +1146,11 @@ export const ja: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "プレーヤーと同じようにメニューを試せます：リモコンの矢印とOK、またはキーボード。",
   "Tipo de letra": "フォント",
   "Tamaño de los archivos": "ファイルサイズ",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "このプロジェクトのファイルが{count}個見つかりません。メディアで「見つかりません」と表示されています。「ファイルを探す…」を使ってください。",
+  "Buscar «{name}»": "「{name}」を探す",
+  "Se volvieron a vincular {count} archivo(s).": "{count}個のファイルを再リンクしました。",
+  "Buscar archivo…": "ファイルを探す…",
+  "Buscar…": "探す…",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

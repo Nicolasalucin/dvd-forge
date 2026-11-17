@@ -28,6 +28,12 @@ export const commands = {
 	 */
 	startupProjectPath: () => __TAURI_INVOKE<string | null>("startup_project_path"),
 	mediaProbeFile: (path: string) => typedError<MediaProbe_Serialize, string>(__TAURI_INVOKE("media_probe_file", { path })),
+	/**
+	 *  Which of the given media paths are missing (moved, deleted or on a
+	 *  disconnected drive). Relative paths resolve against the open project.
+	 *  Answers only "is it a file", never contents; at most 4096 paths.
+	 */
+	mediaMissing: (paths: string[]) => typedError<boolean[], string>(__TAURI_INVOKE("media_missing", { paths })),
 	mediaExtractFrame: (videoPath: string, timestampMs: number, outputPng: string | null) => typedError<string, string>(__TAURI_INVOKE("media_extract_frame", { videoPath, timestampMs, outputPng })),
 	/**  Builds (or reuses) a photo slideshow video in the per-user cache. */
 	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),

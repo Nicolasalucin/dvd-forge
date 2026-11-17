@@ -1146,6 +1146,11 @@ export const de: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Testen Sie das Menü wie auf einem Player: Pfeile und OK der Fernbedienung oder die Tastatur.",
   "Tipo de letra": "Schriftart",
   "Tamaño de los archivos": "Dateigröße",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "{count} Datei(en) dieses Projekts fehlen. Sie sind unter Medien als „Nicht gefunden“ markiert: „Datei suchen…“ verwenden.",
+  "Buscar «{name}»": "„{name}“ suchen",
+  "Se volvieron a vincular {count} archivo(s).": "{count} Datei(en) neu verknüpft.",
+  "Buscar archivo…": "Datei suchen…",
+  "Buscar…": "Suchen…",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {

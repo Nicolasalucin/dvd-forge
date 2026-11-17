@@ -42,6 +42,7 @@ import { localizeDiagnostic, localizeJobStage, localizeMessage } from "../i18n/d
 import { i18n, t } from "../i18n/index.svelte";
 import { normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
+import { isPlaceholderAsset } from "../utils/assets";
 
 export type StudioMode =
   | "menu"
@@ -351,6 +352,8 @@ class ProjectStore {
 
   menuBackgroundColor = $state("#0b1220");
   previewUrls = $state<Record<string, string>>({});
+  /** Assets whose file is gone (moved, deleted, disconnected drive). */
+  missingAssetIds = $state<string[]>([]);
   framePaths = $state<Record<string, string>>({});
   selectedButtonId = $state<string | null>(null);
   selectedMenuId = $state<string | null>(null);
@@ -554,6 +557,7 @@ class ProjectStore {
   }
 
   setProject(project: Project_Serialize): void {
+    this.missingAssetIds = [];
     normalizeProject(project);
     localizeGeneratedMenus(project.menus);
     // Projects created by older builds kept HD menus on a 720x480 canvas, which
@@ -601,6 +605,7 @@ class ProjectStore {
 
   clearProject(): void {
     this.project = null;
+    this.missingAssetIds = [];
     this.history.reset(null);
     this.projectPath = null;
     this.plan = null;
@@ -972,6 +977,87 @@ class ProjectStore {
       if (next) next();
       else this.thumbnailSlots -= 1;
     }
+  }
+
+  /** Marks the assets whose file is missing; returns how many. */
+  async checkMissingAssets(): Promise<number> {
+    const project = this.project;
+    if (!project) {
+      this.missingAssetIds = [];
+      return 0;
+    }
+    const assets = project.assets.filter(
+      (asset) => !isPlaceholderAsset(asset) && this.assetPath(asset) !== null,
+    );
+    try {
+      const missing = await unwrap(
+        commands.mediaMissing(assets.map((asset) => this.assetPath(asset) ?? "")),
+      );
+      if (this.project !== project) return 0;
+      this.missingAssetIds = assets.filter((_, index) => missing[index]).map((asset) => asset.id);
+    } catch {
+      this.missingAssetIds = [];
+    }
+    return this.missingAssetIds.length;
+  }
+
+  isAssetMissing(assetId: string): boolean {
+    return this.missingAssetIds.includes(assetId);
+  }
+
+  /**
+   * Points a missing asset at its new location (same id, so episodes,
+   * buttons and menus keep working). Other missing files with the same name
+   * in the new folder are relinked too, as when a whole folder moved.
+   * Returns how many assets were relinked.
+   */
+  async relinkAsset(assetId: string, newPath: string): Promise<number> {
+    const project = this.project;
+    const asset = this.assetFor(assetId);
+    if (!project || !asset) return 0;
+    const probe = await unwrap(commands.mediaProbeFile(newPath));
+    if (this.project !== project) return 0;
+    const relink = (target: MediaAsset_Serialize, path: string, targetProbe: MediaProbe_Serialize) => {
+      target.source = { kind: "external", absolutePath: path };
+      target.relativePath = null;
+      target.displayName = path.split(/[\/]/).pop() ?? path;
+      target.probe = targetProbe;
+      target.bytes = targetProbe.sizeBytes ?? target.bytes;
+      delete this.previewUrls[target.id];
+    };
+    relink(asset, newPath, probe);
+    let count = 1;
+    const folder = newPath.slice(0, Math.max(newPath.lastIndexOf("/"), newPath.lastIndexOf("\\")) + 1);
+    const others = project.assets.filter(
+      (other) => other.id !== assetId && this.missingAssetIds.includes(other.id),
+    );
+    if (folder && others.length > 0) {
+      const candidates = others.map((other) => {
+        const name = (this.assetPath(other) ?? other.displayName).split(/[\/]/).pop() ?? "";
+        return folder + name;
+      });
+      const absent = await unwrap(commands.mediaMissing(candidates)).catch(() => candidates.map(() => true));
+      for (let index = 0; index < others.length; index += 1) {
+        if (absent[index]) continue;
+        try {
+          const otherProbe = await unwrap(commands.mediaProbeFile(candidates[index]));
+          relink(others[index], candidates[index], otherProbe);
+          count += 1;
+        } catch {
+          // Same name but unreadable: leave it marked as missing.
+        }
+      }
+    }
+    project.assets = [...project.assets];
+    this.touch();
+    const stillMissing = await this.checkMissingAssets();
+    if (stillMissing === 0) this.error = null;
+    for (const item of project.assets) {
+      if (item.kind === "video" && !this.missingAssetIds.includes(item.id)) {
+        void this.ensureVideoThumbnail(item.id);
+      }
+    }
+    return count;
   }
 
   async ensureVideoThumbnail(assetId: string, timestampMs?: number): Promise<void> {
@@ -2798,6 +2884,13 @@ class ProjectStore {
       this.projectPath = path;
       this.setProject(project);
       await this.refreshRecentProjects();
+      const missing = await this.checkMissingAssets();
+      if (missing > 0) {
+        this.error = t(
+          "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».",
+          { count: missing },
+        );
+      }
     } catch (cause) {
       this.error = messageOf(cause);
       throw cause;

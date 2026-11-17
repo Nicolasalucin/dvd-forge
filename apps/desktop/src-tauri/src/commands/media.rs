@@ -441,6 +441,21 @@ fn mime_for_path(path: &Path) -> &'static str {
     }
 }
 
+/// Which of the given media paths are missing (moved, deleted or on a
+/// disconnected drive). Relative paths resolve against the open project.
+/// Answers only "is it a file", never contents; at most 4096 paths.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn media_missing(paths: Vec<String>) -> Result<Vec<bool>, String> {
+    if paths.len() > 4096 {
+        return Err("Demasiadas rutas.".to_string());
+    }
+    paths
+        .iter()
+        .map(|path| resolve_media_path(path).map(|resolved| !resolved.is_file()))
+        .collect()
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_probe_file(path: String) -> Result<MediaProbe, String> {

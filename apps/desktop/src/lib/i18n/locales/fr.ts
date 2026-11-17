@@ -1147,6 +1147,11 @@ export const fr: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Testez le menu comme sur un lecteur : flèches et OK de la télécommande, ou le clavier.",
   "Tipo de letra": "Police",
   "Tamaño de los archivos": "Taille des fichiers",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "{count} fichier(s) de ce projet manquent. Ils sont marqués « Introuvable » dans Médias : utilisez « Rechercher le fichier… ».",
+  "Buscar «{name}»": "Rechercher « {name} »",
+  "Se volvieron a vincular {count} archivo(s).": "{count} fichier(s) reliés.",
+  "Buscar archivo…": "Rechercher le fichier…",
+  "Buscar…": "Rechercher…",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {

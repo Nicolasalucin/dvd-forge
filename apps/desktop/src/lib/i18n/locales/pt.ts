@@ -1080,6 +1080,11 @@ export const pt: Dictionary = {
   "Prueba el menú como en un reproductor: flechas y OK del mando, o el teclado.": "Teste o menu como num leitor: setas e OK do controle, ou o teclado.",
   "Tipo de letra": "Fonte",
   "Tamaño de los archivos": "Tamanho dos arquivos",
+  "Faltan {count} archivo(s) de este proyecto. En Medios están marcados «No se encuentra»: usa «Buscar archivo…».": "Faltam {count} arquivo(s) deste projeto. Em Mídia estão marcados «Não encontrado»: use «Procurar arquivo…».",
+  "Buscar «{name}»": "Procurar «{name}»",
+  "Se volvieron a vincular {count} archivo(s).": "{count} arquivo(s) vinculados novamente.",
+  "Buscar archivo…": "Procurar arquivo…",
+  "Buscar…": "Procurar…",
 };
 
 export const DIAGNOSTIC_PT: Record<string, string> = {

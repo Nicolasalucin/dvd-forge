@@ -345,9 +345,10 @@
   </div>
 
   <div class="inspector-body min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
-    {#if localError || projectStore.error}
+    {#if localError}
+      <!-- Global errors already show in the banner under the toolbar. -->
       <div class="mb-3 rounded-md bg-rose-500/10 px-2.5 py-2 text-[12px] leading-5 text-rose-200" role="alert">
-        {localError ?? projectStore.error}
+        {localError}
         <button
           type="button"
           onclick={() => {
