@@ -127,13 +127,13 @@
       : null,
   );
   const modes = $derived([
-    { id: "menu" as StudioMode, icon: "◈", label: "Menú", hint: "Diseño WYSIWYG HDMV", disabled: false },
-    { id: "trim" as StudioMode, icon: "✂", label: "Edición", hint: "Recorte y capítulos", disabled: false },
-    { id: "simulator" as StudioMode, icon: "▷", label: "Simulador", hint: "Mando y navegación real", disabled: false },
-    { id: "vmMap" as StudioMode, icon: "⌘", label: "Mapa VM", hint: "Flujo de navegación del DVD", disabled: false },
-    { id: "tracks" as StudioMode, icon: "♫", label: "Pistas", hint: "Audio, subtítulos y desfases", disabled: false },
-    { id: "motion" as StudioMode, icon: "◉", label: "Animación", hint: "Menús y botones de vídeo", disabled: false },
-    { id: "vbr" as StudioMode, icon: "▤", label: "Calidad VBR", hint: "Curva, prioridad y capacidad", disabled: false },
+    { id: "trim" as StudioMode, icon: "✂", label: "Edición", hint: "Recorte y capítulos", disabled: false, expert: false },
+    { id: "menu" as StudioMode, icon: "◈", label: "Menú", hint: "Diseño WYSIWYG HDMV", disabled: false, expert: false },
+    { id: "tracks" as StudioMode, icon: "♫", label: "Pistas", hint: "Audio, subtítulos y desfases", disabled: false, expert: false },
+    { id: "simulator" as StudioMode, icon: "▷", label: "Simulador", hint: "Mando y navegación real", disabled: false, expert: false },
+    { id: "motion" as StudioMode, icon: "◉", label: "Animación", hint: "Menús y botones de vídeo", disabled: false, expert: true },
+    { id: "vmMap" as StudioMode, icon: "⌘", label: "Mapa VM", hint: "Flujo de navegación del DVD", disabled: false, expert: true },
+    { id: "vbr" as StudioMode, icon: "▤", label: "Calidad VBR", hint: "Curva, prioridad y capacidad", disabled: false, expert: true },
   ]);
 
   function plural(count: number, singular: string, pluralForm: string): string {
@@ -326,6 +326,19 @@
       </label>
       <button
         type="button"
+        onclick={() => (projectStore.guideOpen = !projectStore.guideOpen)}
+        title={t("Guía paso a paso")}
+        class={`flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-[10px] font-semibold transition ${
+          projectStore.guideOpen
+            ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-200"
+            : "border-slate-800 text-slate-300 hover:border-cyan-500/60 hover:text-white"
+        }`}
+      >
+        <span class="text-sm">❓</span>
+        <span class="hidden sm:inline">{t("Guía")}</span>
+      </button>
+      <button
+        type="button"
         onclick={() => (doctorOpen = true)}
         title={t("Diagnóstico de toolchain")}
         class="flex h-9 items-center gap-1.5 rounded-xl border border-slate-800 px-2.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-500/60 hover:text-white"
@@ -354,7 +367,7 @@
 
   <div class="flex flex-wrap items-center gap-2 border-t border-slate-800/60 px-4 py-1.5">
     <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-      {#each modes as mode}
+      {#each modes.filter((item) => projectStore.expertMode || !item.expert) as mode}
         <button
           type="button"
           onclick={() => selectMode(mode)}
@@ -370,6 +383,18 @@
           <span>{t(mode.label)}</span>
         </button>
       {/each}
+      <label
+        class="ml-1 flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] text-slate-500 transition hover:text-slate-300"
+        title={t("Muestra las herramientas avanzadas: animación, mapa de la máquina virtual y calidad VBR")}
+      >
+        <input
+          type="checkbox"
+          class="h-3 w-3 accent-cyan-500"
+          checked={projectStore.expertMode}
+          onchange={(event) => projectStore.setExpertMode(event.currentTarget.checked)}
+        />
+        {t("Modo experto")}
+      </label>
     </div>
 
     {#if project && !isAvchd}

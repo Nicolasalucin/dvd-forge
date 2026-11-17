@@ -148,7 +148,7 @@
         <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400">{t("DVD Forge")}</p>
         <h2 class="mt-1 text-lg font-semibold text-white">{t("Nuevo proyecto")}</h2>
         <p class="mt-0.5 text-[11px] text-slate-500">
-          {t("DVD-Video universal o AVCHD/Blu-ray HD con menús HDMV interactivos.")}
+          {t("Elige el tipo de disco. Si no estás seguro, DVD-Video funciona en casi cualquier reproductor.")}
         </p>
       </div>
       <button
@@ -181,7 +181,7 @@
         >
           <span class="text-sm font-semibold text-white">{t("DVD-Video universal")}</span>
           <span class="mt-0.5 block text-[10px] leading-4 text-slate-500">
-            {t("Menús Konva, botones, capítulos y máxima compatibilidad.")}
+            {t("Funciona en casi todos los reproductores, consolas y ordenadores. Calidad estándar.")}
           </span>
         </button>
         <button
@@ -194,9 +194,9 @@
               : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
           }`}
         >
-          <span class="text-sm font-semibold text-white">{t("AVCHD alta definición")}</span>
+          <span class="text-sm font-semibold text-white">{t("Blu-ray / AVCHD (alta definición)")}</span>
           <span class="mt-0.5 block text-[10px] leading-4 text-slate-500">
-            {t("HD/SD continuo con capítulos para PS4, PS5 y Blu-ray.")}
+            {t("Imagen HD con menús. Necesita reproductor Blu-ray, PS3/PS4/PS5 o similar.")}
           </span>
         </button>
       </div>
@@ -221,8 +221,8 @@
                 bind:value={standard}
                 disabled={busy}
               >
-                <option value="ntsc">{t("NTSC · 720×480")}</option>
-                <option value="pal">{t("PAL · 720×576")}</option>
+                <option value="ntsc">{t("NTSC · 720×480 (América, Japón)")}</option>
+                <option value="pal">{t("PAL · 720×576 (Europa, Argentina, Australia…)")}</option>
               </select>
             </label>
             <label class="block">

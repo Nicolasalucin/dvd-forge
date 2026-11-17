@@ -153,6 +153,14 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
   }
 }
 
+function readFlag(key: string): boolean {
+  try {
+    return typeof window !== "undefined" && window.localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** Size factor of a menu canvas relative to the 720x480 DVD reference. */
 function menuScale(menu: Menu_Serialize): number {
   return Math.max(1, menu.canvas.height / 480);
@@ -339,6 +347,13 @@ class ProjectStore {
   showNavigation = $state(true);
   mediaTab = $state<MediaTab>("media");
   productionOpen = $state(false);
+  /** Guided tour panel. Opens automatically on first use. */
+  guideOpen = $state(false);
+  /**
+   * Simple mode (default) hides the technical studios (VM map, motion, VBR)
+   * so first-time users only see the everyday steps.
+   */
+  expertMode = $state(readFlag("dvdforge_expert_mode"));
   leftCollapsed = $state(false);
   rightCollapsed = $state(false);
 
@@ -468,6 +483,23 @@ class ProjectStore {
     this.previewUrls = {};
     this.framePaths = {};
     void this.hydrateProjectPreviews();
+  }
+
+  setExpertMode(enabled: boolean): void {
+    this.expertMode = enabled;
+    try {
+      window.localStorage.setItem("dvdforge_expert_mode", enabled ? "1" : "0");
+    } catch {
+      // Best effort.
+    }
+    if (!enabled && ["vmMap", "motion", "vbr"].includes(this.studioMode)) {
+      this.studioMode = "menu";
+    }
+  }
+
+  /** True until the user finishes or dismisses the guided tour once. */
+  get guidePending(): boolean {
+    return !readFlag("dvdforge_guide_done");
   }
 
   clearProject(): void {

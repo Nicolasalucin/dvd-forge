@@ -584,7 +584,7 @@
                   </button>
                 {/if}
                 <p class="text-[10px] leading-4 text-slate-500">
-                  {t("O elige cualquier imagen o vídeo en la Biblioteca (panel izquierdo) y pulsa «Miniatura».")}
+                  {t("O elige cualquier imagen o vídeo en «Medios» (panel izquierdo) y pulsa «Miniatura».")}
                 </p>
               </div>
             {/if}

@@ -18,6 +18,7 @@
   import TrimmerStudio from "./lib/components/TrimmerStudio.svelte";
   import VbrPanel from "./lib/components/VbrPanel.svelte";
   import VmMap from "./lib/components/VmMap.svelte";
+  import GuideTour from "./lib/components/GuideTour.svelte";
   import { projectStore } from "./lib/stores/project.svelte";
 
   let newProjectOpen = $state(false);
@@ -35,6 +36,8 @@
         projectStore.error = messageOf(cause);
       }
       if (!projectStore.hasProject) newProjectOpen = true;
+      // First run: show the guided tour next to the new-project dialog.
+      if (projectStore.guidePending) projectStore.guideOpen = true;
     })();
   });
 
@@ -66,7 +69,7 @@
         </div>
         <h1 class="mt-4 text-2xl font-semibold tracking-tight text-white">{t("DVD Forge Studio")}</h1>
         <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
-          {t("Un taller único para importar medios, recortar episodios, diseñar menús Konva, simular la navegación real y producir DVD-Video, AVCHD o Blu-ray.")}
+          {t("Convierte tus vídeos en un DVD o Blu-ray con menú, como los de las películas: importa, diseña el menú, pruébalo con el mando y graba.")}
         </p>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-2">
           <button
@@ -83,11 +86,18 @@
           >
             {t("Abrir proyecto…")}
           </button>
+          <button
+            type="button"
+            onclick={() => (projectStore.guideOpen = true)}
+            class="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-500/60 hover:text-white"
+          >
+            ❓ {t("¿Cómo funciona?")}
+          </button>
         </div>
         <div class="mt-7 grid gap-2 text-left sm:grid-cols-3">
           {#each [
             { icon: "▣", title: "Medios", hint: "Vídeo, audio e imágenes" },
-            { icon: "▤", title: "Menús", hint: "6 estilos y navegación real" },
+            { icon: "▤", title: "Menús", hint: "Plantillas listas y botones con miniaturas" },
             { icon: "◉", title: "Producción", hint: "ISO y grabación guiada" },
           ] as feature}
             <div class="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3">
@@ -168,5 +178,12 @@
 
   {#if newProjectOpen}
     <NewProjectModal onClose={() => (newProjectOpen = false)} />
+  {/if}
+
+  {#if projectStore.guideOpen}
+    <GuideTour
+      onClose={() => (projectStore.guideOpen = false)}
+      onNewProject={() => (newProjectOpen = true)}
+    />
   {/if}
 </div>
