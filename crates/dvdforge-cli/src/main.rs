@@ -1,3 +1,4 @@
+mod batch;
 mod bundle;
 mod render;
 mod support;
@@ -34,6 +35,7 @@ async fn main() -> ExitCode {
         "devices" => devices_command(&args[1..]).await,
         "burn" => burn_command(&args[1..]).await,
         "bundle" => bundle::run(&args[1..]),
+        "batch" => batch::run(&args[1..]).await,
         "version" | "--version" | "-V" => {
             println!("dvdforge-cli {VERSION}");
             ExitCode::SUCCESS
@@ -673,6 +675,7 @@ fn print_help() {
     println!(
         "  dvdforge-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject] [--skip-verify]"
     );
+    println!("  dvdforge-cli batch <cola.json> [--json] [--resume] [--fail-fast]");
     println!("  dvdforge-cli bundle export <project.json> [-o <archivo.dvdforge-bundle>]");
     println!("  dvdforge-cli bundle import <archivo.dvdforge-bundle> -o <carpeta>");
     println!("  dvdforge-cli bundle info <archivo.dvdforge-bundle> [--json]");

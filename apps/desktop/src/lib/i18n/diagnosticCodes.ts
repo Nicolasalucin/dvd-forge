@@ -152,4 +152,7 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   E_BUNDLE_IO: "The bundle could not be read or written (disk full or no permission?).",
   E_BUNDLE_SCHEMA: "This bundle was made by a newer DVD Forge; update the app to open it.",
   W_BUNDLE_EXTERNAL_ASSET: "A file used by the project is missing and was not included in the bundle.",
+  E_BATCH_ITEM: "A project in the batch queue could not be rendered.",
+  E_BATCH_QUEUE: "The batch queue file could not be read or is empty.",
+  W_BATCH_PARTIAL: "The batch finished with some projects failed or not run.",
 };

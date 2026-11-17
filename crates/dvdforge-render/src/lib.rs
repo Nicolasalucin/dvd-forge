@@ -1549,6 +1549,7 @@ async fn render_avchd_project(
         "Codificando episodios AVCHD",
     )
     .await;
+    let mut reused_episodes = 0usize;
     for (index, episode) in order.iter().enumerate() {
         ensure_not_cancelled(&cancel)?;
         let asset = project
@@ -1697,6 +1698,17 @@ async fn render_avchd_project(
         let cached = match cache.as_ref().zip(cache_key.as_ref()) {
             Some((store, key)) => match store.lookup_artifact(key) {
                 CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                    // Resume: an episode finished by an earlier (possibly
+                    // interrupted) render is reused instead of re-encoded.
+                    reused_episodes += 1;
+                    log(
+                        &events,
+                        format!(
+                            "«{}»: ya estaba codificado en un render anterior; se reutiliza.",
+                            episode.title
+                        ),
+                    )
+                    .await;
                     Some(artifact)
                 }
                 CacheLookup::Hit(_) => None,
@@ -1848,6 +1860,15 @@ async fn render_avchd_project(
             &events,
             JobStage::EncodeEpisodes,
             (((index + 1) as f64 / total as f64) * 1000.0) as u16,
+        )
+        .await;
+    }
+    if reused_episodes > 0 {
+        log(
+            &events,
+            format!(
+                "Reanudación: {reused_episodes} episodio(s) ya codificados en un render anterior se reutilizaron; solo se codificó lo que faltaba."
+            ),
         )
         .await;
     }
@@ -2984,6 +3005,7 @@ async fn encode_episodes(
         }
     };
     let total = project.episodes.len().max(1);
+    let mut reused_episodes = 0usize;
     for (index, episode) in project.episodes.iter().enumerate() {
         let asset = project
             .asset(episode.video)
@@ -3102,6 +3124,17 @@ async fn encode_episodes(
         let cached = match cache.as_ref().zip(cache_key.as_ref()) {
             Some((store, key)) => match store.lookup_artifact(key) {
                 CacheLookup::Hit(artifact) if Path::new(&artifact.artifact_path).is_file() => {
+                    // Resume: an episode finished by an earlier (possibly
+                    // interrupted) render is reused instead of re-encoded.
+                    reused_episodes += 1;
+                    log(
+                        events,
+                        format!(
+                            "«{}»: ya estaba codificado en un render anterior; se reutiliza.",
+                            episode.title
+                        ),
+                    )
+                    .await;
                     Some(artifact)
                 }
                 CacheLookup::Hit(_) => None,
@@ -3213,6 +3246,15 @@ async fn encode_episodes(
             events,
             JobStage::EncodeEpisodes,
             (((index + 1) as f64 / total as f64) * 1000.0) as u16,
+        )
+        .await;
+    }
+    if reused_episodes > 0 {
+        log(
+            events,
+            format!(
+                "Reanudación: {reused_episodes} episodio(s) ya codificados en un render anterior se reutilizaron; solo se codificó lo que faltaba."
+            ),
         )
         .await;
     }

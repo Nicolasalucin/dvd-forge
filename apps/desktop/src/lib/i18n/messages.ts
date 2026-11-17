@@ -743,6 +743,7 @@ export const es: Dictionary = {
   "Paquete de DVD Forge": "Paquete de DVD Forge",
   "Paquete descomprimido en {folder}.": "Paquete descomprimido en {folder}.",
   "Proyecto o paquete de DVD Forge": "Proyecto o paquete de DVD Forge",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.",
 };
 
 export const en: Dictionary = {
@@ -1576,6 +1577,7 @@ export const en: Dictionary = {
   "Paquete de DVD Forge": "DVD Forge bundle",
   "Paquete descomprimido en {folder}.": "Bundle unpacked into {folder}.",
   "Proyecto o paquete de DVD Forge": "DVD Forge project or bundle",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "If you produce the disc again, episodes that were already encoded are reused: it does not start from scratch.",
 };
 
 export const pt: Dictionary = {
@@ -2408,6 +2410,7 @@ export const pt: Dictionary = {
   "Paquete de DVD Forge": "Pacote do DVD Forge",
   "Paquete descomprimido en {folder}.": "Pacote descompactado em {folder}.",
   "Proyecto o paquete de DVD Forge": "Projeto ou pacote do DVD Forge",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Se você gerar o disco de novo, os episódios já codificados são reaproveitados: não começa do zero.",
 };
 
 export const fr: Dictionary = {
@@ -3308,6 +3311,7 @@ export const fr: Dictionary = {
   "Paquete de DVD Forge": "Paquet DVD Forge",
   "Paquete descomprimido en {folder}.": "Paquet décompressé dans {folder}.",
   "Proyecto o paquete de DVD Forge": "Projet ou paquet DVD Forge",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Si vous relancez la production, les épisodes déjà encodés sont réutilisés : on ne repart pas de zéro.",
 };
 
 export const de: Dictionary = {
@@ -4207,6 +4211,7 @@ export const de: Dictionary = {
   "Paquete de DVD Forge": "DVD-Forge-Paket",
   "Paquete descomprimido en {folder}.": "Paket entpackt nach {folder}.",
   "Proyecto o paquete de DVD Forge": "DVD-Forge-Projekt oder -Paket",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Wenn du die Disc erneut erstellst, werden bereits kodierte Episoden wiederverwendet: Es beginnt nicht von vorn.",
 };
 
 export const it: Dictionary = {
@@ -5106,6 +5111,7 @@ export const it: Dictionary = {
   "Paquete de DVD Forge": "Pacchetto DVD Forge",
   "Paquete descomprimido en {folder}.": "Pacchetto estratto in {folder}.",
   "Proyecto o paquete de DVD Forge": "Progetto o pacchetto DVD Forge",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "Se generi di nuovo il disco, gli episodi già codificati vengono riutilizzati: non si riparte da zero.",
 };
 
 export const ja: Dictionary = {
@@ -6005,5 +6011,6 @@ export const ja: Dictionary = {
   "Paquete de DVD Forge": "DVD Forge パッケージ",
   "Paquete descomprimido en {folder}.": "パッケージを {folder} に展開しました。",
   "Proyecto o paquete de DVD Forge": "DVD Forge プロジェクトまたはパッケージ",
+  "Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.": "ディスクを再作成すると、エンコード済みのエピソードは再利用されます。最初からやり直す必要はありません。",
 };
 

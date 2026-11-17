@@ -13,12 +13,12 @@ use tokio::sync::mpsc;
 use crate::support::{collect_probes, print_plan_summary};
 
 #[derive(Debug)]
-struct RenderArgs {
-    project: PathBuf,
-    output: PathBuf,
-    no_probe: bool,
-    mode: Option<AuthoringMode>,
-    avchd_folder: bool,
+pub(crate) struct RenderArgs {
+    pub(crate) project: PathBuf,
+    pub(crate) output: PathBuf,
+    pub(crate) no_probe: bool,
+    pub(crate) mode: Option<AuthoringMode>,
+    pub(crate) avchd_folder: bool,
 }
 
 pub async fn run(args: &[String]) -> ExitCode {
@@ -43,7 +43,7 @@ pub async fn run(args: &[String]) -> ExitCode {
     }
 }
 
-async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
+pub(crate) async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
     let project_path = args
         .project
         .canonicalize()
@@ -110,6 +110,15 @@ async fn render(args: &RenderArgs) -> Result<PathBuf, String> {
                 JobEventKind::Completed { summary } => println!("{summary}"),
                 JobEventKind::Failed { message, .. } => eprintln!("Error: {message}"),
                 JobEventKind::Cancelled { .. } => eprintln!("Generación cancelada."),
+                // Resume/copy notices are useful on the command line too.
+                JobEventKind::Log { level, message }
+                    if level != dvdforge_jobs::LogLevel::Debug
+                        && (message.contains("se reutiliza")
+                            || message.starts_with("Reanudación")
+                            || message.contains("sin recodificar")) =>
+                {
+                    println!("  {message}");
+                }
                 _ => {}
             }
         }

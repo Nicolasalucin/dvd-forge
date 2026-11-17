@@ -304,6 +304,11 @@
       {#if localError || projectStore.renderError || projectStore.burnError}
         <div class="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] leading-5 text-rose-200">
           {localError ?? projectStore.renderError ?? projectStore.burnError}
+          {#if projectStore.renderError}
+            <p class="mt-1 text-[10px] text-rose-100/70">
+              {t("Si vuelves a generar el disco, los episodios que ya estaban codificados se reutilizan: no se empieza de cero.")}
+            </p>
+          {/if}
         </div>
       {/if}
 

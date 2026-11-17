@@ -148,6 +148,9 @@ export const DIAGNOSTIC_PT: Record<string, string> = {
   E_BUNDLE_IO: "Não foi possível ler ou gravar o pacote (disco cheio ou sem permissão?).",
   E_BUNDLE_SCHEMA: "Este pacote foi criado por um DVD Forge mais novo; atualize o aplicativo para abri-lo.",
   W_BUNDLE_EXTERNAL_ASSET: "Um arquivo usado pelo projeto não existe e não foi incluído no pacote.",
+  E_BATCH_ITEM: "Um projeto da fila em lote não pôde ser renderizado.",
+  E_BATCH_QUEUE: "O arquivo da fila em lote não pôde ser lido ou está vazio.",
+  W_BATCH_PARTIAL: "A fila terminou com alguns projetos com erro ou não executados.",
 };
 
 export const DIAGNOSTIC_FR: Record<string, string> = {
@@ -295,6 +298,9 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   E_BUNDLE_IO: "Impossible de lire ou d'écrire le paquet (disque plein ou pas d'autorisation ?).",
   E_BUNDLE_SCHEMA: "Ce paquet a été créé par une version plus récente de DVD Forge ; mettez l'application à jour pour l'ouvrir.",
   W_BUNDLE_EXTERNAL_ASSET: "Un fichier utilisé par le projet est introuvable et n'a pas été inclus dans le paquet.",
+  E_BATCH_ITEM: "Un projet de la file de traitement par lots n'a pas pu être rendu.",
+  E_BATCH_QUEUE: "Le fichier de file de traitement par lots est illisible ou vide.",
+  W_BATCH_PARTIAL: "La file s'est terminée avec des projets en erreur ou non exécutés.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -442,6 +448,9 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   E_BUNDLE_IO: "Das Paket konnte nicht gelesen oder geschrieben werden (Datenträger voll oder keine Berechtigung?).",
   E_BUNDLE_SCHEMA: "Dieses Paket stammt aus einer neueren DVD-Forge-Version; aktualisiere die App, um es zu öffnen.",
   W_BUNDLE_EXTERNAL_ASSET: "Eine vom Projekt verwendete Datei fehlt und wurde nicht ins Paket aufgenommen.",
+  E_BATCH_ITEM: "Ein Projekt der Stapelwarteschlange konnte nicht gerendert werden.",
+  E_BATCH_QUEUE: "Die Stapelwarteschlangen-Datei ist unlesbar oder leer.",
+  W_BATCH_PARTIAL: "Der Stapel wurde mit fehlgeschlagenen oder nicht ausgeführten Projekten beendet.",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -589,6 +598,9 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   E_BUNDLE_IO: "Impossibile leggere o scrivere il pacchetto (disco pieno o permessi mancanti?).",
   E_BUNDLE_SCHEMA: "Questo pacchetto è stato creato con un DVD Forge più recente; aggiorna l'app per aprirlo.",
   W_BUNDLE_EXTERNAL_ASSET: "Un file usato dal progetto non esiste e non è stato incluso nel pacchetto.",
+  E_BATCH_ITEM: "Un progetto della coda batch non è stato generato.",
+  E_BATCH_QUEUE: "Il file della coda batch non è leggibile o è vuoto.",
+  W_BATCH_PARTIAL: "La coda è terminata con alcuni progetti in errore o non eseguiti.",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -736,4 +748,7 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   E_BUNDLE_IO: "パッケージを読み書きできませんでした（ディスクの空き不足または権限がない可能性があります）。",
   E_BUNDLE_SCHEMA: "このパッケージは新しい DVD Forge で作成されています。開くにはアプリを更新してください。",
   W_BUNDLE_EXTERNAL_ASSET: "プロジェクトで使用しているファイルが見つからないため、パッケージに含めませんでした。",
+  E_BATCH_ITEM: "バッチキュー内のプロジェクトをレンダリングできませんでした。",
+  E_BATCH_QUEUE: "バッチキューのファイルを読み込めないか、空です。",
+  W_BATCH_PARTIAL: "一部のプロジェクトが失敗または未実行のままバッチが終了しました。",
 };
