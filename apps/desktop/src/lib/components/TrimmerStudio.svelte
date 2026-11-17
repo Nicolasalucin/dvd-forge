@@ -1,4 +1,10 @@
+<script lang="ts" module>
+  /** Filmstrips already extracted this session, by source path. */
+  const filmstripCache = new Map<string, Array<string | null>>();
+</script>
+
 <script lang="ts">
+  import Icon from "../ui/Icon.svelte";
   import { t } from "../i18n/index.svelte";
   import { onMount } from "svelte";
   import {
@@ -30,6 +36,40 @@
   const episode = $derived(projectStore.selectedEpisode);
   const sourcePath = $derived(episode ? projectStore.episodeSourcePath(episode) : null);
   const sourceDuration = $derived(episode ? projectStore.episodeSourceDuration(episode) : 0);
+
+  // Filmstrip: 10 frames across the source, extracted once per file.
+  const FILMSTRIP_FRAMES = 10;
+  let filmstrip = $state<Array<string | null>>(Array(FILMSTRIP_FRAMES).fill(null));
+  $effect(() => {
+    const path = sourcePath;
+    const duration = sourceDuration;
+    filmstrip = Array(FILMSTRIP_FRAMES).fill(null);
+    if (!path || duration <= 0) return;
+    let cancelled = false;
+    const cached = filmstripCache.get(path);
+    if (cached) {
+      filmstrip = cached;
+      return;
+    }
+    void (async () => {
+      const frames: Array<string | null> = Array(FILMSTRIP_FRAMES).fill(null);
+      for (let index = 0; index < FILMSTRIP_FRAMES; index += 1) {
+        if (cancelled) return;
+        const at = Math.round((duration * (index + 0.5)) / FILMSTRIP_FRAMES);
+        try {
+          const png = await unwrap(commands.mediaExtractFrame(path, at, null));
+          frames[index] = await unwrap(commands.readImageDataUrl(png));
+        } catch {
+          frames[index] = null;
+        }
+        if (!cancelled) filmstrip = [...frames];
+      }
+      filmstripCache.set(path, frames);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  });
   const startMs = $derived(episode?.trimStartMs ?? 0);
   const endMs = $derived(episode?.trimEndMs ?? sourceDuration);
   const effectiveMs = $derived(Math.max(0, endMs - startMs));
@@ -459,7 +499,7 @@
                 title={t("Usar este fotograma como miniatura del episodio en los menús")}
                 class="ui-btn ui-btn-sm ml-1"
               >
-                📸 {t("Miniatura")}
+                <Icon name="photo" size={13} />{t("Miniatura")}
               </button>
               <button
                 type="button"
@@ -493,38 +533,51 @@
             onpointerup={endTimelineDrag}
             onpointercancel={endTimelineDrag}
             onkeydown={onTimelineKeydown}
-            class="relative h-10 cursor-crosshair touch-none select-none overflow-hidden rounded-lg border border-slate-800 bg-slate-950"
+            class="relative h-14 cursor-crosshair touch-none select-none overflow-hidden rounded-md border border-slate-700 bg-black"
           >
-            <div class="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-slate-800"></div>
+            <!-- Filmstrip of the source video. -->
+            <div class="pointer-events-none absolute inset-0 flex">
+              {#each filmstrip as frame}
+                <div class="h-full min-w-0 flex-1 overflow-hidden">
+                  {#if frame}<img src={frame} alt="" class="h-full w-full object-cover opacity-80" draggable="false" />{/if}
+                </div>
+              {/each}
+            </div>
+            <!-- Outside the trim: dimmed. -->
+            <div class="pointer-events-none absolute inset-y-0 left-0 bg-black/65" style={`width: ${percent(startMs)}%;`}></div>
+            <div class="pointer-events-none absolute inset-y-0 right-0 bg-black/65" style={`width: ${Math.max(0, 100 - percent(endMs))}%;`}></div>
             <div
-              class="absolute top-1/2 h-1.5 -translate-y-1/2 bg-cyan-500/45"
+              class="pointer-events-none absolute inset-y-0 border-y-2 border-cyan-500"
               style={`left: ${percent(startMs)}%; width: ${Math.max(0, percent(endMs) - percent(startMs))}%;`}
             ></div>
+            {#each episode?.chapters ?? [] as chapter}
+              <span
+                class="pointer-events-none absolute bottom-0 h-3 w-0.5 -translate-x-1/2 bg-amber-400"
+                style={`left: ${percent(chapterSourceTime(chapter))}%;`}
+                title={chapter.title}
+              ></span>
+            {/each}
             <span
               aria-hidden="true"
-              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-400 bg-cyan-400/10 pt-0.5 text-[11px] font-black leading-none text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
+              class="absolute inset-y-0 z-10 flex w-2.5 -translate-x-1/2 cursor-ew-resize items-center justify-center rounded-l-sm bg-cyan-500"
               style={`left: ${percent(startMs)}%;`}
-            >
-              [
-            </span>
+            ><span class="h-4 w-0.5 rounded bg-white/80"></span></span>
             <span
               aria-hidden="true"
-              class="absolute top-0 z-10 flex h-full w-3 -translate-x-1/2 cursor-ew-resize items-start justify-center rounded-sm border-x-2 border-cyan-300 bg-cyan-300/10 pt-0.5 text-[11px] font-black leading-none text-cyan-100 shadow-[0_0_10px_rgba(34,211,238,0.7)]"
+              class="absolute inset-y-0 z-10 flex w-2.5 -translate-x-1/2 cursor-ew-resize items-center justify-center rounded-r-sm bg-cyan-500"
               style={`left: ${percent(endMs)}%;`}
-            >
-              ]
-            </span>
+            ><span class="h-4 w-0.5 rounded bg-white/80"></span></span>
             <div
-              class="pointer-events-none absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white"
+              class="pointer-events-none absolute top-0 z-20 h-full w-0.5 -translate-x-1/2 bg-[#fff]"
               style={`left: ${percent(currentTimeMs)}%;`}
             >
-              <span class="absolute -top-0.5 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[4px] border-t-[6px] border-x-transparent border-t-white"></span>
+              <span class="absolute -top-0.5 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[5px] border-t-[7px] border-x-transparent border-t-[#fff]"></span>
             </div>
-            <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-1 font-mono text-[11px] text-slate-600">
-              <span>00:00</span>
-              <span>{formatMs(sourceDuration / 2)}</span>
-              <span>{formatMs(sourceDuration)}</span>
-            </div>
+          </div>
+          <div class="mt-1 flex justify-between px-0.5 font-mono text-[11px] text-slate-500">
+            <span>00:00</span>
+            <span>{formatMs(sourceDuration / 2)}</span>
+            <span>{formatMs(sourceDuration)}</span>
           </div>
           <div class="mt-2 flex flex-wrap items-center gap-1.5">
             <button
