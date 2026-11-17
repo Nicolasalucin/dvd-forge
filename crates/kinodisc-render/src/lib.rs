@@ -64,7 +64,7 @@ pub const HDMV_MENU_PTS_90K: u64 = 54_000_000;
 
 /// Bump when the FFmpeg arguments or the encoded artifact layout change so
 /// existing cache entries are invalidated.
-const ENCODER_REV: u32 = 7;
+const ENCODER_REV: u32 = 8;
 
 /// Upper bound for a single auxiliary FFmpeg invocation (menu clip, menu audio
 /// or subtitle extraction). Encoding jobs have their own progress timeouts.

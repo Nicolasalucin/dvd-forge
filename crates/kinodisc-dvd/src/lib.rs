@@ -1066,6 +1066,28 @@ fn video_codec_args(video: &VideoEncodeConfig) -> Vec<String> {
         "rd".to_string(),
         "-subcmp".to_string(),
         "rd".to_string(),
+        // Measured on hard content (fractal zoom + grain, PAL, 2-pass):
+        // +0.9 dB PSNR at 8 Mbps and +0.4 dB at 4.5 Mbps for the same size,
+        // ~10-20 % slower. qmin/lmin 1 lets rate control spend the whole
+        // budget (with the default floor it undershot 8 Mbps by 11 %); wider
+        // motion search and bidirectional refinement; MPEG-2 intra VLC
+        // table (Main Profile, decoded by every DVD player).
+        "-qmin".to_string(),
+        "1".to_string(),
+        "-lmin".to_string(),
+        "75".to_string(),
+        "-mblmin".to_string(),
+        "75".to_string(),
+        "-dia_size".to_string(),
+        "2".to_string(),
+        "-last_pred".to_string(),
+        "2".to_string(),
+        "-bidir_refine".to_string(),
+        "4".to_string(),
+        "-mpv_flags".to_string(),
+        "+mv0".to_string(),
+        "-intra_vlc".to_string(),
+        "1".to_string(),
         // FFmpeg's MPEG-2 encoder rejects `+cgop` together with scene-cut
         // GOPs ("closed gop with scene change detection are not supported
         // yet"). Keep the strict closed GOP required by DVD and disable the
@@ -1246,6 +1268,11 @@ mod tests {
         assert!(has_pair(&args, "-intra_dc_precision", "1"));
         assert!(has_pair(&args, "-flags", "+cgop"));
         assert!(has_pair(&args, "-sc_threshold", "1000000000"));
+        // Quality tuning measured in 1.0.1 (full budget, motion, intra VLC).
+        assert!(has_pair(&args, "-qmin", "1"));
+        assert!(has_pair(&args, "-dia_size", "2"));
+        assert!(has_pair(&args, "-bidir_refine", "4"));
+        assert!(has_pair(&args, "-intra_vlc", "1"));
         assert!(has_pair(&args, "-f", "null"));
         assert!(args.contains(&"-passlogfile".to_string()));
         let pass2 = build_pass2_args(&request());
