@@ -1,216 +1,162 @@
 # Guía de uso de Kinodisc
 
-> [English version](USER_GUIDE.md)
-
-![Guía paso a paso dentro de la aplicación](screenshots/es-02-guia.png)
-
-Esta guía explica, paso a paso y sin tecnicismos, cómo convertir tus vídeos en
-un DVD o un Blu-ray con menú. Dentro de la aplicación tienes la misma ayuda en
-el botón **❓ Guía** (arriba a la derecha).
-
----
+Kinodisc convierte tus vídeos en un DVD, AVCHD o Blu-ray con menús que
+funcionan en el reproductor del living. Esta guía sigue los pasos en orden.
+Pulsa **F1** en cualquier momento para ver la guía interactiva.
 
 ## 1. Antes de empezar
 
-Kinodisc usa programas gratuitos para codificar el vídeo. Pulsa **⚕ Salud**
-en la cabecera para ver qué está instalado.
+- **Windows:** en la pantalla de bienvenida pulsa **Descargar y preparar**.
+  Kinodisc descarga una sola vez FFmpeg y DVDAuthor (unos 120 MB), comprueba
+  su SHA-256 y los guarda en tu carpeta de usuario.
+- **Linux, macOS, FreeBSD:** instala `ffmpeg` y `dvdauthor` con tu gestor de
+  paquetes (ver el README).
+- La barra de estado (abajo a la derecha) dice **Herramientas listas** o
+  **Faltan herramientas**; haz clic para ver cada programa e instalar lo que falte.
 
-| Herramienta | ¿Para qué? | ¿Obligatoria? |
-|---|---|---|
-| FFmpeg / FFprobe | Analizar y convertir vídeo y audio | Sí |
-| DVDAuthor + Spumux | Discos DVD-Video | Solo para DVD (Windows: **⚕ Salud → Instalar**) |
-| tsMuxeR | Blu-ray/AVCHD | No (hay un muxer integrado) |
-| xorriso / growisofs | Grabar en Linux | Solo para grabar en Linux |
-
-En **Windows** lo más fácil es **⚕ Salud → Instalar automáticamente**: DVD
-Forge descarga FFmpeg, comprueba su SHA-256 y lo instala solo. También puedes
-ejecutar `winget install Gyan.FFmpeg`. La grabación usa la función de
-Windows (IMAPI2), no hace falta nada más.
-
-Puedes poner los programas en una carpeta `toolchain\` junto al ejecutable de
-Kinodisc y los encontrará solo.
+El tema sigue al sistema; **Ver › Tema** fuerza claro u oscuro.
+**Ver › Idioma** cambia el idioma de la interfaz.
 
 ## 2. Crear un proyecto
 
-![Asistente de proyecto nuevo](screenshots/08-new-project.png)
+**Archivo › Nuevo proyecto** (Ctrl+N) o la tarjeta **Nuevo proyecto**:
 
-1. Pulsa **Nuevo proyecto**.
-2. Elige el tipo de disco:
-   - **DVD-Video**: funciona en casi cualquier reproductor, consola y
-     ordenador. Calidad estándar. Si dudas, elige este.
-   - **Blu-ray / AVCHD**: imagen en alta definición. Necesita un reproductor
-     Blu-ray, una PS3/PS4/PS5 o similar. AVCHD es Blu-ray grabado en un DVD
-     normal (DVD-5/DVD-9).
-3. Para DVD elige **PAL** (Europa, Argentina, Uruguay, Australia…) o **NTSC**
-   (EE. UU., México, Japón…). Para Blu-ray elige resolución y velocidad:
+- **DVD-Video universal** funciona casi en cualquier lado. El sistema de TV
+  (PAL/NTSC) se elige según tu región; la pantalla es 16:9 salvo que elijas 4:3.
+- **Blu-ray / AVCHD (alta definición)** para reproductores Blu-ray y PlayStation:
+  - 1080p 23,976/24 para cine, 25/29,97 para vídeo casero (se graba como PsF y
+    funciona en todo reproductor Blu-ray), 50/59,94 para movimiento muy fluido
+    (AVCHD 2.0; algunos reproductores antiguos no lo admiten).
 
-| Origen de tus vídeos | Resolución | Velocidad |
-|---|---|---|
-| Películas, cine | 1080p | 23,976 o 24 fps |
-| TV europea / móvil o cámara en 50 Hz | 1080p | 25 fps |
-| TV americana / móvil o cámara en 60 Hz | 1080p | 29,97 fps |
-| Deportes, videojuegos, cámaras modernas a 50/60 fps | 1080p | 50 o 59,94 fps (*) |
-| Grabaciones entrelazadas de cámara HD antigua | 1080i | 25 o 29,97 fps |
-
-(*) 1080p a 50/59,94 es **AVCHD 2.0**: funciona en PS3/PS4/PS5 y reproductores
-actuales, pero algunos Blu-ray antiguos no lo reproducen.
-
-25 y 29,97 fps en 1080p se graban como **PsF** (imagen progresiva dentro de una
-señal 1080i). Es el método estándar y lo aceptan todos los reproductores.
+Después, el **botón del disco** a la derecha de las pestañas (por ejemplo
+`DVD-5 · PAL · 16:9`) abre los ajustes: formato, capacidad (DVD-5/9,
+BD-25/50), sistema de TV, pantalla, región y reproductor de destino.
 
 ## 3. Añadir vídeos
 
-1. En el panel izquierdo, pestaña **Medios**, pulsa **+ Importar** y elige tus
-   archivos (`.mp4`, `.mkv`, `.mov`, `.m2ts`, `.mts`, `.avi`…).
-2. Pulsa **+ Episodio** en cada vídeo que quieras en el disco.
-3. Los episodios aparecen en la barra de **Secuencia** (abajo) en el orden en
-   que se reproducirán. Usa **‹ ›** para cambiar el orden y **✕** para quitar.
+**Importar vídeos…** en el proyecto vacío, **Importar** en la barra (Ctrl+I) o
+arrastra los archivos a la ventana. Cada vídeo es un episodio en la tira
+**Episodios** de abajo; arrastra los fotogramas para cambiar el orden.
 
-### Recortar y capítulos
+En **Medios** (izquierda) cada archivo tiene **Añadir**; el botón **⋯** ofrece
+los demás usos (miniatura de botón, fondo del menú, fondo animado, música).
 
-![Edición: recorte, capítulos y miniatura](screenshots/02-video-trimmer.png)
+### Recorte y capítulos
 
-En la pestaña **Edición** puedes:
-
-- Marcar el principio (**In**) y el final (**Out**) de cada episodio.
-- Añadir capítulos en el punto actual o automáticamente (cada 5/10 minutos).
-- Importar los capítulos que ya traiga un MKV/MP4.
+En **Vídeos**, la tira bajo el reproductor muestra fotogramas de todo el vídeo:
+arrastra los tiradores azules o usa **Marcar inicio / Marcar fin**. Los
+capítulos son marcas ámbar; añádelos en el cabezal o con *Cada 5 min*, *Cada
+10 min* o *4 partes*, o impórtalos del archivo.
 
 ### Vídeos que no hace falta recodificar (Blu-ray/AVCHD)
 
-Si un vídeo ya cumple el formato del disco (por ejemplo, archivos `.m2ts`/`.mts`
-de una cámara AVCHD, o un MP4 H.264 con la misma resolución y fps del
-proyecto), Kinodisc lo **copia sin recodificar**: es mucho más rápido y sin
-ninguna pérdida de calidad.
+Si un vídeo ya coincide con el disco (`.m2ts` de videocámara, o H.264 con la
+resolución y los fps del proyecto), Kinodisc **lo copia sin recodificar**:
+mucho más rápido y sin pérdida. El campo **Vídeo** de las propiedades del
+episodio dice si se copia o se recodifica, y por qué. Para copiarse, el
+episodio no puede estar recortado al inicio.
 
-En el **Inspector** (derecha), con el episodio seleccionado, el campo **Vídeo**
-muestra la decisión:
+### Presentaciones de fotos
 
-- ⚡ *Compatible: se copia sin recodificar.*
-- ↻ *Se recodifica* y el motivo (resolución distinta, fps distintos, recorte
-  al principio…).
+**Fotos** en la barra: añade imágenes, ordénalas, elige los segundos por foto,
+el fundido y música opcional. La presentación se crea como un vídeo y se añade
+como episodio.
 
-Puedes forzar **Recodificar siempre** o **Copiar sin recodificar**. Para poder
-copiar, el episodio no puede estar recortado al principio.
+### Importar un disco existente
+
+**Disco** en la barra abre el inspector: abre un ISO o una carpeta
+VIDEO_TS/BDMV para ver títulos, capítulos y pistas, e **Importar como
+episodios** si no está cifrado. Los discos cifrados (comerciales) se pueden
+ver pero no importar.
 
 ## 4. Diseñar el menú
 
-![Editor de menú](screenshots/es-01-editor-de-menu.png)
+En **Menú**:
 
-La pestaña **Menú** muestra la pantalla que verás en la tele.
-
-- **Lo más rápido**: en el panel izquierdo abre **Plantillas** o la galería
-  *Plantillas de menú* debajo del lienzo y elige una. Kinodisc crea un botón
-  por episodio y, si hay muchos, varias páginas con «Siguiente ›».
-- **Fondo**: en **Medios**, pulsa **Fondo** sobre una imagen o un vídeo. En
-  Blu-ray el lienzo es de 1920×1080, así que tus imágenes HD se ven tal cual.
-- **Música**: en **Medios**, pulsa **Música menú** sobre un audio.
-- **Botones**: arrástralos y cambia su tamaño en el lienzo. En el Inspector
-  eliges el texto, la fuente (cualquier fuente instalada en tu ordenador; escribe
-  para buscar), el color y qué hace el botón.
-
-### Miniaturas de los episodios
-
-- Selecciona el botón del episodio y pulsa **Usar imagen de «…»** en el
-  Inspector, o
-- pulsa **📸 Elegir el fotograma exacto…**: se abre la Edición; busca el
-  momento que te guste y pulsa **📸 Miniatura**. Se actualizan todos los menús
-  que muestran ese episodio.
-- También puedes elegir cualquier imagen en **Medios** y pulsar **Miniatura**.
-
-### Más pantallas de menú
-
-En la barra de abajo pulsa **+ Pantalla de menú**. Se crea un submenú con un
-botón **Volver** y el menú actual recibe un botón que lo abre. Haz doble clic en
-el nombre de una pantalla para renombrarla; pasa el ratón y pulsa **✕** para
-borrarla.
+- **Plantillas** aplica un diseño con un botón por episodio (agrega páginas
+  solo si hace falta). **Menús de escenas**, dentro del panel de plantillas,
+  crea un menú con un botón por capítulo.
+- **Botón** añade un botón; **Texto** añade un título o cualquier texto.
+- Arrastra para mover: aparecen guías rosas cuando un botón se alinea con otro
+  o con el centro. Con clic derecho sobre un botón: duplicar, eliminar,
+  centrar, traer al frente, alinear o distribuir todos.
+- Propiedades (derecha): texto con **selector de fuentes**, tamaño, peso y
+  colores; **Al pulsar** (reproducir episodio, todo, ir a un menú, a un
+  capítulo, a una pista de audio…); miniatura; y **Navegación con el mando**
+  (a qué botón lleva cada flecha).
+- **Fondo** y **Música** en la barra del menú; *Normal / Resaltado /
+  Selección* muestran cómo se ven los botones al moverse con el mando.
 
 ## 5. Audio y subtítulos
 
-![Pistas](screenshots/05-audio-subtitles.png)
+En **Audio y subtítulos** elige el idioma, formato y bitrate de cada pista,
+marca la pista por defecto y corrige desfases (±10 s). Añade subtítulos desde
+archivos `.srt`, `.ass`, `.vtt` o `.sup`; el estilo se ajusta por pista.
 
-En la pestaña **Pistas**:
+## 6. Probar el disco
 
-- Elige qué pistas de audio van al disco, su idioma y cuál es la principal.
-- Añade subtítulos `.srt`, `.ass`, `.ssa` o `.vtt`. Se convierten
-  automáticamente al formato del disco.
+**Vista previa** muestra el menú en una TV con un mando virtual: flechas, OK,
+Menú, Título y Volver funcionan como en un reproductor real, incluidos
+«reproducir todo» y los capítulos.
 
-Si los episodios vienen de archivos distintos (por ejemplo, uno con audio
-«inglés» y otro «sin definir»), en Blu-ray/AVCHD Kinodisc adapta las pistas
-para que todo el disco sea coherente y te avisa de lo que cambió.
+## 7. Producir y grabar
 
-## 6. Probar
+**Producir disco** (Ctrl+R) ofrece:
 
-![Simulador](screenshots/03-dvd-simulator.png)
+- **Solo ISO**, **Carpeta del disco** (VIDEO_TS/BDMV para reproductores, USB o
+  Kodi), **ISO + grabar** o **ISO existente**.
+- **Discos:** un solo disco, varios discos (llenando cada uno) o uno por
+  episodio. Los discos divididos muestran `1 / 3`, `2 / 3`… en el menú.
 
-La pestaña **Simulador** reproduce el disco como un reproductor real. Usa las
-flechas del teclado y **Enter**, o el mando de la pantalla. Si un botón no se
-puede alcanzar, aparece un aviso.
-
-## 7. Crear y grabar el disco
-
-1. Mira la **barra de capacidad**: si se pasa del 100 %, usa un disco de doble
-   capa (DVD-9, BD-50) o quita contenido.
-2. Pulsa **Producir disco**.
-3. Elige **Solo ISO** (un archivo que puedes grabar después o probar en VLC) o
-   **ISO + grabar** y la grabadora.
-4. Antes de grabar, Kinodisc comprueba la estructura del disco. Si encuentra
-   un error grave, no graba, para no estropear un disco.
-
-### Llevar o compartir un proyecto
-
-Pulsa **📦 Empaquetar** para guardar el proyecto y todos sus vídeos, audios,
-subtítulos y fuentes en un solo archivo `.kinodisc-bundle`. En el otro
-ordenador usa **Abrir**, elige el paquete y una carpeta vacía: se comprueba
-todo (SHA-256) y se abre el proyecto.
+El verificador estructural revisa cada imagen antes de permitir grabarla.
 
 ### Si la producción se corta a la mitad
 
-Vuelve a pulsar **Producir disco**: los episodios que ya estaban codificados
-se reutilizan, así que continúa en vez de empezar de cero.
+Pulsa **Producir disco** otra vez: los episodios ya codificados se reutilizan.
 
-### Varios discos seguidos
+### Varios proyectos seguidos
 
-Pulsa **📋 Cola**, añade el proyecto actual o cualquier proyecto guardado y
-pulsa **Generar todo**. Cada disco se crea junto a su proyecto. Si cierras la
-aplicación, los que quedaban en espera siguen en la cola.
+**Disco › Cola de discos…**: añade proyectos guardados y pulsa **Generar
+todo**; los que esperan siguen en la cola aunque cierres la app.
 
-### ¿Para qué reproductor es?
+### Llevar o compartir un proyecto
 
-Usa el selector **Reproductor** de la cabecera (PS2, PS3/4/5, Blu-ray de
-salón, DVD antiguo): Kinodisc ajusta los límites y avisa de lo que ese
-reproductor podría no reproducir bien.
+**Archivo › Empaquetar con los vídeos…** guarda el proyecto y todo lo que usa
+en un archivo `.kinodisc`. Ábrelo en la otra computadora y elige una carpeta
+vacía; cada archivo se comprueba (SHA-256).
 
-### Teclado
+### Cambios sin guardar
 
-En el editor de menú: las flechas mueven el botón seleccionado (Mayús = más
-rápido), `[` y `]` cambian de botón, Supr lo borra y Esc deselecciona. Esc
-también cierra los diálogos.
+Deshacer/rehacer con Ctrl+Z / Ctrl+Y. Un punto junto al nombre del proyecto
+indica cambios sin guardar; Kinodisc pregunta antes de perderlos y guarda una
+copia de recuperación cada 30 segundos por si la computadora se apaga.
 
-## 8. Problemas frecuentes
+## 8. Teclado
+
+| Teclas | Acción |
+|---|---|
+| Ctrl+N / Ctrl+O / Ctrl+S | Nuevo, abrir, guardar (Ctrl+Mayús+S: guardar como) |
+| Ctrl+Z / Ctrl+Y | Deshacer / rehacer |
+| Ctrl+I | Importar medios |
+| Ctrl+D | Duplicar el botón seleccionado |
+| Ctrl+R | Producir disco |
+| Flechas (Mayús = más rápido) | Mover el botón o texto seleccionado |
+| `[` `]` | Botón anterior / siguiente |
+| Supr / Esc | Eliminar / deseleccionar |
+| F1 / F11 | Guía / pantalla completa |
+
+## 9. Problemas comunes
 
 | Problema | Solución |
 |---|---|
-| «Falta FFmpeg» | Instálalo (`winget install Gyan.FFmpeg`) y reinicia Kinodisc. |
-| El DVD no se genera en Windows | Abre **⚕ Salud** y pulsa **Instalar** en DVDAuthor. |
-| El menú de Blu-ray no aparece | Actualiza a 0.7.0: con FFmpeg 9 el menú se descartaba al generarse sin tsMuxeR. |
-| El fondo se ve aplastado | Actualiza a 0.7.0: los menús HD usan ahora un lienzo de 1920×1080. Al abrir un proyecto antiguo se adapta solo. |
-| Aviso de audio | Lee el aviso en el registro de producción: Kinodisc indica qué pista ajustó. |
-| No sé qué fps elegir | Mira la tabla del apartado 2. |
-| Herramientas avanzadas | Activa **Modo experto** (junto a las pestañas) para ver Animación, Mapa VM y Calidad VBR. |
+| «Faltan herramientas» | Haz clic en la barra de estado e instálalas; en Linux/macOS ejecuta el comando que aparece. |
+| Tras actualizar se reinstalan las herramientas | Kinodisc 1.0 comprueba cada archivo; las copias de versiones anteriores se descargan de nuevo una vez. |
+| «No cabe» | Baja la calidad, elige un disco más grande o produce varios discos. |
+| Un botón no se puede mover ahí | Los botones necesitan 4 px de separación (regla de DVD/Blu-ray). |
+| Aviso de audio | El registro de producción dice qué pista se ajustó y por qué. |
 
-## 9. Modo experto
+## 10. Herramientas avanzadas
 
-Activa **Modo experto** junto a las pestañas para ver Animación (menús y
-miniaturas en movimiento), el Mapa VM (todos los saltos que puede hacer el
-reproductor) y Calidad VBR (bitrate por episodio y presupuesto del disco).
-
-![Mapa VM](screenshots/04-vm-flowchart.png)
-
-![Calidad VBR](screenshots/06-vbr-optimizer.png)
-
-## 10. Idiomas
-
-Cambia el idioma de la interfaz en el selector de la cabecera. Los nombres que
-Kinodisc pone por defecto en el disco («Menú principal», «Siguiente ›»…) usan
-el idioma de la interfaz.
+**Ver › Herramientas avanzadas** muestra Animación (menús y miniaturas en
+movimiento), Mapa VM (cada salto que puede hacer el reproductor) y Calidad
+VBR (bitrate por episodio).

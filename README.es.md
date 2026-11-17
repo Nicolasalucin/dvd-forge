@@ -1,464 +1,174 @@
 <p align="center">
-  <img src="docs/screenshots/01-menu-studio.png" alt="Kinodisc Studio" width="100%" />
+  <img src="docs/screenshots/02-menu-editor.png" alt="Editor de menús de Kinodisc" width="100%" />
 </p>
 
 <h1 align="center">Kinodisc</h1>
 
 <p align="center">
-  Estudio de autoría óptica para DVD-Video, AVCHD y Blu-ray, con menús interactivos,
-  edición no destructiva, simulación de navegación y grabación nativa.
+  Convierte tus vídeos en un DVD, AVCHD o Blu-ray con menús de verdad, como los de las películas.<br />
+  Importa, diseña el menú, pruébalo con un mando virtual y grábalo.
 </p>
 
 <p align="center">
-  <a href="README.md">🇺🇳 English</a> · <strong>🇪🇸 Español</strong>
+  <strong>Español</strong> · <a href="README.md">English</a>
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="Licencia GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-22d3ee?style=flat-square" /></a>
-  <img alt="Linux x86_64 e i686" src="https://img.shields.io/badge/Linux-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=linux" />
-  <img alt="Windows x86_64 e i686" src="https://img.shields.io/badge/Windows-x86__64%20%7C%20i686-0f172a?style=flat-square&logo=windows" />
-  <img alt="macOS" src="https://img.shields.io/badge/macOS-arm64%20%7C%20x86__64-0f172a?style=flat-square&logo=apple" />
-  <img alt="Rust + Tauri v2 + Svelte 5" src="https://img.shields.io/badge/Rust%20%2B%20Tauri%20v2%20%2B%20Svelte%205-0f172a?style=flat-square&logo=rust" />
+  <a href="LICENSE"><img alt="Licencia GPL-3.0-or-later" src="https://img.shields.io/badge/licencia-GPL--3.0--or--later-2b66d9?style=flat-square" /></a>
+  <img alt="Windows x86_64 e i686" src="https://img.shields.io/badge/Windows-x86__64%20%7C%20i686-1a1b1e?style=flat-square&logo=windows" />
+  <img alt="Linux x86_64 e i686" src="https://img.shields.io/badge/Linux-x86__64%20%7C%20i686-1a1b1e?style=flat-square&logo=linux" />
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-arm64%20%7C%20x86__64-1a1b1e?style=flat-square&logo=apple" />
 </p>
 
 ---
 
-## Un solo taller para todo el disco
+Kinodisc (antes *DVD Forge*) es un estudio de escritorio gratuito para crear
+discos que se reproducen en el reproductor del living: menús con miniaturas,
+capítulos, varias pistas de audio y subtítulos, «reproducir todo», menús de
+escenas… el disco completo, revisado antes de grabarlo.
 
-Kinodisc reúne en una única ventana la biblioteca de medios, el editor visual de
-menús, el recortador, los capítulos, las pistas de audio y subtítulos, la
-simulación del mando a distancia, el mapa de navegación y la producción final.
-El mismo proyecto puede entregarse como DVD-Video clásico o como AVCHD/Blu-ray
-de alta definición, sin duplicar el trabajo creativo.
+## Novedades de la 1.0
 
-## Galería
+- **Interfaz nueva.** Tema claro y oscuro que sigue al sistema, barra de menú
+  nativa, barra de herramientas, barra de estado y paneles compactos.
+- **Primeros pasos más fáciles.** En Windows, Kinodisc descarga y verifica
+  FFmpeg y DVDAuthor por vos; un proyecto vacío te dice qué hacer primero.
+- **Deshacer/rehacer, autoguardado y recuperación**; arrastrar y soltar
+  archivos y proyectos.
+- **Textos de verdad en los menús.** Los títulos y textos se dibujan y se
+  graban (antes desaparecían); selector de fuentes con vista previa, paleta de
+  colores y tamaños.
+- **Guías inteligentes, alinear y menú contextual** en el editor de menús.
+- **Varios discos de una vez**: reparte un proyecto largo en varios discos o
+  crea uno por episodio; o genera una **carpeta** VIDEO_TS/BDMV en vez de ISO.
+- **Menús de escenas** creados a partir de los capítulos.
+- **Presentaciones de fotos** con fundidos y música, como un episodio más.
+- **Inspector de discos**: mira qué hay en un ISO o carpeta VIDEO_TS/BDMV e
+  importa un disco sin cifrar como episodios.
+- **En Blu-ray cada episodio vuelve al menú** al terminar, y las marcas de
+  capítulo ahora son correctas sin tsMuxeR.
+- **DVD más rápidos**: los episodios se codifican en paralelo (cerca de un
+  40 % menos de tiempo en un PC de varios núcleos).
+- **Protegido** para que ningún malware lo use de trampolín (ver
+  [docs/security/2026-11-review.md](docs/security/2026-11-review.md)).
 
-| Menú WYSIWYG | Recortador y capítulos |
+Lista completa: [CHANGELOG.md](CHANGELOG.md).
+
+## Capturas
+
+| | |
 |---|---|
-| ![Estudio de menús](docs/screenshots/01-menu-studio.png) | ![Recortador](docs/screenshots/02-video-trimmer.png) |
+| ![Bienvenida](docs/screenshots/01-welcome.png) | ![Selector de fuentes](docs/screenshots/03-font-picker.png) |
+| Pantalla de bienvenida, sigue el tema del sistema | Textos del menú con selector de fuentes |
+| ![Vídeos](docs/screenshots/04-videos.png) | ![Vista previa](docs/screenshots/05-preview.png) |
+| Recorte y capítulos sobre una tira de fotogramas | Prueba el disco con un mando virtual |
+| ![Audio y subtítulos](docs/screenshots/06-audio-subtitles.png) | ![Producción](docs/screenshots/07-production.png) |
+| Idiomas de audio, subtítulos y desfases | ISO, carpeta del disco, varios discos, grabación |
 
-| Simulador con mando | Mapa de la máquina virtual |
-|---|---|
-| ![Simulador](docs/screenshots/03-dvd-simulator.png) | ![Mapa VM](docs/screenshots/04-vm-flowchart.png) |
+<p align="center"><img src="docs/screenshots/08-dark-theme.png" alt="Tema oscuro" width="80%" /></p>
 
-| Audio y subtítulos | Optimizador VBR |
-|---|---|
-| ![Pistas](docs/screenshots/05-audio-subtitles.png) | ![VBR](docs/screenshots/06-vbr-optimizer.png) |
+## Qué discos crea
 
-| Guía paso a paso | Proyecto nuevo (1080p25 PsF) |
-|---|---|
-| ![Guía](docs/screenshots/es-02-guia.png) | ![Proyecto nuevo](docs/screenshots/08-new-project.png) |
-
-## Novedades de v0.9.0
-
-- **DVD-Video en Windows sin herramientas extra**: un generador UDF/ISO 9660
-  propio reemplaza a genisoimage/mkisofs, y **⚕ Salud → Instalar** trae
-  DVDAuthor/Spumux (verificados) con un clic.
-- **📋 Cola de discos** en la aplicación y **presets por reproductor** (PS2,
-  PS3/4/5, Blu-ray y DVD antiguos).
-- **Arranca 3 veces más liviana**, editor de menú manejable con teclado y
-  tests de robustez en la CI.
-
-| Cola de discos | Herramientas con un clic |
-|---|---|
-| ![Cola](docs/screenshots/10-disc-queue.png) | ![Salud](docs/screenshots/11-health-install.png) |
-
-## Novedades de v0.8.0
-
-- **📦 Paquetes de proyecto**: el proyecto con todos sus vídeos, audios,
-  subtítulos y fuentes en un solo `.kinodisc-bundle` verificado para llevarlo
-  a otro ordenador o compartirlo; **Abrir** lo descomprime.
-- **Instala FFmpeg con un clic** desde **⚕ Salud** (Windows), con
-  verificación SHA-256.
-- **Reanudar**: si un render se corta, al volver a producir el disco se
-  reutilizan los episodios ya codificados.
-- **Cola por lotes** en la CLI: `kinodisc-cli batch cola.json --resume`.
-
-## Novedades de v0.7.0
-
-- **¿Primera vez?** Lee la [guía de uso](docs/GUIA-DE-USO.md) o pulsa
-  **❓ Guía** en la aplicación: un recorrido paso a paso se abre la primera vez
-  y el modo simple oculta las herramientas avanzadas hasta activar el
-  **Modo experto**.
-- **1080p a 25/29,97 fps (PsF) y 50/59,94 fps (AVCHD 2.0)** para contenido de
-  TV y cámaras modernas.
-- **Añadir vídeos sin recodificar**: los H.264 compatibles (`.m2ts`/`.mts` de
-  cámara, MP4/MKV con el mismo formato) se copian directamente al disco
-  AVCHD/Blu-ray, más rápido y sin pérdida.
-- **Menús que funcionan a la primera**: lienzo 1920×1080 en HD, cualquier
-  fuente instalada, pantallas de menú adicionales y miniaturas con un clic.
-  Corrige los menús Blu-ray que se descartaban con FFmpeg 9 sin tsMuxeR.
-- **Interfaz en inglés completa** y avisos traducidos; las diferencias de
-  pistas de audio se corrigen solas en vez de cortar el render.
-
-## Novedades de v0.6.0
-
-- **Menu Designer 2.0**: cinco plantillas, paginación multipágina automática y
-  aplicación no destructiva que conserva episodios, botones, assets y ajustes.
-- **Movimiento y transiciones**: clips en bucle y transiciones pregrabadas de
-  entrada con duración/easing, filtergraphs deterministas y caché invalidable.
-- **Rutas D-Pad**: enrutado espacial determinista con overrides manuales,
-  diagnósticos de simetría/alcance y `routeHash` estable compartido por DVD,
-  HDMV y el simulador.
-- **Verificación**: nuevos checks `BDMV-IG-BUTTONS`, `BDMV-IG-NAV`,
-  `BDMV-MOTION-THUMB` y `DVD-SPU-BUTTONS`, con smoke tests DVD/BD de
-  multipágina y transiciones.
-
-## Novedades de v0.5.0
-
-- **Motor nativo de subtítulos**: parseo SRT/ASS/SSA/WebVTT y rasterizado con
-  `ab_glyph` a PGS `.sup` para Blu-ray y bitmaps de cuatro colores para DVD.
-- Los subtítulos de texto de Blu-ray/AVCHD ya no se ignoran: se renderizan a PGS
-  y se multiplexan en el stream combinado.
-- Los subtítulos DVD se generan desde PNG nativos de cuatro colores y se
-  autorizan con XML `<spu>` de Spumux, conservando fuente, color y alineación.
-- **Masterización de audio**: `loudnorm` EBU R128 opcional, conversión estéreo/
-  5.1, ganancia/retardo por pista, paso directo DTS/LPCM/AC-3 y AVCHD multi-audio.
-- **Verificador**: display sets/PTS PGS, streams de audio BDMV y paquetes/paleta
-  SPU de DVD.
-- Nueva crate `kinodisc-subtitle` con estilos por pista persistidos, rasterizado
-  1080p acotado y pruebas de parser, PGS y Spumux.
-
-## Correcciones de v0.4.1
-
-- La ganancia por pista se aplica en DVD y AVCHD/Blu-ray.
-- Los retardos negativos rellenan la pista hasta la duración del programa.
-- AVCHD usa el bitrate AC-3 y el layout estéreo/5.1 de cada pista.
-- Los subtítulos externos ASS/SSA/VTT se convierten a SRT con el aviso
-  `W_SUBTITLE_STYLE_LOST` antes de la ruta heredada de Spumux.
-- El paso directo PGS ya no dispara los avisos obsoletos de extracción o de
-  subtítulos ignorados en AVCHD.
-- Las extensiones no soportadas fallan con un error claro.
-
-## Novedades de v0.4.0
-
-### Memoria y streaming en 32 bits
-
-- Todas las rutas de varios gigabytes usan buffers de streaming acotados
-  (64 KiB–1 MiB): huellas de origen, hashes de subtítulos/menús, payloads UDF,
-  verificación de grabación y procesado de M2TS de menús.
-- El escritor UDF comparte rutas con `Arc<str>`, pre-reserva nodos y extensiones
-  y mantiene un buffer de payload/digest de 1 MiB. Las pruebas de imágenes
-  dispersas de >4 GiB y 50 GiB usan una fuente posicional de fichero.
-- Las compilaciones Windows de 32 bits solicitan `/LARGEADDRESSAWARE` y la pila
-  completa se comprueba en `i686-unknown-linux-gnu`.
-
-### Toolchain portable y sin dependencia de 32 bits
-
-- Se buscan `KINODISC_TOOLCHAIN_DIR` y carpetas junto al ejecutable
-  (`toolchain/`, `toolchain/<plataforma>-<arch>/`, `bin/`) antes de los
-  recursos empaquetados y del PATH.
-- tsMuxeR pasa a ser opcional: un muxer nativo Rust + FFmpeg construye el M2TS
-  principal, `index.bdmv`, `MovieObject.bdmv`, MPLS, CLPI, marcas de capítulo y
-  menús HDMV IG cuando tsMuxeR no está o el host es de 32 bits.
-
-### Paso directo de PGS
-
-- Las pistas `hdmv_pgs_subtitle` activas se copian al M2TS AVCHD/Blu-ray y se
-  registran en MPLS STN y CLPI.
-- DVD-Video conserva `W_BITMAP_SUBTITLE_UNSUPPORTED`; los códecs bitmap que no
-  son PGS siguen rechazándose en Blu-ray.
-
-### FreeBSD y releases multiarquitectura
-
-- CLI y grabación nativos en FreeBSD con `camcontrol`, `dvd+rw-mediainfo`,
-  `growisofs` y `xorriso`.
-- Releases Windows x86_64/i686 (WebView2 x86), Linux x86_64/i686 y macOS
-  Apple Silicon/Intel. Los binarios usan LTO thin, una codegen-unit y símbolos
-  eliminados.
-
-## Características principales
-
-### Estudio unificado
-
-- Workbench de ventana única con biblioteca de medios, lienzo Konva, inspector,
-  secuencia de episodios y barra de capacidad siempre visible.
-- Proyectos portables en JSON con validación estructural, presupuesto de disco y
-  diagnóstico de errores antes de codificar.
-- Autoguardado de proyectos recientes e historial de trabajos en SQLite.
-- Diagnóstico de toolchain integrado para comprobar FFmpeg, tsMuxeR, DVDAuthor,
-  xorriso, growisofs, `dvd+rw-mediainfo` y libbluray.
-
-### DVD-Video clásico
-
-- Autoría DVD-5 y DVD-9 con cálculo de **Layer Break OTP/PTP** alineado a bloques
-  ECC de 16 sectores.
-- Compatibilidad con reproductores de salón, PlayStation 2/3/4/5, Xbox y
-  reproductores de software.
-- Menús VMGM/VTSM, First Play, capítulos, Reproducir todo y retorno automático.
-- Máscara de región DVD real en `VIDEO_TS.IFO` y `VIDEO_TS.BUP`, además de la
-  comprobación RCE.
-- MPEG-2 en dos pasadas, AC-3 2.0/5.1 y subtítulos `.srt`/`.ass`/`.ssa`/`.vtt`
-  con ajuste de sincronía. En HD, las pistas se conservan en el proyecto y se
-  muestran en el editor.
-- Ajuste MPEG-2 de referencia (Lanczos, RD, Trellis, DC dinámico y GOP estricto
-  PAL/NTSC).
-- El DVD-9 marca la celda del layer break en el VTS IFO y el verificador
-  comprueba su alineación ECC y su posición en el PGC.
-
-### Alta definición
-
-- **AVCHD sobre DVD-5/DVD-9** y **Blu-ray nativo BD-25/BD-50**.
-- H.264 High con `bluray-compat`, GOP cerrado, VBV de 30.000–40.000 kbits y
-  hasta 38 Mbps en Blu-ray.
-- Menús **HDMV Interactive Graphics** nativos: PDS, WDS, ODS con RLE, ICS y END,
-  botones con estados normal/seleccionado/activado y navegación direccional.
-- Menús anidados: cada menú se publica como su propio clip IG/Playlist y se
-  enlaza con `JumpObject`; los botones de episodio y capítulo arrancan en la
-  marca exacta mediante GPR y `PlayPL_PM`.
-- Codificación H.264 por hardware opcional (NVENC, QSV, VAAPI, AMF,
-  VideoToolbox) con fallback automático a CPU.
-- Caché inteligente de episodios, menús e intros, indexada por SHA-256 completo
-  y entradas de render canónicas.
-- Fondos de vídeo en bucle, botones con miniatura en movimiento y audio de menú
-  AC-3 con volumen, fundidos y pista silenciosa de respaldo.
-- Imagen final **UDF 2.50 con Metadata Partition** (Metadata File + Metadata
-  Mirror File), legible por libbluray, reproductores de salón y consolas.
-
-### Editor visual
-
-- Lienzo WYSIWYG con coordenadas pares, rejilla, áreas seguras y guías de acción.
-- Seis estilos de botón: miniatura 16:9, clásico, cristal, insignia Play, solo
-  texto y **hotspot invisible** sobre arte propio.
-- Navegación automática por geometría con overrides manuales por dirección.
-- Miniaturas y fotogramas extraídos del vídeo original.
-- Previsualización de menús estáticos y animados antes de producir el disco.
-
-### Medios y accesibilidad
-
-- Importación directa de `.mp4`, `.mkv`, `.avi`, `.mov` y otros contenedores
-  habituales. El editor crea un proxy MP4 en caché para la previsualización,
-  pero conserva siempre el archivo original como fuente de máxima calidad.
-- Recorte no destructivo **In/Out** y gestión de capítulos por tiempo o fotograma.
-- Varias pistas de audio AC-3 2.0/5.1, pista predeterminada, ganancia y delay.
-- Subtítulos externos con idioma, etiqueta, pista forzada y desfase.
-- Simulador interactivo con mando virtual, foco, activación y botones de menú.
-- Mapa de nodos de la máquina virtual con las transiciones reales del proyecto.
-
-### Internacionalización
-
-- Motor i18n reactivo en Svelte 5, sin dependencias pesadas.
-- Siete idiomas de interfaz: **español, inglés, portugués, francés, alemán,
-  italiano y japonés**.
-- Detección automática en el primer arranque desde `navigator.language`,
-  persistencia en `localStorage` (`kinodisc_locale`) y cambio en vivo desde la
-  cabecera.
-- Catálogo oficial de idiomas ISO 639 para pistas de audio y subtítulos: códigos
-  ISO 639-1 de 2 letras para DVD-Video e ISO 639-2/T de 3 letras para
-  Blu-ray/AVCHD, con alias bibliográficos (`fre`, `ger`, `chi`, `baq`).
-- Los valores `tags.language` de FFprobe se normalizan automáticamente al
-  catálogo al importar medios.
-- Documentación bilingüe: este README en español y [README.md](README.md) en
-  inglés.
-
-### Producción y grabación
-
-- Pipeline compartido entre la aplicación y la CLI: los mismos menús, subtítulos,
-  regiones y presupuestos se aplican en ambos entornos.
-- Grabación óptica nativa en Linux (`growisofs` con fallback a `xorriso`),
-  Windows (`IMAPI2`) y macOS (`drutil`/`hdiutil`).
-- Soporte de DVD-R/RW, DVD+R/RW, BD-R, BD-RE y BD-R DL, con detección de perfil
-  MMC, capacidad y velocidad real del medio.
-- Verificación SHA-256 opcional y cancelación limpia de render o grabación.
-- Caché SHA-256 de artefactos para evitar recodificar fuentes, recortes, audio o
-  bitrates sin cambios.
-
-## Arquitectura de formatos ópticos
-
-| | DVD-Video | AVCHD | Blu-ray |
-|---|---|---|---|
-| Medio | DVD-5 / DVD-9 | DVD-5 / DVD-9 | BD-25 / BD-50 |
-| Vídeo | MPEG-2, dos pasadas | H.264 High | H.264 High, hasta 38 Mbps |
-| Audio | AC-3 2.0/5.1 | AC-3 2.0/5.1 | AC-3 2.0/5.1 |
-| Menús | VMGM/VTSM, botones SPU | HDMV Interactive Graphics | HDMV Interactive Graphics |
-| Navegación | Máquina virtual DVD | IG + Playlist + GPR | IG + Playlist + GPR |
-| Sistema de archivos | UDF 1.02 / ISO 9660 | UDF 2.50 | UDF 2.50 + Metadata Partition |
-| Layer break | OTP/PTP, ECC de 16 sectores | n/a | n/a |
-| Objetivos típicos | Reproductores, PS2–PS5, Xbox | PS4/PS5, reproductores Blu-ray | Reproductores Blu-ray, PS4/PS5 |
-
-## Catálogo de idiomas
-
-| Idioma | ISO 639-1 (DVD) | ISO 639-2/T (Blu-ray/AVCHD) | Alias bibliográfico |
-|---|---|---|---|
-| Español | `es` | `spa` | — |
-| Inglés | `en` | `eng` | — |
-| Japonés | `ja` | `jpn` | — |
-| Portugués | `pt` | `por` | — |
-| Francés | `fr` | `fra` | `fre` |
-| Alemán | `de` | `deu` | `ger` |
-| Italiano | `it` | `ita` | — |
-| Ruso | `ru` | `rus` | — |
-| Chino | `zh` | `zho` | `chi` |
-| Coreano | `ko` | `kor` | — |
-| Catalán | `ca` | `cat` | — |
-| Euskera | `eu` | `eus` | `baq` |
-| Gallego | `gl` | `glg` | — |
-| Árabe | `ar` | `ara` | — |
-| Hindi | `hi` | `hin` | — |
-| Indeterminado / Original | `und` | `und` | — |
-
-## Plataformas
-
-| Plataforma | Arquitectura | Distribución |
+| Disco | Vídeo | Menús |
 |---|---|---|
-| Linux | x86_64 | AppImage, `.deb`, CLI tar.gz |
-| Linux | i686 | CLI tar.gz y pruebas en 32 bits |
-| Windows | x86_64 | MSI, NSIS, CLI portátil |
-| Windows | i686 | MSI/NSIS 32-bit con WebView2 x86, CLI zip |
-| macOS | Apple Silicon / Intel | `.dmg`, CLI tar.gz |
-| FreeBSD | x86_64 | Compilación desde código, CLI y grabación nativa |
+| **DVD-Video** (DVD-5, DVD-9 con cambio de capa) | MPEG-2 en dos pasadas, PAL/NTSC, 4:3/16:9 | Estáticos y animados, resaltado por subimagen |
+| **AVCHD** en DVD | H.264 720p/1080i/1080p, AVCHD 2.0 50/60p | HDMV Interactive Graphics |
+| **Blu-ray** (BD-25, BD-50) | H.264, copia directa de archivos compatibles | HDMV Interactive Graphics |
 
-> En Linux i686 el CLI y toda la pila de authoring están soportados de forma
-> nativa. El escritorio Linux de 32 bits no se publica porque WebKitGTK/GTK de
-> 32 bits no está disponible en todas las distribuciones.
-
-## Requisitos
-
-### Linux
-
-Herramientas del sistema:
-
-```bash
-# Arch / CachyOS
-sudo pacman -S --needed ffmpeg dvdauthor dvd+rw-tools libisoburn udftools \
-  gstreamer gst-plugins-base gst-plugins-good gst-libav
-
-# Debian / Ubuntu
-sudo apt install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
-  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
-  libwebkit2gtk-4.1-0 libgtk-3-0
-
-# Fedora
-sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso udftools \
-  gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free \
-  webkit2gtk4.1 gtk3
-```
-
-`tsMuxeR` es opcional en hosts de 64 bits: AVCHD/Blu-ray puede autorarse con la
-ruta nativa de FFmpeg. Coloca las herramientas en `toolchain/` junto al binario,
-define `KINODISC_TOOLCHAIN_DIR` o usa el `PATH`. `libbluray`/`bd_info` son
-opcionales.
-
-### Windows
-
-- Windows 10 de 64 o 32 bits y Windows 11 de 64 bits, con WebView2.
-- FFmpeg/FFprobe y DVDAuthor/Spumux en el `PATH`; tsMuxeR es opcional.
-- La grabación usa la API nativa IMAPI2; no requiere herramientas externas.
-
-### macOS
-
-Ejecuta el `.dmg` de releases o compila desde el código. La grabación utiliza
-`drutil`/`hdiutil`; FFmpeg es obligatorio y tsMuxeR opcional.
-
-### FreeBSD
-
-```bash
-pkg install ffmpeg dvdauthor dvd+rw-tools xorriso
-```
-
-La grabación usa `camcontrol`, `growisofs` y `xorriso`; tsMuxeR es opcional.
+Además: hasta 8 pistas de audio (AC-3) y 32 de subtítulos por título DVD,
+subtítulos SRT/ASS/VTT renderizados de forma nativa, PGS directo en Blu-ray,
+códigos de región, ajustes por reproductor (PS2, PS3/4/5, DVD antiguos),
+«reproducir todo», menús de escenas, intro, un verificador estructural que
+revisa cada imagen antes de grabar, y grabación nativa en Windows (IMAPI2),
+Linux/FreeBSD (growisofs/xorriso) y macOS.
 
 ## Instalación
 
-### Paquetes
+Descarga el instalador para tu sistema en la
+[página de versiones](https://github.com/Nicolasalucin/kinodisc/releases):
 
-Descarga el instalador correspondiente desde la página de releases:
+| Sistema | Archivos |
+|---|---|
+| Windows 10/11 (64 o 32 bits) | `.msi` o `-setup.exe`; CLI portátil |
+| Linux x86_64 | `.AppImage`, `.deb`, CLI comprimida |
+| Linux i686 | CLI comprimida |
+| macOS (Apple Silicon / Intel) | `.dmg`, CLI comprimida |
+| FreeBSD | compilar desde el código |
 
-- Linux x86_64: `.AppImage`, `.deb` y CLI tar.gz.
-- Linux i686: `kinodisc-cli-i686-unknown-linux.tar.gz`.
-- Windows x86_64/i686: `.msi`, instalador NSIS y CLI portátil.
-- Windows i686 CLI: `kinodisc-cli-i686-pc-windows-msvc.zip`.
-- macOS Apple Silicon/Intel: `.dmg` y CLI tar.gz.
-- CLI universal: `kinodisc-cli` para automatizar planes, renders y grabación.
+Cada versión incluye `SHA256SUMS.txt` para comprobar las descargas.
 
-### Compilar desde el código
+### Herramientas de vídeo
+
+- **Windows:** no hay que instalar nada. Al empezar, Kinodisc ofrece descargar
+  FFmpeg y DVDAuthor (unos 120 MB), comprueba su SHA-256 y los guarda en tu
+  carpeta de usuario. Opcional: tsMuxeR.
+- **Linux:**
+  ```bash
+  # Debian / Ubuntu
+  sudo apt install ffmpeg dvdauthor dvd+rw-tools xorriso
+  # Fedora
+  sudo dnf install ffmpeg dvdauthor dvd+rw-tools xorriso
+  # Arch
+  sudo pacman -S --needed ffmpeg dvdauthor dvd+rw-tools libisoburn
+  ```
+- **macOS:** `brew install ffmpeg dvdauthor`
+- **FreeBSD:** `pkg install ffmpeg dvdauthor dvd+rw-tools xorriso`
+
+En la barra de estado, *Herramientas* muestra qué está instalado y qué falta.
+
+## Primeros pasos
+
+1. **Nuevo proyecto** → elige DVD o Blu-ray/AVCHD.
+2. **Importar vídeos** (o arrástralos a la ventana): cada uno es un episodio.
+3. Recorta y añade capítulos en **Vídeos**; elige idiomas en **Audio y subtítulos**.
+4. En **Menú**, elige una plantilla, añade un título y ajusta botones y fuentes.
+5. Pruébalo en **Vista previa** con el mando virtual.
+6. **Producir disco**: ISO, carpeta VIDEO_TS/BDMV, varios discos o grabar directo.
+
+Guías paso a paso: [Español](docs/GUIA-DE-USO.md) · [English](docs/USER_GUIDE.md).
+
+## Línea de comandos
+
+`kinodisc-cli` usa el mismo motor que la app, para scripts y trabajo por lotes:
 
 ```bash
-# Dependencias del frontend
-cd apps/desktop
-npm ci
-
-# Aplicación de escritorio
-npm run tauri build
-
-# CLI
-cd ../..
-cargo build --release -p kinodisc-cli
+kinodisc-cli doctor                                  # herramientas y versiones
+kinodisc-cli toolchain install all                   # descargas verificadas (Windows)
+kinodisc-cli render proyecto.json -o salida --folder # ISO + carpeta VIDEO_TS/BDMV
+kinodisc-cli split proyecto.json --per-episode       # un proyecto por disco
+kinodisc-cli scenes proyecto.json                    # menús de escenas desde los capítulos
+kinodisc-cli slideshow fotos/*.jpg --music tema.mp3 -o salida
+kinodisc-cli inspect disco.iso --import importado/   # qué hay en un disco
+kinodisc-cli batch cola.json --resume                # muchos discos seguidos
+kinodisc-cli verify salida/disc.iso --deep           # comprobación estructural
+kinodisc-cli burn salida/disc.iso --device /dev/sr0
 ```
 
-Para compilar la CLI de 32 bits:
+## Compilar desde el código
 
 ```bash
-rustup target add i686-unknown-linux-gnu
-cargo build --release -p kinodisc-cli --target i686-unknown-linux-gnu
+cd apps/desktop && npm ci && npm run tauri build     # aplicación de escritorio
+cargo build --release -p kinodisc-cli                # CLI
 ```
 
-## Uso rápido
+Hace falta Rust (estable) y Node.js 22. Notas técnicas para quienes
+contribuyen y para agentes de IA: [AGENTS.md](AGENTS.md).
 
-> Paso a paso completo: [docs/GUIA-DE-USO.md](docs/GUIA-DE-USO.md).
+## Privacidad y seguridad
 
-1. Crea un proyecto DVD-Video, AVCHD o Blu-ray.
-2. Importa los vídeos y arrástralos a la secuencia.
-3. Recorta In/Out, añade capítulos y ajusta audio/subtítulos.
-4. Diseña el menú, asigna acciones y comprueba la navegación en el simulador.
-5. Abre **Producir disco**, elige ISO o ISO + grabación y selecciona la unidad.
-6. Verifica el resultado con el reproductor o graba el disco final.
-
-## CLI
-
-```bash
-# Comprobar herramientas del sistema
-kinodisc-cli doctor
-
-# Inspeccionar un archivo
-kinodisc-cli probe pelicula.mkv --json
-
-# Calcular el presupuesto de un proyecto
-kinodisc-cli plan proyecto.json -o plan.json --probe
-
-# Generar el ISO con el mismo pipeline que la aplicación
-kinodisc-cli render proyecto.json -o salida
-
-# Verificación estructural (UDF/BDMV/DVD) antes de grabar
-kinodisc-cli verify salida/disc.iso --deep --strict
-
-# Listar unidades y grabar
-kinodisc-cli devices
-kinodisc-cli burn salida/disc.iso --device /dev/sr0 --speed 4
-```
-
-La CLI comparte el renderizador, los menús HDMV, los subtítulos de DVD, las
-regiones, el presupuesto BD-25/BD-50 y la caché de artefactos con la aplicación
-de escritorio.
-
-## Tecnología
-
-- **Rust** para el dominio, planificación, codificación, authoring, ISO/UDF,
-  menús HDMV, persistencia SQLite y grabación óptica.
-- **Tauri v2** como puente nativo seguro entre la interfaz y el sistema.
-- **Svelte 5 + Vite + Tailwind CSS 4 + Konva** para el editor visual.
-- **FFmpeg**, **tsMuxeR**, **DVDAuthor/Spumux**, **xorriso**, **growisofs** y
-  **libbluray** como motores externos.
-
-## Hoja de ruta
-
-El plan de ingeniería v0.5.0–v1.0.0 cubre renderizado nativo de subtítulos y
-masterización de audio, el diseñador de menús 2.0, copia directa de streams,
-checkpointing, fuzzing, empaquetado y el congelamiento del esquema LTS v1.0.0.
-Consulta [ROADMAP.md](ROADMAP.md) para crates objetivo, entregables, IDs de
-verificación y criterios de aceptación.
+Kinodisc funciona sin conexión. Solo se conecta a internet cuando le pides que
+descargue las herramientas de vídeo, y solo a archivos fijos con su suma de
+verificación. Nunca ejecuta programas de la carpeta actual, rechaza
+herramientas modificadas después de descargarlas y solo abre los archivos que
+eliges.
 
 ## Agradecimientos
 
-Gracias a estas personas de la comunidad por encontrar errores y proponer mejoras:
-
-- **OhItsStefan**
-- **Infinite_Silver483**
-- **Narrow-Chard4152**
-- **Mirandopacuenca67**
-- **Carllito7**
+Gracias a estas personas de la comunidad por encontrar errores y proponer
+mejoras: **OhItsStefan**, **Infinite_Silver483**, **Narrow-Chard4152**,
+**Mirandopacuenca67** y **Carllito7**.
 
 ## Licencia
 
-Kinodisc se distribuye bajo **GNU General Public License v3.0 or later**
-(`GPL-3.0-or-later`). Consulta [LICENSE](LICENSE) para el texto completo.
+GPL-3.0-or-later. Ver [LICENSE](LICENSE). FFmpeg, DVDAuthor y tsMuxeR son
+programas aparte con sus propias licencias.

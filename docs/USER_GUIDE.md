@@ -1,213 +1,159 @@
 # Kinodisc user guide
 
-> [Versión en español](GUIA-DE-USO.md)
-
-![Step-by-step guide inside the app](screenshots/07-guide.png)
-
-This guide explains, step by step and in plain words, how to turn your videos
-into a DVD or Blu-ray with a menu. The same help is available inside the app
-with the **❓ Guide** button (top right).
-
----
+Kinodisc turns your videos into a DVD, AVCHD or Blu-ray with menus that work
+on a living-room player. This guide follows the steps in order. Press **F1**
+at any time for the guided tour.
 
 ## 1. Before you start
 
-Kinodisc uses free tools to encode video. Press **⚕ Health** in the header to
-see what is installed.
+- **Windows:** on the welcome screen press **Download and set up**. Kinodisc
+  downloads FFmpeg and DVDAuthor once (about 120 MB), checks their SHA-256 and
+  keeps them in your user folder.
+- **Linux, macOS, FreeBSD:** install `ffmpeg` and `dvdauthor` with your package
+  manager (see the README).
+- The status bar (bottom right) says **Tools ready** or **Tools missing**;
+  click it to see each program and install what is missing.
 
-| Tool | What for | Required? |
-|---|---|---|
-| FFmpeg / FFprobe | Analyse and convert video and audio | Yes |
-| DVDAuthor + Spumux | DVD-Video discs | DVD only (Windows: **⚕ Health → Install**) |
-| tsMuxeR | Blu-ray/AVCHD | No (a built-in muxer is used) |
-| xorriso / growisofs | Burning on Linux | Linux burning only |
-
-On **Windows** the easiest way is **⚕ Health → Install automatically**: DVD
-Forge downloads FFmpeg, checks its SHA-256 and installs it for you. You can also
-run `winget install Gyan.FFmpeg`. Burning uses Windows' own API
-(IMAPI2); nothing else is needed.
-
-You can put the tools in a `toolchain\` folder next to the Kinodisc executable
-and they will be found automatically.
+The theme follows your system; **View › Theme** forces light or dark.
+**View › Language** changes the interface language.
 
 ## 2. Create a project
 
-![New project dialog](screenshots/08-new-project.png)
+**File › New project** (Ctrl+N) or the **New project** card:
 
-1. Press **New project**.
-2. Choose the disc type:
-   - **DVD-Video**: plays on almost any player, console and computer. Standard
-     quality. If unsure, choose this one.
-   - **Blu-ray / AVCHD**: high-definition picture. Needs a Blu-ray player, a
-     PS3/PS4/PS5 or similar. AVCHD is Blu-ray written on a regular DVD
-     (DVD-5/DVD-9).
-3. For DVD choose **PAL** (Europe, Argentina, Australia…) or **NTSC** (USA,
-   Mexico, Japan…). For Blu-ray choose resolution and frame rate:
+- **DVD-Video universal** plays almost everywhere. TV system (PAL/NTSC) is
+  chosen from your region; the screen is 16:9 unless you pick 4:3.
+- **Blu-ray / AVCHD (high definition)** for Blu-ray players and PlayStation:
+  - 1080p 23.976/24 for films, 25/29.97 for home video (recorded as PsF, plays
+    on every Blu-ray player), 50/59.94 for very smooth motion (AVCHD 2.0; some
+    old players do not support it).
 
-| Where your videos come from | Resolution | Frame rate |
-|---|---|---|
-| Films, cinema | 1080p | 23.976 or 24 fps |
-| European TV / 50 Hz phone or camera | 1080p | 25 fps |
-| American TV / 60 Hz phone or camera | 1080p | 29.97 fps |
-| Sports, games, modern 50/60 fps cameras | 1080p | 50 or 59.94 fps (*) |
-| Interlaced recordings from older HD camcorders | 1080i | 25 or 29.97 fps |
-
-(*) 1080p at 50/59.94 is **AVCHD 2.0**: it plays on PS3/PS4/PS5 and current
-players, but some older Blu-ray players cannot play it.
-
-1080p at 25 and 29.97 fps is written as **PsF** (progressive picture inside a
-1080i signal). This is the standard method and every player accepts it.
+After creating it, the **disc button** at the right of the tabs (for example
+`DVD-5 · PAL · 16:9`) opens the disc settings: format, capacity (DVD-5/9,
+BD-25/50), TV system, screen, region and target player.
 
 ## 3. Add videos
 
-1. In the left panel, **Media** tab, press **+ Import** and choose your files
-   (`.mp4`, `.mkv`, `.mov`, `.m2ts`, `.mts`, `.avi`…).
-2. Press **+ Episode** on every video you want on the disc.
-3. Episodes appear in the **Sequence** bar (bottom) in playback order. Use
-   **‹ ›** to reorder and **✕** to remove.
+**Import videos…** in the empty project, **Import** in the toolbar (Ctrl+I),
+or drag the files onto the window. Each video becomes an episode in the
+**Episodes** strip at the bottom; drag the frames to change the order.
 
-### Trimming and chapters
+In **Media** (left) each file has **Add**; the **⋯** button offers the other
+uses (button thumbnail, menu background, animated background, menu music).
 
-![Editing: trim, chapters and thumbnail](screenshots/02-video-trimmer.png)
+### Trim and chapters
 
-In the **Editing** tab you can:
-
-- Set the start (**In**) and end (**Out**) of each episode.
-- Add chapters at the current position or automatically (every 5/10 minutes).
-- Import the chapters already stored in an MKV/MP4.
+In **Videos**, the strip under the player shows frames of the whole video:
+drag the blue handles or use **Mark start / Mark end**. Chapters appear as
+amber marks; add them at the playhead or with *Every 5 min*, *Every 10 min* or
+*4 parts*, or import them from the file.
 
 ### Videos that do not need re-encoding (Blu-ray/AVCHD)
 
-When a video already matches the disc format (for example `.m2ts`/`.mts` files
-from an AVCHD camcorder, or an H.264 MP4 with the project's resolution and
-frame rate), Kinodisc **copies it without re-encoding**: much faster and with
-no quality loss.
+When a video already matches the disc (camcorder `.m2ts`, or H.264 with the
+project's resolution and frame rate), Kinodisc **copies it without
+re-encoding**: much faster and lossless. The **Video** field of the episode
+properties says whether it is copied or re-encoded, and why. The episode must
+not be trimmed at the start to be copied.
 
-In the **Inspector** (right), with the episode selected, the **Video** field
-shows the decision:
+### Photo slideshows
 
-- ⚡ *Compatible: copied without re-encoding.*
-- ↻ *Re-encoded* and why (different resolution, different frame rate, start
-  trim…).
+**Photos** in the toolbar: add pictures, order them, choose seconds per photo,
+the cross-fade and optional music. The slideshow is created as a video and
+added as an episode.
 
-You can force **Always re-encode** or **Copy without re-encoding**. To be
-copied, the episode must not be trimmed at the start.
+### Import an existing disc
+
+**Disc** in the toolbar opens the inspector: open an ISO or a VIDEO_TS/BDMV
+folder to see its titles, chapters and tracks, and **Import as episodes** if it
+is not encrypted. Encrypted (commercial) discs can be viewed but not imported.
 
 ## 4. Design the menu
 
-![Menu editor](screenshots/01-menu-studio.png)
+In **Menu**:
 
-The **Menu** tab shows the screen you will see on the TV.
-
-- **Fastest**: open **Templates** in the left panel, or the *Menu templates*
-  gallery below the canvas, and pick one. Kinodisc creates one button per
-  episode and, when there are many, several pages with “Next ›”.
-- **Background**: in **Media**, press **Background** on an image or video. On
-  Blu-ray the canvas is 1920×1080, so your HD artwork is shown 1:1.
-- **Music**: in **Media**, press **Menu music** on an audio file.
-- **Buttons**: drag and resize them on the canvas. In the Inspector choose the
-  text, the font (any font installed on your computer; type to search), the
-  colour and what the button does.
-
-### Episode thumbnails
-
-- Select the episode button and press **Use the image of “…”** in the
-  Inspector, or
-- press **📸 Pick the exact frame…**: Editing opens; find the moment you like
-  and press **📸 Thumbnail**. Every menu showing that episode is updated.
-- You can also pick any image in **Media** and press **Thumbnail**.
-
-### More menu screens
-
-In the bottom bar press **+ Menu screen**. A submenu is created with a **Back**
-button, and the current menu gets a button that opens it. Double-click a screen
-name to rename it; hover it and press **✕** to delete it.
+- **Templates** applies a design with one button per episode (more pages are
+  added automatically). **Scene menus** inside the templates panel creates a
+  menu with one button per chapter.
+- **Button** adds a button, **Text** adds a title or any text.
+- Drag to move: pink guides appear when a button lines up with another or with
+  the centre. Right-click a button to duplicate, delete, centre, bring to front,
+  align or distribute all buttons.
+- Properties (right): text with **font picker**, size, weight and colours;
+  **When pressed** (play episode, play all, go to a menu, a chapter, an audio
+  track…); thumbnail; and **Remote navigation** (which button each arrow
+  reaches).
+- **Background** and **Music** in the menu toolbar; *Normal / Highlight /
+  Selection* show how buttons look when the remote moves over them.
 
 ## 5. Audio and subtitles
 
-![Tracks](screenshots/05-audio-subtitles.png)
+In **Audio and subtitles** choose each track's language, format and bitrate,
+mark the default track and fix delays (±10 s). Add subtitles from `.srt`,
+`.ass`, `.vtt` or `.sup` files; their style is set per track.
 
-In the **Tracks** tab:
+## 6. Try the disc
 
-- Choose which audio tracks go on the disc, their language and the main one.
-- Add `.srt`, `.ass`, `.ssa` or `.vtt` subtitles. They are converted to the disc
-  format automatically.
+**Preview** shows the menu on a TV with a virtual remote: arrows, OK, Menu,
+Title and Back behave as on a real player, including Play All and chapters.
 
-When episodes come from different files (for example one with “English” audio
-and one “undetermined”), on Blu-ray/AVCHD Kinodisc adapts the tracks so the
-whole disc is consistent and tells you what changed.
+## 7. Produce and burn
 
-## 6. Test
+**Produce disc** (Ctrl+R) offers:
 
-![Simulator](screenshots/03-dvd-simulator.png)
+- **ISO only**, **Disc folder** (VIDEO_TS/BDMV for players, USB drives or
+  Kodi), **ISO + burn**, or **Existing ISO**.
+- **Discs:** a single disc, several discs (each filled up) or one disc per
+  episode. Split discs show `1 / 3`, `2 / 3`… on their menu.
 
-The **Simulator** tab plays the disc like a real player. Use the keyboard
-arrows and **Enter**, or the on-screen remote. If a button cannot be reached, a
-warning appears.
-
-## 7. Create and burn the disc
-
-1. Check the **capacity bar**: above 100 %, use a dual-layer disc (DVD-9,
-   BD-50) or remove content.
-2. Press **Produce disc**.
-3. Choose **ISO only** (a file you can burn later or test in VLC) or
-   **ISO + burn** and the burner.
-4. Before burning, Kinodisc checks the disc structure. If it finds a blocking
-   error it does not burn, so no disc is wasted.
-
-### Move or share a project
-
-Press **📦 Bundle** to save the project and every video, audio, subtitle and
-font it uses into a single `.kinodisc-bundle` file. On the other computer use
-**Open**, pick the bundle and choose an empty folder: everything is checked
-(SHA-256) and the project opens.
+Every image is checked by the structural verifier before it can be burned.
 
 ### If production stops halfway
 
-Just press **Produce disc** again: episodes that were already encoded are
-reused, so it continues instead of starting from scratch.
+Press **Produce disc** again: episodes that were already encoded are reused.
 
-### Several discs in a row
+### Several projects in a row
 
-Press **📋 Queue**, add the current project or any saved projects and press
-**Produce all**. Each disc is created next to its project file. If the app is
-closed, the waiting projects stay in the queue.
+**Disc › Disc queue…**: add saved projects and press **Produce all**; waiting
+projects stay in the queue if the app is closed.
 
-### Which player is it for?
+### Move or share a project
 
-Use the **Player** selector in the header (PS2, PS3/4/5, Blu-ray player,
-older DVD player): Kinodisc adjusts the limits and warns about anything that
-player may not play smoothly.
+**File › Package with the videos…** saves the project and everything it uses
+in one `.kinodisc` file. Open it on the other computer and choose an empty
+folder; every file is checked (SHA-256).
 
-### Keyboard
+### Unsaved changes
 
-In the menu editor: arrows move the selected button (Shift = faster), `[` and
-`]` switch button, Delete removes it, Esc deselects. Esc also closes dialogs.
+Undo/redo with Ctrl+Z / Ctrl+Y. A dot next to the project name means unsaved
+changes; Kinodisc asks before closing them, and keeps a recovery copy every
+30 seconds in case the computer shuts down.
 
-## 8. Common problems
+## 8. Keyboard
+
+| Keys | Action |
+|---|---|
+| Ctrl+N / Ctrl+O / Ctrl+S | New, open, save (Ctrl+Shift+S: save as) |
+| Ctrl+Z / Ctrl+Y | Undo / redo |
+| Ctrl+I | Import media |
+| Ctrl+D | Duplicate the selected button |
+| Ctrl+R | Produce disc |
+| Arrows (Shift = faster) | Move the selected button or text |
+| `[` `]` | Previous / next button |
+| Delete / Esc | Delete / deselect |
+| F1 / F11 | Guide / full screen |
+
+## 9. Common problems
 
 | Problem | Solution |
 |---|---|
-| “FFmpeg missing” | Install it (`winget install Gyan.FFmpeg`) and restart Kinodisc. |
-| DVD is not produced on Windows | Open **⚕ Health** and press **Install** for DVDAuthor. |
-| Blu-ray menu does not appear | Update to 0.7.0: with FFmpeg 9 the menu was dropped when tsMuxeR was absent. |
-| Background looks squeezed | Update to 0.7.0: HD menus now use a 1920×1080 canvas. Older projects are adapted when opened. |
-| Audio warning | Read the warning in the production log: Kinodisc says which track it adjusted. |
-| Not sure which frame rate | See the table in section 2. |
-| Advanced tools | Turn on **Expert mode** (next to the tabs) to see Animation, VM map and VBR quality. |
+| “Tools missing” | Click it in the status bar and install; on Linux/macOS run the command shown. |
+| After updating, tools are reinstalled | Kinodisc 1.0 checks every tool file; copies from older versions are downloaded again once. |
+| “Does not fit” | Lower the quality, choose a bigger disc or produce several discs. |
+| A button cannot be moved there | Buttons need 4 px between them (a DVD/Blu-ray rule). |
+| Audio warning | The production log says which track was adjusted and why. |
 
-## 9. Expert mode
+## 10. Advanced tools
 
-Turn on **Expert mode** next to the tabs to see Animation (moving menus and
-thumbnails), the VM map (every jump the player can make) and VBR quality
-(bitrate per episode and disc budget).
-
-![VM map](screenshots/04-vm-flowchart.png)
-
-![VBR quality](screenshots/06-vbr-optimizer.png)
-
-## 10. Languages
-
-Change the interface language with the selector in the header. The default
-names Kinodisc puts on the disc (“Main menu”, “Next ›”…) follow the interface
-language.
+**View › Advanced tools** shows Animation (moving menus and thumbnails), VM map
+(every jump the player can make) and VBR quality (bitrate per episode).

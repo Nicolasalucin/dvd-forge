@@ -1,5 +1,86 @@
 # Changelog
 
+## 1.0.0 — 2026-11-17
+
+DVD Forge is now **Kinodisc**: a redesigned, professional interface, many
+discs at once, scene menus, photo slideshows, a disc inspector, real text on
+menus, faster DVD encoding and security hardening.
+
+### New name
+
+- The app, CLI (`kinodisc-cli`), crates (`kinodisc-*`) and repository
+  (`github.com/Nicolasalucin/kinodisc`; old links redirect) are now Kinodisc.
+- Upgrades keep working: the per-user folder `org.dvdforge.desktop`
+  (recent projects, history, render cache, tools) moves once to
+  `org.kinodisc.app`, `DVDFORGE_*`/`DVD_FORGE_*` environment variables are
+  still read, and `.dvdforge-bundle` packages still open (new ones are
+  `.kinodisc`).
+
+### Interface
+
+- Light and dark themes that follow the system (View › Theme to force one),
+  system font, no text under 11 px, own icon set, one design system for
+  every screen.
+- Native menu bar (File, Edit, View, Disc, Help) with recent files, theme,
+  language and shortcuts; toolbar; status bar with disc space and tools.
+- Undo/redo, unsaved-changes marker and prompt, crash-recovery autosave every
+  30 s; Save writes to the current file (Save as asks); drag and drop of
+  projects and media onto the window.
+- Welcome screen with one-click verified tool setup; a new project opens on
+  Videos with "Start by adding your videos"; templates explain they need
+  episodes; 16:9 and PAL/NTSC from the system region by default.
+- Menu editor: text objects, smart guides, right-click menu (duplicate,
+  delete, centre, front/back, align, distribute), templates in a drop-down.
+- Properties: font picker with live previews, size stepper, weight toggle,
+  colour fields with palette, recents and hex; button preview; clearer
+  action, thumbnail and D-pad navigation sections.
+- Media as a compact list with type filter and a row menu; sequence frames
+  reorder by drag and drop; trimmer filmstrip with dimmed cuts and chapter
+  marks; disc settings in one panel; About dialog with credits.
+
+### New features
+
+- **Disc folder** output (VIDEO_TS/BDMV), byte-identical to the ISO, in the
+  app and with `kinodisc-cli render --folder`.
+- **Several discs**: fill each disc or one disc per episode; template menus
+  are regenerated per disc and each root menu shows `N / M`
+  (`kinodisc-cli split`).
+- **Scene menus** generated from chapters (`kinodisc-cli scenes`).
+- **Photo slideshows** with cross-fades and music (`kinodisc-cli slideshow`).
+- **Disc inspector** for ISO and VIDEO_TS/BDMV folders, with import of
+  unencrypted titles as episodes (`kinodisc-cli inspect`).
+- **Blu-ray/AVCHD**: each episode has its own playlist and returns to the
+  menu (or continues) when it ends; chapter buttons play inside the episode.
+
+### Fixes
+
+- Menu items (template titles, text, images, shapes) were never drawn in the
+  editor nor burned on the disc.
+- Native Blu-ray muxer wrote a malformed chapter-mark table (wrong chapters
+  on every disc built without tsMuxeR); verifier check `BDMV-MARKS` added.
+- Preview: the menu was not visible inside the virtual TV.
+- Dialogs without `role="dialog"` let editor shortcuts act while typing.
+- Inspector parsers hardened against 32-bit offset overflow (seeded tests).
+
+### Performance
+
+- DVD episodes are encoded in parallel (a quarter of the cores, 1–3 jobs;
+  `KINODISC_ENCODE_JOBS`): 4 cold episodes 121 s → 73 s on a 12-core PC.
+- Start-up JavaScript 378 kB → 259 kB; first paint ≈ 130 ms.
+
+### Security
+
+- No tool lookup in the current folder; per-file SHA-256 of downloaded tools
+  checked before use, planted DLLs refused; absolute System32 `curl`/`tar`;
+  image-only IPC reads, folder-only "open folder"; CI actions pinned to
+  commit SHAs with least privilege; `SHA256SUMS.txt` in releases. Details in
+  `docs/security/2026-11-review.md`.
+
+### Credits
+
+Thanks to OhItsStefan, Infinite_Silver483, Narrow-Chard4152,
+Mirandopacuenca67 and Carllito7 for finding bugs and suggesting improvements.
+
 ## 0.9.0 — 2026-11-17
 
 DVD-Video now works on Windows with one-click tools, a disc queue in the

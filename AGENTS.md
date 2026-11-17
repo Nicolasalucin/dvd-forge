@@ -257,6 +257,39 @@ Smart Render Cache v2:
   (it becomes their containing block). Secondary screens and non-es/en
   locales are lazy; keep start-up JavaScript under 500 kB.
 
+### 16. Kinodisc 1.0 additions
+
+- **Upgrade compatibility** lives in `kinodisc-toolchain::legacy`: read
+  environment variables with `legacy::env_var("KINODISC_X")` (it falls back
+  to `DVDFORGE_X`/`DVD_FORGE_X`) and get the per-user folder from
+  `legacy::app_data_dir()` (migrates `org.dvdforge.desktop` once). Never read
+  `std::env::var("KINODISC_…")` directly.
+- **Tool trust**: provisioned tools carry per-file SHA-256 in their
+  provenance record; `provision::is_trusted_binary` refuses changed/unknown
+  files and planted libraries in the per-user tool folder. Tool search must
+  never include the current working directory.
+- **Design system**: `apps/desktop/src/theme.css` is generated (light/dark
+  remap of the slate/cyan/status palettes); components use the `ui-*` classes
+  in `app.css`. `slate-950` is the window background and `slate-50` the
+  strongest text in both themes; text over video or black overlays must be
+  `text-[#fff]` (`text-white` inverts in light mode). Dialogs need
+  `role="dialog" aria-modal="true"` (editor shortcuts rely on it).
+- **Menu items** (`menu.items`) are drawn by `editor/menuItems.ts` for the
+  disc export and by `layers/ItemsLayer.ts` in the editor; keep them in sync.
+  Generated ids starting with `tpl:` belong to templates/splits and may be
+  replaced.
+- **HDMV per-episode playback**: episode MovieObjects start at
+  `base + menus`, play their own range playlist from `EPISODE_MARK_GPR` (1)
+  and clear it before jumping. MPLS mark tables are 14 bytes per mark
+  (`BDMV-MARKS` verifies it).
+- **DVD episode encoding** runs `encode_concurrency()` jobs in parallel;
+  everything after encoding (cache publish, subtitle mux) stays in disc order.
+- New CLI commands share their modules with the app: `split`
+  (`kinodisc-render::split`), `scenes` (`kinodisc-menu::chapters`),
+  `slideshow` (`kinodisc-render::slideshow`), `inspect`
+  (`kinodisc-verify::inspect`, read-only parsers, bounds-checked) and
+  `render --folder` (`kinodisc-verify::extract`).
+
 ### 13. Localization
 
 - Spanish is the source language; English must stay complete. Run

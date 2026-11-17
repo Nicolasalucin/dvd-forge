@@ -423,6 +423,29 @@ class ProjectStore {
     const w = Math.round((menu.canvas.width * 0.6) / 2) * 2;
     const h = Math.round((56 * scale) / 2) * 2;
     const id = `text:${crypto.randomUUID()}`;
+    // First horizontal band (top to bottom) that touches no button or item.
+    const taken = [
+      ...menu.buttons.map((button) => button.rect),
+      ...menu.items.map((item) => item.rect),
+    ].map((rect) => ({ y: rect.y ?? 0, h: rect.h ?? 0 }));
+    // Free vertical gaps between what is already on the menu; the text
+    // takes the first gap that fits (shrinking to it if needed).
+    const margin = Math.round(menu.canvas.height * 0.06);
+    const blocks = taken
+      .map((rect) => [rect.y, rect.y + rect.h] as const)
+      .sort((a, b) => a[0] - b[0]);
+    let cursor = margin;
+    let y = Math.round((menu.canvas.height * 0.12) / 2) * 2;
+    let height = h;
+    for (const [top, bottom] of [...blocks, [menu.canvas.height - margin, menu.canvas.height] as const]) {
+      const gap = top - cursor - 8;
+      if (gap >= 28) {
+        height = Math.min(h, Math.floor(gap / 2) * 2);
+        y = Math.round((cursor + 4) / 2) * 2;
+        break;
+      }
+      cursor = Math.max(cursor, bottom);
+    }
     menu.items = [
       ...menu.items,
       {
@@ -431,12 +454,12 @@ class ProjectStore {
         text: t("Nuevo texto"),
         rect: {
           x: Math.round((menu.canvas.width - w) / 4) * 2,
-          y: Math.round((menu.canvas.height * 0.12) / 2) * 2,
+          y,
           w,
-          h,
+          h: height,
         },
         fontFamily: "Segoe UI",
-        fontSize: Math.round(36 * scale),
+        fontSize: Math.round(Math.min(36 * scale, height * 0.7)),
         color: "#ffffff",
         align: "center",
       },
