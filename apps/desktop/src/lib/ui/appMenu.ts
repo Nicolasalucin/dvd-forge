@@ -92,6 +92,7 @@ async function build(): Promise<void> {
       await separator(),
       await item("import", t("Importar medios…"), () => actions.importMedia(), shortcut("Ctrl+I"), hasProject),
       await item("slideshow", t("Presentación de fotos…"), () => (ui.slideshow = true), undefined, hasProject),
+      await item("join", t("Unir vídeos…"), () => (ui.join = true), undefined, hasProject),
       await item("inspect", t("Inspeccionar disco…"), () => (ui.inspector = true), undefined, hasProject),
       await separator(),
       await item("quit", t("Salir"), () => getCurrentWindow().close(), shortcut("Ctrl+Q")),

@@ -56,6 +56,11 @@ export const commands = {
 	/**  Builds (or reuses) a photo slideshow video in the per-user cache. */
 	slideshowCreate: (request: SlideshowRequest_Deserialize) => typedError<SlideshowOutcome, string>(__TAURI_INVOKE("slideshow_create", { request })),
 	/**
+	 *  Joins several clips into one video (cached), for one episode with a
+	 *  chapter at every clip.
+	 */
+	joinCreate: (request: JoinRequest) => typedError<JoinOutcome, string>(__TAURI_INVOKE("join_create", { request })),
+	/**
 	 *  Extrae un fotograma exacto con FFmpeg. Sin `output_png` el fichero se
 	 *  escribe en el directorio temporal de Kinodisc y se devuelve su ruta.
 	 *  What is on a DVD/Blu-ray image or folder (read-only).
@@ -915,6 +920,22 @@ export type JobHistoryEntry_Serialize = {
 export type JobId = string;
 
 export type JobStage = "probe" | "plan" | "encodeIntro" | "encodeMenus" | "encodeEpisodes" | "author" | "iso" | "verify" | "burn";
+
+export type JoinOutcome = {
+	path: string,
+	durationMs: number | null,
+	/**  Where each clip starts in the joined video (first is 0). */
+	clipStartsMs: (number | null)[],
+	cached: boolean,
+};
+
+export type JoinRequest = {
+	clips: string[],
+	/**  `true` for a 16:9 frame (1920x1080), `false` for 4:3 (1440x1080). */
+	widescreen: boolean,
+	/**  Frames per second of the joined video (the disc's rate). */
+	fps: number | null,
+};
 
 export type LayerBreakMode = "ptp" | "otp";
 

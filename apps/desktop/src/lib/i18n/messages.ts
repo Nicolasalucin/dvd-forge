@@ -1038,6 +1038,15 @@ export const es: Dictionary = {
   "Con ajustes de imagen el vídeo se recodifica (no se copia).": "Con ajustes de imagen el vídeo se recodifica (no se copia).",
   "No se encontraron bordes negros.": "No se encontraron bordes negros.",
   "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.": "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.",
+  "Unir vídeos": "Unir vídeos",
+  "Unir vídeos…": "Unir vídeos…",
+  "Varios vídeos se convierten en un solo episodio, con un capítulo al principio de cada uno.": "Varios vídeos se convierten en un solo episodio, con un capítulo al principio de cada uno.",
+  "Vídeos unidos": "Vídeos unidos",
+  "{count} vídeos, en este orden": "{count} vídeos, en este orden",
+  "Añadir vídeos…": "Añadir vídeos…",
+  "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.",
+  "Uniendo…": "Uniendo…",
+  "Unir y añadir": "Unir y añadir",
 };
 
 export const en: Dictionary = {
@@ -2161,4 +2170,13 @@ export const en: Dictionary = {
   "Con ajustes de imagen el vídeo se recodifica (no se copia).": "With picture adjustments the video is re-encoded (not copied).",
   "No se encontraron bordes negros.": "No black borders found.",
   "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.": "It has picture adjustments (rotate, crop, colour…); it is re-encoded.",
+  "Unir vídeos": "Join videos",
+  "Unir vídeos…": "Join videos…",
+  "Varios vídeos se convierten en un solo episodio, con un capítulo al principio de cada uno.": "Several videos become one episode, with a chapter at the start of each.",
+  "Vídeos unidos": "Joined videos",
+  "{count} vídeos, en este orden": "{count} videos, in this order",
+  "Añadir vídeos…": "Add videos…",
+  "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "For example, the parts of a recording or the phone videos of one day.",
+  "Uniendo…": "Joining…",
+  "Unir y añadir": "Join and add",
 };

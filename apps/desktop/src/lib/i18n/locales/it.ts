@@ -1188,6 +1188,15 @@ export const it: Dictionary = {
   "Con ajustes de imagen el vídeo se recodifica (no se copia).": "Con regolazioni dell'immagine il video viene ricodificato (non copiato).",
   "No se encontraron bordes negros.": "Nessun bordo nero trovato.",
   "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.": "Ha regolazioni dell'immagine (rotazione, ritaglio, colore…); viene ricodificato.",
+  "Unir vídeos": "Unisci video",
+  "Unir vídeos…": "Unisci video…",
+  "Varios vídeos se convierten en un solo episodio, con un capítulo al principio de cada uno.": "Più video diventano un solo episodio, con un capitolo all'inizio di ciascuno.",
+  "Vídeos unidos": "Video uniti",
+  "{count} vídeos, en este orden": "{count} video, in quest'ordine",
+  "Añadir vídeos…": "Aggiungi video…",
+  "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "Per esempio, le parti di una ripresa o i video del telefono di uno stesso giorno.",
+  "Uniendo…": "Unione…",
+  "Unir y añadir": "Unisci e aggiungi",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {

@@ -815,6 +815,19 @@ pub async fn slideshow_create(
     kinodisc_render::slideshow::build_slideshow(&request, &cache).await
 }
 
+/// Joins several clips into one video (cached), for one episode with a
+/// chapter at every clip.
+#[tauri::command]
+#[specta::specta]
+pub async fn join_create(
+    request: kinodisc_render::join::JoinRequest,
+) -> Result<kinodisc_render::join::JoinOutcome, String> {
+    let cache = kinodisc_toolchain::legacy::app_data_dir()
+        .ok_or_else(|| "No se encontró la carpeta de datos del usuario.".to_string())?
+        .join("joins");
+    kinodisc_render::join::build_join(&request, &cache).await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn media_extract_frame(

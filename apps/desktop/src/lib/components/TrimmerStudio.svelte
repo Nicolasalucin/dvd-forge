@@ -468,6 +468,9 @@
             <button type="button" class="ui-btn" onclick={() => (ui.slideshow = true)}>
               <Icon name="photo" size={15} />{t("Presentación de fotos")}
             </button>
+            <button type="button" class="ui-btn" onclick={() => (ui.join = true)}>
+              <Icon name="film" size={15} />{t("Unir vídeos…")}
+            </button>
           </div>
           <p class="ui-hint mt-3">{t("También puedes arrastrar los archivos a esta ventana.")}</p>
         </div>

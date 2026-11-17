@@ -1188,6 +1188,15 @@ export const ja: Dictionary = {
   "Con ajustes de imagen el vídeo se recodifica (no se copia).": "映像を調整すると再エンコードされます（コピーされません）。",
   "No se encontraron bordes negros.": "黒い縁は見つかりませんでした。",
   "Tiene ajustes de imagen (girar, recortar, color…); se recodifica.": "映像の調整（回転・トリミング・色など）があるため再エンコードします。",
+  "Unir vídeos": "動画を結合",
+  "Unir vídeos…": "動画を結合…",
+  "Varios vídeos se convierten en un solo episodio, con un capítulo al principio de cada uno.": "複数の動画を1つのエピソードにし、それぞれの先頭にチャプターを付けます。",
+  "Vídeos unidos": "結合した動画",
+  "{count} vídeos, en este orden": "{count}本の動画（この順番）",
+  "Añadir vídeos…": "動画を追加…",
+  "Por ejemplo, las partes de una filmación o los vídeos del celular de un mismo día.": "例：1回の撮影の分割ファイルや、同じ日のスマホ動画。",
+  "Uniendo…": "結合中…",
+  "Unir y añadir": "結合して追加",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {

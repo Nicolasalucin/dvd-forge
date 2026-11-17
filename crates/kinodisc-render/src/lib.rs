@@ -1,6 +1,7 @@
 //! Reusable end-to-end DVD-Video render pipeline shared by the CLI and Tauri.
 
 pub mod compose;
+pub mod join;
 pub mod picture;
 pub mod slideshow;
 pub mod split;

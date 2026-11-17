@@ -20,6 +20,7 @@ class UiState {
   doctor = $state(false);
   inspector = $state(false);
   slideshow = $state(false);
+  join = $state(false);
   history = $state(false);
   recent = $state(false);
   notice = $state<string | null>(null);

@@ -928,6 +928,7 @@ class ProjectStore {
       await this.importMedia([outcome.path]);
       const asset = project.assets.find((item) => this.assetPath(item) === outcome.path);
       if (!asset) return false;
+      this.nameGeneratedAsset(outcome.path, options.title);
       const episode = this.episodeForAsset(asset.id) ?? this.addEpisodeFromAsset(asset.id);
       if (episode) {
         episode.title = options.title;
@@ -935,6 +936,45 @@ class ProjectStore {
         this.touch();
       }
       return Boolean(episode);
+    } catch (cause) {
+      this.error = messageOf(cause);
+      return false;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Generated videos (slideshows, joins) live in the cache under a hash
+   *  name: show the episode title in Media instead. */
+  private nameGeneratedAsset(path: string, title: string): void {
+    const asset = this.project?.assets.find((item) => this.assetPath(item) === path);
+    if (!asset) return;
+    asset.displayName = `${title.replace(/[\\/:*?"<>|]/g, "_")}.mp4`;
+    this.touch();
+  }
+
+  /** Joins clips into one video and adds it as an episode with a chapter
+   *  at the start of every clip. */
+  async createJoin(clips: string[], title: string): Promise<boolean> {
+    const project = this.project;
+    if (!project) return false;
+    this.busy = true;
+    this.error = null;
+    try {
+      const outcome = await unwrap(
+        commands.joinCreate({
+          clips,
+          widescreen: project.disc.aspect === "sixteenNine",
+          fps: this.frameRate,
+        }),
+      );
+      if (this.project !== project) return false;
+      this.busy = false;
+      const added = await this.addImportedTitles([
+        { path: outcome.path, title, chapterStartsMs: outcome.clipStartsMs },
+      ]);
+      this.nameGeneratedAsset(outcome.path, title);
+      return added > 0;
     } catch (cause) {
       this.error = messageOf(cause);
       return false;
