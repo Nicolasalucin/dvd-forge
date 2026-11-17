@@ -17,7 +17,7 @@ permissions:
 
 env:
   DVDAUTHOR_TAG: "0.7.2"
-  DVDAUTHOR_COMMIT: "e0e0d410ac"
+  DVDAUTHOR_SHA256: "fd66b92f6c67bd406030ff0f1c3233175768b534df4d341c3f380ecd61de91b5"
 
 jobs:
   build:
@@ -31,8 +31,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git zip autotools gettext-devel
-            mingw-w64-ucrt-x86_64-gettext-tools
+            git zip
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-pkgconf
@@ -44,27 +43,19 @@ jobs:
 
       - name: Fetch pinned sources
         run: |
-          git clone --branch "$DVDAUTHOR_TAG" --depth 1 https://github.com/ldo/dvdauthor.git src
-          cd src
-          actual=$(git rev-parse HEAD)
-          echo "commit $actual"
-          case "$actual" in
-            "$DVDAUTHOR_COMMIT"*) ;;
-            *) echo "unexpected commit for tag $DVDAUTHOR_TAG"; exit 1 ;;
-          esac
+          # Official 0.7.2 release tarball (ships a generated configure),
+          # archived by Debian; SHA-256 from dvdauthor_0.7.2-2.dsc.
+          curl -fsSL -o dvdauthor.tar.gz "https://deb.debian.org/debian/pool/main/d/dvdauthor/dvdauthor_0.7.2.orig.tar.gz"
+          echo "$DVDAUTHOR_SHA256  dvdauthor.tar.gz" | sha256sum -c -
+          mkdir src
+          tar -xzf dvdauthor.tar.gz -C src --strip-components=1
+          ls src | head -30
 
       - name: Build
         run: |
-          # aclocal from MSYS must also see the UCRT64 macros (libxml.m4…).
-          export ACLOCAL_PATH="/ucrt64/share/aclocal:/usr/share/aclocal"
           cd src
-          # Same steps as upstream ./bootstrap, but -f lets autopoint replace
-          # the copied config.rpath with its own matching version.
-          mkdir -p autotools m4
-          cp /usr/share/gettext/config.rpath autotools/
-          autoreconf -fi
-          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || ./configure --prefix="$PWD/../stage"
-          make -j4
+          ./configure --prefix="$PWD/../stage" --disable-dvdunauthor || { cat config.log | tail -60; exit 1; }
+          make -j4 || make
           make install
 
       - name: Collect executables and DLLs
@@ -82,7 +73,7 @@ jobs:
               done
             done
           done
-          cp src/COPYING dist/COPYING.dvdauthor.txt
+          cp src/COPYING dist/COPYING.dvdauthor.txt 2>/dev/null || true
           printf 'dvdauthor %s (commit %s) built by GitHub Actions run %s\nSource: https://github.com/ldo/dvdauthor\nLicense: GPL-2.0-or-later\n' \
             "$DVDAUTHOR_TAG" "$DVDAUTHOR_COMMIT" "$GITHUB_RUN_ID" > dist/README.txt
           ls -la dist
@@ -118,5 +109,5 @@ jobs:
           tag="tools-dvdauthor-$DVDAUTHOR_TAG"
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" \
             --prerelease --title "Tools: DVDAuthor $DVDAUTHOR_TAG for Windows" \
-            --notes "dvdauthor $DVDAUTHOR_TAG (commit $DVDAUTHOR_COMMIT) built from https://github.com/ldo/dvdauthor by the 'Build DVDAuthor for Windows' workflow. Used by DVD Forge's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
+            --notes "dvdauthor $DVDAUTHOR_TAG (official release tarball, SHA-256 $DVDAUTHOR_SHA256) built by the 'Build DVDAuthor for Windows' workflow. Used by DVD Forge's one-click installer, which verifies the SHA-256 below. License: GPL-2.0-or-later."
           gh release upload "$tag" dvdauthor-*-windows-x86_64.zip dvdauthor-*-windows-x86_64.zip.sha256 --clobber
