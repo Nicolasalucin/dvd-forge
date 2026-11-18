@@ -466,7 +466,7 @@
   {#if localError || notice}
     <!-- Floats over the content so showing or hiding it never moves the layout. -->
     <div
-      class={`absolute right-3 top-11 z-30 flex max-w-[min(32rem,calc(100%-1.5rem))] items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] shadow-lg ${
+      class={`absolute left-5 top-12 z-30 flex max-w-[min(32rem,calc(100%-1.5rem))] items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] shadow-lg ${
         localError
           ? "border-rose-500/40 bg-slate-950 text-rose-200"
           : "border-emerald-500/40 bg-slate-950 text-emerald-200"

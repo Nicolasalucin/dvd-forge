@@ -27,27 +27,31 @@
     { id: "star", label: "Estrella" },
   ];
 
-  /**
-   * CSS that clips a preview to the button's shape mask, using the same
-   * geometry as the exported menu (ellipse, 16 px corners, 5-point star).
-   */
-  function maskStyle(button: MenuButton_Serialize | null | undefined): string {
-    const mask = button?.shapeMask ?? "rectangle";
-    if (mask === "roundedRect") return "border-radius: 16px;";
-    if (mask === "circle") return "clip-path: ellipse(50% 50% at 50% 50%);";
-    if (mask !== "star") return "border-radius: 0;";
-    const width = Math.max(1, button?.rect.w ?? 1);
-    const height = Math.max(1, button?.rect.h ?? 1);
-    const outer = Math.min(width, height) / 2;
+  // The exported star: 5 points, inner radius 45 % of the outer one. In a
+  // square box these percentages draw it regular.
+  const STAR_CLIP = (() => {
     const points: string[] = [];
     for (let point = 0; point < 10; point += 1) {
       const angle = -Math.PI / 2 + (point * Math.PI) / 5;
-      const radius = point % 2 === 0 ? outer : outer * 0.45;
-      const x = 50 + ((Math.cos(angle) * radius) / width) * 100;
-      const y = 50 + ((Math.sin(angle) * radius) / height) * 100;
+      const radius = point % 2 === 0 ? 50 : 22.5;
+      const x = 50 + Math.cos(angle) * radius;
+      const y = 50 + Math.sin(angle) * radius;
       points.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`);
     }
     return `clip-path: polygon(${points.join(", ")});`;
+  })();
+
+  /**
+   * CSS that clips a preview to the button's shape mask like the exported
+   * menu (ellipse, 16 px corners, 5-point star). The star needs a square box
+   * (`square`: the side) or it would be stretched to the picture's shape.
+   */
+  function maskStyle(button: MenuButton_Serialize | null | undefined, square: string): string {
+    const mask = button?.shapeMask ?? "rectangle";
+    if (mask === "roundedRect") return "border-radius: 16px;";
+    if (mask === "circle") return "clip-path: ellipse(50% 50% at 50% 50%);";
+    if (mask === "star") return `${STAR_CLIP} width: ${square}; height: ${square}; object-fit: cover;`;
+    return "border-radius: 0;";
   }
 
   function maskLabel(mask: ButtonShapeMask | null | undefined): string {
@@ -169,8 +173,13 @@
           <div class="absolute inset-0 bg-black/60"></div>
           {#if previewUrl}
             <div class="relative z-10 flex max-w-[72%] flex-col items-center gap-2">
-              <div class="relative overflow-hidden shadow-xl" style={maskStyle(selectedButton)}>
-                <img src={previewUrl} alt="" class="max-h-[150px] w-auto object-contain" />
+              <div class="relative">
+                <img
+                  src={previewUrl}
+                  alt=""
+                  class="max-h-[150px] w-auto object-contain"
+                  style={maskStyle(selectedButton, "150px")}
+                />
                 {#if buttonMotion}
                   <div class="absolute inset-0 animate-pulse border-2 border-cyan-300/50"></div>
                   <span class="absolute bottom-1 left-1 rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200">
@@ -255,7 +264,7 @@
                       src={projectStore.previewForAsset(button.thumbnail.asset) ?? ""}
                       alt=""
                       class="h-10 w-16 rounded object-cover"
-                      style={maskStyle(button)}
+                      style={maskStyle(button, "2.5rem")}
                     />
                   {:else}
                     <div class="flex h-10 w-16 items-center justify-center rounded bg-slate-900 text-[11px] text-slate-600">
