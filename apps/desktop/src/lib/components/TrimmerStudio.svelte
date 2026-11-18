@@ -230,7 +230,7 @@
   function setStart(ms: number) {
     if (!episode) return;
     if (!projectStore.setEpisodeTrimStart(episode.id, ms)) {
-      localError = projectStore.error;
+      showStoreError();
     } else {
       localError = null;
       notice = t("Inicio en {time}.", { time: formatMs(ms) });
@@ -240,7 +240,7 @@
   function setEnd(ms: number) {
     if (!episode) return;
     if (!projectStore.setEpisodeTrimEnd(episode.id, ms)) {
-      localError = projectStore.error;
+      showStoreError();
     } else {
       localError = null;
       notice = t("Fin en {time}.", { time: formatMs(ms) });
@@ -250,6 +250,7 @@
   function resetTrim() {
     if (!episode) return;
     projectStore.resetEpisodeTrim(episode.id);
+    localError = null;
     notice = t("Recorte restablecido.");
   }
 
@@ -297,6 +298,7 @@
     try {
       const count = await projectStore.sceneChapters(episode.id);
       if (count !== null) notice = t("{count} capítulos en los cambios de escena.", { count });
+      else if (projectStore.error) showStoreError();
     } finally {
       detectingScenes = false;
     }
@@ -339,6 +341,27 @@
       localError = messageOf(cause);
     }
   }
+
+  /**
+   * Shows the store's last error in this panel's banner instead of the
+   * header, so one mistake leaves one message that the next success clears.
+   */
+  function showStoreError() {
+    localError = projectStore.error;
+    notice = null;
+    projectStore.error = null;
+  }
+
+  // Success messages fade on their own; errors stay until the next success
+  // or until closed.
+  $effect(() => {
+    if (!notice || localError) return;
+    const shown = notice;
+    const timer = setTimeout(() => {
+      if (notice === shown) notice = null;
+    }, 4000);
+    return () => clearTimeout(timer);
+  });
 
   function formatMs(ms: number): string {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -413,7 +436,7 @@
   }
 </script>
 
-<section class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
+<section class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
   <div class="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-3 py-1">
     <div class="flex min-w-0 items-center gap-2">
       <span class="ui-section-title">{t("Edición")}</span>
@@ -441,14 +464,27 @@
   </div>
 
   {#if localError || notice}
+    <!-- Floats over the content so showing or hiding it never moves the layout. -->
     <div
-      class={`mx-3 mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${
+      class={`absolute right-3 top-11 z-30 flex max-w-[min(32rem,calc(100%-1.5rem))] items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] shadow-lg ${
         localError
-          ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
-          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+          ? "border-rose-500/40 bg-slate-950 text-rose-200"
+          : "border-emerald-500/40 bg-slate-950 text-emerald-200"
       }`}
+      role={localError ? "alert" : "status"}
     >
-      {localError ?? notice}
+      <span class="min-w-0 flex-1">{localError ?? notice}</span>
+      <button
+        type="button"
+        class="shrink-0 opacity-70 hover:opacity-100"
+        onclick={() => {
+          localError = null;
+          notice = null;
+        }}
+        aria-label={t("Cerrar")}
+      >
+        <Icon name="close" size={14} />
+      </button>
     </div>
   {/if}
 

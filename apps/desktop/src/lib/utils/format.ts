@@ -31,3 +31,21 @@ export function basename(path: string): string {
 export function isAbsolutePath(path: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(path) || /^[\\/]{2}[^\\/]/.test(path) || path.startsWith("/");
 }
+
+/**
+ * Windows paths typed with `/` (`C:/Discs`) use `\` throughout, so messages
+ * never show `C:/Discs\disc.iso`. Unix paths are returned unchanged.
+ */
+export function nativePath(path: string): string {
+  return /^([A-Za-z]:|[\\/]{2}[^\\/])/.test(path) ? path.replace(/\//g, "\\") : path;
+}
+
+/**
+ * Reads a decimal typed with either `.` or `,`. Number fields are plain text
+ * because the WebView formats `type="number"` with the system's separator,
+ * not the app's language. Returns NaN when it is not a number.
+ */
+export function parseDecimal(value: string): number {
+  const text = value.trim().replace(",", ".");
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(text) ? Number(text) : Number.NaN;
+}

@@ -18,6 +18,15 @@
   const planSignature = $derived(projectStore.planSignature);
   const project = $derived(projectStore.project);
   const isAvchd = $derived(project?.disc.mode === "avchd");
+  const isBluRayCapacity = $derived(
+    project?.disc.capacity === "bd25" || project?.disc.capacity === "bd50",
+  );
+
+  function setFormat(mode: "dvdVideo" | "avchd") {
+    // DVD-Video only fits DVD capacities.
+    if (mode === "dvdVideo" && isBluRayCapacity) projectStore.setDiscCapacity("dvd5");
+    projectStore.setDiscMode(mode);
+  }
   const hasEpisodes = $derived((project?.episodes.length ?? 0) > 0);
 
   // The bitrate plan follows every edit, a moment after typing stops.
@@ -186,14 +195,13 @@
           >
             <p class="ui-title">{t("Ajustes del disco")}</p>
             <div class="disc-fields grid gap-2">
-        {#if project.disc.capacity === "dvd5" || project.disc.capacity === "dvd9"}
-          <span class="ui-label mb-0">{t("Formato")}</span>
+        <!-- Always shown: from a Blu-ray capacity, choosing DVD-Video goes back to a DVD-5. -->
+        <span class="ui-label mb-0">{t("Formato")}</span>
 <select class="ui-input" value={project.disc.mode} title={t("Formato de autoría")}
-            onchange={(event) => projectStore.setDiscMode(event.currentTarget.value as "dvdVideo" | "avchd")}>
-            <option value="dvdVideo">{t("DVD-Video")}</option>
-            <option value="avchd">{t("AVCHD")}</option>
-          </select>
-        {/if}
+          onchange={(event) => setFormat(event.currentTarget.value as "dvdVideo" | "avchd")}>
+          <option value="dvdVideo">{t("DVD-Video")}</option>
+          <option value="avchd">{isBluRayCapacity ? t("Blu-ray/AVCHD HD") : t("AVCHD")}</option>
+        </select>
         <span class="ui-label mb-0">{t("Capacidad")}</span>
 <select class="ui-input" value={project.disc.capacity} title={t("Capacidad del disco")}
           onchange={(event) => projectStore.setDiscCapacity(event.currentTarget.value as "dvd5" | "dvd9" | "bd25" | "bd50")}>

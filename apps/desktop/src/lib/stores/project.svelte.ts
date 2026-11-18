@@ -213,6 +213,16 @@ function optionalRef(value: unknown, valid: Set<string>): string | null {
 }
 
 /**
+ * Index of the one track that should be the default: the first one the
+ * source flags as default, else the first track (`fallback`), else none.
+ */
+function singleDefaultIndex(flags: boolean[], fallback: boolean): number {
+  const flagged = flags.indexOf(true);
+  if (flagged >= 0) return flagged;
+  return fallback && flags.length > 0 ? 0 : -1;
+}
+
+/**
  * Repairs projects produced by older builds or by partially edited UI state.
  * Required IDs are regenerated and dangling optional references become null,
  * so a single stale field can never abort a Tauri command.
@@ -246,6 +256,14 @@ function normalizeProject(project: Project_Serialize): void {
       if (track.sourcePath !== null && !track.sourcePath.trim()) track.sourcePath = null;
       track.language = normalizeLanguageCode(track.language);
     }
+    // Older builds could mark several tracks as the default; keep the first.
+    const audioDefault = singleDefaultIndex(episode.audio.map((track) => track.default), true);
+    episode.audio.forEach((track, index) => (track.default = index === audioDefault));
+    const subtitleDefault = singleDefaultIndex(
+      episode.subtitles.map((track) => track.isDefault),
+      false,
+    );
+    episode.subtitles.forEach((track, index) => (track.isDefault = index === subtitleDefault));
   }
   const episodeIds = new Set(project.episodes.map((episode) => episode.id));
   const firstEpisode = project.episodes[0]?.id ?? null;
@@ -1287,18 +1305,25 @@ class ProjectStore {
         ac3Kbps: 192,
         delayMs: 0,
         format: stream.channels >= 6 ? "ac3Surround51" : "ac3Stereo",
-        default: stream.default || index === 0,
+        // The default audio is always the first track (the disc plays it first);
+        // the source flags only decide the subtitle default.
+        default: index === 0,
         commentary: stream.commentary,
         mastering: { loudness: null, channelMode: "source", codec: null, passthrough: false },
       })),
-      subtitles: (asset.probe.subtitleTracks ?? []).map((stream, index) => ({
+      subtitles: (asset.probe.subtitleTracks ?? []).map((stream, index, streams) => ({
         sourceStream: stream.index,
         sourcePath: null,
         language: stream.language ?? "und",
         label: stream.title?.trim() || t("Subtítulo {number}", { number: index + 1 }),
         delayMs: 0,
         isForced: stream.forced,
-        isDefault: stream.default,
+        isDefault:
+          index ===
+          singleDefaultIndex(
+            streams.map((item) => item.default),
+            false,
+          ),
         bitmap: stream.bitmap,
         style: defaultSubtitleStyle(),
       })),
@@ -2602,8 +2627,9 @@ class ProjectStore {
           this.rescaleMenu(menu, canvasForProject(project));
         }
       }
+      // The current tab stays: switching format from VBR quality, say, must
+      // not jump to the menu editor.
       this.selectedMenuId = project.menus[0]?.id ?? null;
-      this.studioMode = project.menus.length > 0 ? "menu" : "trim";
     } else {
       project.disc.mode = "dvdVideo";
       project.disc.video = {
@@ -2626,7 +2652,6 @@ class ProjectStore {
         }
       }
       this.selectedMenuId = project.menus[0]?.id ?? null;
-      this.studioMode = "menu";
     }
     this.touch();
     this.plan = null;

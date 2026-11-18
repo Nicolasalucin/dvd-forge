@@ -115,6 +115,12 @@
     return episodes.find((episode) => episode.id === episodeId)?.encodingPriority ?? "medium";
   }
 
+  // Notes (`info`) restate what the episode table already shows, such as
+  // the per-episode kbps after the DVD mux cap; only real warnings are listed.
+  const planWarnings = $derived(
+    (plan?.warnings ?? []).filter((warning) => warning.severity !== "info"),
+  );
+
   function warningClass(severity: string): string {
     if (severity === "error") return "border-rose-500/30 bg-rose-500/10 text-rose-200";
     if (severity === "warning") return "border-amber-500/25 bg-amber-500/5 text-amber-100";
@@ -298,13 +304,13 @@
       <div class="rounded-lg border border-slate-800 p-3">
         <h2 class="ui-section-title">{t("Diagnósticos")}</h2>
         <div class="mt-2 space-y-1.5">
-          {#each plan?.warnings ?? [] as warning (warning.code + warning.message)}
+          {#each planWarnings as warning (warning.code + warning.message)}
             <div class={`rounded-lg border px-2 py-1.5 text-[12px] leading-5 ${warningClass(warning.severity)}`}>
               <span class="font-mono text-[11px] opacity-70">{warning.code}</span>
               <span class="ml-1">{localizeDiagnostic(warning)}</span>
             </div>
           {/each}
-          {#if !plan || plan.warnings.length === 0}
+          {#if planWarnings.length === 0}
             <p class="rounded-lg border border-dashed border-slate-800 px-2 py-3 text-center text-[11px] text-slate-500">
               {t("Sin advertencias del planificador.")}
             </p>

@@ -1381,7 +1381,7 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   W_CHAPTER_OUT_OF_RANGE: "Un capitolo è fuori dall'intervallo tagliato dell'episodio.",
   W_D1_FORCED_LOW: "Il D1 completo è forzato, ma il bitrate calcolato è molto basso.",
   W_DEFAULT_FOCUS_INVALID: "Il pulsante selezionato all'inizio manca o è disattivato; si usa il primo pulsante.",
-  W_EPISODE_BITRATE_CAP: "Un episodio è limitato al bitrate massimo del DVD insieme alle sue tracce audio.",
+  I_EPISODE_BITRATE_CAP: "Un episodio è limitato al bitrate massimo del DVD insieme alle sue tracce audio.",
   W_EXTERNAL_AUDIO: "Un episodio usa audio esterno; si usa l'audio del video.",
   W_GRID_ZERO: "La dimensione della griglia è zero.",
   W_HALF_D1_AUTO: "Half-D1 è stato attivato automaticamente per la lunga durata.",

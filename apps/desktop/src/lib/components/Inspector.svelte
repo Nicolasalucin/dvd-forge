@@ -13,7 +13,7 @@
   import { normalizeRect } from "../editor/exportMenu";
   import { commands } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
-  import { basename, formatBytes, formatDuration } from "../utils/format";
+  import { basename, formatBytes, formatDuration, parseDecimal } from "../utils/format";
 
   let localError = $state<string | null>(null);
 
@@ -250,8 +250,8 @@
 
   function setTrim(field: "start" | "end", value: string) {
     if (!episode) return;
-    const ms = value.trim() === "" ? null : Math.round(Number(value) * 1000);
-    if (ms !== null && !Number.isFinite(ms)) return;
+    const ms = value.trim() === "" ? null : Math.round(parseDecimal(value) * 1000);
+    if (ms !== null && (!Number.isFinite(ms) || ms < 0)) return;
     const accepted =
       field === "start"
         ? projectStore.setEpisodeTrimStart(episode.id, ms)
@@ -280,8 +280,8 @@
 
   function setThumbnailTime(value: string) {
     if (!episode) return;
-    const ms = value.trim() === "" ? null : Math.round(Number(value) * 1000);
-    if (ms !== null && !Number.isFinite(ms)) return;
+    const ms = value.trim() === "" ? null : Math.round(parseDecimal(value) * 1000);
+    if (ms !== null && (!Number.isFinite(ms) || ms < 0)) return;
     projectStore.updateEpisode(episode.id, { thumbnailTimeMs: ms });
   }
 
@@ -856,9 +856,8 @@
             <label class="ui-label">
               <span class="ui-label">{t("Inicio (s)")}</span>
               <input
-                type="number"
-                min="0"
-                step="0.1"
+                type="text"
+                inputmode="decimal"
                 class="ui-input ui-input-sm w-full font-mono"
                 value={episode.trimStartMs === null ? "" : (episode.trimStartMs / 1000).toFixed(1)}
                 placeholder="0.0"
@@ -868,9 +867,8 @@
             <label class="ui-label">
               <span class="ui-label">{t("Fin (s)")}</span>
               <input
-                type="number"
-                min="0"
-                step="0.1"
+                type="text"
+                inputmode="decimal"
                 class="ui-input ui-input-sm w-full font-mono"
                 value={episode.trimEndMs === null ? "" : (episode.trimEndMs / 1000).toFixed(1)}
                 placeholder={t("fin del vídeo")}
@@ -978,9 +976,8 @@
             <label class="mt-1.5 block">
               <span class="ui-label">{t("Tiempo del fotograma (s)")}</span>
               <input
-                type="number"
-                min="0"
-                step="0.1"
+                type="text"
+                inputmode="decimal"
                 class="ui-input ui-input-sm w-full font-mono"
                 value={episode.thumbnailTimeMs === null ? "" : (episode.thumbnailTimeMs / 1000).toFixed(1)}
                 placeholder={t("automático")}
@@ -1234,7 +1231,7 @@
                 </div>
                 <div class="flex justify-between gap-2">
                   <dt class="text-slate-500">{t("Advertencias")}</dt>
-                  <dd class="text-slate-300">{projectStore.plan.warnings.length}</dd>
+                  <dd class="text-slate-300">{projectStore.plan.warnings.filter((warning) => warning.severity !== "info").length}</dd>
                 </div>
               </dl>
             {:else}

@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.1.2 — 2026-11-18
+
+Fixes reported while recording the promo videos.
+
+### Fixed
+
+- **One default audio track**: a video with two audio tracks flagged as
+  default (eng + spa, for example) no longer makes both tracks "Default". The
+  first track is the default audio, and only one subtitle track can be the
+  default. Older projects are repaired when opened.
+- **Photo slideshows keep stream copy**: the slideshow video was full-range
+  `yuvj420p` (straight from the JPEGs), so the Videos tab warned "The colour
+  format is not yuv420p" and the disc re-encoded it. Slideshows and joined
+  videos are now limited-range `yuv420p`.
+- **The animated menu preview shows the shape mask**: Rectangle, Rounded
+  corners, Circle and Star now change the preview (and the button list
+  thumbnails) the way the exported menu draws them.
+- **Trimmer messages no longer pile up or move the layout**: an error such as
+  "The trim end must be at least 0.5 s after the start" is shown once, in the
+  trimmer, and clears with the next action that works. Messages float over
+  the page and success messages fade after a few seconds.
+- **No alarming bitrate figures on short projects**: when the content is too
+  short to fill the disc, the VBR panel shows only that (`W_UNDERFILL`), not
+  "411998 kbps exceeds the maximum". The per-episode DVD mux limit is now a
+  note (`I_EPISODE_BITRATE_CAP`) instead of a warning, since the episode
+  table already shows each episode's bitrate.
+- **Disc settings always show Format**: on BD-25/BD-50 the Format field used
+  to disappear, so you could not go back to DVD-Video from there. Choosing
+  DVD-Video on a Blu-ray capacity now switches to a DVD-5. Changing the
+  format no longer jumps to the Menu tab.
+- **Paths use one kind of separator**: an output folder typed as `C:/Discs`
+  no longer gives "C:/Discs\disc.iso".
+- **Decimals follow the app, not Windows**: trim start/end, the thumbnail
+  time and the slideshow fields showed "6,0" in English on a Spanish system.
+  They show "6.0" and accept either "6.0" or "6,0".
+
 ## 1.1.1 — 2026-11-18
 
 A real app icon and a round of polish found while recording the promo video.

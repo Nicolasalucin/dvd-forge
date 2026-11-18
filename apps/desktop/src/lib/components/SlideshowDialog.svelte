@@ -2,12 +2,20 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { t } from "../i18n/index.svelte";
   import { projectStore } from "../stores/project.svelte";
-  import { basename } from "../utils/format";
+  import { basename, parseDecimal } from "../utils/format";
 
   let { onclose }: { onclose: () => void } = $props();
 
   let images = $state<string[]>([]);
   let music = $state<string | null>(null);
+  /** Reads a decimal field (`.` or `,`), clamped; a bad entry keeps `current`. */
+  function decimalIn(input: HTMLInputElement, current: number, min: number, max: number): number {
+    const value = parseDecimal(input.value);
+    const next = Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : current;
+    input.value = String(next);
+    return next;
+  }
+
   let seconds = $state(5);
   let fade = $state(1);
   let title = $state(t("Presentación de fotos"));
@@ -131,12 +139,14 @@
       <div class="grid grid-cols-2 gap-3">
         <label class="flex flex-col gap-1">
           <span class="text-xs text-slate-400">{t("Segundos por foto")}</span>
-          <input type="number" min="1" max="60" step="0.5" bind:value={seconds}
+          <input type="text" inputmode="decimal" value={String(seconds)}
+            onchange={(event) => (seconds = decimalIn(event.currentTarget, seconds, 1, 60))}
             class="ui-input" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-xs text-slate-400">{t("Fundido (segundos)")}</span>
-          <input type="number" min="0" max="3" step="0.25" bind:value={fade}
+          <input type="text" inputmode="decimal" value={String(fade)}
+            onchange={(event) => (fade = decimalIn(event.currentTarget, fade, 0, 3))}
             class="ui-input" />
         </label>
       </div>

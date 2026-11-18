@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Kinodisc",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "identifier": "org.kinodisc.app",
   "build": {
     "beforeDevCommand": "npm run dev",

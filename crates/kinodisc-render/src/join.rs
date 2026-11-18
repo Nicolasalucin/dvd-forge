@@ -115,7 +115,7 @@ pub fn join_args(clips: &[JoinClip], widescreen: bool, fps: f64, output: &Path) 
     let mut pairs = String::new();
     for (index, clip) in clips.iter().enumerate() {
         graph.push(format!(
-            "[{index}:v]bwdif=mode=send_frame:deint=interlaced,scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={},format=yuv420p,trim=duration={},setpts=PTS-STARTPTS[v{index}]",
+            "[{index}:v]bwdif=mode=send_frame:deint=interlaced,scale={width}:{height}:force_original_aspect_ratio=decrease:out_range=tv,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={},format=yuv420p,trim=duration={},setpts=PTS-STARTPTS[v{index}]",
             fmt(fps),
             fmt(clip.duration_s)
         ));
@@ -153,6 +153,8 @@ pub fn join_args(clips: &[JoinClip], widescreen: bool, fps: f64, output: &Path) 
             "14",
             "-pix_fmt",
             "yuv420p",
+            "-color_range",
+            "tv",
             "-c:a",
             "aac",
             "-b:a",
@@ -182,7 +184,7 @@ pub fn clip_starts_ms(clips: &[JoinClip]) -> Vec<f64> {
 
 fn cache_key(request: &JoinRequest, clips: &[PathBuf]) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(b"kinodisc-join-v1");
+    hasher.update(b"kinodisc-join-v2");
     hasher.update(format!("{}|{}", request.widescreen, request.fps).as_bytes());
     for path in clips {
         hasher.update(path.display().to_string().as_bytes());

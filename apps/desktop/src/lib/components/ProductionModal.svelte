@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isAbsolutePath } from "../utils/format";
+  import { isAbsolutePath, nativePath } from "../utils/format";
   import { announceFinished } from "../ui/finish";
   import { ui } from "../ui/state.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -165,7 +165,7 @@
     }
     projectStore.resetRender();
     projectStore.rendering = true;
-    const root = outputDir.trim().replace(/[\\/]+$/, "");
+    const root = nativePath(outputDir.trim()).replace(/[\\/]+$/, "");
     try {
       // One project, or one per disc when splitting.
       let parts: Array<{ project: typeof current; fileName: string; index: number; count: number }> = [
@@ -200,7 +200,7 @@
           projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${warning}`].slice(-300);
         }
         if (cancelRequested) break;
-        const workDir = multi ? `${root}/${part.fileName.replace(/\.iso$/i, "")}` : root;
+        const workDir = multi ? nativePath(`${root}/${part.fileName.replace(/\.iso$/i, "")}`) : root;
         const channel = new Channel<JobEvent_Deserialize>();
         channel.onmessage = (event) => {
           projectStore.applyJobEvent(event);
@@ -218,7 +218,7 @@
             .replace(/[^A-Za-z0-9 _-]/g, "_")
             .trim();
           const exported = await unwrap(
-            commands.renderExportFolder(outcome.isoPath, multi ? root : outputDir.trim(), label || "DISC", true),
+            commands.renderExportFolder(outcome.isoPath, multi ? root : nativePath(outputDir.trim()), label || "DISC", true),
           );
           produced = exported.folder;
         } else if (multi) {

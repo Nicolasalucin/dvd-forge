@@ -170,7 +170,7 @@ pub fn chunk_args(
     let mut labels = Vec::new();
     for index in 0..images.len() {
         graph.push_str(&format!(
-            "[{index}:v]scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={},format=yuv420p,trim=duration={}[p{index}];",
+            "[{index}:v]scale={width}:{height}:force_original_aspect_ratio=decrease:out_range=tv,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={},format=yuv420p,trim=duration={}[p{index}];",
             fmt(fps),
             fmt(clip)
         ));
@@ -191,7 +191,17 @@ pub fn chunk_args(
 
 fn video_codec_args(fps: f64) -> Vec<String> {
     [
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-r",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "16",
+        "-pix_fmt",
+        "yuv420p",
+        "-color_range",
+        "tv",
+        "-r",
     ]
     .iter()
     .map(|value| value.to_string())
@@ -268,7 +278,7 @@ pub fn final_args(
 /// time (changing a photo invalidates the cached video).
 pub fn cache_key(request: &SlideshowRequest, images: &[PathBuf], music: Option<&Path>) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(b"kinodisc-slideshow-v1");
+    hasher.update(b"kinodisc-slideshow-v2");
     hasher.update(
         format!(
             "{}|{}|{}|{}",
@@ -433,5 +443,40 @@ mod tests {
         let position = args.iter().position(|arg| arg == "-i").unwrap();
         assert_eq!(args[position - 7], "file");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn photos_become_limited_range_yuv420p() {
+        // JPEGs decode as full-range yuvj420p; the slideshow must come out as
+        // limited-range yuv420p or the disc encoder flags it for re-encoding.
+        let output = Path::new("o.mp4");
+        let chunk = chunk_args(
+            &[PathBuf::from("a.jpg")],
+            5.0,
+            1.0,
+            25.0,
+            (720, 576),
+            output,
+        );
+        let graph = &chunk[chunk
+            .iter()
+            .position(|arg| arg == "-filter_complex")
+            .unwrap()
+            + 1];
+        assert!(graph.contains("out_range=tv"));
+        let joined = final_args(
+            &[(PathBuf::from("c.mp4"), 6.0)],
+            1.0,
+            25.0,
+            None,
+            6.0,
+            output,
+        );
+        for args in [&chunk, &joined] {
+            let range = args.iter().position(|arg| arg == "-color_range").unwrap();
+            assert_eq!(args[range + 1], "tv");
+            let pix = args.iter().position(|arg| arg == "-pix_fmt").unwrap();
+            assert_eq!(args[pix + 1], "yuv420p");
+        }
     }
 }

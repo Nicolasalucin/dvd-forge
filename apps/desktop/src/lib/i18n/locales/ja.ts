@@ -1381,7 +1381,7 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   W_CHAPTER_OUT_OF_RANGE: "チャプターがエピソードのカット範囲外にあります。",
   W_D1_FORCED_LOW: "フル D1 が強制されていますが、計算したビットレートがとても低いです。",
   W_DEFAULT_FOCUS_INVALID: "最初に選択されるボタンがないか無効のため、最初のボタンを使います。",
-  W_EPISODE_BITRATE_CAP: "エピソードは音声トラックを含めて DVD の最大ビットレートに制限されます。",
+  I_EPISODE_BITRATE_CAP: "エピソードは音声トラックを含めて DVD の最大ビットレートに制限されます。",
   W_EXTERNAL_AUDIO: "エピソードが外部音声を参照しています。動画内の音声を使います。",
   W_GRID_ZERO: "グリッドのサイズが 0 です。",
   W_HALF_D1_AUTO: "長時間のため Half-D1 が自動で有効になりました。",

@@ -1382,7 +1382,7 @@ export const DIAGNOSTIC_FR: Record<string, string> = {
   W_CHAPTER_OUT_OF_RANGE: "Un chapitre est hors de la plage découpée de l'épisode.",
   W_D1_FORCED_LOW: "Le D1 complet est imposé, mais le débit calculé est très faible.",
   W_DEFAULT_FOCUS_INVALID: "Le bouton sélectionné au départ est absent ou désactivé ; le premier bouton est utilisé.",
-  W_EPISODE_BITRATE_CAP: "Un épisode est limité au débit DVD maximal avec ses pistes audio.",
+  I_EPISODE_BITRATE_CAP: "Un épisode est limité au débit DVD maximal avec ses pistes audio.",
   W_EXTERNAL_AUDIO: "Un épisode utilise un audio externe ; l'audio de la vidéo est utilisé.",
   W_GRID_ZERO: "La taille de la grille est nulle.",
   W_HALF_D1_AUTO: "Le Half-D1 a été activé automatiquement en raison de la longue durée.",

@@ -251,15 +251,10 @@ fn calculate_plan_for_format(
             ),
         ));
     }
-    if raw_video_kbps > max_video_kbps as u64 {
-        warnings.push(Diagnostic::warning(
-            "W_BITRATE_CAPPED",
-            format!(
-                "El bitrate calculado {} kbps supera el máximo {} kbps; el disco quedará por debajo del objetivo de llenado.",
-                raw_video_kbps, max_video_kbps
-            ),
-        ));
-    }
+    // Reported after the fill check: on short content W_UNDERFILL already
+    // explains it, and the raw figure (hundreds of thousands of kbps) only
+    // alarms.
+    let bitrate_capped = raw_video_kbps > max_video_kbps as u64;
     if requested_profile == DvdProfile::D1 && raw_video_kbps < D1_MIN_KBPS as u64 {
         warnings.push(Diagnostic::warning(
             "W_D1_FORCED_LOW",
@@ -279,8 +274,10 @@ fn calculate_plan_for_format(
             .saturating_sub(100);
         let episode_video_kbps = allocated_kbps.min(max_for_audio).max(1);
         if episode_video_kbps < allocated_kbps {
-            warnings.push(Diagnostic::warning(
-                "W_EPISODE_BITRATE_CAP",
+            // The DVD mux limit is applied by design; this is a note, not a
+            // problem to fix.
+            warnings.push(Diagnostic::info(
+                "I_EPISODE_BITRATE_CAP",
                 format!(
                     "El episodio {} se limita a {} kbps para respetar el máximo total de DVD con sus pistas de audio.",
                     episode.number, episode_video_kbps
@@ -318,12 +315,22 @@ fn calculate_plan_for_format(
     let under_min = video_kbps < min_video_kbps;
     let overflow = estimated_total > vob_budget;
     let feasible = !under_min && !overflow;
-    if feasible && fill_ppm < 950_000 {
+    let underfill = feasible && fill_ppm < 950_000;
+    if underfill {
         warnings.push(Diagnostic::warning(
             "W_UNDERFILL",
             format!(
                 "El plan solo llena el {:.1}% de la capacidad efectiva; el contenido es demasiado corto para alcanzar el 99% sin superar el bitrate máximo.",
                 fill_ppm as f64 / 10_000.0
+            ),
+        ));
+    }
+    if bitrate_capped && !underfill {
+        warnings.push(Diagnostic::warning(
+            "W_BITRATE_CAPPED",
+            format!(
+                "El bitrate calculado {} kbps supera el máximo {} kbps; el disco quedará por debajo del objetivo de llenado.",
+                raw_video_kbps, max_video_kbps
             ),
         ));
     }
@@ -827,14 +834,21 @@ mod tests {
         let plan = calculate_bitrate_plan(&project, &HashMap::new()).expect("plan");
         assert!(plan.feasible);
         assert_eq!(plan.video_kbps, 9_800);
+        // W_UNDERFILL explains short content on its own; the raw capped
+        // bitrate is not repeated, and the mux cap is only a note.
         assert!(plan
+            .warnings
+            .iter()
+            .any(|warning| warning.code == "W_UNDERFILL"));
+        assert!(!plan
             .warnings
             .iter()
             .any(|warning| warning.code == "W_BITRATE_CAPPED"));
         assert!(plan
             .warnings
             .iter()
-            .any(|warning| warning.code == "W_UNDERFILL"));
+            .filter(|warning| warning.code.contains("BITRATE_CAP"))
+            .all(|warning| warning.severity == kinodisc_domain::Severity::Info));
     }
 
     #[test]

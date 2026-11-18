@@ -311,7 +311,9 @@ Smart Render Cache v2:
   `tpl:decor-*` shapes; titles use `title_color`. Template names are shown
   translated; never use third-party names or trademarks for templates.
 - **Join** (`kinodisc-render::join`) passes `-reinit_filter 0` per input and
-  has a stall timeout; keep both.
+  has a stall timeout; keep both. Join and slideshow intermediates are
+  limited-range `yuv420p` (`scale=…:out_range=tv` plus `-color_range tv`):
+  JPEG/MJPEG input is full range and would otherwise turn off stream copy.
 - **Quality sample** (`kinodisc-render::sample`) must build its requests like
   the real render and pick compare frames by number (raw `.m2v` has no
   B-frame timestamps).
