@@ -321,9 +321,11 @@ fn normalize_symmetry(nodes: &[NavNode], edges: &mut Vec<NavEdge>, warnings: &mu
             Some(index) => {
                 edges[index].to = edge.from;
                 edges[index].source = EdgeSource::Forced;
+                // Automatic and expected on uneven grids (3 + 2): informative,
+                // never a notice the user has to act on.
                 warnings.push(
-                    Diagnostic::warning(
-                        "W_NAV_ROUTE_APPROX",
+                    Diagnostic::info(
+                        "I_NAV_ROUTE_ADJUSTED",
                         "Se ajustó el vecino inverso para mantener la simetría del D-Pad.",
                     )
                     .with_entity(format!("button:{}", edge.from)),
@@ -346,8 +348,8 @@ fn normalize_symmetry(nodes: &[NavNode], edges: &mut Vec<NavEdge>, warnings: &mu
         {
             edges.push(addition);
             warnings.push(
-                Diagnostic::warning(
-                    "W_NAV_ROUTE_APPROX",
+                Diagnostic::info(
+                    "I_NAV_ROUTE_ADJUSTED",
                     "Se añadió un vecino forzado para mantener la simetría del D-Pad.",
                 )
                 .with_entity(format!("button:{from}")),
@@ -707,6 +709,34 @@ mod tests {
             .warnings
             .iter()
             .any(|d| d.code == "E_NAV_OVERRIDE_INVALID"));
+    }
+
+    #[test]
+    fn uneven_grid_without_overrides_has_no_warnings() {
+        // Templates lay out 5 episodes as 3 + 2; the automatic symmetry fix
+        // there is expected and must not show up as a navigation notice.
+        let buttons = vec![
+            button(1, 60.0, 132.0),
+            button(2, 276.0, 132.0),
+            button(3, 492.0, 132.0),
+            button(4, 168.0, 252.0),
+            button(5, 384.0, 252.0),
+        ];
+        let graph = resolve_navigation(
+            MenuId::from_u128(99),
+            &canvas(),
+            &buttons,
+            &NavPolicy::default(),
+            None,
+        );
+        assert!(
+            graph
+                .warnings
+                .iter()
+                .all(|d| d.severity == crate::Severity::Info),
+            "{:?}",
+            graph.warnings
+        );
     }
 
     #[test]

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isAbsolutePath } from "../utils/format";
   import { announceFinished } from "../ui/finish";
   import { ui } from "../ui/state.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -155,6 +156,11 @@
     }
     if (!outputDir.trim()) {
       localError = t("Elige una carpeta de salida.");
+      return;
+    }
+    // "C:Discos" or "Discos" would land in whatever folder the app started in.
+    if (!isAbsolutePath(outputDir.trim())) {
+      localError = t("Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».");
       return;
     }
     projectStore.resetRender();

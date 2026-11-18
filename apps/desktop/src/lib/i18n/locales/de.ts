@@ -1275,6 +1275,11 @@ export const de: Dictionary = {
   "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.": "Die Leiste unten zeigt die Belegung. Ist sie zu voll, eine Dual-Layer-Disc nehmen oder auf mehrere Discs aufteilen.",
   "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.": "Bei langen Aufgaben „Computer nach Abschluss herunterfahren“ anhaken; Kinodisc meldet das Ende mit einem Ton.",
   "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.": "„Disc › Cover und Label…“ bereitet Hüllencover und Disc-Label zum Drucken vor.",
+  "ISO generado: {path} ({size})": "ISO erstellt: {path} ({size})",
+  "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)": "AVCHD/Blu-ray-ISO erstellt: {path} ({size}, UDF {udf}, {chapters} Kapitel)",
+  "ISO generado": "ISO erstellt",
+  "Generación cancelada por el usuario.": "Erstellung vom Benutzer abgebrochen.",
+  "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».": "Gib den vollständigen Pfad des Ausgabeordners ein oder wähle ihn mit „Auswählen…“.",
 };
 
 export const DIAGNOSTIC_DE: Record<string, string> = {
@@ -1437,4 +1442,5 @@ export const DIAGNOSTIC_DE: Record<string, string> = {
   W_SCENES_INDEX_OVERFLOW: "Nur die ersten Folgen passen in den Szenenindex; eine Vorlage mit mehr Feldern verwenden.",
   E_PROJECT_NOT_FOUND: "Die Projektdatei wurde nicht gefunden; sie wurde vielleicht verschoben, gelöscht oder liegt auf einem getrennten Laufwerk.",
   W_MENU_COMPOSE: "Die Menüs konnten ohne den Editor nicht gezeichnet werden; sie werden nur mit Hintergrund und Hervorhebungen erstellt.",
+  I_NAV_ROUTE_ADJUSTED: "Eine Fernbedienungsbewegung wurde automatisch angepasst, damit das Steuerkreuz denselben Weg zurückführt.",
 };

@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.1.1 — 2026-11-18
+
+A real app icon and a round of polish found while recording the promo video.
+
+### Fixed
+
+- **App icon**: Kinodisc now has its own icon (a disc with a play button)
+  instead of a plain square, in every size for Windows, macOS and Linux, and
+  in the toolbar, the welcome screen and About. Source:
+  `apps/desktop/src-tauri/icons/source/kinodisc.svg`.
+- **Template pages follow the interface language** ("Elegant · 2" instead of
+  "Elegante · 2").
+- **No false navigation notices on templates**: uneven grids (3 + 2) no
+  longer show "A manual navigation link prevents perfectly symmetric
+  navigation" when there is no manual link. The automatic adjustment is now
+  informative (`I_NAV_ROUTE_ADJUSTED`); the notice remains for real manual
+  links.
+- **Renaming an episode renames its menu buttons** that still had the old
+  title; buttons you renamed yourself keep their text.
+- **The production result is translated** ("ISO created: … (61.2 MB)" with a
+  readable size) in the log and in Job history.
+- **Output folder must be a full path**: "C:Discs" or "Discs" used to write
+  the disc into whatever folder the app was started from.
+
 ## 1.1.0 — 2026-11-17
 
 Fix the video, join clips, chapters at scene changes, a quality test, 15 menu

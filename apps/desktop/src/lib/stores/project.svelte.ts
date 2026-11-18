@@ -39,7 +39,7 @@ import {
 } from "../api/bindings";
 import { messageOf, unwrap } from "../api/client";
 import { hasGap, normalizeRect } from "../editor/exportMenu";
-import { localizeDiagnostic, localizeJobStage, localizeMessage } from "../i18n/diagnostics";
+import { localizeDiagnostic, localizeJobStage, localizeJobSummary, localizeMessage } from "../i18n/diagnostics";
 import { i18n, t } from "../i18n/index.svelte";
 import { normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
@@ -141,6 +141,25 @@ function canvasForProject(project: Project_Serialize) {
  * are renamed; anything the user typed is kept. Nav buttons keep their ‹/›
  * arrows, which is how the template engine recognises them.
  */
+/** Names the Rust templates give their menus (see kinodisc-menu templates.rs). */
+const TEMPLATE_MENU_NAMES = new Set([
+  "Cinema Dark",
+  "Multi-Page TV Series Grid",
+  "Classic Editorial",
+  "Retro CRT",
+  "Minimalist",
+  "Boda",
+  "Cumpleaños",
+  "Viaje",
+  "Deportes",
+  "Vacaciones",
+  "Cine antiguo",
+  "Naturaleza",
+  "Documental",
+  "Infantil",
+  "Elegante",
+]);
+
 function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
   if (i18n.locale === "es") return;
   const defaults: Record<string, string> = {
@@ -157,6 +176,11 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
     if (name.startsWith("Escenas · ")) return t("Escenas") + name.slice("Escenas".length);
     const scene = /^Escena (\d+)$/.exec(name);
     if (scene) return t("Escena {n}", { n: scene[1] });
+    // Template pages ("Elegante · 2"). The engine finds its pages by their
+    // template field, never by name, so renaming them is safe. "Extras" is
+    // matched by name in Rust and must stay as it is.
+    const page = /^(.+?)( · \d+)?$/.exec(name);
+    if (page && TEMPLATE_MENU_NAMES.has(page[1])) return t(page[1]) + (page[2] ?? "");
     return name;
   };
   for (const menu of menus) {
@@ -1306,8 +1330,28 @@ class ProjectStore {
   updateEpisode(episodeId: string, patch: Partial<Episode_Serialize>): void {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
+    const previousTitle = episode.title;
     Object.assign(episode, patch);
+    if (patch.title !== undefined && patch.title !== previousTitle) {
+      this.renameEpisodeButtons(episodeId, previousTitle, episode.title);
+    }
     this.touch();
+  }
+
+  /**
+   * Buttons that play an episode carry its title until the user types another
+   * name. Renaming the episode renames those buttons (and their drawn label)
+   * too; a button the user renamed by hand keeps its own text.
+   */
+  private renameEpisodeButtons(episodeId: string, previous: string, next: string): void {
+    if (!this.project || !next.trim()) return;
+    for (const menu of this.project.menus) {
+      for (const button of menu.buttons) {
+        if (button.action.kind !== "playEpisode" || button.action.episode !== episodeId) continue;
+        if (button.name === previous) button.name = next;
+        if (button.label && button.label.text === previous) button.label.text = next;
+      }
+    }
   }
 
   setEpisodeTrimStart(episodeId: string, ms: number | null): boolean {
@@ -2879,12 +2923,14 @@ class ProjectStore {
         if (kind.kind === "iso") this.lastIso = kind.path;
         this.renderLogs = [...this.renderLogs, `✓ ${kind.path}`].slice(-300);
         break;
-      case "completed":
-        this.renderSummary = kind.summary;
+      case "completed": {
+        const summary = localizeJobSummary(kind.summary);
+        this.renderSummary = summary;
         this.renderPercent = 100;
         this.renderStage = t("Completado");
-        this.renderLogs = [...this.renderLogs, kind.summary].slice(-300);
+        this.renderLogs = [...this.renderLogs, summary].slice(-300);
         break;
+      }
       case "failed":
         // Rust failure text is technical and in Spanish; keep it as detail
         // under a localized headline.

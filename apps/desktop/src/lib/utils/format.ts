@@ -26,3 +26,8 @@ export function basename(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] || path;
 }
+
+/** A full path: `C:\…`, `C:/…`, a `\\server\share` UNC path or a Unix `/…`. */
+export function isAbsolutePath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || /^[\\/]{2}[^\\/]/.test(path) || path.startsWith("/");
+}

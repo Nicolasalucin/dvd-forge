@@ -1125,6 +1125,11 @@ export const es: Dictionary = {
   "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.": "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.",
   "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.": "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.",
   "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.": "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.",
+  "ISO generado: {path} ({size})": "ISO generado: {path} ({size})",
+  "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)": "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)",
+  "ISO generado": "ISO generado",
+  "Generación cancelada por el usuario.": "Generación cancelada por el usuario.",
+  "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».": "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».",
 };
 
 export const en: Dictionary = {
@@ -2335,4 +2340,9 @@ export const en: Dictionary = {
   "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.": "The bar at the bottom shows how full the disc is. If it is over, try a dual-layer disc or split into several discs.",
   "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.": "Tick “Shut down the computer when done” for long jobs; Kinodisc plays a sound when it finishes.",
   "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.": "“Disc › Cover and label…” prepares the case cover and the disc label to print.",
+  "ISO generado: {path} ({size})": "ISO created: {path} ({size})",
+  "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)": "AVCHD/Blu-ray ISO created: {path} ({size}, UDF {udf}, {chapters} chapters)",
+  "ISO generado": "ISO created",
+  "Generación cancelada por el usuario.": "Production cancelled by the user.",
+  "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».": "Type the full path of the output folder, or pick it with “Choose…”.",
 };

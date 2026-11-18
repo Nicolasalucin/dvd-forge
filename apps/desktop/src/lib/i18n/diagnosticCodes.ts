@@ -167,4 +167,5 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_SCENES_INDEX_OVERFLOW: "Only the first episodes fit in the scene index; use a template with more slots.",
   E_PROJECT_NOT_FOUND: "The project file cannot be found; it may have been moved, deleted or be on a disconnected drive.",
   W_MENU_COMPOSE: "The menus could not be drawn without the editor; they are produced with their background and highlights only.",
+  I_NAV_ROUTE_ADJUSTED: "A remote-control move was adjusted automatically so the D-pad goes back the same way.",
 };

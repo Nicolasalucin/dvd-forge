@@ -2,6 +2,10 @@
   <img src="docs/screenshots/02-menu-editor.png" alt="Kinodisc menu editor" width="100%" />
 </p>
 
+<p align="center">
+  <img src="apps/desktop/src-tauri/icons/128x128.png" alt="" width="96" />
+</p>
+
 <h1 align="center">Kinodisc</h1>
 
 <p align="center">

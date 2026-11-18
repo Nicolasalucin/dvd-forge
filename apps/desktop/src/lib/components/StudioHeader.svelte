@@ -1,4 +1,5 @@
 <script lang="ts">
+  import appLogo from "../../../src-tauri/icons/32x32.png";
   import { onDestroy } from "svelte";
   import type { PlayerPreset } from "../api/bindings";
   import * as actions from "../actions";
@@ -77,7 +78,7 @@
   <!-- Toolbar -->
   <div class="flex h-11 items-center gap-1 px-2">
     <div class="mr-2 flex min-w-0 items-center gap-2 pl-1">
-      <Icon name="disc" size={20} class="text-cyan-400" />
+      <img src={appLogo} alt="" width="20" height="20" class="shrink-0" draggable="false" />
       {#if project}
         <input
           class="w-48 truncate rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-100 outline-none hover:border-slate-700 focus:border-cyan-500"

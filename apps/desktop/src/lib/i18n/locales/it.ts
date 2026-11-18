@@ -1275,6 +1275,11 @@ export const it: Dictionary = {
   "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.": "La barra in basso indica quanto occupa il disco. Se si supera, prova un doppio strato o dividi su più dischi.",
   "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.": "Spunta «Spegni il computer al termine» per i lavori lunghi; Kinodisc avvisa con un suono alla fine.",
   "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.": "«Disco › Copertina ed etichetta…» prepara la copertina della custodia e l'etichetta da stampare.",
+  "ISO generado: {path} ({size})": "ISO creata: {path} ({size})",
+  "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)": "ISO AVCHD/Blu-ray creata: {path} ({size}, UDF {udf}, {chapters} capitoli)",
+  "ISO generado": "ISO creata",
+  "Generación cancelada por el usuario.": "Produzione annullata dall’utente.",
+  "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».": "Scrivi il percorso completo della cartella di destinazione o sceglila con «Scegli…».",
 };
 
 export const DIAGNOSTIC_IT: Record<string, string> = {
@@ -1437,4 +1442,5 @@ export const DIAGNOSTIC_IT: Record<string, string> = {
   W_SCENES_INDEX_OVERFLOW: "Solo i primi episodi entrano nell'indice delle scene; usa un modello con più caselle.",
   E_PROJECT_NOT_FOUND: "Il file del progetto non si trova; potrebbe essere stato spostato, eliminato o trovarsi su un disco scollegato.",
   W_MENU_COMPOSE: "Non è stato possibile disegnare i menu senza l'editor; vengono prodotti solo con sfondo ed evidenziazioni.",
+  I_NAV_ROUTE_ADJUSTED: "Uno spostamento del telecomando è stato regolato automaticamente perché le frecce tornino per la stessa strada.",
 };

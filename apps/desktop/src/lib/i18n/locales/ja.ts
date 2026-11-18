@@ -1275,6 +1275,11 @@ export const ja: Dictionary = {
   "La barra de abajo indica cuánto ocupa el disco. Si se pasa, prueba un disco de doble capa o reparte en varios discos.": "下のバーでディスクの使用量が分かります。超える場合は2層ディスクにするか複数枚に分けます。",
   "Marca «Apagar la computadora al terminar» para trabajos largos; Kinodisc avisa con un sonido al acabar.": "長い作業では「完了したらコンピューターをシャットダウン」をオンに。終わると音でお知らせします。",
   "«Disco › Carátula y etiqueta…» prepara la tapa de la caja y la etiqueta para imprimir.": "「ディスク › ジャケットとレーベル…」でケースのジャケットとレーベルを印刷用に作成します。",
+  "ISO generado: {path} ({size})": "ISO を作成しました: {path} ({size})",
+  "ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)": "AVCHD/Blu-ray ISO を作成しました: {path} ({size}、UDF {udf}、{chapters} チャプター)",
+  "ISO generado": "ISO を作成しました",
+  "Generación cancelada por el usuario.": "ユーザーが作成をキャンセルしました。",
+  "Escribe la ruta completa de la carpeta de salida o elígela con «Elegir…».": "出力フォルダーのフルパスを入力するか、「選択…」で選んでください。",
 };
 
 export const DIAGNOSTIC_JA: Record<string, string> = {
@@ -1437,4 +1442,5 @@ export const DIAGNOSTIC_JA: Record<string, string> = {
   W_SCENES_INDEX_OVERFLOW: "シーン一覧に入るのは最初のエピソードだけです。枠の多いテンプレートを使ってください。",
   E_PROJECT_NOT_FOUND: "プロジェクトファイルが見つかりません。移動・削除されたか、接続されていないドライブにある可能性があります。",
   W_MENU_COMPOSE: "エディターなしではメニューを描画できませんでした。背景とハイライトのみで作成されます。",
+  I_NAV_ROUTE_ADJUSTED: "十字キーで同じ道を戻れるよう、リモコンの移動を自動調整しました。",
 };

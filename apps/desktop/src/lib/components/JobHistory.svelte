@@ -4,6 +4,7 @@
   import { messageOf, unwrap } from "../api/client";
   import { projectStore } from "../stores/project.svelte";
   import { formatBytes } from "../utils/format";
+  import { localizeJobSummary } from "../i18n/diagnostics";
 
   let localError = $state<string | null>(null);
 
@@ -89,7 +90,7 @@
           {/if}
         </div>
         {#if job.logSummary}
-          <p class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">{job.logSummary}</p>
+          <p class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">{localizeJobSummary(job.logSummary)}</p>
         {/if}
         {#if job.isoPath}
           <button

@@ -1,5 +1,6 @@
 import { i18n, t } from "./index.svelte";
 import { DIAGNOSTIC_EN } from "./diagnosticCodes";
+import { formatBytes } from "../utils/format";
 export interface DiagnosticLike {
   code: string;
   message: string;
@@ -151,4 +152,24 @@ export function localizeError(message: string): string {
   // translation lacks (paths, tool output), not when it is a known sentence.
   if (localized === match[2] || i18n.has(match[2])) return localized;
   return `${localized} (${match[2]})`;
+}
+
+/**
+ * Localizes the one-line result of a production job: the backend's
+ * "ISO generado: …" summary, and the outcome kept in the job history.
+ */
+export function localizeJobSummary(summary: string): string {
+  const dvd = /^ISO generado: (.+) \((\d+) bytes\)$/.exec(summary);
+  if (dvd) return t("ISO generado: {path} ({size})", { path: dvd[1], size: formatBytes(Number(dvd[2])) });
+  const hd = /^ISO AVCHD\/Blu-ray generado: (.+) \((\d+) bytes, UDF ([^,]+), (\d+) capítulos\)$/.exec(summary);
+  if (hd) {
+    return t("ISO AVCHD/Blu-ray generado: {path} ({size}, UDF {udf}, {chapters} capítulos)", {
+      path: hd[1],
+      size: formatBytes(Number(hd[2])),
+      udf: hd[3],
+      chapters: hd[4],
+    });
+  }
+  if (i18n.has(summary)) return t(summary);
+  return localizeError(summary);
 }

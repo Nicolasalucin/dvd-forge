@@ -1,4 +1,5 @@
 <script lang="ts">
+  import appLogo from "../../../src-tauri/icons/128x128@2x.png";
   import { onMount } from "svelte";
   import { commands, type ToolInstallOption } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
@@ -58,7 +59,7 @@
 <main class="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-8">
   <div class="w-full max-w-2xl">
     <div class="flex items-center gap-3">
-      <Icon name="disc" size={40} class="text-cyan-400" />
+      <img src={appLogo} alt="" width=48 height=48 class="shrink-0" draggable="false" />
       <div>
         <h1 class="text-[22px] font-semibold text-slate-100">{t("Bienvenido a Kinodisc")}</h1>
         <p class="text-[13px] text-slate-400">

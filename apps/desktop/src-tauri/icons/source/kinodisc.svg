@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Kinodisc app icon: an optical disc whose hub is a play button.
+       Original artwork for this project; regenerate the platform icons with
+       `npx tauri icon src-tauri/icons/source/kinodisc.svg`. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d3263"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="disc" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#7fb2ff"/>
+      <stop offset="0.55" stop-color="#3b72e0"/>
+      <stop offset="1" stop-color="#1a3a9c"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="96" y="96" width="832" height="832" rx="188" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="318" fill="#08101e" opacity="0.45"/>
+  <circle cx="512" cy="500" r="312" fill="url(#disc)"/>
+  <circle cx="512" cy="500" r="262" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="10"/>
+  <circle cx="512" cy="500" r="200" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="8"/>
+  <path d="M512 500 L265 309 A312 312 0 0 1 455 193 Z" fill="url(#sheen)" opacity="0.7"/>
+  <circle cx="512" cy="500" r="138" fill="#0b1220"/>
+  <circle cx="512" cy="500" r="138" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="12"/>
+  <path d="M478 430 L590 500 L478 570 Z" fill="#e9c46a" stroke="#e9c46a" stroke-width="22" stroke-linejoin="round"/>
+</svg>
