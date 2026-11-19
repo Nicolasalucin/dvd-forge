@@ -335,6 +335,15 @@ async fn verify_command(args: &[String]) -> ExitCode {
         }
     };
     let path = args.iso.clone();
+    // The verifier reads disc images. A VIDEO_TS/BDMV folder used to fail with
+    // the operating system's "access denied".
+    if path.is_dir() {
+        eprintln!(
+            "verify comprueba imágenes .iso, no carpetas: {}. Para revisar una carpeta VIDEO_TS o BDMV, usa `kinodisc-cli inspect <carpeta>`.",
+            path.display()
+        );
+        return ExitCode::FAILURE;
+    }
     let deep = args.deep;
     let report =
         match tokio::task::spawn_blocking(move || kinodisc_verify::verify_iso(&path, deep)).await {
@@ -696,6 +705,7 @@ fn print_help() {
     println!("  kinodisc-cli render <project.json> [-o <dir>] [--mode dvd|avchd] [--folder] [--no-probe]");
     println!("      --folder  también escribe <dir>/disc con VIDEO_TS o BDMV (idéntico al ISO)");
     println!("  kinodisc-cli verify <iso> [--deep] [--json] [--strict]");
+    println!("  kinodisc-cli inspect <disco.iso|carpeta> [--json] [--import <carpeta>]   (qué hay en un disco)");
     println!("  kinodisc-cli devices [--json]");
     println!(
         "  kinodisc-cli burn <iso> --device <dev> [--speed X] [--verify] [--eject] [--skip-verify]"

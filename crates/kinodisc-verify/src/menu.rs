@@ -264,87 +264,154 @@ fn pes_segments(prefix: &[u8], pid: u16) -> Vec<(u8, Vec<u8>)> {
     segments
 }
 
+/// Interactive Composition Segment (HDMV IG) after the segment header:
+/// video descriptor (5), composition descriptor (3), sequence descriptor (1),
+/// data length (3), then the interactive composition: model flags (1), the
+/// two 5-byte timeouts only for the multiplexed stream model, user timeout
+/// (3), pages. Each page lists button overlap groups (BOGs), each with its
+/// buttons. QA 1.1.3: the old reader started one byte late and skipped the
+/// BOG layer, so it never saw the buttons ("0 IG buttons").
 fn parse_ics(payload: &[u8]) -> Option<(u16, u16, Vec<Button>)> {
-    if payload.len() < 19 {
-        return None;
-    }
     let width = be16(payload, 0)?;
     let height = be16(payload, 2)?;
-    let pages = payload[17] as usize;
-    let mut pos = 18usize;
+    let flags = *payload.get(12)?;
+    let mut pos = 13usize;
+    if flags & 0x80 == 0 {
+        pos += 10; // composition + selection timeout PTS (multiplexed model)
+    }
+    pos += 3; // user timeout duration
+    let pages = *payload.get(pos)? as usize;
+    pos += 1;
     let mut buttons = Vec::new();
     for _ in 0..pages {
-        if pos + 10 > payload.len() {
-            return None;
-        }
         pos += 10; // page id, version, user operation mask
         pos = skip_effect(payload, pos)?;
         pos = skip_effect(payload, pos)?;
-        if pos + 9 > payload.len() {
-            return None;
-        }
-        pos += 1; // animation frame rate
-        pos += 4; // default selected/activated
-        pos += 1; // palette id
-        let count = payload[pos] as usize;
+        pos += 1 + 2 + 2 + 1; // frame rate, default selected/activated, palette
+        let groups = *payload.get(pos)? as usize;
         pos += 1;
-        for _ in 0..count {
-            if pos + 35 > payload.len() {
-                return None;
+        for _ in 0..groups {
+            pos += 2; // default valid button
+            let count = *payload.get(pos)? as usize;
+            pos += 1;
+            for _ in 0..count {
+                if pos + 35 > payload.len() {
+                    return None;
+                }
+                let id = be16(payload, pos)?;
+                let x = be16(payload, pos + 5)?;
+                let y = be16(payload, pos + 7)?;
+                let up = be16(payload, pos + 9)?;
+                let down = be16(payload, pos + 11)?;
+                let left = be16(payload, pos + 13)?;
+                let right = be16(payload, pos + 15)?;
+                let object = be16(payload, pos + 17)?;
+                let commands = be16(payload, pos + 33)? as usize;
+                pos += 35 + commands * 12;
+                if pos > payload.len() {
+                    return None;
+                }
+                buttons.push(Button {
+                    id,
+                    x,
+                    y,
+                    up,
+                    down,
+                    left,
+                    right,
+                    object,
+                });
             }
-            let id = be16(payload, pos)?;
-            let x = be16(payload, pos + 5)?;
-            let y = be16(payload, pos + 7)?;
-            let up = be16(payload, pos + 9)?;
-            let down = be16(payload, pos + 11)?;
-            let left = be16(payload, pos + 13)?;
-            let right = be16(payload, pos + 15)?;
-            let object = be16(payload, pos + 17)?;
-            let commands = be16(payload, pos + 33)? as usize;
-            pos += 35 + commands * 12;
-            if pos > payload.len() {
-                return None;
-            }
-            buttons.push(Button {
-                id,
-                x,
-                y,
-                up,
-                down,
-                left,
-                right,
-                object,
-            });
         }
     }
     Some((width, height, buttons))
 }
 
+/// Effect sequence: windows (id + x/y/w/h, 9 bytes each), then effects, each
+/// with duration (3), palette (1) and composition objects (8 bytes, 16 when
+/// cropped).
 fn skip_effect(data: &[u8], mut pos: usize) -> Option<usize> {
-    if pos >= data.len() {
-        return None;
-    }
-    let count = data[pos] as usize;
+    let windows = *data.get(pos)? as usize;
+    pos += 1 + windows * 9;
+    let effects = *data.get(pos)? as usize;
     pos += 1;
-    if count == 0 {
-        // Empty sequence is two zero bytes.
-        return (pos < data.len()).then_some(pos + 1);
+    for _ in 0..effects {
+        pos += 4; // duration + palette id
+        let objects = *data.get(pos)? as usize;
+        pos += 1;
+        for _ in 0..objects {
+            let cropped = *data.get(pos + 3)? & 0x80 != 0;
+            pos += if cropped { 16 } else { 8 };
+        }
     }
-    if pos + 9 > data.len() {
-        return None;
-    }
-    pos += 9; // window id + x/y/width/height
-    let effects = data[pos] as usize;
-    pos += 1;
-    if effects == 0 {
-        return Some(pos);
-    }
-    if pos + 4 > data.len() {
-        return None;
-    }
-    pos += 4; // duration + palette id
-    let objects = data[pos] as usize;
-    pos += 1;
-    pos = pos.checked_add(objects.checked_mul(6)?)?;
     (pos <= data.len()).then_some(pos)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kinodisc_hdmv::segments::{
+        interactive_composition_segment, ButtonDefinition, CompositionObject,
+        InteractiveComposition, PageDefinition, Window,
+    };
+
+    fn button(id: u16, x: u16, right: Option<u16>) -> ButtonDefinition {
+        ButtonDefinition {
+            id,
+            x,
+            y: 100,
+            up: None,
+            down: None,
+            left: None,
+            right,
+            normal_object: id * 3,
+            selected_object: id * 3 + 1,
+            activated_object: id * 3 + 2,
+            commands: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn reads_every_button_of_a_written_ics() {
+        let window = Window {
+            id: 0,
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let page = PageDefinition {
+            id: 0,
+            version: 0,
+            default_selected_button: 1,
+            default_activated_button: 0xFFFF,
+            palette_id: 0,
+            buttons: vec![button(1, 100, Some(2)), button(2, 600, None)],
+            // An in-effect with an object, like the real menus.
+            in_objects: vec![CompositionObject {
+                object_id: 9,
+                window_id: 0,
+                x: 0,
+                y: 0,
+            }],
+            window,
+        };
+        let composition = InteractiveComposition {
+            video_width: 1920,
+            video_height: 1080,
+            frame_rate_code: 1,
+            composition_number: 0,
+            composition_state: 2,
+            user_timeout_duration: 0,
+            pages: vec![page],
+        };
+        let segment = interactive_composition_segment(&composition).expect("ics");
+        let (width, height, buttons) = parse_ics(&segment.payload).expect("parsed");
+        assert_eq!((width, height), (1920, 1080));
+        // QA 1.1.3: "0 IG buttons" on discs that had buttons.
+        assert_eq!(buttons.len(), 2);
+        assert_eq!((buttons[0].id, buttons[0].x, buttons[0].right), (1, 100, 2));
+        assert_eq!((buttons[1].id, buttons[1].x, buttons[1].right), (2, 600, 2));
+        assert_eq!(buttons[1].object, 6);
+    }
 }

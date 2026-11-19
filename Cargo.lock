@@ -2068,6 +2068,7 @@ version = "1.1.2"
 dependencies = [
  "hex",
  "kinodisc-domain",
+ "kinodisc-hdmv",
  "kinodisc-iso",
  "libmkiso",
  "serde",

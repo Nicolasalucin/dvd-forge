@@ -16,4 +16,7 @@ specta.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+# Tests only: real IG segments to parse. The verifier itself never uses
+# writer code.
+kinodisc-hdmv = { path = "../kinodisc-hdmv" }
 kinodisc-iso = { path = "../kinodisc-iso" }

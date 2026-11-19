@@ -318,6 +318,16 @@ fn normalize_symmetry(nodes: &[NavNode], edges: &mut Vec<NavEdge>, warnings: &mu
                     .with_entity(format!("button:{}", edge.from)),
                 );
             }
+            // The reverse already belongs to a mutual pair (E2 Left -> E1 with
+            // E1 Right -> E2): taking it would send Left from E2 to a button
+            // below (QA 1.1.3). This edge stays one-way.
+            Some(index)
+                if edges.iter().any(|candidate| {
+                    candidate.from == edges[index].to
+                        && candidate.from != edge.from
+                        && candidate.direction == edge.direction
+                        && candidate.to == edge.to
+                }) => {}
             Some(index) => {
                 edges[index].to = edge.from;
                 edges[index].source = EdgeSource::Forced;
@@ -673,6 +683,28 @@ mod tests {
         assert_eq!(target(&graph, 5, NavDirection::Right), 6);
         assert_eq!(target(&graph, 6, NavDirection::Left), 5);
         assert_eq!(target(&graph, 6, NavDirection::Up), 3);
+    }
+
+    #[test]
+    fn a_lone_button_below_does_not_steal_a_mutual_pair() {
+        // E1 E2
+        // E3
+        let buttons = vec![
+            button(1, 60.0, 132.0),
+            button(2, 276.0, 132.0),
+            button(3, 60.0, 252.0),
+        ];
+        let graph = resolve_navigation(
+            MenuId::from_u128(98),
+            &canvas(),
+            &buttons,
+            &NavPolicy::default(),
+            Some(ButtonId::from_u128(1)),
+        );
+        assert_eq!(target(&graph, 1, NavDirection::Right), 2);
+        assert_eq!(target(&graph, 2, NavDirection::Left), 1);
+        assert_eq!(target(&graph, 1, NavDirection::Down), 3);
+        assert_eq!(target(&graph, 3, NavDirection::Up), 1);
     }
 
     #[test]
