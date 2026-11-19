@@ -35,7 +35,13 @@ Fixes from two complete tests of the app by an independent QA pass. The tasks co
   - Subtitle files saved next to a video ("name.es.srt") are added with their language.
   - A file that cannot be read is named in a plain sentence.
   - Picking a file again does not add a duplicate.
-- **A video without sound gets a silent audio track** on the DVD, as the disc declares one.
+- **A video without sound gets silent audio tracks**, on DVD and on Blu-ray/AVCHD, matching the rest of the disc. A Blu-ray that mixed a soundless video with one that has sound used to fail.
+- **Blu-ray/AVCHD audio and subtitles are kept.**
+  - The disc's audio layout comes from the episode with the most tracks, so a one-track first video no longer drops the other languages.
+  - Episodes with different audio or subtitles are reported before you produce.
+  - Subtitles are no longer lost when an episode was reused from the cache.
+- **1080i stays interlaced.** Hardware encoders write progressive video only, so 1080i and PsF now always use x264; with AMF a 1080i disc came out as 1080p25.
+- **The disc label can be typed** in the disc settings, and it follows the project name when you rename the project.
 - **Smaller fixes.**
   - "Every 5 min" on a short video keeps its chapters, and scene detection says when it finds nothing.
   - Burning without a drive, producing with a tool missing, and a menu without buttons are explained before you start.
@@ -48,6 +54,9 @@ Fixes from two complete tests of the app by an independent QA pass. The tasks co
   - Labels wrap instead of being cut off, and the chart labels are readable.
   - The Japanese interface uses a proper font.
   - `kinodisc-cli verify` explains that folders go to `inspect`.
+  - Project errors (overlapping buttons, for example) are explained before you produce.
+  - Steps that report no progress of their own show a pulsing bar and the elapsed time.
+  - The text Size of thumbnail buttons follows its control.
 
 ## 1.1.2 — 2026-11-18
 
