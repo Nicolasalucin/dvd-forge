@@ -149,7 +149,7 @@ export async function importMedia(paths?: string[]): Promise<void> {
   if (episodes > 0) {
     ui.notice = t(episodes === 1 ? "{count} vídeo añadido como episodio." : "{count} vídeo(s) añadidos como episodios.", { count: episodes });
   } else if (count > 0) {
-    ui.notice = t("{count} archivo(s) importados.", { count });
+    ui.notice = t(count === 1 ? "{count} archivo importado." : "{count} archivo(s) importados.", { count });
     projectStore.mediaTab = "media";
   }
 }

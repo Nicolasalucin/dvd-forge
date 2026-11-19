@@ -48,6 +48,15 @@
   let recovery = $state<AutosaveEntry[]>([]);
   let dragging = $state(false);
 
+  // A notice written in the previous language is not left on screen.
+  let noticeLocale = i18n.locale;
+  $effect(() => {
+    if (i18n.locale !== noticeLocale) {
+      noticeLocale = i18n.locale;
+      ui.notice = null;
+    }
+  });
+
   // The menu bar mirrors language, theme, expert mode, recent files and
   // undo availability.
   $effect(() => {

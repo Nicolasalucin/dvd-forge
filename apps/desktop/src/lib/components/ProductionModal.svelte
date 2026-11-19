@@ -6,7 +6,7 @@
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
   import { t, formatDecimal, formatPercent } from "../i18n/index.svelte";
-  import { localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
+  import { localizeCheck, localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -616,7 +616,7 @@
                 <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[11px]">
                   {#each projectStore.renderVerification.checks as check}
                     <li class:text-rose-300={check.status === "fail"} class:text-amber-300={check.status === "warn"} class:text-emerald-300={check.status === "pass"} class:text-slate-500={check.status === "skipped"}>
-                      [{check.status}] {check.id}: {check.message}
+                      <span title={`${check.id}: ${check.message}`}>{localizeCheck(check)}</span>
                     </li>
                   {/each}
                 </ul>

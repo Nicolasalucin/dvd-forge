@@ -160,6 +160,111 @@ export function localizeError(message: string): string {
   return `${localized} (${match[2]})`;
 }
 
+/**
+ * Templates of the engine's log lines (Rust `format!` text) and the key they
+ * translate to; `{…}` holes match, in order, the `{name}` placeholders of the key.
+ */
+const LOG_TEMPLATES: Array<[string, string]> = [
+  ["Menús compuestos sin el editor: {count}.", "Menús compuestos sin el editor: {count}."],
+  ["Codificación AVCHD con aceleración hardware: {}", "Codificación AVCHD con aceleración hardware: {encoder}"],
+  ["«{}»: el vídeo se copia sin recodificar.", "«{title}»: el vídeo se copia sin recodificar."],
+  ["«{}»: ya estaba codificado en un render anterior; se reutiliza.", "«{title}»: ya estaba codificado en un render anterior; se reutiliza."],
+  ["Episodio AVCHD {}/{}: reutilizando caché de artefactos {}", "Episodio AVCHD {index}/{total}: reutilizando caché de artefactos {path}"],
+  ["Codificando episodio AVCHD {}/{}: {} ({} kbps)", "Codificando episodio AVCHD {index}/{total}: {title} ({kbps} kbps)"],
+  ["Reanudación: {reused_episodes} episodio(s) ya codificados en un render anterior se reutilizaron; solo se codificó lo que faltaba.", "Reanudación: {count} episodio(s) ya codificados en un render anterior se reutilizaron; solo se codificó lo que faltaba."],
+  ["Multiplexando BDMV con el backend nativo de FFmpeg", "Multiplexando BDMV con el backend nativo de FFmpeg"],
+  ["{} episodios con playlist propia: cada uno vuelve al menú al terminar", "{count} episodios con playlist propia: cada uno vuelve al menú al terminar"],
+  ["First Play/Top Menu apuntan al objeto raíz {root_object} ({} menús)", "First Play/Top Menu apuntan al objeto raíz {object} ({count} menús)"],
+  ["Intro: reutilizando caché {}", "Intro: reutilizando caché {path}"],
+  ["Episodio {}: multiplexando subtítulo {} ({}, {} ms).", "Episodio {episode}: multiplexando subtítulo {index} ({language}, {delay} ms)."],
+  ["Codificando {} episodios de a {} a la vez.", "Codificando {count} episodios de a {jobs} a la vez."],
+  ["Codificando episodio {}/{}: {}", "Codificando episodio {index}/{total}: {title}"],
+  ["Episodio {}/{}: reutilizando caché de artefactos {}", "Episodio {index}/{total}: reutilizando caché de artefactos {path}"],
+  ["Usando composición del editor para el menú «{}».", "Usando composición del editor para el menú «{name}»."],
+  ["Fondo del menú «{}» no encontrado; se usa color base.", "Fondo del menú «{name}» no encontrado; se usa color base."],
+  ["Compilando menú {}/{}: {} (spumux)", "Compilando menú {index}/{total}: {name} (spumux)"],
+  ["Menú {}/{}: reutilizando caché {}", "Menú {index}/{total}: reutilizando caché {path}"],
+  ["Menú animado {}/{}: {} ({} botones de vídeo)", "Menú animado {index}/{total}: {name} ({count} botones de vídeo)"],
+  ["Menú «{}»: falta labels-<id>.png; se renderiza estático.", "Menú «{name}»: falta labels-<id>.png; se renderiza estático."],
+  ["Menú HDMV IG compilado: {} ({} bytes, {} PES, objeto {})", "Menú HDMV IG compilado: {name} ({bytes} bytes, {pes} PES, objeto {object})"],
+  ["Menú HDMV IG «{}» adjuntado: playlist {} (clip {}, objeto {}, {} paquetes IG)", "Menú HDMV IG «{name}» adjuntado: playlist {playlist} (clip {clip}, objeto {object}, {packets} paquetes IG)"],
+];
+
+const LOG_PATTERNS = LOG_TEMPLATES.map(([template, key]) => {
+  const source = template
+    .split(/\{[^}]*\}/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("(.+?)");
+  const names = [...key.matchAll(/\{(\w+)\}/g)].map((match) => match[1]);
+  return { pattern: new RegExp(`^${source}$`), key, names };
+});
+
+/** A line of the production log in the interface language. */
+export function localizeLogLine(message: string): string {
+  const text = message.trim();
+  for (const { pattern, key, names } of LOG_PATTERNS) {
+    const match = pattern.exec(text);
+    if (!match) continue;
+    const values: Record<string, string> = {};
+    names.forEach((name, index) => (values[name] = match[index + 1] ?? ""));
+    return t(key, values);
+  }
+  return i18n.has(text) ? t(text) : text;
+}
+
+/** What each structural check looks at (stable verifier IDs), for the result list. */
+const CHECK_TITLES: Record<string, string> = {
+  "UDF-VRS": "Secuencia de reconocimiento del volumen",
+  "UDF-AVDP": "Puntero al descriptor del volumen",
+  "UDF-PVD": "Descriptor principal del volumen",
+  "UDF-PARTITION": "Partición del disco",
+  "UDF-FSD": "Descriptor del conjunto de archivos",
+  "UDF-ROOT": "Árbol de carpetas legible",
+  "UDF-TAG266": "Entradas de archivo extendidas",
+  "UDF-MIRROR": "Metadatos y su copia espejo",
+  "UDF-EXTENT": "Tamaños de archivo dentro de la imagen",
+  "UDF-DIGEST": "Huella SHA-256 de la imagen",
+  "DVD-VOB": "Archivos de vídeo (VOB)",
+  "DVD-IFO-BUP": "Archivos de control (IFO) y sus copias (BUP)",
+  "DVD-VTS-IFO": "Conjunto de títulos",
+  "DVD-PGC": "Programas y celdas de los títulos",
+  "DVD-LAYER-BREAK": "Cambio de capa (DVD-9)",
+  "DVD-REGION": "Regiones del disco",
+  "DVD-AUDIO-STREAM": "Pista de audio en el vídeo",
+  "DVD-SPU-SEQ": "Paquetes de botones y subtítulos",
+  "DVD-SPU-PALETTE": "Colores de botones y subtítulos",
+  "DVD-SPU-BUTTONS": "Botones del menú alcanzables",
+  "BDMV-INDEX": "Índice del disco (index.bdmv)",
+  "BDMV-MOBJ": "Programas de navegación (MovieObject)",
+  "BDMV-MPLS": "Listas de reproducción",
+  "BDMV-CLPI": "Información de los clips",
+  "BDMV-M2TS": "Formato de los vídeos (M2TS)",
+  "BDMV-PID": "Vídeo y audio declarados",
+  "BDMV-AUDIO-STREAM": "Pista de audio",
+  "BDMV-IG": "Menú interactivo",
+  "BDMV-IG-BUTTONS": "Botones del menú",
+  "BDMV-IG-NAV": "Navegación entre botones",
+  "BDMV-MOTION-THUMB": "Menús con vídeo",
+  "BDMV-PGS": "Subtítulos",
+  "BDMV-PGS-DS": "Bloques de subtítulos",
+  "BDMV-PGS-TS": "Tiempos de los subtítulos",
+  "BDMV-MARKS": "Marcas de capítulo",
+};
+
+const CHECK_STATUS: Record<string, string> = {
+  pass: "bien",
+  warn: "aviso",
+  fail: "error",
+  skipped: "omitida",
+};
+
+/** "[ok] Readable folder tree" in the interface language; the detail stays as a tooltip. */
+export function localizeCheck(check: { id: string; status: string; message: string }): string {
+  const status = CHECK_STATUS[check.status] ? t(CHECK_STATUS[check.status]) : check.status;
+  const title = CHECK_TITLES[check.id] ? t(CHECK_TITLES[check.id]) : check.id;
+  return `[${status}] ${title}`;
+}
+
 /** Prefixes the render engine puts in front of its errors (RenderError). */
 const RENDER_ERROR_PREFIXES: Array<[string, string]> = [
   ["error de E/S: ", "Error de lectura o escritura: {detail}"],

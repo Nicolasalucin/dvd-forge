@@ -41,7 +41,14 @@ import {
 } from "../api/bindings";
 import { messageOf, unwrap } from "../api/client";
 import { hasGap, normalizeRect } from "../editor/exportMenu";
-import { localizeDiagnostic, localizeJobStage, localizeJobSummary, localizeMessage } from "../i18n/diagnostics";
+import {
+  localizeDiagnostic,
+  localizeJobStage,
+  localizeJobSummary,
+  localizeLogLine,
+  localizeMessage,
+  localizeRenderError,
+} from "../i18n/diagnostics";
 import { i18n, t } from "../i18n/index.svelte";
 import { normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
@@ -3000,11 +3007,12 @@ class ProjectStore {
       case "warning":
         this.renderLogs = [
           ...this.renderLogs,
-          `⚠ ${kind.code}: ${localizeMessage(kind.code, kind.message)}`,
+          // The code stays out of the text (it is in the job history).
+          `⚠ ${localizeMessage(kind.code, kind.message)}`,
         ].slice(-300);
         break;
       case "log":
-        this.renderLogs = [...this.renderLogs, `[${kind.level}] ${t(kind.message)}`].slice(-300);
+        this.renderLogs = [...this.renderLogs, localizeLogLine(kind.message)].slice(-300);
         break;
       case "artifact":
         if (kind.kind === "iso") this.lastIso = kind.path;
@@ -3021,12 +3029,9 @@ class ProjectStore {
       case "failed":
         // Rust failure text is technical and in Spanish; keep it as detail
         // under a localized headline.
-        this.renderError =
-          i18n.has(kind.message)
-            ? t(kind.message)
-            : `${t("La producción del disco falló.")} ${t("Detalle técnico:")} ${kind.message}`;
+        this.renderError = localizeRenderError(kind.message);
         this.renderStage = t("Error");
-        this.renderLogs = [...this.renderLogs, `✕ ${kind.message}`].slice(-300);
+        this.renderLogs = [...this.renderLogs, `✕ ${localizeRenderError(kind.message)}`].slice(-300);
         break;
       case "cancelled":
         this.renderError = t("Generación cancelada.");
