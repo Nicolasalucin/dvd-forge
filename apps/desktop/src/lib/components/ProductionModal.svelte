@@ -6,6 +6,7 @@
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
   import { t } from "../i18n/index.svelte";
+  import { localizeDiagnostic } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -19,6 +20,11 @@
   import { compositeProjectMenus } from "../production";
   import { projectStore } from "../stores/project.svelte";
   import { basename, formatBytes } from "../utils/format";
+
+  // Episodes no menu button can start: shown before producing the disc.
+  const unreachable = $derived(
+    projectStore.plan?.warnings.filter((warning) => warning.code === "W_EPISODE_NO_BUTTON") ?? [],
+  );
 
   type ProductionMode = "iso" | "folder" | "isoBurn" | "existing";
 
@@ -657,6 +663,16 @@
               </p>
             {/if}
           </div>
+          {#if unreachable.length > 0}
+            <div class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3" role="status">
+              <p class="ui-section-title text-amber-300">{t("Revisa los menús")}</p>
+              <ul class="mt-1.5 space-y-1 text-[12px] leading-5 text-slate-300">
+                {#each unreachable as warning}
+                  <li>{localizeDiagnostic(warning)}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
         </aside>
       </div>
     </div>

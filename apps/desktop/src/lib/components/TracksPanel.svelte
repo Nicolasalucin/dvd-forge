@@ -15,6 +15,15 @@
       (stream) => !episode?.audio.some((track) => track.sourceStream === stream.index),
     ) ?? [],
   );
+  // Embedded subtitle streams of the video that are not on the disc yet.
+  const availableSubtitles = $derived(
+    asset?.probe.subtitleTracks?.filter(
+      (stream) =>
+        !episode?.subtitles.some(
+          (track) => track.sourcePath === null && track.sourceStream === stream.index,
+        ),
+    ) ?? [],
+  );
   const defaultAudio = $derived(episode?.audio.find((track) => track.default) ?? episode?.audio[0]);
   const defaultSubtitle = $derived(episode?.subtitles.find((track) => track.isDefault) ?? null);
   let audioToAdd = $state("");
@@ -81,7 +90,11 @@
 
   function toggleDefaultSubtitle(index: number) {
     if (!episode) return;
-    projectStore.setDefaultEpisodeSubtitle(episode.id, index);
+    // Subtitles may have no default (they start switched off).
+    projectStore.setDefaultEpisodeSubtitle(
+      episode.id,
+      episode.subtitles[index]?.isDefault ? null : index,
+    );
   }
 
   async function addSubtitleFile() {
@@ -96,9 +109,17 @@
     projectStore.addEpisodeSubtitleTrack(episode.id, picked, language, name);
   }
 
-  function addEmptySubtitle() {
-    if (!episode) return;
-    projectStore.addEpisodeSubtitleTrack(episode.id, null, "und");
+  function addEmbeddedSubtitle() {
+    const stream = availableSubtitles[0];
+    if (!episode || !stream) return;
+    projectStore.addEpisodeSubtitleTrack(
+      episode.id,
+      null,
+      normalizeLanguageCode(stream.language ?? "und"),
+      stream.title?.trim() || undefined,
+      stream.index,
+      stream.bitmap ?? false,
+    );
   }
 
   function offsetPercent(delayMs: number): number {
@@ -279,15 +300,21 @@
                       <option value={kbps}>{kbps} kbps</option>
                     {/each}
                   </select>
-                  <label class="flex items-center gap-1 text-[11px] text-slate-400">
-                    <input
-                      type="checkbox"
-                      checked={track.default}
-                      onchange={() => toggleDefaultAudio(index)}
-                      class="accent-cyan-500"
-                    />
+                  <button
+                    type="button"
+                    aria-pressed={track.default}
+                    onclick={() => toggleDefaultAudio(index)}
+                    title={t("La pista predeterminada suena al empezar y pasa a ser la primera del disco.")}
+                    class="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200"
+                  >
+                    <span
+                      class="grid h-3.5 w-3.5 place-items-center rounded-sm border text-[9px] leading-none {track.default
+                        ? 'border-cyan-500 bg-cyan-500 text-[#fff]'
+                        : 'border-slate-500'}"
+                      aria-hidden="true">{track.default ? "✓" : ""}</span
+                    >
                     {t("Defecto")}
-                  </label>
+                  </button>
                   <button
                     type="button"
                     onclick={() => projectStore.removeEpisodeAudioTrack(episode.id, index)}
@@ -349,7 +376,11 @@
               </button>
               <button
                 type="button"
-                onclick={addEmptySubtitle}
+                onclick={addEmbeddedSubtitle}
+                disabled={availableSubtitles.length === 0}
+                title={availableSubtitles.length === 0
+                  ? t("El vídeo no tiene más subtítulos internos.")
+                  : t("Añade un subtítulo que ya viene dentro del vídeo.")}
                 class="ui-btn ui-btn-sm"
               >
                 {t("+ Pista")}
@@ -390,15 +421,21 @@
                     />
                     {t("Forzado")}
                   </label>
-                  <label class="flex items-center gap-1 text-[11px] text-slate-400">
-                    <input
-                      type="checkbox"
-                      checked={track.isDefault}
-                      onchange={() => toggleDefaultSubtitle(index)}
-                      class="accent-violet-500"
-                    />
+                  <button
+                    type="button"
+                    aria-pressed={track.isDefault}
+                    onclick={() => toggleDefaultSubtitle(index)}
+                    title={t("El subtítulo predeterminado se muestra al empezar; sin ninguno, empiezan apagados.")}
+                    class="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200"
+                  >
+                    <span
+                      class="grid h-3.5 w-3.5 place-items-center rounded-sm border text-[9px] leading-none {track.isDefault
+                        ? 'border-violet-500 bg-violet-500 text-[#fff]'
+                        : 'border-slate-500'}"
+                      aria-hidden="true">{track.isDefault ? "✓" : ""}</span
+                    >
                     {t("Defecto")}
-                  </label>
+                  </button>
                   <button
                     type="button"
                     onclick={() => projectStore.removeEpisodeSubtitleTrack(episode.id, index)}

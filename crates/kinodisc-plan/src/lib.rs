@@ -89,6 +89,14 @@ pub fn calculate_bitrate_plan(
     // the render log show them next to the capacity warnings.
     plan.warnings
         .extend(project.disc.player_preset.check(project));
+    // Episodes no menu button can start: shown with the plan (VBR panel,
+    // production) so they are fixed before the disc is made.
+    plan.warnings.extend(
+        project
+            .validate()
+            .into_iter()
+            .filter(|diagnostic| diagnostic.code == "W_EPISODE_NO_BUTTON"),
+    );
     Ok(plan)
 }
 

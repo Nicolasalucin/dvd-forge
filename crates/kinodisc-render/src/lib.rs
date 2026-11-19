@@ -3087,6 +3087,7 @@ async fn mux_episode_subtitles(
         authored.push(AuthoredSubtitleTrack {
             language: track.language.clone(),
             stream_id,
+            default: track.is_default,
         });
         stream_id = stream_id.saturating_add(1);
     }

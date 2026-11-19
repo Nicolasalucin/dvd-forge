@@ -1577,12 +1577,18 @@ class ProjectStore {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     const chosen = episode?.audio[index];
     if (!episode || !chosen) return;
-    episode.audio = [
-      { ...chosen, default: true },
-      ...episode.audio
-        .filter((_, position) => position !== index)
-        .map((audio) => ({ ...audio, default: false })),
-    ];
+    // The default track moves to the front (players start with track 1).
+    // Names the app generated ("Track 2") follow their new position.
+    const auto = (number: number) => t("Pista {number}", { number });
+    const order = [index, ...episode.audio.map((_, position) => position).filter((p) => p !== index)];
+    episode.audio = order.map((from, to) => {
+      const audio = episode.audio[from];
+      return {
+        ...audio,
+        default: from === index,
+        label: audio.label === auto(from + 1) ? auto(to + 1) : audio.label,
+      };
+    });
     this.touch();
   }
 
@@ -1597,23 +1603,34 @@ class ProjectStore {
     this.touch();
   }
 
+  /**
+   * Adds a subtitle from a file (`sourcePath`) or from one of the video's own
+   * subtitle streams (`sourcePath` null, `sourceStream` = its stream index).
+   */
   addEpisodeSubtitleTrack(
     episodeId: string,
     sourcePath: string | null,
     language = "und",
     label?: string,
+    sourceStream = 0,
+    bitmap = false,
   ): void {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
+    if (sourcePath === null) {
+      // Only a real subtitle stream of the video (stream 0 is usually video).
+      const asset = this.assetFor(episode.video);
+      if (!asset?.probe.subtitleTracks?.some((stream) => stream.index === sourceStream)) return;
+    }
     const track: SubtitleTrack_Serialize = {
-      sourceStream: 0,
+      sourceStream,
       sourcePath,
       language,
       label: label ?? t("Subtítulo {number}", { number: episode.subtitles.length + 1 }),
       delayMs: 0,
       isForced: false,
       isDefault: episode.subtitles.length === 0,
-      bitmap: false,
+      bitmap,
       style: defaultSubtitleStyle(),
     };
     episode.subtitles = [...episode.subtitles, track];
@@ -1636,9 +1653,10 @@ class ProjectStore {
     this.touch();
   }
 
-  setDefaultEpisodeSubtitle(episodeId: string, index: number): void {
+  /** Makes one subtitle the default, or none (`null`: subtitles start off). */
+  setDefaultEpisodeSubtitle(episodeId: string, index: number | null): void {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
-    if (!episode || !episode.subtitles[index]) return;
+    if (!episode || (index !== null && !episode.subtitles[index])) return;
     episode.subtitles = episode.subtitles.map((track, position) => ({
       ...track,
       isDefault: position === index,
@@ -1649,10 +1667,8 @@ class ProjectStore {
   removeEpisodeSubtitleTrack(episodeId: string, index: number): void {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
     if (!episode) return;
+    // Removing the default subtitle leaves none: subtitles are optional.
     episode.subtitles = episode.subtitles.filter((_, position) => position !== index);
-    if (episode.subtitles.length > 0 && !episode.subtitles.some((track) => track.isDefault)) {
-      episode.subtitles[0] = { ...episode.subtitles[0], isDefault: true };
-    }
     this.touch();
   }
 

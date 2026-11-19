@@ -131,7 +131,13 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
             use tauri::Manager;
-            if let Ok(cache) = app.path().app_cache_dir() {
+            // KINODISC_CACHE_DIR keeps test runs (QA walkthroughs) out of the
+            // user's own cache folder; everyone else uses the app cache dir.
+            if let Some(cache) = kinodisc_toolchain::legacy::env_var_os("KINODISC_CACHE_DIR")
+                .filter(|value| !value.is_empty())
+            {
+                commands::media::set_cache_root(std::path::PathBuf::from(cache));
+            } else if let Ok(cache) = app.path().app_cache_dir() {
                 commands::media::set_cache_root(cache);
             }
             Ok(())

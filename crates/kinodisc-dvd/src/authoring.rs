@@ -35,6 +35,8 @@ pub struct AuthoredAudioTrack {
 pub struct AuthoredSubtitleTrack {
     pub language: String,
     pub stream_id: u8,
+    /// Shown when the title starts (`subtitle=N+64` in the title pre).
+    pub default: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -400,6 +402,12 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
         }
         for (index, episode) in request.episodes.iter().enumerate() {
             xml.push_str("      <pgc>\n");
+            // The default subtitle is switched on when the title starts; the
+            // stream number is its position in the title set's list (+64 =
+            // display on).
+            if let Some(position) = episode.subtitles.iter().position(|track| track.default) {
+                xml.push_str(&format!("        <pre>subtitle={};</pre>\n", position + 64));
+            }
             let chapters = chapter_attribute(episode, request.project.disc.standard.frame_rate());
             if chapters.is_empty() {
                 xml.push_str(&format!(
@@ -978,6 +986,39 @@ mod tests {
         })
         .expect("xml");
         assert!(xml.contains("g1=0; jump title 2;"));
+    }
+
+    #[test]
+    fn default_subtitle_is_switched_on_when_the_title_starts() {
+        let project = fixture_project();
+        let menus = rendered_menus(&project);
+        let mut episodes = episode_files(&project);
+        let track = |stream_id, default| AuthoredSubtitleTrack {
+            language: "spa".to_string(),
+            stream_id,
+            default,
+        };
+        let xml = |episodes: &[EpisodeFile]| {
+            build_dvdauthor_xml(&AuthoringRequest {
+                project: &project,
+                intro: None,
+                menus: &menus,
+                episodes,
+            })
+            .expect("xml")
+        };
+        // No default: subtitles stay off (QA 1.1.2: the flag had no effect).
+        episodes[0].subtitles = vec![track(0, false), track(1, false)];
+        assert!(!xml(&episodes).contains("subtitle="));
+        // The second track is the default: stream 1, display on (+64), and
+        // the pre command comes before the title's video.
+        episodes[0].subtitles = vec![track(0, false), track(1, true)];
+        let authored = xml(&episodes);
+        let pre = authored.find("<pre>subtitle=65;</pre>").expect("pre");
+        let vob = authored
+            .find("<vob file=\"/tmp/episode-1.mpg\"")
+            .expect("vob");
+        assert!(pre < vob, "{authored}");
     }
 
     #[test]
