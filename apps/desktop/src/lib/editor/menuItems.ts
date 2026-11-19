@@ -15,9 +15,31 @@ export function textSize(item: Item & { kind: "text" }): number {
   return Math.max(8, item.fontSize ?? 32);
 }
 
-export function textFont(item: Item & { kind: "text" }): string {
+export function textFont(item: Item & { kind: "text" }, size = textSize(item)): string {
   const family = item.fontFamily.replaceAll('"', "") || "system-ui";
-  return `600 ${textSize(item)}px "${family}", system-ui, sans-serif`;
+  return `600 ${size}px "${family}", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", system-ui, sans-serif`;
+}
+
+let scratch: CanvasRenderingContext2D | null = null;
+
+/**
+ * The size a text item is drawn at: its own size, or smaller (down to half)
+ * when the wrapped text would not fit its box. Editor and disc use the same
+ * figure, so long titles shrink instead of being cut off.
+ */
+export function fittedTextSize(item: Item & { kind: "text" }): number {
+  const rect = itemRect(item);
+  const base = textSize(item);
+  scratch ??= document.createElement("canvas").getContext("2d");
+  if (!scratch || rect.w <= 0 || rect.h <= 0) return base;
+  const step = Math.max(1, base * 0.05);
+  for (let size = base; size >= Math.max(8, base * 0.5); size -= step) {
+    scratch.font = textFont(item, size);
+    const lines = wrapText(scratch, item.text, Math.max(8, rect.w));
+    const widest = Math.max(0, ...lines.map((line) => scratch!.measureText(line).width));
+    if (lines.length * size * 1.2 <= rect.h + 1 && widest <= rect.w + 1) return size;
+  }
+  return Math.max(8, base * 0.5);
 }
 
 /** Splits text into lines that fit `width` (explicit line breaks kept). */
@@ -54,9 +76,9 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 
 function drawText(context: CanvasRenderingContext2D, item: Item & { kind: "text" }): void {
   const rect = itemRect(item);
-  const size = textSize(item);
+  const size = fittedTextSize(item);
   context.save();
-  context.font = textFont(item);
+  context.font = textFont(item, size);
   context.fillStyle = item.color || "#ffffff";
   context.textBaseline = "middle";
   context.textAlign = item.align;

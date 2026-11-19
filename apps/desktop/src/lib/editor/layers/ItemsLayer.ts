@@ -1,6 +1,6 @@
 import Konva from "konva";
 import type { Menu_Serialize } from "../../api/bindings";
-import { itemRect, textFont, textSize } from "../menuItems";
+import { fittedTextSize, itemRect, textFont } from "../menuItems";
 
 export interface ItemsLayerOptions {
   selectedId: string | null;
@@ -50,8 +50,8 @@ export class ItemsLayer {
             width: rect.w,
             height: rect.h,
             text: item.text,
-            fontFamily: `"${item.fontFamily.replaceAll('"', "")}", system-ui, sans-serif`,
-            fontSize: textSize(item),
+            fontFamily: `"${item.fontFamily.replaceAll('"', "")}", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", system-ui, sans-serif`,
+            fontSize: fittedTextSize(item),
             fontStyle: "600",
             fill: item.color || "#ffffff",
             align: item.align,
@@ -60,8 +60,8 @@ export class ItemsLayer {
             wrap: "word",
             shadowColor: "black",
             shadowOpacity: 0.55,
-            shadowBlur: Math.max(2, textSize(item) / 10),
-            shadowOffsetY: Math.max(1, textSize(item) / 24),
+            shadowBlur: Math.max(2, fittedTextSize(item) / 10),
+            shadowOffsetY: Math.max(1, fittedTextSize(item) / 24),
           }),
         );
         void textFont;

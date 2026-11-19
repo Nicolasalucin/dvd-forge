@@ -335,12 +335,8 @@ function drawButtonLabel(
   context.shadowOffsetY = 2;
   const textX =
     layout.align === "left" ? layout.label.x : layout.label.x + layout.label.w / 2;
-  context.fillText(
-    button.name,
-    textX,
-    layout.label.y + layout.label.h / 2,
-    Math.max(20, layout.label.w - 4),
-  );
+  const label = fitLabel(context, button.name, Math.max(20, layout.label.w - 4));
+  context.fillText(label, textX, layout.label.y + layout.label.h / 2);
   context.shadowColor = "transparent";
   context.shadowBlur = 0;
   context.shadowOffsetY = 0;
@@ -685,7 +681,29 @@ function cssFont(button: MenuButton_Serialize): string {
       : button.fontSize;
   // Fallback keeps labels sans-serif when the chosen family is not installed
   // (otherwise the browser default is a serif face, also on the final disc).
-  return `${weight} ${size}px ${family}, sans-serif`;
+  // Emoji faces come before the generic family so 🎂 is drawn, not a box.
+  return `${weight} ${size}px ${family}, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+}
+
+/**
+ * Fits a label in `width`: first a slightly smaller font (down to 75 %),
+ * then an ellipsis. `fillText` with a max width squeezed long names until
+ * they were unreadable.
+ */
+function fitLabel(context: CanvasRenderingContext2D, text: string, width: number): string {
+  const base = context.font;
+  const match = /(\d+(?:\.\d+)?)px/.exec(base);
+  const size = match ? Number(match[1]) : 0;
+  if (context.measureText(text).width <= width || !size) return text;
+  for (let scale = 0.95; scale >= 0.75; scale -= 0.05) {
+    context.font = base.replace(/(\d+(?:\.\d+)?)px/, `${(size * scale).toFixed(1)}px`);
+    if (context.measureText(text).width <= width) return text;
+  }
+  const characters = [...text];
+  while (characters.length > 1 && context.measureText(`${characters.join("").trimEnd()}…`).width > width) {
+    characters.pop();
+  }
+  return `${characters.join("").trimEnd()}…`;
 }
 
 function roundedRect(

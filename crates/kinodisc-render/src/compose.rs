@@ -844,8 +844,36 @@ fn wrap(font: &Glyphs, size: f32, text: &str, width: f32) -> Vec<String> {
     lines
 }
 
+/// Fits one line in `max_width` like the editor export (`fitLabel` in
+/// exportMenu.ts): a slightly smaller size (down to 75 %), then an ellipsis.
+/// Squeezing the glyphs made long names unreadable.
+fn fit_line(font: &Glyphs, size: f32, text: &str, max_width: Option<f32>) -> (f32, String) {
+    let Some(max) = max_width.filter(|max| *max > 0.0) else {
+        return (size, text.to_string());
+    };
+    if line_width(font, size, text) <= max {
+        return (size, text.to_string());
+    }
+    let mut scale = 0.95;
+    while scale >= 0.749 {
+        if line_width(font, size * scale, text) <= max {
+            return (size * scale, text.to_string());
+        }
+        scale -= 0.05;
+    }
+    let small = size * 0.75;
+    let mut chars: Vec<char> = text.chars().collect();
+    loop {
+        let candidate = format!("{}…", chars.iter().collect::<String>().trim_end());
+        if chars.len() <= 1 || line_width(font, small, &candidate) <= max {
+            return (small, candidate);
+        }
+        chars.pop();
+    }
+}
+
 /// One line of text centred vertically on `center_y`. With `max_width` the
-/// text is narrowed to fit, like Canvas `fillText(text, x, y, maxWidth)`.
+/// text is fitted by `fit_line`.
 #[allow(clippy::too_many_arguments)]
 fn draw_text(
     canvas: &mut RgbaImage,
@@ -859,17 +887,11 @@ fn draw_text(
     shadow: Option<Shadow>,
     max_width: Option<f32>,
 ) {
-    let natural = line_width(font, size, text);
-    let squeeze = match max_width {
-        Some(max) if natural > max && natural > 0.0 => max / natural,
-        _ => 1.0,
-    };
-    let scale = PxScale {
-        x: size * squeeze,
-        y: size,
-    };
+    let (size, fitted) = fit_line(font, size, text, max_width);
+    let text = fitted.as_str();
+    let scale = PxScale { x: size, y: size };
     let scaled = font.primary.as_scaled(scale);
-    let width = natural * squeeze;
+    let width = line_width(font, size, text);
     let start = match align {
         Align::Left => x,
         Align::Center => x - width / 2.0,
@@ -936,6 +958,36 @@ fn paint_mask(canvas: &mut RgbaImage, mask: &image::GrayImage, x: f32, y: f32, c
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn long_labels_shrink_then_get_an_ellipsis() {
+        // Needs any system font; machines without fonts skip the check.
+        let fonts = FontProvider::new();
+        let Some(primary) = fonts
+            .resolve_family("Arial", 400)
+            .or_else(|| fonts.resolve_family("DejaVu Sans", 400))
+        else {
+            return;
+        };
+        let glyphs = Glyphs {
+            primary,
+            fallbacks: std::rc::Rc::new(Vec::new()),
+        };
+        let (size, text) = fit_line(&glyphs, 20.0, "Short", Some(500.0));
+        assert_eq!((size, text.as_str()), (20.0, "Short"));
+        // Slightly too long: a smaller size, same text.
+        let natural = line_width(&glyphs, 20.0, "Cumpleaños de Sofía");
+        let (size, text) = fit_line(&glyphs, 20.0, "Cumpleaños de Sofía", Some(natural * 0.9));
+        assert!(size < 20.0 && size >= 15.0);
+        assert_eq!(text, "Cumpleaños de Sofía");
+        // Far too long: the smallest size and an ellipsis, never squeezed
+        // (QA 1.1.3: long names were unreadable on the disc).
+        let long = "Cumpleaños de Sofía — fiesta en el jardín con toda la familia 2026";
+        let (size, text) = fit_line(&glyphs, 20.0, long, Some(120.0));
+        assert!((size - 15.0).abs() < 0.01);
+        assert!(text.ends_with('…'));
+        assert!(line_width(&glyphs, size, &text) <= 120.0);
+    }
 
     #[test]
     fn hex_colours_parse() {

@@ -53,6 +53,7 @@ import { i18n, t } from "../i18n/index.svelte";
 import { normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
 import { isPlaceholderAsset } from "../utils/assets";
+import { thumbnailKey, thumbnailTimeMs } from "../editor/thumbnailKey";
 
 export type StudioMode =
   | "menu"
@@ -1275,9 +1276,40 @@ class ProjectStore {
     return job;
   }
 
+  /**
+   * Scene buttons show the frame at their chapter, not the poster: load
+   * those frames for the editor the way the export does (keyed by
+   * `thumbnailKey`).
+   */
+  async loadFrameThumbnails(): Promise<void> {
+    const project = this.project;
+    if (!project) return;
+    for (const menu of project.menus) {
+      for (const button of menu.buttons) {
+        const thumbnail = button.thumbnail;
+        const at = thumbnail ? thumbnailTimeMs(thumbnail) : null;
+        if (!thumbnail || at === null) continue;
+        const key = thumbnailKey(thumbnail);
+        if (this.previewUrls[key]) continue;
+        const asset = this.assetFor(thumbnail.asset);
+        const path = asset && asset.kind === "video" ? this.assetPath(asset) : null;
+        if (!path) continue;
+        try {
+          const frame = await unwrap(commands.mediaExtractFrame(path, at, null));
+          const dataUrl = await unwrap(commands.readImageDataUrl(frame));
+          if (this.project !== project) return;
+          this.previewUrls[key] = dataUrl;
+        } catch {
+          // The poster frame stays as the fallback.
+        }
+      }
+    }
+  }
+
   async hydrateProjectPreviews(): Promise<void> {
     const project = this.project;
     if (!project) return;
+    void this.loadFrameThumbnails();
     for (const asset of project.assets) {
       if (asset.kind === "image") {
         const path = this.assetPath(asset);
@@ -2545,6 +2577,7 @@ class ProjectStore {
       const result = await unwrap(commands.menuApplyChapterMenus(project));
       localizeGeneratedMenus(result.menus);
       project.menus = result.menus;
+      void this.loadFrameThumbnails();
       this.templateDiagnostics = result.diagnostics.map(
         (diagnostic) => diagnostic.code + ": " + localizeDiagnostic(diagnostic),
       );
