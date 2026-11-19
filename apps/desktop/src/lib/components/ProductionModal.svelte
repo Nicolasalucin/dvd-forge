@@ -5,7 +5,7 @@
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
-  import { t, formatPercent } from "../i18n/index.svelte";
+  import { t, formatDecimal, formatPercent } from "../i18n/index.svelte";
   import { localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
@@ -85,11 +85,18 @@
   const needsBurn = $derived(mode === "isoBurn" || mode === "existing");
   // What stops this mode from working at all, said before the user starts.
   const missingTools = $derived(projectStore.toolsReport?.missingRequired ?? []);
+  const emptyMenu = $derived(
+    project?.menus.find((menu) => !menu.buttons.some((button) => button.enabled)) ?? null,
+  );
   const blocker = $derived(
     busy
       ? null
       : needsBurn && !effectiveDevice
         ? t("No hay ninguna grabadora conectada. Conecta una y pulsa «Actualizar», o elige «Solo ISO».")
+        : mode !== "existing" && emptyMenu
+          ? t("El menú «{name}» no tiene botones: añade al menos uno o bórralo antes de generar el disco.", {
+              name: emptyMenu.name,
+            })
         : mode !== "existing" && missingTools.length > 0
           ? t("Faltan herramientas para generar el disco ({tools}). Instálalas desde «Disco › Herramientas de disco…».", {
               tools: missingTools.join(", "),
@@ -128,7 +135,23 @@
     { id: "existing", title: "ISO existente", hint: "Graba una imagen ya generada", icon: "▤" },
   ];
 
+  function verdictLabel(verdict: string): string {
+    if (verdict === "pass") return t("correcta");
+    if (verdict === "warn") return t("con avisos");
+    if (verdict === "fail") return t("con errores");
+    return verdict;
+  }
+
+  // A folder typed or chosen is remembered even if nothing is produced.
+  $effect(() => {
+    const folder = outputDir.trim();
+    if (defaultsReady && folder && isAbsolutePath(folder)) rememberOutput(nativePath(folder));
+  });
+
   onMount(() => {
+    // The plan (and its warnings, such as episodes without a button) is
+    // ready before anything is produced.
+    if (projectStore.project?.episodes.length && !projectStore.plan) void projectStore.calculatePlan();
     // An error from an earlier attempt is not shown again on reopening.
     if (!projectStore.rendering) {
       projectStore.renderError = null;
@@ -161,7 +184,10 @@
 
   async function chooseOutput() {
     const picked = await open({ directory: true, multiple: false });
-    if (typeof picked === "string") outputDir = picked;
+    if (typeof picked === "string") {
+      outputDir = picked;
+      rememberOutput(nativePath(picked));
+    }
   }
 
   async function chooseExistingIso() {
@@ -207,6 +233,7 @@
       return;
     }
     projectStore.resetRender();
+    projectStore.lastIso = null;
     projectStore.rendering = true;
     const root = nativePath(outputDir.trim()).replace(/[\\/]+$/, "");
     rememberOutput(root);
@@ -277,6 +304,8 @@
         }
         outputs.push(produced);
         projectStore.lastIso = produced;
+        // The engine's own summary names its (already removed) work folder.
+        projectStore.renderSummary = t("Listo: {path}", { path: produced });
       }
       if (cancelRequested) {
         projectStore.renderStage = t("Cancelado");
@@ -285,7 +314,7 @@
       }
       projectStore.renderPercent = 100;
       projectStore.renderStage = t("Listo");
-      const seconds = (elapsedMs / 1000).toFixed(1);
+      const seconds = formatDecimal(elapsedMs / 1000, 1);
       if (outputs.length > 1) {
         projectStore.renderSummary = t("{count} discos generados en {seconds} s", { count: outputs.length, seconds });
       } else if (mode === "folder") {
@@ -575,14 +604,14 @@
             </p>
             {#if projectStore.burnReport}
               <p class="mt-1 text-[11px] text-emerald-300">
-                {t("Grabación completada")} · {projectStore.burnReport.backend} · {(projectStore.burnReport.elapsedMs / 1000).toFixed(1)} s
+                {t("Grabación completada")} · {projectStore.burnReport.backend} · {formatDecimal(projectStore.burnReport.elapsedMs / 1000, 1)} s
                 {#if projectStore.burnReport.verified}· {t("verificada")}{/if}
               </p>
             {/if}
             {#if projectStore.renderVerification}
               <details class="mt-2 rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
                 <summary class="cursor-pointer select-none text-[11px] text-slate-400">
-                  {t("Verificación estructural")} · {projectStore.renderVerification.verdict}
+                  {t("Verificación estructural")} · {verdictLabel(projectStore.renderVerification.verdict)}
                 </summary>
                 <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[11px]">
                   {#each projectStore.renderVerification.checks as check}

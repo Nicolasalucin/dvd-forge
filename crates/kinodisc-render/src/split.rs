@@ -213,27 +213,46 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
             continue;
         }
         menu.buttons.retain(|button| !removed.contains(&button.id));
-        if menu.buttons.is_empty() {
+        emptied.insert(menu.id);
+        clear_links(&mut menu.buttons, &removed);
+    }
+    // A menu that lost its buttons to other discs and now only leads back
+    // (another disc's scene menu keeps just "Back") shows nothing: drop it
+    // (never the root) with the buttons that open it, and repeat while that
+    // empties more menus (a scenes index, say).
+    let root = part.root_menu;
+    loop {
+        let dead: HashSet<kinodisc_domain::MenuId> = part
+            .menus
+            .iter()
+            .filter(|menu| menu.id != root && emptied.contains(&menu.id))
+            .filter(|menu| {
+                !menu
+                    .buttons
+                    .iter()
+                    .any(|button| leads_somewhere(&button.action, menu.id, root))
+            })
+            .map(|menu| menu.id)
+            .collect();
+        if dead.is_empty() {
+            break;
+        }
+        part.menus.retain(|menu| !dead.contains(&menu.id));
+        for menu in &mut part.menus {
+            let gone: HashSet<ButtonId> = menu
+                .buttons
+                .iter()
+                .filter(|button| matches!(button.action, ButtonAction::GotoMenu { menu } if dead.contains(&menu)))
+                .map(|button| button.id)
+                .collect();
+            if gone.is_empty() {
+                continue;
+            }
+            menu.buttons.retain(|button| !gone.contains(&button.id));
+            clear_links(&mut menu.buttons, &gone);
             emptied.insert(menu.id);
         }
-        for button in &mut menu.buttons {
-            for link in [
-                &mut button.nav_override.up,
-                &mut button.nav_override.down,
-                &mut button.nav_override.left,
-                &mut button.nav_override.right,
-            ] {
-                if link.is_some_and(|target| removed.contains(&target)) {
-                    *link = None;
-                }
-            }
-        }
     }
-    // A menu whose buttons all went to another disc cannot be navigated:
-    // drop it (never the root) together with the buttons that open it.
-    let root = part.root_menu;
-    part.menus
-        .retain(|menu| menu.id == root || !emptied.contains(&menu.id));
     let menu_ids: HashSet<_> = part.menus.iter().map(|menu| menu.id).collect();
     for menu in &mut part.menus {
         menu.buttons.retain(|button| match button.action {
@@ -280,6 +299,37 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
         count,
         project: part,
         file_name,
+    }
+}
+
+/// True when a button plays something or opens another page (not just the
+/// way back to the root or to its own menu).
+fn leads_somewhere(
+    action: &ButtonAction,
+    own: kinodisc_domain::MenuId,
+    root: kinodisc_domain::MenuId,
+) -> bool {
+    match action {
+        ButtonAction::GotoMenu { menu } => *menu != root && *menu != own,
+        ButtonAction::Noop => false,
+        _ => true,
+    }
+}
+
+/// Remote-control links that pointed at removed buttons fall back to the
+/// automatic navigation.
+fn clear_links(buttons: &mut [kinodisc_domain::MenuButton], removed: &HashSet<ButtonId>) {
+    for button in buttons {
+        for link in [
+            &mut button.nav_override.up,
+            &mut button.nav_override.down,
+            &mut button.nav_override.left,
+            &mut button.nav_override.right,
+        ] {
+            if link.is_some_and(|target| removed.contains(&target)) {
+                *link = None;
+            }
+        }
     }
 }
 
@@ -414,6 +464,52 @@ mod tests {
             for code in errors(&part.project) {
                 assert!(original.contains(&code), "split introduced {code}");
             }
+        }
+    }
+
+    #[test]
+    fn scene_menus_of_other_discs_are_not_left_with_only_back() {
+        let mut project: Project =
+            serde_json::from_str(include_str!("../../../fixtures/projects/minimal.json")).unwrap();
+        for number in 2..=3u16 {
+            let mut episode = project.episodes[0].clone();
+            episode.id = EpisodeId::new();
+            episode.number = number;
+            project.episodes.push(episode);
+        }
+        // Scene menu for episode 1 only (QA 1.1.3: discs 2 and 3 kept a
+        // "Scenes" button that opened a page with just "Back").
+        project.episodes[0].chapters = (0..4)
+            .map(|index| kinodisc_domain::Chapter {
+                id: kinodisc_domain::ChapterId::new(),
+                title: String::new(),
+                at_frame: index * 1_000,
+                thumbnail: None,
+            })
+            .collect();
+        let applied = kinodisc_menu::chapters::apply_chapter_menus(&project).unwrap();
+        project.menus = applied.menus;
+        let result = split_project(&project, &HashMap::new(), SplitStrategy::PerEpisode).unwrap();
+        let scenes = |disc: &Project| {
+            disc.menus
+                .iter()
+                .filter(|menu| menu.role == kinodisc_domain::MenuRole::ChapterSelect)
+                .count()
+        };
+        assert_eq!(scenes(&result.parts[0].project), 1);
+        for part in &result.parts[1..] {
+            let disc = &part.project;
+            assert_eq!(scenes(disc), 0, "disc {}", part.index);
+            let ids: HashSet<_> = disc.menus.iter().map(|menu| menu.id).collect();
+            for menu in &disc.menus {
+                assert!(!menu.buttons.is_empty());
+                for button in &menu.buttons {
+                    if let ButtonAction::GotoMenu { menu } = button.action {
+                        assert!(ids.contains(&menu));
+                    }
+                }
+            }
+            assert_eq!(disc.unreachable_episodes().len(), 0);
         }
     }
 

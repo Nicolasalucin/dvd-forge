@@ -55,7 +55,7 @@
       return;
     }
     for (const asset of unused) projectStore.addEpisodeFromAsset(asset.id);
-    ui.notice = t("{count} vídeo(s) añadidos como episodios.", { count: unused.length });
+    ui.notice = t(unused.length === 1 ? "{count} vídeo añadido como episodio." : "{count} vídeo(s) añadidos como episodios.", { count: unused.length });
   }
 
   function menuRole(menu: Menu_Serialize): string {

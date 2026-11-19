@@ -17,6 +17,7 @@ import {
   type FrameRange,
   type FrameRate,
   type JobEvent,
+  type JobStage,
   type JobHistoryEntry_Serialize,
   type LayerBreakMode,
   type MediaAsset_Serialize,
@@ -481,6 +482,9 @@ class ProjectStore {
   rightCollapsed = $state(false);
 
   lastIso = $state<string | null>(null);
+  /** Stage of the running job and the progress each part of it reported. */
+  private stageKey: JobStage | null = null;
+  private stageFractions: Partial<Record<JobStage, number>> = {};
   rendering = $state(false);
   renderStage = $state("");
   renderPercent = $state(0);
@@ -2973,14 +2977,26 @@ class ProjectStore {
         const label = localizeJobStage(kind.label);
         this.renderStage = label;
         this.renderPercent = 0;
+        this.stageKey = kind.stage;
+        this.stageFractions = {};
         this.renderLogs = [...this.renderLogs, `▸ ${label}`].slice(-300);
         break;
       }
-      case "progress":
-        // Episodes encode in parallel and report on their own; within a
-        // stage the bar only moves forward (a new stage starts it at 0).
-        this.renderPercent = Math.max(this.renderPercent, kind.permille / 10);
+      case "progress": {
+        // Within a stage the bar only moves forward (a new stage starts it at
+        // 0). DVD menus are encoded while the episodes are: that stage shows
+        // both, weighted, so quick menus do not read as "100 %".
+        const fraction = Math.min(1, kind.permille / 1000);
+        this.stageFractions[kind.stage] = Math.max(this.stageFractions[kind.stage] ?? 0, fraction);
+        const episodes = this.stageFractions.encodeEpisodes;
+        const menus = this.stageFractions.encodeMenus;
+        const current =
+          this.stageKey === "encodeEpisodes" && menus !== undefined
+            ? 0.85 * (episodes ?? 0) + 0.15 * menus
+            : (this.stageFractions[this.stageKey ?? kind.stage] ?? fraction);
+        this.renderPercent = Math.max(this.renderPercent, current * 100);
         break;
+      }
       case "warning":
         this.renderLogs = [
           ...this.renderLogs,

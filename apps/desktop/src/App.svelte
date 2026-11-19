@@ -283,7 +283,7 @@
   {#if recovery.length > 0 && !projectStore.project}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/50"></div>
-      <div class="relative z-10 w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+      <div class="relative z-10 flex max-h-full w-full max-w-md flex-col rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
         <div class="flex items-center gap-2">
           <Icon name="info" class="text-cyan-400" />
           <h2 id="recovery-title" class="text-[15px] font-semibold text-slate-100">{t("Recuperar cambios sin guardar")}</h2>
@@ -291,7 +291,8 @@
         <p class="mt-2 text-[13px] leading-5 text-slate-300">
           {t("Kinodisc se cerró sin guardar estos proyectos. Puedes abrir la última copia automática.")}
         </p>
-        <ul class="mt-3 space-y-1.5">
+        <!-- Many copies scroll inside the dialog; title and buttons stay visible. -->
+        <ul class="mt-3 min-h-0 space-y-1.5 overflow-y-auto">
           {#each recovery as entry (entry.projectId)}
             <li class="flex items-center justify-between gap-3 rounded-md border border-slate-800 px-3 py-2">
               <span class="min-w-0">
