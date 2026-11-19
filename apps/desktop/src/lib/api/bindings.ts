@@ -93,6 +93,12 @@ export const commands = {
 	 *  registra el archivo en un servidor HTTP local con soporte de `Range`.
 	 */
 	mediaPreviewUrl: (videoPath: string) => typedError<string, string>(__TAURI_INVOKE("media_preview_url", { videoPath })),
+	/**
+	 *  Subtitle files next to a video that belong to it: `<name>.srt` or
+	 *  `<name>.<lang>.srt` (also .ass/.ssa/.vtt), as players pick them up.
+	 *  Read-only listing of the video's own folder; only file paths come back.
+	 */
+	mediaSidecarSubtitles: (videoPath: string) => typedError<string[], string>(__TAURI_INVOKE("media_sidecar_subtitles", { videoPath })),
 	readImageDataUrl: (path: string) => typedError<string, string>(__TAURI_INVOKE("read_image_data_url", { path })),
 	/**
 	 *  Recalcula la matriz de navegación real del menú en Rust para que el

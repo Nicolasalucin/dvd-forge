@@ -3,6 +3,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import type { AudioFormat, VideoScaleMode } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
+  import { ui } from "../ui/state.svelte";
   import LanguageSelect from "./LanguageSelect.svelte";
   import { normalizeLanguageCode } from "../i18n/languages";
   import { basename, formatDuration } from "../utils/format";
@@ -85,7 +86,13 @@
 
   function toggleDefaultAudio(index: number) {
     if (!episode) return;
+    const track = episode.audio[index];
+    if (!track || track.default) return;
     projectStore.setDefaultEpisodeAudio(episode.id, index);
+    // The list reorders under the cursor: say where the track went.
+    ui.notice = t("«{label}» es ahora la pista 1: es la que suena al empezar.", {
+      label: projectStore.selectedEpisode?.audio[0]?.label ?? track.label,
+    });
   }
 
   function toggleDefaultSubtitle(index: number) {

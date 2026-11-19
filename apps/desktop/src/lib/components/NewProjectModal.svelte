@@ -63,6 +63,11 @@
 
   let name = $state(t("Mi DVD"));
   let mode = $state<AuthoringMode>("dvdVideo");
+  // The suggested name follows the format until the user types their own.
+  $effect(() => {
+    const suggested = [t("Mi DVD"), t("Mi Blu-ray")];
+    if (suggested.includes(name)) name = mode === "avchd" ? t("Mi Blu-ray") : t("Mi DVD");
+  });
   // PAL or NTSC from the system region (es-AR, es-ES, pt-PT... use PAL).
   const PAL_REGIONS = new Set([
     "AR", "UY", "PY", "ES", "PT", "GB", "IE", "FR", "DE", "IT", "NL", "BE", "LU", "AT", "CH",

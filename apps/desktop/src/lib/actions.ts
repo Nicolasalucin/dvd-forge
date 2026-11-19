@@ -11,6 +11,7 @@ import { t } from "./i18n/index.svelte";
 import { projectStore } from "./stores/project.svelte";
 import { ui } from "./ui/state.svelte";
 import { nativePath } from "./utils/format";
+import { normalizeLanguageCode } from "./i18n/languages";
 
 function fail(cause: unknown): void {
   projectStore.error = localizeError(messageOf(cause));
@@ -144,7 +145,24 @@ export async function importMedia(paths?: string[]): Promise<void> {
   for (const asset of project?.assets ?? []) {
     if (before.has(asset.id) || asset.kind !== "video") continue;
     if (project?.episodes.some((episode) => episode.video === asset.id)) continue;
-    if (projectStore.addEpisodeFromAsset(asset.id)) episodes += 1;
+    const episode = projectStore.addEpisodeFromAsset(asset.id);
+    if (!episode) continue;
+    episodes += 1;
+    // Subtitles saved next to the video ("Serie S01E01.es.srt") come along,
+    // switched off until the user makes one the default.
+    const path = projectStore.assetPath(asset);
+    if (!path) continue;
+    try {
+      const sidecars = await unwrap(commands.mediaSidecarSubtitles(path));
+      for (const subtitle of sidecars) {
+        const name = subtitle.replace(/^.*[\\/]/, "");
+        const language = normalizeLanguageCode(name.match(/\.([a-z]{2,3})\.[^.]+$/i)?.[1]);
+        projectStore.addEpisodeSubtitleTrack(episode.id, subtitle, language, name);
+      }
+      if (sidecars.length > 0) projectStore.setDefaultEpisodeSubtitle(episode.id, null);
+    } catch {
+      // No sidecar subtitles: nothing to add.
+    }
   }
   if (episodes > 0) {
     ui.notice = t(episodes === 1 ? "{count} vídeo añadido como episodio." : "{count} vídeo(s) añadidos como episodios.", { count: episodes });

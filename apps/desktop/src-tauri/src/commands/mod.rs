@@ -12,8 +12,8 @@ pub use burn::{burn_cancel, burn_list_devices, burn_start};
 pub use media::{
     disc_import, disc_inspect, join_create, media_detect_crop, media_detect_scenes,
     media_extract_frame, media_filter_preview, media_missing, media_playback_support,
-    media_prepare_preview, media_preview_url, media_probe_file, read_image_data_url,
-    render_quality_sample, slideshow_create, PlaybackSupport,
+    media_prepare_preview, media_preview_url, media_probe_file, media_sidecar_subtitles,
+    read_image_data_url, render_quality_sample, slideshow_create, PlaybackSupport,
 };
 pub use menu::{
     image_save_png, menu_apply_chapter_menus, menu_apply_template, menu_navigation,

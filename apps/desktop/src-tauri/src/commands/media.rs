@@ -178,6 +178,42 @@ fn media_server() -> Result<&'static MediaServer, String> {
         .ok_or_else(|| "El servidor de vista previa no está disponible.".to_string())
 }
 
+/// Subtitle files next to a video that belong to it: `<name>.srt` or
+/// `<name>.<lang>.srt` (also .ass/.ssa/.vtt), as players pick them up.
+/// Read-only listing of the video's own folder; only file paths come back.
+#[tauri::command(async)]
+#[specta::specta]
+pub fn media_sidecar_subtitles(video_path: String) -> Result<Vec<String>, String> {
+    let video = resolve_media_path(&video_path)?;
+    let (Some(folder), Some(stem)) = (video.parent(), video.file_stem().and_then(|s| s.to_str()))
+    else {
+        return Ok(Vec::new());
+    };
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return Ok(Vec::new());
+    };
+    let stem = stem.to_lowercase();
+    let mut found: Vec<String> = entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter_map(|entry| {
+            let name = entry.file_name().to_str()?.to_lowercase();
+            let (base, extension) = name.rsplit_once('.')?;
+            if !matches!(extension, "srt" | "ass" | "ssa" | "vtt") {
+                return None;
+            }
+            let matches = base == stem
+                || base
+                    .strip_prefix(&stem)
+                    .and_then(|rest| rest.strip_prefix('.'))
+                    .is_some_and(|lang| !lang.is_empty() && lang.len() <= 8 && !lang.contains('.'));
+            matches.then(|| entry.path().display().to_string())
+        })
+        .collect();
+    found.sort();
+    Ok(found)
+}
+
 /// WebKitGTK no reproduce `<video>` desde el esquema `asset://`; este comando
 /// registra el archivo en un servidor HTTP local con soporte de `Range`.
 #[tauri::command]

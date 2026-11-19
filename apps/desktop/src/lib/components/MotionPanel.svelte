@@ -369,10 +369,18 @@
           <p class="mt-1 text-[12px] leading-5 text-slate-500">
             {t("Clip pregrabado que se reproduce antes del bucle interactivo del menú raíz.")}
           </p>
+          {#if projectStore.project?.disc.mode === "avchd"}
+            <!-- Blu-ray/AVCHD menus have no lead-in clip: say so instead of
+                 letting it silently drop from the disc. -->
+            <p class="mt-1.5 text-[12px] leading-5 text-amber-300">
+              {t("Solo en DVD-Video: los menús de Blu-ray y AVCHD no tienen transición de entrada.")}
+            </p>
+          {/if}
           <label class="mt-2 block">
             <span class="ui-label">{t("Clip")}</span>
             <select
               class="ui-input ui-input-sm w-full"
+              disabled={projectStore.project?.disc.mode === "avchd"}
               value={transition?.asset ?? ""}
               onchange={(event) => {
                 const value = event.currentTarget.value;
