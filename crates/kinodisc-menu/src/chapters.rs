@@ -317,6 +317,47 @@ mod tests {
     }
 
     #[test]
+    fn scenes_link_never_overlaps_template_buttons() {
+        // QA 1.1.3: Cinema Dark with 3 episodes, then scene menus: the link
+        // landed on the third card and the disc failed (E_BUTTON_OVERLAP).
+        for template in [
+            kinodisc_domain::MenuTemplateId::CinemaDark,
+            kinodisc_domain::MenuTemplateId::MultiPageTvGrid,
+            kinodisc_domain::MenuTemplateId::Wedding,
+            kinodisc_domain::MenuTemplateId::Minimalist,
+        ] {
+            let mut project = project_with_chapters(&[4, 4, 4]);
+            let applied = crate::templates::apply_template(&project, template).unwrap();
+            project.menus = applied.menus;
+            project.root_menu = applied.root_menu;
+            let project = apply(&project);
+            let root = project.menu(project.root_menu).unwrap();
+            let link = root
+                .buttons
+                .iter()
+                .find(|button| button.name == SCENES_LINK_NAME)
+                .expect("scenes link");
+            let (w, h) = (f64::from(root.canvas.width), f64::from(root.canvas.height));
+            let r = link.rect;
+            assert!(r.x >= w * 0.05 && r.y >= h * 0.05, "{template:?}: {r:?}");
+            assert!(
+                r.x + r.w <= w * 0.95 && r.y + r.h <= h * 0.95,
+                "{template:?}: {r:?}"
+            );
+            for other in root.buttons.iter().filter(|button| button.id != link.id) {
+                let o = other.rect;
+                let apart =
+                    r.x + r.w <= o.x || o.x + o.w <= r.x || r.y + r.h <= o.y || o.y + o.h <= r.y;
+                assert!(
+                    apart,
+                    "{template:?}: link {r:?} overlaps {} {o:?}",
+                    other.name
+                );
+            }
+        }
+    }
+
+    #[test]
     fn one_episode_links_straight_to_its_scenes() {
         let project = apply(&project_with_chapters(&[4]));
         let scenes: Vec<&Menu> = project

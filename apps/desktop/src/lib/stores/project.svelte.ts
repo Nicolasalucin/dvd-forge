@@ -578,9 +578,11 @@ class ProjectStore {
     const h = Math.round((56 * scale) / 2) * 2;
     const id = `text:${crypto.randomUUID()}`;
     // First horizontal band (top to bottom) that touches no button or item.
+    // (The template background and decorative shapes are not "taken": they
+    // covered the whole menu, so the text fell back behind the buttons.)
     const taken = [
       ...menu.buttons.map((button) => button.rect),
-      ...menu.items.map((item) => item.rect),
+      ...menu.items.filter((item) => item.kind === "text" || item.kind === "image").map((item) => item.rect),
     ].map((rect) => ({ y: rect.y ?? 0, h: rect.h ?? 0 }));
     // Free vertical gaps between what is already on the menu; the text
     // takes the first gap that fits (shrinking to it if needed).

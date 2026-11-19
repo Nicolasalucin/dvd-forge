@@ -1550,8 +1550,12 @@ async fn render_avchd_project(
     prepare_avchd_output(&output_dir)?;
     let encoder = AvchdEncoder::default();
     let hardware_capabilities = detect_hardware_encoders(&encoder.ffmpeg);
+    // Hardware H.264 encoders write progressive frames only: 1080i and PsF
+    // stay on x264, or a 1080i disc would carry 1080p25 (not a Blu-ray
+    // format). QA 1.1.3. The cache key follows this choice.
     let hardware_encoder =
-        resolve_hardware_encoder(options.hardware_encoding, &hardware_capabilities);
+        resolve_hardware_encoder(options.hardware_encoding, &hardware_capabilities)
+            .filter(|_| !config.resolution.interlaced() && config.scan() != HdScan::Psf);
     if let Some(encoder) = hardware_encoder {
         log(
             &events,
@@ -1760,11 +1764,15 @@ async fn render_avchd_project(
                 scale_mode: episode.scale_mode,
                 video_kbps: planned_kbps,
                 maxrate_kbps: config.vbv_maxrate_kbps,
+                // Whether this disc carries subtitles changes the episode MKV
+                // (QA 1.1.3: an MKV made without them was reused on a disc
+                // that needed them, so the Blu-ray lost its subtitles).
                 profile: format!(
-                    "{:?}:{:?}:{}",
+                    "{:?}:{:?}:{}:{}",
                     config.resolution,
                     hardware_encoder,
-                    if video_copy { "copy" } else { "encode" }
+                    if video_copy { "copy" } else { "encode" },
+                    if pgs_enabled { "pgs" } else { "nopgs" }
                 ),
                 gop_frames: config.keyint_frames,
                 b_frames: 3,

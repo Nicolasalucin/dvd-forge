@@ -948,16 +948,47 @@ pub(crate) fn add_corner_link(
     let height = menu.canvas.height as f64;
     let width = menu.canvas.width as f64;
     let k = (height / 480.0).max(1.0);
-    // Inside the action-safe area (5 % on each side), like everything a
-    // viewer must be able to reach on an old TV.
+    // Inside the action-safe area (5 % on each side), in the first corner
+    // that does not touch another button or the title (QA 1.1.3: it landed
+    // on a 2x2 card and the disc failed with E_BUTTON_OVERLAP).
+    let taken: Vec<LogicalRect> = menu
+        .buttons
+        .iter()
+        .map(|button| button.rect)
+        .chain(menu.items.iter().filter_map(|item| match item {
+            MenuItem::Text(text) => Some(text.rect),
+            _ => None,
+        }))
+        .collect();
+    let free = |rect: &LogicalRect| {
+        taken.iter().all(|other| {
+            rect.x + rect.w + 6.0 <= other.x
+                || other.x + other.w + 6.0 <= rect.x
+                || rect.y + rect.h + 6.0 <= other.y
+                || other.y + other.h + 6.0 <= rect.y
+        })
+    };
+    let spot = [1.0, 0.8, 0.65]
+        .iter()
+        .flat_map(|scale| {
+            let (w, h) = ((200.0 * k * scale).round(), (40.0 * k * scale).round());
+            let (left, right) = ((width * 0.06).round(), (width * 0.94 - w).round());
+            let (top, bottom) = ((height * 0.06).round(), (height * 0.94 - h).round());
+            [(left, bottom), (right, bottom), (right, top), (left, top)]
+                .map(|(x, y)| LogicalRect::new(x, y, w, h))
+        })
+        .find(free)
+        .unwrap_or_else(|| {
+            LogicalRect::new(
+                (width * 0.06).round(),
+                (height * 0.94 - 40.0 * k).round(),
+                200.0 * k,
+                40.0 * k,
+            )
+        });
     let mut link = nav_button(
         name,
-        LogicalRect::new(
-            (width * 0.06).round(),
-            (height * 0.94 - 40.0 * k).round(),
-            200.0 * k,
-            40.0 * k,
-        ),
+        spot,
         template,
         ButtonAction::GotoMenu { menu: target },
     );

@@ -288,9 +288,32 @@ const RENDER_ERROR_PREFIXES: Array<[string, string]> = [
   ["error de imagen: ", "Error en una imagen: {detail}"],
 ];
 
+/**
+ * "el proyecto tiene errores: [E_X] error: …; [E_Y] error: …" from the planner,
+ * as one sentence per problem in the interface language.
+ */
+export function localizeProjectErrors(message: string): string | null {
+  const body = /^\s*el proyecto tiene errores:\s*([\s\S]*)$/.exec(message);
+  if (!body) return null;
+  const problems = [...body[1].matchAll(/\[([EW]_[A-Z0-9_]+)\]\s*(?:error|warning|aviso):\s*([^;]+)/g)].map(
+    (match) => localizeDiagnostic({ code: match[1], message: match[2].trim() }),
+  );
+  const detail = problems.length > 0 ? problems.join(" ") : body[1];
+  return t("El proyecto tiene un problema que impide generar el disco: {detail}", { detail });
+}
+
 /** A production error in the interface language (the engine writes Spanish). */
 export function localizeRenderError(message: string): string {
   const text = message.trim();
+  // A project error reached the planner: not a size problem.
+  for (const [prefix] of RENDER_ERROR_PREFIXES) {
+    if (text.startsWith(prefix)) {
+      const project = localizeProjectErrors(text.slice(prefix.length));
+      if (project) return project;
+    }
+  }
+  const project = localizeProjectErrors(text);
+  if (project) return project;
   for (const [prefix, key] of RENDER_ERROR_PREFIXES) {
     if (text.startsWith(prefix)) {
       const detail = text.slice(prefix.length);

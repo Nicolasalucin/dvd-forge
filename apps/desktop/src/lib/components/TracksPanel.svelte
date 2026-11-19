@@ -242,7 +242,7 @@
             </h2>
             <div class="flex items-center gap-1">
               <select
-                class="ui-input ui-input-sm"
+                class="ui-input ui-input-sm min-w-[9rem]"
                 bind:value={audioToAdd}
                 disabled={availableAudio.length === 0}
               >

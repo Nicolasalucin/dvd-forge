@@ -455,8 +455,11 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         let keyint = request.config.keyint_frames.max(1);
         let maxrate = request.maxrate_kbps.max(request.video_kbps);
         let bufsize = request.vbv_bufsize_kbps.max(1);
-        // Hardware encoders cannot emit PsF (fake-interlaced) streams.
-        let hardware = request.hardware_encoder.filter(|_| !spec.psf);
+        // Hardware encoders cannot emit interlaced or PsF (fake-interlaced)
+        // streams: those stay on x264.
+        let hardware = request
+            .hardware_encoder
+            .filter(|_| !spec.psf && !spec.interlaced);
         let level = x264_level(&request.config);
         let codec = hardware
             .map(kinodisc_toolchain::HardwareEncoder::ffmpeg_name)
@@ -1203,6 +1206,19 @@ mod tests {
         assert!(args.contains("-level:v 4.1"));
         assert!(args.contains("-f matroska"));
         assert!(args.contains("-c:a:0 ac3"));
+    }
+
+    #[test]
+    fn interlaced_video_never_goes_to_a_hardware_encoder() {
+        // QA 1.1.3: a 1080i 25 disc came out as progressive 1080p25 with AMF.
+        let mut request = request();
+        request.config.resolution = AvchdResolution::R1080i;
+        request.config.frame_rate = FrameRate::PAL;
+        request.hardware_encoder = Some(kinodisc_toolchain::HardwareEncoder::AmfH264);
+        let args = build_encode_args(&request).join(" ");
+        assert!(args.contains("libx264"), "{args}");
+        assert!(!args.contains("h264_amf"), "{args}");
+        assert!(args.contains("+ildct+ilme"), "{args}");
     }
 
     #[test]

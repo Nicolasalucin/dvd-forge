@@ -6,7 +6,7 @@
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
   import { i18n, t, formatDecimal, formatPercent } from "../i18n/index.svelte";
-  import { localizeCheck, localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
+  import { localizeCheck, localizeDiagnostic, localizeProjectErrors, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -119,6 +119,8 @@
       ? null
       : needsBurn && !effectiveDevice
         ? t("No hay ninguna grabadora conectada. Conecta una y pulsa «Actualizar», o elige «Solo ISO».")
+        : mode !== "existing" && projectStore.planError && localizeProjectErrors(projectStore.planError)
+          ? localizeProjectErrors(projectStore.planError)
         : mode !== "existing" && emptyMenu
           ? emptyMenu.id === project?.rootMenu
             ? t("El menú principal «{name}» no tiene botones: añade al menos uno (o aplica una plantilla) antes de generar el disco.", {
@@ -212,9 +214,29 @@
   });
   const stalled = $derived(busy && now - lastChange > 4000);
   const elapsedLabel = $derived.by(() => {
+    // Read the clock first: returning before it would drop the dependency
+    // and the label would never update (QA 1.1.3).
+    const current = now;
     if (!busy || !startedAt) return "";
-    const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+    const seconds = Math.max(0, Math.floor((current - startedAt) / 1000));
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  });
+
+  // The same check run on several files (one per playlist, say) is one
+  // line with a count; the technical details stay in the tooltip.
+  const checkRows = $derived.by(() => {
+    const rows: Array<{ key: string; check: { id: string; status: string; message: string }; count: number; details: string }> = [];
+    for (const check of projectStore.renderVerification?.checks ?? []) {
+      const key = `${check.id}:${check.status}`;
+      const row = rows.find((item) => item.key === key);
+      if (row) {
+        row.count += 1;
+        row.details += ` · ${check.message}`;
+      } else {
+        rows.push({ key, check, count: 1, details: `${check.id}: ${check.message}` });
+      }
+    }
+    return rows;
   });
 
   // A folder typed or chosen is remembered even if nothing is produced.
@@ -429,6 +451,7 @@
         // over from an earlier disc of the same run.
         projectStore.renderSummary = null;
         projectStore.renderVerification = null;
+        projectStore.renderStage = t("Error");
         projectStore.renderError = localizeRenderError(messageOf(cause));
       }
     } finally {
@@ -706,9 +729,9 @@
                   {t("Verificación estructural")} · {verdictLabel(projectStore.renderVerification.verdict)}
                 </summary>
                 <ul class="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[11px]">
-                  {#each projectStore.renderVerification.checks as check}
-                    <li class:text-rose-300={check.status === "fail"} class:text-amber-300={check.status === "warn"} class:text-emerald-300={check.status === "pass"} class:text-slate-500={check.status === "skipped"}>
-                      <span title={`${check.id}: ${check.message}`}>{localizeCheck(check)}</span>
+                  {#each checkRows as row (row.key)}
+                    <li class:text-rose-300={row.check.status === "fail"} class:text-amber-300={row.check.status === "warn"} class:text-emerald-300={row.check.status === "pass"} class:text-slate-500={row.check.status === "skipped"}>
+                      <span title={row.details}>{localizeCheck(row.check)}{row.count > 1 ? ` ×${row.count}` : ""}</span>
                     </li>
                   {/each}
                 </ul>

@@ -31,7 +31,11 @@
       class="w-full min-w-0 border-x border-slate-700 bg-transparent text-center text-[13px] tabular-nums text-slate-100 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
       {value}
       aria-label={label}
-      onchange={(event) => set(Number(event.currentTarget.value))}
+      onchange={(event) => {
+        set(Number(event.currentTarget.value));
+        // Out-of-range input shows the value actually applied (300 -> 96).
+        event.currentTarget.value = String(Math.max(min, Math.min(max, Math.round(Number(event.currentTarget.value) || value))));
+      }}
     />
     <button type="button" class={step} onclick={() => set(value + 2)} disabled={value >= max} aria-label={t("Más grande")}>
       <Icon name="add" size={14} />

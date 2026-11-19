@@ -200,7 +200,7 @@
 <select class="ui-input" value={project.disc.mode} title={t("Formato de autoría")}
           onchange={(event) => setFormat(event.currentTarget.value as "dvdVideo" | "avchd")}>
           <option value="dvdVideo">{t("DVD-Video")}</option>
-          <option value="avchd">{isBluRayCapacity ? t("Blu-ray/AVCHD HD") : t("AVCHD")}</option>
+          <option value="avchd">{isBluRayCapacity ? t("Blu-ray HD") : t("AVCHD (HD en DVD)")}</option>
         </select>
         <span class="ui-label mb-0">{t("Capacidad")}</span>
 <select class="ui-input" value={project.disc.capacity} title={t("Capacidad del disco")}
