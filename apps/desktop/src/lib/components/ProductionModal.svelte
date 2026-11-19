@@ -53,6 +53,7 @@
   let verify = $state(true);
   let eject = $state(true);
   let localError = $state<string | null>(null);
+  let producedList = $state<string[]>([]);
   let refreshing = $state(false);
   let defaultsReady = $state(false);
   let cancelRequested = $state(false);
@@ -234,6 +235,7 @@
     }
     projectStore.resetRender();
     projectStore.lastIso = null;
+    producedList = [];
     projectStore.rendering = true;
     const root = nativePath(outputDir.trim()).replace(/[\\/]+$/, "");
     rememberOutput(root);
@@ -299,10 +301,13 @@
         let produced = outcome.isoPath;
         if (mode === "folder") {
           projectStore.renderStage = prefix + t("Creando la carpeta del disco");
-          const exported = await unwrap(commands.renderExportFolder(outcome.isoPath, root, partName, true));
+          const exported = await unwrap(
+            commands.renderExportFolder(outcome.isoPath, root, partName, true, outcome.jobId),
+          );
           produced = exported.folder;
         }
         outputs.push(produced);
+        producedList = [...outputs];
         projectStore.lastIso = produced;
         // The engine's own summary names its (already removed) work folder.
         projectStore.renderSummary = t("Listo: {path}", { path: produced });
@@ -624,8 +629,15 @@
             {/if}
             {#if projectStore.lastIso}
               <div class="mt-2 flex items-center justify-between gap-2 rounded-lg border border-slate-800 px-2 py-1.5">
-                <span class="min-w-0 truncate font-mono text-[11px] text-slate-400" title={projectStore.lastIso}>
-                  {basename(projectStore.lastIso)}
+                <span class="min-w-0 font-mono text-[11px] text-slate-400" title={producedList.join(" · ") || projectStore.lastIso}>
+                  {#if producedList.length > 1}
+                    <!-- Every disc of a multi-disc run, not only the last one. -->
+                    {#each producedList as produced (produced)}
+                      <span class="block truncate">{basename(produced)}</span>
+                    {/each}
+                  {:else}
+                    <span class="block truncate">{basename(projectStore.lastIso)}</span>
+                  {/if}
                 </span>
                 <button
                   type="button"

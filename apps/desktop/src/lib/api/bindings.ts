@@ -122,7 +122,7 @@ export const commands = {
 	 *  VIDEO_TS/BDMV folder (byte-identical to the disc) and, when
 	 *  `remove_iso` is set, deletes the image afterwards.
 	 */
-	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso })),
+	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean, jobId: string | null) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso, jobId })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),

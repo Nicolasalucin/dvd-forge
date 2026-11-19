@@ -964,6 +964,7 @@ export const ja: Dictionary = {
   "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
   "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
   "Disco de datos": "データディスク",
+  "Carpeta del disco creada": "ディスクフォルダーを作成しました",
   "{count} archivo importado.": "{count} 個のファイルを取り込みました。",
   "Secuencia de reconocimiento del volumen": "ボリューム認識シーケンス",
   "Puntero al descriptor del volumen": "ボリューム記述子ポインター",

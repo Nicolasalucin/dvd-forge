@@ -110,6 +110,7 @@ pub async fn render_export_folder(
     output_dir: String,
     folder_name: String,
     remove_iso: bool,
+    job_id: Option<String>,
 ) -> Result<FolderExport, String> {
     let iso = PathBuf::from(&iso_path);
     if !iso.is_file() || !iso_path.to_ascii_lowercase().ends_with(".iso") {
@@ -128,6 +129,15 @@ pub async fn render_export_folder(
     .map_err(|error| format!("No se pudo crear la carpeta del disco: {error}"))?;
     if remove_iso {
         let _ = std::fs::remove_file(&iso_path);
+    }
+    // The job history shows the folder, not the image that no longer exists.
+    if let (Some(job_id), Ok(store)) = (job_id, Store::open_default()) {
+        let _ = store.update_job_output(
+            &job_id,
+            &destination.display().to_string(),
+            report.bytes,
+            "Carpeta del disco creada",
+        );
     }
     Ok(FolderExport {
         folder: destination.display().to_string(),

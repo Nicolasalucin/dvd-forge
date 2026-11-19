@@ -964,6 +964,7 @@ export const de: Dictionary = {
   "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
   "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
   "Disco de datos": "Datendisc",
+  "Carpeta del disco creada": "Disc-Ordner erstellt",
   "{count} archivo importado.": "{count} Datei importiert.",
   "Secuencia de reconocimiento del volumen": "Volume-Erkennungssequenz",
   "Puntero al descriptor del volumen": "Zeiger auf den Volume-Deskriptor",

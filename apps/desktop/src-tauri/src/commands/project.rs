@@ -296,23 +296,58 @@ fn avchd_standard(resolution: AvchdResolution, frame_rate: FrameRate) -> TvStand
     }
 }
 
+/// Disc volume label from the project name: ASCII capitals, digits and "_"
+/// (the ISO 9660/UDF safe set). Accented Latin letters keep their base
+/// letter ("Serie Ñandú" → "SERIE_NANDU"; it used to be "SERIE__AND"), and
+/// any other run of characters becomes one "_".
 fn sanitize_volume_label(name: &str) -> String {
-    let mut label: String = name
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() {
-                character.to_ascii_uppercase()
-            } else {
-                '_'
+    let mut label = String::new();
+    for character in name.chars() {
+        let plain = ascii_letter(character);
+        if plain.is_empty() {
+            if !label.ends_with('_') {
+                label.push('_');
             }
-        })
-        .collect();
-    label = label.trim_matches('_').to_string();
+        } else {
+            label.push_str(&plain.to_ascii_uppercase());
+        }
+    }
+    let mut label = label.trim_matches('_').to_string();
     if label.is_empty() {
         label = "KINODISC".to_string();
     }
     label.truncate(32);
-    label
+    label.trim_end_matches('_').to_string()
+}
+
+/// The ASCII spelling of a letter or digit (accents dropped), or "" for
+/// anything else.
+fn ascii_letter(character: char) -> String {
+    if character.is_ascii_alphanumeric() {
+        return character.to_string();
+    }
+    let plain = match character.to_lowercase().next().unwrap_or(character) {
+        'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ā' | 'ą' => "a",
+        'é' | 'è' | 'ê' | 'ë' | 'ē' | 'ę' | 'ě' => "e",
+        'í' | 'ì' | 'î' | 'ï' | 'ī' => "i",
+        'ó' | 'ò' | 'ô' | 'ö' | 'õ' | 'ø' | 'ō' | 'ő' => "o",
+        'ú' | 'ù' | 'û' | 'ü' | 'ū' | 'ů' | 'ű' => "u",
+        'ý' | 'ÿ' => "y",
+        'ñ' | 'ń' | 'ň' => "n",
+        'ç' | 'ć' | 'č' => "c",
+        'ś' | 'š' | 'ş' => "s",
+        'ź' | 'ż' | 'ž' => "z",
+        'ł' => "l",
+        'ř' => "r",
+        'ď' => "d",
+        'ť' => "t",
+        'ğ' => "g",
+        'ß' => "ss",
+        'æ' => "ae",
+        'œ' => "oe",
+        _ => "",
+    };
+    plain.to_string()
 }
 
 /// Crash-recovery copy of an unsaved project (never the user's own file).
@@ -407,5 +442,23 @@ mod autosave_tests {
         assert!(super::autosave_file("C:/x").is_err());
         let ok = super::autosave_file("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE").unwrap();
         assert!(ok.ends_with("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.json"));
+    }
+}
+
+#[cfg(test)]
+mod volume_label_tests {
+    use super::sanitize_volume_label;
+
+    #[test]
+    fn volume_labels_keep_base_letters() {
+        assert_eq!(sanitize_volume_label("Serie Ñandú"), "SERIE_NANDU");
+        assert_eq!(
+            sanitize_volume_label("Cumpleaños de Sofía 🎂"),
+            "CUMPLEANOS_DE_SOFIA"
+        );
+        assert_eq!(sanitize_volume_label("Straße 2026"), "STRASSE_2026");
+        assert_eq!(sanitize_volume_label("運動会 2026"), "2026");
+        assert_eq!(sanitize_volume_label("🎂"), "KINODISC");
+        assert!(sanitize_volume_label(&"Ä".repeat(40)).len() <= 32);
     }
 }

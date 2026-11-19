@@ -601,6 +601,22 @@ impl Store {
         })
     }
 
+    /// Points a finished job at what it finally produced (a disc folder made
+    /// from the image, for example) with its size and summary.
+    pub fn update_job_output(
+        &self,
+        id: &str,
+        path: &str,
+        size_bytes: u64,
+        summary: &str,
+    ) -> Result<(), StoreError> {
+        self.connection()?.execute(
+            "UPDATE job_history SET iso_path = ?1, iso_size_bytes = ?2, log_summary = ?3 WHERE id = ?4",
+            params![path, size_bytes as i64, summary, id],
+        )?;
+        Ok(())
+    }
+
     pub fn job_history(&self, limit: u32) -> Result<Vec<JobHistoryEntry>, StoreError> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
