@@ -222,7 +222,7 @@
 <svelte:window onkeydown={onCanvasKey} />
 
 <section class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-slate-950">
-  <div class="flex h-9 min-w-0 shrink-0 items-center gap-1.5 overflow-hidden border-b border-slate-800 bg-slate-900 px-2">
+  <div class="flex min-h-9 min-w-0 shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-800 bg-slate-900 px-2 py-1">
     {#if menus.length > 1}
       <select
         class="ui-input ui-input-sm w-44 shrink-0"
@@ -268,7 +268,7 @@
       </button>
 
       <div class="ml-auto flex items-center gap-1.5">
-        <div class="ui-seg h-7" role="group" aria-label={t("Estado de los botones")}>
+        <div class="ui-seg" role="group" aria-label={t("Estado de los botones")}>
           {#each previewStates as state}
             <button type="button" aria-pressed={projectStore.previewState === state.id} onclick={() => (projectStore.previewState = state.id)}>
               {t(state.label)}

@@ -919,6 +919,19 @@ class ProjectStore {
     previewUrl: string | null = null,
   ): string {
     if (!this.project) throw new Error(t("No hay proyecto abierto."));
+    // Picking a file that is already in the library reuses it instead of
+    // adding a second copy (Windows paths compare without case).
+    const same = (other: string) =>
+      /^[a-z]:[\\/]|^[\\/]{2}/i.test(path) ? other.toLowerCase() === path.toLowerCase() : other === path;
+    const existing = this.project.assets.find((asset) => {
+      const other = this.assetPath(asset);
+      return asset.kind === kind && other !== null && same(other);
+    });
+    if (existing) {
+      existing.probe = probe;
+      if (previewUrl) this.previewUrls[existing.id] = previewUrl;
+      return existing.id;
+    }
     const id = crypto.randomUUID();
     const asset: MediaAsset_Serialize = {
       id,
@@ -2129,9 +2142,13 @@ class ProjectStore {
       1,
       Math.floor((menu.canvas.height - marginY * 2 + gap) / (buttonHeight + gap)),
     );
-    const occupied = menu.buttons.map((existing) =>
-      normalizeRect(existing.rect, menu.canvas.width, menu.canvas.height),
-    );
+    // Titles and other text on the menu count as taken too, so a new button
+    // never lands on top of the template title (decorative shapes and the
+    // template background may sit under buttons).
+    const occupied = [
+      ...menu.buttons.map((existing) => existing.rect),
+      ...menu.items.filter((item) => item.kind === "text").map((item) => item.rect),
+    ].map((rect) => normalizeRect(rect, menu.canvas.width, menu.canvas.height));
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const candidate = normalizeRect(

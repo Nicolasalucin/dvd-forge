@@ -522,7 +522,7 @@
                   event.currentTarget.value as VideoScaleMode,
                 )}
             >
-              {#each scaleModes as mode}
+              {#each scaleModes.filter((mode) => !mode.label.includes("(heredado)") || projectStore.expertMode || mode.id === episode.scaleMode) as mode}
                 <option value={mode.id}>{t(mode.label)}</option>
               {/each}
             </select>

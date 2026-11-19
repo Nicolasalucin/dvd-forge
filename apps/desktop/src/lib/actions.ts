@@ -22,7 +22,7 @@ function fileStem(name: string): string {
 
 export async function newProject(): Promise<void> {
   if (!(await projectStore.confirmLoseChanges())) return;
-  ui.newProject = true;
+  ui.open("newProject");
 }
 
 export async function openProject(): Promise<void> {

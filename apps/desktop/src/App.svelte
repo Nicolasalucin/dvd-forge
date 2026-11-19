@@ -48,6 +48,21 @@
   let recovery = $state<AutosaveEntry[]>([]);
   let dragging = $state(false);
 
+  // When the last dialog closes, focus goes back to what opened it.
+  let dialogWasOpen = false;
+  $effect(() => {
+    const open = ui.anyDialog;
+    if (dialogWasOpen && !open) ui.restoreFocus();
+    dialogWasOpen = open;
+  });
+
+  // Success notices fade after a few seconds.
+  $effect(() => {
+    if (!ui.notice) return;
+    const timer = setTimeout(() => (ui.notice = null), 6000);
+    return () => clearTimeout(timer);
+  });
+
   // A notice written in the previous language is not left on screen.
   let noticeLocale = i18n.locale;
   $effect(() => {
@@ -249,7 +264,7 @@
     <NewProjectModal onClose={() => (ui.newProject = false)} />
   {/if}
   {#if projectStore.guideOpen}
-    <Lazy loader={screens.guide} props={{ onClose: () => (projectStore.guideOpen = false), onNewProject: () => (ui.newProject = true) }} />
+    <Lazy loader={screens.guide} props={{ onClose: () => (projectStore.guideOpen = false), onNewProject: () => ui.open("newProject") }} />
   {/if}
   {#if ui.shutdownCountdown !== null}
     <!-- Above every other dialog (production, queue) that may still be open. -->

@@ -385,7 +385,7 @@
                   {#if projectStore.isAssetMissing(asset.id)}
                     <p class="flex items-center gap-1.5 text-[11px]">
                       <span class="ui-chip text-amber-300">{t("No se encuentra")}</span>
-                      <button type="button" class="text-cyan-300 hover:underline" onclick={() => locate(asset)}>{t("Buscar…")}</button>
+                      <button type="button" class="text-cyan-300 hover:underline" onclick={() => locate(asset)}>{t("Buscar archivo…")}</button>
                     </p>
                   {:else}
                     <p class="truncate text-[11px] text-slate-500">{assetMeta(asset)}</p>

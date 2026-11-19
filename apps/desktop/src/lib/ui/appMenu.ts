@@ -91,7 +91,7 @@ async function build(): Promise<void> {
       await item("bundle", t("Empaquetar con los vídeos…"), actions.exportBundle, undefined, hasProject),
       await separator(),
       await item("import", t("Importar medios…"), () => actions.importMedia(), shortcut("Ctrl+I"), hasProject),
-      await item("slideshow", t("Presentación de fotos…"), () => (ui.slideshow = true), undefined, hasProject),
+      await item("slideshow", t("Presentación de fotos…"), () => ui.open("slideshow"), undefined, hasProject),
       await separator(),
       await item("quit", t("Salir"), () => getCurrentWindow().close(), shortcut("Ctrl+Q")),
     ],
@@ -149,15 +149,15 @@ async function build(): Promise<void> {
     text: t("Disco"),
     items: [
       await item("produce", t("Producir disco…"), actions.produce, shortcut("Ctrl+R"), hasProject),
-      await item("queue", t("Cola de discos…"), () => (ui.queue = true)),
-      await item("history", t("Historial de trabajos…"), () => (ui.history = true)),
+      await item("queue", t("Cola de discos…"), () => ui.open("queue")),
+      await item("history", t("Historial de trabajos…"), () => ui.open("history")),
       await separator(),
       // Where the guide and the tour point people to.
-      await item("join", t("Unir vídeos…"), () => (ui.join = true), undefined, hasProject),
-      await item("cover", t("Carátula y etiqueta…"), () => (ui.cover = true), undefined, hasProject),
-      await item("inspect", t("Inspeccionar disco…"), () => (ui.inspector = true), undefined, hasProject),
+      await item("join", t("Unir vídeos…"), () => ui.open("join"), undefined, hasProject),
+      await item("cover", t("Carátula y etiqueta…"), () => ui.open("cover"), undefined, hasProject),
+      await item("inspect", t("Inspeccionar disco…"), () => ui.open("inspector"), undefined, hasProject),
       await separator(),
-      await item("tools", t("Herramientas de disco…"), () => (ui.doctor = true)),
+      await item("tools", t("Herramientas de disco…"), () => ui.open("doctor")),
     ],
   });
 
@@ -175,7 +175,7 @@ async function build(): Promise<void> {
           void refreshAppMenu();
         },
       }),
-      await item("about", t("Acerca de Kinodisc"), () => (ui.about = true)),
+      await item("about", t("Acerca de Kinodisc"), () => ui.open("about")),
     ],
   });
 

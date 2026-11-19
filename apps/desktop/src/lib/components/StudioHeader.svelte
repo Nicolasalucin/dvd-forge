@@ -126,10 +126,10 @@
     <button type="button" class={tool} onclick={() => actions.importMedia()} disabled={!project} title={t("Importar medios (Ctrl+I)")}>
       <Icon name="import" /><span class="hidden lg:inline">{t("Importar")}</span>
     </button>
-    <button type="button" class={tool} onclick={() => (ui.slideshow = true)} disabled={!project} title={t("Presentación de fotos")}>
+    <button type="button" class={tool} onclick={() => ui.open("slideshow")} disabled={!project} title={t("Presentación de fotos")}>
       <Icon name="photo" /><span class="hidden lg:inline">{t("Fotos")}</span>
     </button>
-    <button type="button" class={tool} onclick={() => (ui.inspector = true)} disabled={!project} title={t("Inspeccionar o importar un disco")}>
+    <button type="button" class={tool} onclick={() => ui.open("inspector")} disabled={!project} title={t("Inspeccionar o importar un disco")}>
       <Icon name="inspect" /><span class="hidden lg:inline">{t("Disco")}</span>
     </button>
 
@@ -257,14 +257,16 @@
     </div>
   {/if}
 
+  <!-- Notices float under the header instead of pushing the page down; the
+       success notice fades by itself, errors stay until closed. -->
   {#if ui.notice && !projectStore.error}
-    <div class="flex items-center justify-between gap-3 border-t border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-200" role="status">
+    <div class="absolute inset-x-0 top-full flex items-center justify-between gap-3 border-y border-emerald-500/25 bg-slate-900 bg-[linear-gradient(rgb(16_185_129/0.12),rgb(16_185_129/0.12))] px-3 py-1.5 text-[12px] text-emerald-200 shadow-md" role="status">
       <span class="truncate">{ui.notice}</span>
       <button type="button" onclick={() => (ui.notice = null)} aria-label={t("Cerrar")}><Icon name="close" size={14} /></button>
     </div>
   {/if}
   {#if projectStore.error}
-    <div class="flex items-center justify-between gap-3 border-t border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-[12px] text-rose-200" role="alert">
+    <div class="absolute inset-x-0 top-full flex items-center justify-between gap-3 border-y border-rose-500/25 bg-slate-900 bg-[linear-gradient(rgb(244_63_94/0.12),rgb(244_63_94/0.12))] px-3 py-1.5 text-[12px] text-rose-200 shadow-md" role="alert">
       <span class="truncate" title={localizeError(projectStore.error)}>{localizeError(projectStore.error)}</span>
       <button type="button" onclick={() => (projectStore.error = null)} aria-label={t("Cerrar")}><Icon name="close" size={14} /></button>
     </div>

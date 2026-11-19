@@ -947,12 +947,17 @@ pub(crate) fn add_corner_link(
 ) {
     let height = menu.canvas.height as f64;
     let k = (height / 480.0).max(1.0);
-    menu.buttons.push(nav_button(
+    let mut link = nav_button(
         name,
-        LogicalRect::new(18.0 * k, height - 54.0 * k, 180.0 * k, 34.0 * k),
+        LogicalRect::new(18.0 * k, height - 58.0 * k, 200.0 * k, 40.0 * k),
         template,
         ButtonAction::GotoMenu { menu: target },
-    ));
+    );
+    // The way to the scene menus is a main entry, not a footnote: full-size
+    // text in a framed button (it was small text-only in a corner).
+    link.style_kind = ButtonStyleKind::ClassicFrame;
+    link.font_size = link.font_size.max(template.font_size);
+    menu.buttons.push(link);
 }
 
 pub(crate) fn page_shell(root: &Menu, id: MenuId, template: &MenuTemplate) -> Menu {

@@ -507,10 +507,10 @@
             <button type="button" class="ui-btn ui-btn-primary" onclick={() => importAndAdd()}>
               <Icon name="import" size={15} />{t("Importar vídeos…")}
             </button>
-            <button type="button" class="ui-btn" onclick={() => (ui.slideshow = true)}>
+            <button type="button" class="ui-btn" onclick={() => ui.open("slideshow")}>
               <Icon name="photo" size={15} />{t("Presentación de fotos")}
             </button>
-            <button type="button" class="ui-btn" onclick={() => (ui.join = true)}>
+            <button type="button" class="ui-btn" onclick={() => ui.open("join")}>
               <Icon name="film" size={15} />{t("Unir vídeos…")}
             </button>
           </div>
@@ -702,7 +702,7 @@
               value={episode.scaleMode}
               onchange={(event) => setScaleMode((event.currentTarget as HTMLSelectElement).value as VideoScaleMode)}
             >
-              {#each scaleModes as mode}
+              {#each scaleModes.filter((mode) => !mode.label.includes("(heredado)") || projectStore.expertMode || mode.id === episode.scaleMode) as mode}
                 <option value={mode.id}>{t(mode.label)}</option>
               {/each}
             </select>

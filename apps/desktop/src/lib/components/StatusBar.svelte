@@ -66,7 +66,7 @@
   <button
     type="button"
     class={`flex shrink-0 items-center gap-1 ${missing.length > 0 ? "text-amber-300" : "text-slate-400"} hover:text-slate-100`}
-    onclick={() => (ui.doctor = true)}
+    onclick={() => ui.open("doctor")}
     title={t("Herramientas de disco")}
   >
     <Icon name={missing.length > 0 ? "warning" : "check"} size={14} />

@@ -13,6 +13,20 @@ function readTheme(): ThemePreference {
   return "system";
 }
 
+const DIALOGS = [
+  "newProject",
+  "about",
+  "queue",
+  "doctor",
+  "inspector",
+  "slideshow",
+  "join",
+  "cover",
+  "history",
+  "recent",
+] as const;
+export type DialogName = (typeof DIALOGS)[number];
+
 class UiState {
   newProject = $state(false);
   about = $state(false);
@@ -33,6 +47,33 @@ class UiState {
   update = $state<{ version: string; url: string } | null>(null);
   theme = $state<ThemePreference>(readTheme());
   fullscreen = $state(false);
+
+  /** The control that opened the current dialog; focus goes back to it. */
+  private opener: HTMLElement | null = null;
+
+  /**
+   * Opens one dialog and closes the others, so a dialog chosen from the menu
+   * is never hidden behind one that was already open.
+   */
+  open(dialog: DialogName): void {
+    if (!this.anyDialog) {
+      const active = document.activeElement;
+      this.opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+    for (const name of DIALOGS) this[name] = false;
+    this[dialog] = true;
+  }
+
+  get anyDialog(): boolean {
+    return DIALOGS.some((name) => this[name]);
+  }
+
+  /** After the last dialog closes (Escape included), focus returns. */
+  restoreFocus(): void {
+    const opener = this.opener;
+    this.opener = null;
+    if (opener?.isConnected) opener.focus();
+  }
 
   setTheme(theme: ThemePreference): void {
     this.theme = theme;

@@ -21,6 +21,15 @@
             ? 8_540_000_000
             : 4_700_000_000),
   );
+  // What the episodes really get, weighted by length (copied streams keep
+  // their own bitrate, so the plan's target alone overstated short or
+  // copied content: "38,000 kbps average" next to a 72 kbps episode).
+  const averageKbps = $derived.by(() => {
+    const entries = plan?.perEpisode ?? [];
+    const total = entries.reduce((sum, entry) => sum + entry.durationMs, 0);
+    if (!plan || total <= 0) return plan?.videoKbps ?? 0;
+    return Math.round(entries.reduce((sum, entry) => sum + entry.videoKbps * entry.durationMs, 0) / total);
+  });
   const discLabel = $derived(
     project?.disc.capacity === "bd25"
       ? t("BD-25 · 25 GB")
@@ -134,7 +143,7 @@
       <span class="ui-section-title">{t("Calidad VBR")}</span>
       {#if plan}
         <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-cyan-200">
-          {plan.videoKbps.toLocaleString(i18n.locale)} kbps {t("promedio")}
+          {averageKbps.toLocaleString(i18n.locale)} kbps {t("promedio")}
         </span>
         <span class={`rounded-full border px-2 py-0.5 text-[11px] ${plan.feasible ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
           {t(plan.feasible ? "Viable" : "No viable")}
@@ -195,7 +204,7 @@
                 y={yForKbps(tick) + 3}
                 text-anchor="end"
                 fill="var(--color-slate-500)"
-                font-size="8"
+                font-size="12"
                 font-family="monospace">{Math.round(tick / 1000)}M</text>
             {/each}
 
@@ -222,7 +231,7 @@
                 stroke-width="1.5"
                 stroke-dasharray="4 4"
               />
-              <text x={layerBreakX + 4} y={padTop + 9} fill="var(--color-amber-200)" font-size="8">{t("corte de capa")}</text>
+              <text x={layerBreakX + 4} y={padTop + 12} fill="var(--color-amber-200)" font-size="12">{t("corte de capa")}</text>
             {/if}
 
             {#each timeTicks as tick}
@@ -238,7 +247,7 @@
                 y={chartHeight - 8}
                 text-anchor="middle"
                 fill="var(--color-slate-500)"
-                font-size="8"
+                font-size="12"
                 font-family="monospace">{formatDuration(tick)}</text>
             {/each}
           </svg>
