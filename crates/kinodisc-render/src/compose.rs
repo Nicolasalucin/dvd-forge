@@ -980,7 +980,7 @@ mod tests {
         // Slightly too long: a smaller size, same text.
         let natural = line_width(&glyphs, 20.0, "Cumpleaños de Sofía");
         let (size, text) = fit_line(&glyphs, 20.0, "Cumpleaños de Sofía", Some(natural * 0.9));
-        assert!(size < 20.0 && size >= 15.0);
+        assert!((15.0..20.0).contains(&size));
         assert_eq!(text, "Cumpleaños de Sofía");
         // Far too long: the smallest size and an ellipsis, never squeezed
         // (QA 1.1.3: long names were unreadable on the disc).
