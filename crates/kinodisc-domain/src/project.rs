@@ -1314,9 +1314,60 @@ impl Project {
                 "El GPRM de modo debe estar entre 0 y 15.",
             ));
         }
+        for episode in self.unreachable_episodes() {
+            diagnostics.push(
+                Diagnostic::warning(
+                    "W_EPISODE_NO_BUTTON",
+                    format!(
+                        "Ningún botón de los menús abre «{}»: no se podrá elegir desde el disco.",
+                        episode.title
+                    ),
+                )
+                .with_entity(format!("episode:{}", episode.id)),
+            );
+        }
 
         diagnostics.extend(self.budget.validate());
         diagnostics
+    }
+
+    /// Episodes that no menu button can start: no button plays the episode or
+    /// one of its chapters, it is not in a Play All a button starts, and the
+    /// episode before it does not continue into it.
+    pub fn unreachable_episodes(&self) -> Vec<&Episode> {
+        if self.menus.is_empty() {
+            return Vec::new();
+        }
+        let buttons = || {
+            self.menus
+                .iter()
+                .flat_map(|menu| menu.buttons.iter())
+                .filter(|button| button.enabled)
+        };
+        let mut reached: HashSet<EpisodeId> = HashSet::new();
+        for button in buttons() {
+            match &button.action {
+                ButtonAction::PlayEpisode { episode }
+                | ButtonAction::JumpTitleChapter { episode, .. } => {
+                    reached.insert(*episode);
+                }
+                ButtonAction::PlayAll if self.play_all.enabled => {
+                    reached.extend(self.play_all.order.iter().copied());
+                }
+                _ => {}
+            }
+        }
+        for pair in self.episodes.windows(2) {
+            if reached.contains(&pair[0].id)
+                && matches!(pair[0].post_action, PostAction::NextEpisode)
+            {
+                reached.insert(pair[1].id);
+            }
+        }
+        self.episodes
+            .iter()
+            .filter(|episode| !reached.contains(&episode.id))
+            .collect()
     }
 }
 
@@ -2006,6 +2057,67 @@ mod tests {
             .filter(|diagnostic| diagnostic.severity == Severity::Error)
             .collect();
         assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+    }
+
+    fn play_button(id: u128, action: ButtonAction) -> crate::menu::MenuButton {
+        crate::menu::MenuButton {
+            id: crate::ids::ButtonId::from_u128(id),
+            name: format!("b{id}"),
+            rect: crate::geometry::LogicalRect::new(60.0, 60.0, 192.0, 72.0),
+            z: 0,
+            action,
+            thumbnail: None,
+            label: None,
+            style_kind: crate::menu::ButtonStyleKind::ClassicFrame,
+            font_family: "sans-serif".to_string(),
+            font_size: 22,
+            font_weight: "normal".to_string(),
+            text_color: "#FFFFFF".to_string(),
+            shadow_color: "#000000".to_string(),
+            fill_color: "#0F172A".to_string(),
+            shape_mask: crate::menu::ButtonShapeMask::Rectangle,
+            motion_preview: None,
+            nav_override: Default::default(),
+            enabled: true,
+        }
+    }
+
+    fn no_button_warnings(project: &Project) -> usize {
+        project
+            .validate()
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "W_EPISODE_NO_BUTTON")
+            .count()
+    }
+
+    #[test]
+    fn episodes_without_a_menu_button_are_reported() {
+        let mut project = minimal_project();
+        let first = project.episodes[0].id;
+        let mut second = project.episodes[0].clone();
+        second.id = EpisodeId::from_u128(40);
+        second.number = 2;
+        project.episodes.push(second);
+        // A menu with no buttons: neither episode can be chosen.
+        assert_eq!(no_button_warnings(&project), 2);
+
+        // Only the first one has a button (QA 1.1.2: titles 2+ unreachable).
+        project.menus[0].buttons =
+            vec![play_button(1, ButtonAction::PlayEpisode { episode: first })];
+        assert_eq!(no_button_warnings(&project), 1);
+
+        // Continuing into the next episode makes it reachable.
+        project.episodes[0].post_action = PostAction::NextEpisode;
+        assert_eq!(no_button_warnings(&project), 0);
+
+        // So does a Play All button that includes it.
+        project.episodes[0].post_action = PostAction::ReturnToMenu;
+        project.play_all.enabled = true;
+        project.play_all.order = vec![first, EpisodeId::from_u128(40)];
+        project.menus[0]
+            .buttons
+            .push(play_button(2, ButtonAction::PlayAll));
+        assert_eq!(no_button_warnings(&project), 0);
     }
 
     #[test]

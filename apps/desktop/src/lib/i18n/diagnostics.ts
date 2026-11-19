@@ -21,6 +21,11 @@ interface PatternRule {
  */
 const PATTERNS: PatternRule[] = [
   {
+    key: "Ningún botón de los menús abre «{title}»: no se podrá elegir desde el disco.",
+    pattern: /Ningún botón de los menús abre «(.*)»: /,
+    values: (match) => ({ title: match[1] }),
+  },
+  {
     key: "El episodio {episode} tiene {count} pistas de audio y el primero tiene {first}. dvdauthor usa el layout del primer título.",
     pattern: /El episodio (\d+) tiene (\d+) pistas de audio y el primero tiene (\d+)\./,
     values: (match) => ({ episode: match[1], count: match[2], first: match[3] }),

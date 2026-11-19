@@ -14,6 +14,7 @@ import {
   type EncodingPriority,
   type EpisodeAudio_Serialize,
   type Episode_Serialize,
+  type FrameRange,
   type FrameRate,
   type JobEvent,
   type JobHistoryEntry_Serialize,
@@ -131,6 +132,30 @@ function canvasForProject(project: Project_Serialize) {
     }
   }
   return canvasFor(project.disc.standard, project.disc.aspect);
+}
+
+/** Rate that chapter and trim frames are counted in: the disc's own rate. */
+function discFps(project: Project_Serialize): number {
+  const video = project.disc.video;
+  if (video.kind === "avchd") return video.frameRate.num / video.frameRate.den;
+  return project.disc.standard === "pal" ? 25 : 30_000 / 1_001;
+}
+
+/**
+ * Chapters and trims are stored in disc-rate frames. When the disc rate
+ * changes (PAL/NTSC, DVD/HD), recount them so they keep the same time.
+ */
+function retimeDiscFrames(project: Project_Serialize, fromFps: number): void {
+  const toFps = discFps(project);
+  if (!(fromFps > 0) || Math.abs(fromFps - toFps) < 1e-6) return;
+  const recount = (frame: number) => Math.round((frame * toFps) / fromFps);
+  const recountRange = (range: FrameRange | null | undefined) =>
+    range ? { start: recount(range.start), end: recount(range.end) } : range ?? null;
+  for (const episode of project.episodes) {
+    for (const chapter of episode.chapters) chapter.atFrame = recount(chapter.atFrame);
+    episode.trim = recountRange(episode.trim);
+  }
+  if (project.firstPlay) project.firstPlay.trim = recountRange(project.firstPlay.trim);
 }
 
 
@@ -1336,17 +1361,17 @@ class ProjectStore {
     project.episodes = [...project.episodes, episode];
     this.selectedEpisodeId = episode.id;
     this.syncPlayAll();
+    // A menu the user has not designed yet (no template, only episode
+    // buttons) gets one button per episode, so every video can be chosen on
+    // the disc. A full menu is left alone; validation then warns about it.
     const menu = this.activeMenu;
-    if (menu && menu.buttons.length === 0) {
-      const button = this.makeButton(
-        { x: even(menu.canvas.width * 0.1), y: even(menu.canvas.height * 0.12), w: 280, h: 150 },
-        "thumbnailCard",
-        { kind: "playEpisode", episode: episode.id },
-        title,
-        episode,
-      );
-      menu.buttons = [button];
-      this.selectedButtonId = button.id;
+    if (
+      menu &&
+      !menu.template &&
+      menu.buttons.every((button) => button.action.kind === "playEpisode")
+    ) {
+      const previousError = this.error;
+      if (!this.addButton("thumbnailCard")) this.error = previousError;
     }
     this.touch();
     return episode;
@@ -2603,33 +2628,27 @@ class ProjectStore {
   setDiscMode(mode: AuthoringMode): void {
     const project = this.project;
     if (!project || project.disc.mode === mode) return;
+    const fromFps = discFps(project);
     if (mode === "avchd") {
       project.disc.mode = "avchd";
+      // HD keeps the TV standard: PAL sources stay at 25 fps (1080i), NTSC
+      // projects get 720p 23.976 on DVD media (1080p on a Blu-ray capacity).
+      const bluRay = project.disc.capacity === "bd25" || project.disc.capacity === "bd50";
+      const pal = project.disc.standard === "pal";
       project.disc.video = {
         kind: "avchd",
-        resolution: "720p",
-        frameRate: { num: 24_000, den: 1_001 },
+        resolution: pal ? "1080i" : bluRay ? "1080p" : "720p",
+        frameRate: pal ? { num: 25, den: 1 } : { num: 24_000, den: 1_001 },
         level: "level41",
         blurayCompat: true,
-        vbvMaxrateKbps: 24_000,
-        vbvBufsizeKbps: 24_000,
+        vbvMaxrateKbps: bluRay ? 38_000 : 24_000,
+        vbvBufsizeKbps: bluRay ? 35_000 : 24_000,
         keyintFrames: 24,
         slices: 4,
       };
-      project.disc.standard = "ntsc";
       project.disc.aspect = "sixteenNine";
-      project.budget = { ...AVCHD_BUDGET };
+      project.budget = { ...AVCHD_BUDGET, maxVideoKbps: bluRay ? 38_000 : 24_000 };
       project.firstPlay = null;
-      if (project.menus.length === 0) {
-        this.createRootMenu(project);
-      } else {
-        for (const menu of project.menus) {
-          this.rescaleMenu(menu, canvasForProject(project));
-        }
-      }
-      // The current tab stays: switching format from VBR quality, say, must
-      // not jump to the menu editor.
-      this.selectedMenuId = project.menus[0]?.id ?? null;
     } else {
       project.disc.mode = "dvdVideo";
       project.disc.video = {
@@ -2644,15 +2663,18 @@ class ProjectStore {
         trellis: true,
       };
       project.budget = { ...DVD_BUDGET };
-      if (project.menus.length === 0) {
-        this.createRootMenu(project);
-      } else {
-        for (const menu of project.menus) {
-          this.rescaleMenu(menu, canvasForProject(project));
-        }
-      }
-      this.selectedMenuId = project.menus[0]?.id ?? null;
     }
+    retimeDiscFrames(project, fromFps);
+    if (project.menus.length === 0) {
+      this.createRootMenu(project);
+    } else {
+      for (const menu of project.menus) {
+        this.rescaleMenu(menu, canvasForProject(project));
+      }
+    }
+    // The current tab stays: switching format from VBR quality, say, must
+    // not jump to the menu editor.
+    this.selectedMenuId = project.menus[0]?.id ?? null;
     this.touch();
     this.plan = null;
   }
@@ -2660,7 +2682,9 @@ class ProjectStore {
   setStandard(standard: TvStandard): void {
     const project = this.project;
     if (!project || project.disc.mode === "avchd" || project.disc.standard === standard) return;
+    const fromFps = discFps(project);
     project.disc.standard = standard;
+    retimeDiscFrames(project, fromFps);
     for (const menu of project.menus) {
       // rescaleMenu normalizes against the *previous* canvas height before
       // scaling (no clipping of the lower rows) and also rescales menu items.
@@ -2677,46 +2701,23 @@ class ProjectStore {
     this.touch();
   }
 
+  /**
+   * Disc size. A Blu-ray size turns a DVD project into HD; an HD project
+   * keeps its resolution, frame rate and menus, and only gets the higher
+   * Blu-ray bitrate limits (or the AVCHD ones back on DVD media).
+   */
   setDiscCapacity(capacity: "dvd5" | "dvd9" | "bd25" | "bd50"): void {
     const project = this.project;
     if (!project || project.disc.capacity === capacity) return;
     const bluRay = capacity === "bd25" || capacity === "bd50";
     project.disc.capacity = capacity;
-    if (bluRay) {
-      project.disc.mode = "avchd";
-      project.firstPlay = null;
-      project.disc.standard = "ntsc";
-      project.disc.aspect = "sixteenNine";
-      project.disc.video = {
-        kind: "avchd",
-        resolution: "1080p",
-        frameRate: { num: 24_000, den: 1_001 },
-        level: "level41",
-        blurayCompat: true,
-        vbvMaxrateKbps: 38_000,
-        vbvBufsizeKbps: 35_000,
-        keyintFrames: 24,
-        slices: 4,
-      };
+    if (bluRay && project.disc.mode !== "avchd") this.setDiscMode("avchd");
+    const video = project.disc.video;
+    if (project.disc.mode === "avchd" && video.kind === "avchd") {
+      video.vbvMaxrateKbps = bluRay ? 38_000 : 24_000;
+      video.vbvBufsizeKbps = bluRay ? 35_000 : 24_000;
       project.budget.minVideoKbps = 1_000;
-      project.budget.maxVideoKbps = 38_000;
-      project.budget.headerMarginPpm = 30_000;
-      project.budget.muxOverheadPpm = 50_000;
-      for (const menu of project.menus) {
-        this.rescaleMenu(menu, {
-          ...menu.canvas,
-          tvStandard: "ntsc",
-          aspect: "sixteenNine",
-          height: 480,
-        });
-      }
-    } else if (project.disc.mode === "avchd") {
-      if (project.disc.video.kind === "avchd") {
-        project.disc.video.vbvMaxrateKbps = 24_000;
-        project.disc.video.vbvBufsizeKbps = 24_000;
-      }
-      project.budget.minVideoKbps = 1_000;
-      project.budget.maxVideoKbps = 24_000;
+      project.budget.maxVideoKbps = bluRay ? 38_000 : 24_000;
       project.budget.headerMarginPpm = 30_000;
       project.budget.muxOverheadPpm = 50_000;
     }

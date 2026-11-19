@@ -130,6 +130,7 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_PGS_DELAY_IGNORED: "Delay is ignored for Blu-ray bitmap (PGS) subtitles.",
   W_PGS_LAYOUT_MISMATCH: "Episodes have different PGS subtitle tracks; they are skipped.",
   W_PLAY_ALL_EMPTY: "Play All is active but has no episodes.",
+  W_EPISODE_NO_BUTTON: "No menu button opens this episode; it can't be chosen on the disc.",
   W_PROBE_FALLBACK: "A media file could not be analysed again; saved information is used.",
   W_PROBE_FILE_MISSING: "A media file is missing; saved information is used.",
   W_PROBE_PATH_MISSING: "A media file path could not be resolved.",
