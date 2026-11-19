@@ -121,6 +121,9 @@ pub struct AvchdAudioConfig {
     pub codec: AvchdAudioCodec,
     pub default: bool,
     pub commentary: bool,
+    /// Silence instead of a source stream: a video without sound still gets
+    /// the tracks the rest of the disc has (every title must share them).
+    pub silent: bool,
 }
 
 /// One bitmap subtitle track passed through to the H.264/AC-3 MKV. Only
@@ -393,7 +396,8 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         args.push(format_seconds(trim.start, request.fps));
     }
     push_file_input(&mut args, &request.input);
-    if request.audios.is_empty() {
+    let silence = request.audios.is_empty() || request.audios.iter().all(|audio| audio.silent);
+    if silence {
         args.extend([
             "-f".to_string(),
             "lavfi".to_string(),
@@ -402,11 +406,7 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         ]);
     }
     let mut external_inputs = Vec::new();
-    let mut next_input = if request.audios.is_empty() {
-        2usize
-    } else {
-        1usize
-    };
+    let mut next_input = if silence { 2usize } else { 1usize };
     for subtitle in &request.subtitles {
         if let Some(path) = &subtitle.source_path {
             if subtitle.delay_ms != 0 {
@@ -547,7 +547,12 @@ pub fn build_encode_args(request: &AvchdEncodeRequest) -> Vec<String> {
         args.extend(["-map".to_string(), "1:a:0".to_string()]);
     } else {
         for audio in &request.audios {
-            args.extend(["-map".to_string(), format!("0:{}", audio.source_stream)]);
+            let source = if audio.silent {
+                "1:a:0".to_string()
+            } else {
+                format!("0:{}", audio.source_stream)
+            };
+            args.extend(["-map".to_string(), source]);
         }
     }
     let mut external_cursor = 0usize;
@@ -1167,6 +1172,7 @@ mod tests {
                 codec: AvchdAudioCodec::Ac3,
                 default: true,
                 commentary: false,
+                silent: false,
             }],
             subtitles: Vec::new(),
             trim: None,
@@ -1245,6 +1251,31 @@ mod tests {
     }
 
     #[test]
+    fn silent_tracks_come_from_generated_silence() {
+        let mut request = request();
+        for (index, language) in ["spa", "eng"].iter().enumerate() {
+            let mut track = request.audios[0].clone();
+            track.silent = true;
+            track.language = language.to_string();
+            track.default = index == 0;
+            if index == 0 {
+                request.audios[0] = track;
+            } else {
+                request.audios.push(track);
+            }
+        }
+        let args = build_encode_args(&request).join(" ");
+        assert!(
+            args.contains("-f lavfi -i anullsrc=r=48000:cl=stereo"),
+            "{args}"
+        );
+        assert_eq!(args.matches("-map 1:a:0").count(), 2, "{args}");
+        assert!(!args.contains("-map 0:1"), "{args}");
+        assert!(args.contains("-c:a:1 ac3"), "{args}");
+        assert!(args.contains("language=eng"), "{args}");
+    }
+
+    #[test]
     fn multiple_audio_tracks_are_mapped_and_copied_per_stream() {
         let mut request = request();
         request.audios.push(AvchdAudioConfig {
@@ -1261,6 +1292,7 @@ mod tests {
             codec: AvchdAudioCodec::Dts,
             default: false,
             commentary: false,
+            silent: false,
         });
         let args = build_encode_args(&request).join(" ");
         assert!(args.contains("-map 0:1"), "{args}");

@@ -872,6 +872,7 @@ fn avchd_audio_configs(
                 codec: kinodisc_avchd::AvchdAudioCodec::Ac3,
                 default: true,
                 commentary: false,
+                silent: false,
             });
             layout.push((language, kinodisc_avchd::AvchdAudioCodec::Ac3));
         }
@@ -907,6 +908,7 @@ fn avchd_audio_configs(
             codec,
             default: audio.default,
             commentary: audio.commentary,
+            silent: false,
         });
         layout.push((audio.language.clone(), codec));
     }
@@ -1604,7 +1606,20 @@ async fn render_avchd_project(
     let mut episode_start_ms: HashMap<EpisodeId, u64> = HashMap::new();
     let mut episode_fps: HashMap<EpisodeId, FrameRate> = HashMap::new();
     let mut timeline_ms = 0u64;
-    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> = None;
+    // The disc's audio layout comes from the first episode that has sound,
+    // so a soundless first video does not decide it.
+    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> =
+        order.iter().find_map(|episode| {
+            let asset = project.asset(episode.video)?;
+            let probe = probes.get(&asset.id).unwrap_or(&asset.probe);
+            let (reconciled, _) = reconcile_episode_audio(episode, probe);
+            let reconciled_episode = Episode {
+                audio: reconciled,
+                ..(*episode).clone()
+            };
+            let (_, layout) = avchd_audio_configs(&reconciled_episode, &project, probe, 1);
+            (!layout.is_empty()).then_some(layout)
+        });
     let cache = match Store::open_default() {
         Ok(store) => Some(store),
         Err(error) => {
@@ -1681,7 +1696,7 @@ async fn render_avchd_project(
         if let Some(existing) = &audio_layout {
             if existing != &current_audio_layout {
                 let (adapted, adapt_warnings) =
-                    harmonize_avchd_audio(&episode.title, existing, audio_configs);
+                    harmonize_avchd_audio(&episode.title, existing, audio_configs, duration_ms);
                 current_audio_layout = adapted
                     .iter()
                     .map(|config| (config.language.clone(), config.codec))
@@ -2770,13 +2785,46 @@ fn reconcile_episode_audio(
 /// adapted to the first one: languages are relabelled, missing tracks reuse
 /// the last available stream, extra tracks are dropped, and codec mismatches
 /// are re-encoded to AC-3 when the disc layout is AC-3.
+/// Bitrate of the silent AC-3 tracks a soundless video gets on HD discs.
+const AVCHD_SILENT_KBPS: u16 = 192;
+
 fn harmonize_avchd_audio(
     episode_title: &str,
     canonical: &[(String, kinodisc_avchd::AvchdAudioCodec)],
     mut configs: Vec<AvchdAudioConfig>,
+    duration_ms: u64,
 ) -> (Vec<AvchdAudioConfig>, Vec<Diagnostic>) {
     let mut warnings = Vec::new();
     let adapted = |message: String| Diagnostic::warning("W_AUDIO_LAYOUT_ADAPTED", message);
+    // A video without sound on a disc whose titles have audio: silent tracks
+    // in the disc's languages, so every title shares one layout (QA 1.1.3:
+    // the Blu-ray failed with "AVCHD cannot concatenate different layouts").
+    if configs.is_empty() && !canonical.is_empty() {
+        warnings.push(adapted(format!(
+            "«{episode_title}» no tiene sonido: lleva pistas de silencio con los idiomas del resto del disco."
+        )));
+        let silent = canonical
+            .iter()
+            .enumerate()
+            .map(|(index, (language, _))| AvchdAudioConfig {
+                source_stream: 0,
+                bitrate_kbps: AVCHD_SILENT_KBPS,
+                channels: 2,
+                sample_rate: 48_000,
+                pre_filter: None,
+                gain_db: 0.0,
+                delay_ms: 0,
+                duration_ms,
+                language: language.clone(),
+                copy: false,
+                codec: kinodisc_avchd::AvchdAudioCodec::Ac3,
+                default: index == 0,
+                commentary: false,
+                silent: true,
+            })
+            .collect();
+        return (silent, warnings);
+    }
     if canonical.is_empty() || configs.is_empty() {
         if !configs.is_empty() || !canonical.is_empty() {
             warnings.push(adapted(format!(
@@ -5732,7 +5780,22 @@ mod tests {
             codec: kinodisc_avchd::AvchdAudioCodec::Ac3,
             default: true,
             commentary: false,
+            silent: false,
         }
+    }
+
+    #[test]
+    fn a_soundless_episode_gets_silent_tracks_in_the_disc_layout() {
+        use kinodisc_avchd::AvchdAudioCodec::Ac3;
+        let canonical = vec![("spa".to_string(), Ac3), ("eng".to_string(), Ac3)];
+        let (silent, warnings) = harmonize_avchd_audio("Sin audio", &canonical, Vec::new(), 15_000);
+        assert_eq!(silent.len(), 2);
+        assert!(silent.iter().all(|track| track.silent && !track.copy));
+        assert_eq!(silent[0].language, "spa");
+        assert_eq!(silent[1].language, "eng");
+        assert!(silent[0].default && !silent[1].default);
+        assert_eq!(silent[0].duration_ms, 15_000);
+        assert!(warnings.iter().all(|w| w.code == "W_AUDIO_LAYOUT_ADAPTED"));
     }
 
     #[test]
@@ -5741,7 +5804,7 @@ mod tests {
         let canonical = vec![("eng".to_string(), Ac3), ("spa".to_string(), Ac3)];
         // Different language and one track fewer than the first episode.
         let (adapted, warnings) =
-            harmonize_avchd_audio("Ep 2", &canonical, vec![avchd_audio(1, "und")]);
+            harmonize_avchd_audio("Ep 2", &canonical, vec![avchd_audio(1, "und")], 1_000);
         let layout: Vec<_> = adapted
             .iter()
             .map(|config| (config.language.clone(), config.codec))
@@ -5755,6 +5818,7 @@ mod tests {
             "Ep 3",
             &canonical[..1],
             vec![avchd_audio(1, "eng"), avchd_audio(2, "fra")],
+            1_000,
         );
         assert_eq!(adapted.len(), 1);
     }
