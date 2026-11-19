@@ -212,6 +212,13 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
     menu.name = localize(menu.name);
     for (const button of menu.buttons) {
       button.name = localize(button.name);
+      // The words drawn on generated buttons ("‹ Anterior", "Escena 3").
+      if (button.label) button.label.text = localize(button.label.text);
+    }
+    // Titles drawn on generated pages ("Escenas · <episode>") are burned
+    // into the menu, so they follow the interface language too.
+    for (const item of menu.items) {
+      if (item.kind === "text" && item.id.startsWith("tpl:")) item.text = localize(item.text);
     }
   }
 }

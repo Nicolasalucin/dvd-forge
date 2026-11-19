@@ -203,6 +203,20 @@
     }
   }
 
+  /**
+   * After changing menu (or coming back to the same one), focus its first
+   * button like a player does; without focus the remote did nothing.
+   */
+  function resetFocus() {
+    activation = "highlight";
+    if (graph && graph.menuId === currentMenuId) {
+      focusId = graph.defaultFocus ?? graph.nodes[0]?.button ?? null;
+    } else {
+      focusId = null;
+      refreshGraph();
+    }
+  }
+
   function refreshGraph() {
     if (graphTimer) {
       clearTimeout(graphTimer);
@@ -280,7 +294,7 @@
         break;
       case "gotoMenu":
         currentMenuId = action.menu;
-        focusId = null;
+        resetFocus();
         break;
       case "playFirstPlay": {
         const first = project?.firstPlay;
@@ -457,7 +471,7 @@
     }
     if (currentMenu && project && currentMenu.id !== project.rootMenu) {
       currentMenuId = project.rootMenu;
-      focusId = null;
+      resetFocus();
       notice = null;
       return;
     }
@@ -468,7 +482,7 @@
     if (!project) return;
     stopPlayback();
     currentMenuId = project.rootMenu || project.menus[0]?.id || null;
-    focusId = null;
+    resetFocus();
     notice = t("Menú raíz.");
   }
 
@@ -484,7 +498,7 @@
       return;
     }
     currentMenuId = titleMenu.id;
-    focusId = null;
+    resetFocus();
     notice = t("Menú de títulos.");
   }
 
@@ -513,21 +527,66 @@
       : 0;
   }
 
+  // The player frames the video like the disc does: the episode's scaling
+  // (fit, fill, stretch), its blurred sides, a half turn and mirroring.
+  const playerFit = $derived(
+    currentEpisode?.scaleMode === "cover" || currentEpisode?.scaleMode === "cropFill"
+      ? "object-cover"
+      : currentEpisode?.scaleMode === "stretch"
+        ? "object-fill"
+        : "object-contain",
+  );
+  let playerBoxWidth = $state(0);
+  let playerBoxHeight = $state(0);
+  const playerTransform = $derived.by(() => {
+    const filters = currentEpisode?.filters;
+    const quarter = filters?.rotate === "clockwise" || filters?.rotate === "counterClockwise";
+    const parts: string[] = [];
+    if (quarter) parts.push("translate(-50%, -50%)");
+    if (filters?.rotate === "clockwise") parts.push("rotate(90deg)");
+    if (filters?.rotate === "counterClockwise") parts.push("rotate(-90deg)");
+    if (filters?.rotate === "half") parts.push("rotate(180deg)");
+    if (filters?.flipHorizontal) parts.push("scaleX(-1)");
+    const transform = parts.length > 0 ? `transform: ${parts.join(" ")};` : "";
+    // A quarter turn swaps the box: the video is laid out tall, then turned.
+    return quarter
+      ? `left: 50%; top: 50%; right: auto; bottom: auto; width: ${playerBoxHeight}px; height: ${playerBoxWidth}px; ${transform}`
+      : transform;
+  });
+  const playerBackdrop = $derived(
+    currentEpisode?.filters?.sideFill === "blur"
+      ? projectStore.previewForAsset(currentEpisode.video)
+      : null,
+  );
+
   function playEpisodeDirect(episode: Episode_Serialize) {
     void startQueue([{ episodeId: episode.id }]);
   }
 </script>
 
 {#snippet playerPanel()}
-  <div class="flex min-h-0 flex-1 flex-col gap-2">
-    <div class="relative flex min-h-[240px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-black">
+  <div class="flex h-full min-h-0 w-full flex-1 flex-col gap-2 self-stretch">
+    <div
+      class="relative flex min-h-[240px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-black"
+      bind:clientWidth={playerBoxWidth}
+      bind:clientHeight={playerBoxHeight}
+    >
       {#if playerSrc}
+        {#if playerBackdrop}
+          <img
+            src={playerBackdrop}
+            alt=""
+            aria-hidden="true"
+            class="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl"
+          />
+        {/if}
         <video
           bind:this={videoEl}
           src={playerSrc}
           preload="metadata"
           playsinline
-          class="max-h-full max-w-full"
+          class="absolute inset-0 h-full w-full {playerFit}"
+          style={playerTransform}
           onloadedmetadata={onPlayerLoaded}
           ontimeupdate={onPlayerTime}
           onplay={() => (isPlaying = true)}
