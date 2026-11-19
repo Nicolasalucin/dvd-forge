@@ -532,9 +532,11 @@
                 disabled={busy}
               />
               <p class="mt-1 text-[11px] text-slate-500">
-                {defaultsReady
-                  ? t("El ISO se escribirá aquí con el nombre del proyecto.")
-                  : t("Preparando carpeta predeterminada…")}
+                {!defaultsReady
+                  ? t("Preparando carpeta predeterminada…")
+                  : mode === "folder"
+                    ? t("La carpeta del disco se creará aquí con el nombre del proyecto.")
+                    : t("El ISO se escribirá aquí con el nombre del proyecto.")}
               </p>
             </div>
           {/if}
@@ -684,7 +686,11 @@
             <div class="rounded-md border border-slate-700 p-3">
               <p class="ui-section-title">{t("Salida")}</p>
               <p class="mt-1.5 text-[12px] leading-5 text-slate-500">
-                {t("Se generará un archivo")} <span class="font-mono text-slate-300">{t(".iso")}</span> {t("listo para grabarlo con cualquier herramienta del sistema.")}
+                {#if mode === "folder"}
+                  {t("Se creará una carpeta con VIDEO_TS (DVD) o BDMV (Blu-ray), lista para copiarla a un USB, un reproductor multimedia o Kodi.")}
+                {:else}
+                  {t("Se generará un archivo")} <span class="font-mono text-slate-300">{t(".iso")}</span> {t("listo para grabarlo con cualquier herramienta del sistema.")}
+                {/if}
               </p>
             </div>
           {/if}

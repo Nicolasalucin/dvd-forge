@@ -105,7 +105,7 @@
             class="mt-1.5 truncate rounded-md border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-300 transition hover:border-slate-500 hover:text-white"
             title={job.isoPath}
           >
-            {t("Abrir ISO")}
+            {t("Abrir carpeta")}
           </button>
         {/if}
       </div>

@@ -897,6 +897,8 @@ export const pt: Dictionary = {
   "Carpeta donde copiar los títulos": "Pasta para copiar os títulos",
   "Cifrado: se puede ver, pero no importar.": "Criptografado: pode ser visto, mas não importado.",
   "Disco de datos": "Disco de dados",
+  "La carpeta del disco se creará aquí con el nombre del proyecto.": "A pasta do disco será criada aqui com o nome do projeto.",
+  "Se creará una carpeta con VIDEO_TS (DVD) o BDMV (Blu-ray), lista para copiarla a un USB, un reproductor multimedia o Kodi.": "Será criada uma pasta com VIDEO_TS (DVD) ou BDMV (Blu-ray), pronta para copiar para um pen drive, um reprodutor de mídia ou o Kodi.",
   "{count} vídeo": "{count} vídeo",
   "{count} menú": "{count} menu",
   "canal": "canal",

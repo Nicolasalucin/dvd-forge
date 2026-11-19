@@ -123,6 +123,18 @@ fn resolve_folder_target(requested: &std::path::Path) -> std::path::PathBuf {
             .map(std::path::Path::to_path_buf)
             .or_else(|| std::env::current_dir().ok())
             .unwrap_or_else(|| requested.to_path_buf())
+    } else if !requested.exists()
+        && requested
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
+    {
+        // An image that was turned into a disc folder (or moved): open the
+        // folder it was produced in.
+        requested
+            .parent()
+            .filter(|parent| parent.is_dir())
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| requested.to_path_buf())
     } else {
         requested.to_path_buf()
     }

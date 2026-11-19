@@ -964,6 +964,8 @@ export const de: Dictionary = {
   "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
   "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
   "Disco de datos": "Datendisc",
+  "La carpeta del disco se creará aquí con el nombre del proyecto.": "Der Disc-Ordner wird hier mit dem Projektnamen erstellt.",
+  "Se creará una carpeta con VIDEO_TS (DVD) o BDMV (Blu-ray), lista para copiarla a un USB, un reproductor multimedia o Kodi.": "Es wird ein Ordner mit VIDEO_TS (DVD) oder BDMV (Blu-ray) erstellt, bereit zum Kopieren auf einen USB-Stick, einen Mediaplayer oder Kodi.",
   "{count} vídeo": "{count} Video",
   "{count} menú": "{count} Menü",
   "canal": "Kanal",
