@@ -964,6 +964,7 @@ export const ja: Dictionary = {
   "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
   "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
   "Disco de datos": "データディスク",
+  "{percent} del disco": "ディスクの {percent}",
   "La carpeta del disco se creará aquí con el nombre del proyecto.": "ディスクフォルダーはここにプロジェクト名で作成されます。",
   "Se creará una carpeta con VIDEO_TS (DVD) o BDMV (Blu-ray), lista para copiarla a un USB, un reproductor multimedia o Kodi.": "VIDEO_TS（DVD）または BDMV（Blu-ray）のフォルダーが作成され、USB メモリ、メディアプレーヤー、Kodi にコピーできます。",
   "{count} vídeo": "動画 {count} 本",

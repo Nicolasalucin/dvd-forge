@@ -13,6 +13,12 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Japanese: a UI font with proper kana metrics (the fallback spaced every
+   character and made the side tabs wrap). */
+:root:lang(ja) {
+  font-family: "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+
 html,
 body,
 #app {
@@ -166,7 +172,12 @@ button:not(:disabled):active {
     @apply flex items-stretch gap-0.5 border-b border-slate-800 px-2;
   }
   .ui-tabs > button {
-    @apply -mb-px flex h-9 items-center gap-1.5 border-b-2 border-transparent px-2.5 text-[13px] text-slate-400 hover:text-slate-100;
+    @apply -mb-px flex h-9 min-w-0 items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-2.5 text-[13px] text-slate-400 hover:text-slate-100;
+  }
+  /* Longer labels (Japanese, German) shrink their padding instead of wrapping. */
+  :root:lang(ja) .ui-tabs > button,
+  :root:lang(de) .ui-tabs > button {
+    @apply gap-1 px-1.5;
   }
   .ui-tabs > button[aria-selected="true"] {
     @apply border-cyan-500 text-slate-50;
