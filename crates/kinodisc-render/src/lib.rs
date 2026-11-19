@@ -616,31 +616,6 @@ async fn source_fingerprint_for_asset(
 
 /// Ordered languages of the PGS tracks per episode. The concat demuxer copies
 /// streams, so every episode must expose the same layout for pass-through.
-fn avchd_pgs_layout(project: &Project, order: &[&Episode]) -> (Option<Vec<String>>, bool) {
-    let mut layout: Option<Vec<String>> = None;
-    let mut enabled = true;
-    for episode in order {
-        let current: Vec<String> = episode
-            .subtitles
-            .iter()
-            .filter(|track| project.is_pgs_track(episode, track) || !track.bitmap)
-            .map(|track| track.language.to_ascii_lowercase())
-            .collect();
-        if current.is_empty() {
-            if layout.is_some() {
-                enabled = false;
-            }
-            continue;
-        }
-        match &layout {
-            None => layout = Some(current),
-            Some(existing) if existing != &current => enabled = false,
-            Some(_) => {}
-        }
-    }
-    (layout, enabled)
-}
-
 fn avchd_subtitle_tracks<'a>(
     project: &Project,
     episode: &'a Episode,
@@ -1590,7 +1565,7 @@ async fn render_avchd_project(
     let mut stream_inputs = Vec::with_capacity(project.episodes.len());
     let mut order: Vec<&Episode> = project.episodes.iter().collect();
     order.sort_by_key(|episode| episode.number);
-    let (pgs_layout, pgs_enabled) = avchd_pgs_layout(&project, &order);
+    let (pgs_layout, pgs_enabled) = project.avchd_subtitle_layout();
     let mut pgs_warnings: Vec<Diagnostic> = Vec::new();
     if pgs_layout.is_some() && !pgs_enabled {
         let message = "Las pistas de subtítulos no tienen el mismo orden e idiomas en todos los episodios; se omite su autoría.".to_string();
@@ -1989,7 +1964,8 @@ async fn render_avchd_project(
     }
 
     ensure_not_cancelled(&cancel)?;
-    stage(&events, JobStage::Author, "Multiplexando AVCHD con tsMuxeR").await;
+    // The backend (tsMuxeR or the built-in one) is chosen inside this stage.
+    stage(&events, JobStage::Author, "Multiplexando AVCHD").await;
     let combined_mkv = episodes_dir.join("combined.mkv");
     concat_mkv(&encoder.ffmpeg, &stream_inputs, &combined_mkv)
         .await

@@ -690,6 +690,25 @@ function cssFont(button: MenuButton_Serialize): string {
  * then an ellipsis. `fillText` with a max width squeezed long names until
  * they were unreadable.
  */
+let labelScratch: CanvasRenderingContext2D | null = null;
+
+/**
+ * The label text and size the disc export draws for a button, so the editor
+ * shows exactly the same cut ("— fiesta en el j…").
+ */
+export function fittedButtonLabel(
+  button: MenuButton_Serialize,
+  width: number,
+): { text: string; fontSize: number } {
+  const base = button.styleKind === "thumbnailCard" ? Math.min(button.fontSize, 18) : button.fontSize;
+  labelScratch ??= document.createElement("canvas").getContext("2d");
+  if (!labelScratch) return { text: button.name, fontSize: base };
+  labelScratch.font = cssFont(button);
+  const text = fitLabel(labelScratch, button.name, Math.max(20, width - 4));
+  const size = /(\d+(?:\.\d+)?)px/.exec(labelScratch.font);
+  return { text, fontSize: size ? Number(size[1]) : base };
+}
+
 function fitLabel(context: CanvasRenderingContext2D, text: string, width: number): string {
   const base = context.font;
   const match = /(\d+(?:\.\d+)?)px/.exec(base);

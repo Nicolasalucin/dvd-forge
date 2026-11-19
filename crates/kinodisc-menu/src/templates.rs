@@ -946,10 +946,18 @@ pub(crate) fn add_corner_link(
     target: MenuId,
 ) {
     let height = menu.canvas.height as f64;
+    let width = menu.canvas.width as f64;
     let k = (height / 480.0).max(1.0);
+    // Inside the action-safe area (5 % on each side), like everything a
+    // viewer must be able to reach on an old TV.
     let mut link = nav_button(
         name,
-        LogicalRect::new(18.0 * k, height - 58.0 * k, 200.0 * k, 40.0 * k),
+        LogicalRect::new(
+            (width * 0.06).round(),
+            (height * 0.94 - 40.0 * k).round(),
+            200.0 * k,
+            40.0 * k,
+        ),
         template,
         ButtonAction::GotoMenu { menu: target },
     );

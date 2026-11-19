@@ -45,13 +45,19 @@ pub fn run(args: &[String]) -> ExitCode {
             serde_json::to_string_pretty(&report).unwrap_or_default()
         );
     } else {
+        // Blu-ray folders have no single video format: no trailing " · ".
+        let video = if report.video.trim().is_empty() {
+            String::new()
+        } else {
+            format!(" · {}", report.video)
+        };
         println!(
-            "{:?} «{}» · {} archivos · {:.2} GB · {}{}",
+            "{:?} «{}» · {} archivos · {:.2} GB{}{}",
             report.kind,
             report.volume_label,
             report.file_count,
             report.total_bytes / 1e9,
-            report.video,
+            video,
             if report.encrypted { " · CIFRADO" } else { "" }
         );
         for title in &report.titles {

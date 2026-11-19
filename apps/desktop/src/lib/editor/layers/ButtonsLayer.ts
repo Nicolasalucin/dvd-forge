@@ -2,7 +2,7 @@ import Konva from "konva";
 import { thumbnailKey } from "../thumbnailKey";
 import type { Menu_Serialize, MenuButton_Serialize, SubpicturePalette } from "../../api/bindings";
 import { buttonStyleLayout, type ButtonLayout } from "../buttonLayout";
-import { normalizeRect } from "../exportMenu";
+import { fittedButtonLabel, normalizeRect } from "../exportMenu";
 import { hexToRgba } from "../../utils/color";
 
 export type PreviewState = "normal" | "highlight" | "select";
@@ -238,26 +238,25 @@ export class ButtonsLayer {
         );
       }
 
+      // Same text and size as the disc export (shrink, then "…").
+      const fitted = fittedButtonLabel(button, layout.label.w);
       const label = new Konva.Text({
         name: "button-label",
         x: layout.label.x,
         y: layout.label.y,
         width: layout.label.w,
         height: layout.label.h,
-        text: button.name,
-        fontSize:
-          button.styleKind === "thumbnailCard"
-            ? Math.min(button.fontSize, 18)
-            : button.fontSize,
+        text: fitted.text,
+        fontSize: fitted.fontSize,
         fontFamily: button.fontFamily
-          ? `${/\s/.test(button.fontFamily) ? `"${button.fontFamily.replaceAll('"', "")}"` : button.fontFamily}, sans-serif`
+          ? `${/\s/.test(button.fontFamily) ? `"${button.fontFamily.replaceAll('"', "")}"` : button.fontFamily}, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`
           : "sans-serif",
         fontStyle: button.fontWeight === "bold" ? "bold" : "normal",
         fill: button.textColor,
         align: layout.align,
         verticalAlign: "middle",
         wrap: "none",
-        ellipsis: true,
+        ellipsis: false,
         shadowColor: button.shadowColor,
         shadowBlur: 4,
         shadowOffsetY: 2,

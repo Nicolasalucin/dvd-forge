@@ -138,6 +138,7 @@ const JOB_STAGES = new Set([
   "Calculando bitrate AVCHD",
   "Codificando episodios AVCHD",
   "Multiplexando AVCHD con tsMuxeR",
+  "Multiplexando AVCHD",
   "Multiplexando BDMV con menús HDMV IG",
   "Validando ISO AVCHD",
 ]);

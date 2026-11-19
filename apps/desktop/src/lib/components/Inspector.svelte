@@ -1216,7 +1216,7 @@
             {#if projectStore.plan}
               <dl class="mt-2 space-y-1 text-[11px]">
                 <div class="flex justify-between gap-2">
-                  <dt class="text-slate-500">{t("Promedio")}</dt>
+                  <dt class="text-slate-500">{t("Objetivo de vídeo")}</dt>
                   <dd class="font-mono text-cyan-300">{projectStore.plan.videoKbps.toLocaleString(i18n.locale)} kbps</dd>
                 </div>
                 <div class="flex justify-between gap-2">

@@ -5,7 +5,7 @@
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
-  import { t, formatDecimal, formatPercent } from "../i18n/index.svelte";
+  import { i18n, t, formatDecimal, formatPercent } from "../i18n/index.svelte";
   import { localizeCheck, localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
@@ -39,8 +39,10 @@
   }
 
   // Episodes no menu button can start: shown before producing the disc.
+  // and Blu-ray subtitles that would be left out.
+  const PREFLIGHT = new Set(["W_EPISODE_NO_BUTTON", "W_PGS_LAYOUT_MISMATCH"]);
   const unreachable = $derived(
-    projectStore.plan?.warnings.filter((warning) => warning.code === "W_EPISODE_NO_BUTTON") ?? [],
+    projectStore.plan?.warnings.filter((warning) => PREFLIGHT.has(warning.code)) ?? [],
   );
 
   type ProductionMode = "iso" | "folder" | "isoBurn" | "existing";
@@ -79,7 +81,12 @@
     speedOptions.includes(speed) ? speed : (speedOptions[0] ?? 4),
   );
   const busy = $derived(projectStore.rendering || projectStore.burning);
-  const renderPercent = $derived(Math.min(100, Math.max(0, projectStore.renderPercent)));
+  // Several discs share one bar: disc 2 of 3 runs from 33 % to 67 %.
+  let partIndex = $state(1);
+  let partCount = $state(1);
+  const renderPercent = $derived(
+    Math.min(100, Math.max(0, ((partIndex - 1) * 100 + projectStore.renderPercent) / Math.max(1, partCount))),
+  );
   const burnPercent = $derived(
     Math.min(100, Math.max(0, projectStore.burnProgress?.percent ?? 0)),
   );
@@ -95,9 +102,13 @@
       : needsBurn && !effectiveDevice
         ? t("No hay ninguna grabadora conectada. Conecta una y pulsa «Actualizar», o elige «Solo ISO».")
         : mode !== "existing" && emptyMenu
-          ? t("El menú «{name}» no tiene botones: añade al menos uno o bórralo antes de generar el disco.", {
-              name: emptyMenu.name,
-            })
+          ? emptyMenu.id === project?.rootMenu
+            ? t("El menú principal «{name}» no tiene botones: añade al menos uno (o aplica una plantilla) antes de generar el disco.", {
+                name: emptyMenu.name,
+              })
+            : t("El menú «{name}» no tiene botones: añade al menos uno o bórralo antes de generar el disco.", {
+                name: emptyMenu.name,
+              })
         : mode !== "existing" && missingTools.length > 0
           ? t("Faltan herramientas para generar el disco ({tools}). Instálalas desde «Disco › Herramientas de disco…».", {
               tools: missingTools.join(", "),
@@ -143,6 +154,21 @@
     return verdict;
   }
 
+  // Another mode starts clean: an earlier result ("Disc folder ready") does
+  // not stay under "ISO only".
+  let shownMode: ProductionMode | null = null;
+  $effect(() => {
+    const current = mode;
+    if (shownMode !== null && shownMode !== current && !busy) {
+      projectStore.renderSummary = null;
+      projectStore.renderVerification = null;
+      projectStore.renderError = null;
+      projectStore.lastIso = null;
+      producedList = [];
+    }
+    shownMode = current;
+  });
+
   // A folder typed or chosen is remembered even if nothing is produced.
   $effect(() => {
     const folder = outputDir.trim();
@@ -152,11 +178,14 @@
   onMount(() => {
     // The plan (and its warnings, such as episodes without a button) is
     // ready before anything is produced.
-    if (projectStore.project?.episodes.length && !projectStore.plan) void projectStore.calculatePlan();
-    // An error from an earlier attempt is not shown again on reopening.
-    if (!projectStore.rendering) {
-      projectStore.renderError = null;
-      projectStore.burnError = null;
+    // Always recomputed: menus may have changed since the last plan (a
+    // deleted button, say).
+    if (projectStore.project?.episodes.length && !projectStore.rendering) void projectStore.calculatePlan();
+    // The dialog opens clean: an earlier result or error is in the job
+    // history (Disc › Job history…), not shown again here.
+    if (!projectStore.rendering && !projectStore.burning) {
+      projectStore.resetRender();
+      projectStore.lastIso = null;
     }
     void prepareDefaults();
   });
@@ -234,6 +263,8 @@
       return;
     }
     projectStore.resetRender();
+    partIndex = 1;
+    partCount = 1;
     projectStore.lastIso = null;
     producedList = [];
     projectStore.rendering = true;
@@ -273,6 +304,8 @@
         const multi = part.count > 1;
         const prefix = multi ? t("Disco {index} de {count}", { index: part.index, count: part.count }) + " · " : "";
         projectStore.renderPercent = 0;
+        partIndex = part.index;
+        partCount = part.count;
         projectStore.renderStage = prefix + t("Componiendo menús");
         const warnings = await compositeProjectMenus(part.project, {
           backgroundColor: projectStore.menuBackgroundColor,
@@ -573,7 +606,9 @@
                   ? t("Preparando carpeta predeterminada…")
                   : mode === "folder"
                     ? t("La carpeta del disco se creará aquí con el nombre del proyecto.")
-                    : t("El ISO se escribirá aquí con el nombre del proyecto.")}
+                    : discSplit !== "single"
+                      ? t("Los ISO se escribirán aquí con el nombre del proyecto y el número de disco.")
+                      : t("El ISO se escribirá aquí con el nombre del proyecto.")}
               </p>
             </div>
           {/if}
@@ -749,8 +784,8 @@
                 </span>
               </div>
               <div class="mt-1 flex items-center justify-between text-[11px]">
-                <span class="text-slate-500">{t("Tasa de bits")}</span>
-                <span class="font-mono text-slate-300">{projectStore.plan.videoKbps} kbps</span>
+                <span class="text-slate-500">{t("Objetivo de vídeo")}</span>
+                <span class="font-mono text-slate-300">{projectStore.plan.videoKbps.toLocaleString(i18n.locale)} kbps</span>
               </div>
               <div class="mt-1 flex items-center justify-between text-[11px]">
                 <span class="text-slate-500">{t("Calidad")}</span>
@@ -764,7 +799,7 @@
           </div>
           {#if unreachable.length > 0}
             <div class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3" role="status">
-              <p class="ui-section-title text-amber-300">{t("Revisa los menús")}</p>
+              <p class="ui-section-title text-amber-300">{t("Revisa antes de generar")}</p>
               <ul class="mt-1.5 space-y-1 text-[12px] leading-5 text-slate-300">
                 {#each unreachable as warning}
                   <li>{localizeDiagnostic(warning)}</li>

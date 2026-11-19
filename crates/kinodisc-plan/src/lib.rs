@@ -97,6 +97,16 @@ pub fn calculate_bitrate_plan(
             .into_iter()
             .filter(|diagnostic| diagnostic.code == "W_EPISODE_NO_BUTTON"),
     );
+    // Blu-ray/AVCHD subtitles that would be left out: said before producing.
+    if matches!(project.disc.mode, kinodisc_domain::AuthoringMode::Avchd) {
+        let (layout, enabled) = project.avchd_subtitle_layout();
+        if layout.is_some() && !enabled {
+            plan.warnings.push(Diagnostic::warning(
+                "W_PGS_LAYOUT_MISMATCH",
+                "Las pistas de subtítulos no tienen el mismo orden e idiomas en todos los episodios; se omite su autoría.",
+            ));
+        }
+    }
     Ok(plan)
 }
 

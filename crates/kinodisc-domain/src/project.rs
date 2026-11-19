@@ -1068,6 +1068,37 @@ impl Project {
     }
 
     /// Whether a subtitle track can be stream-copied as Blu-ray PGS.
+    /// Blu-ray/AVCHD subtitles: the language list every episode with
+    /// subtitles shares (in disc order), and whether they all match. When
+    /// they do not, the render leaves the subtitles out (W_PGS_LAYOUT_MISMATCH)
+    /// and the plan says so before producing.
+    pub fn avchd_subtitle_layout(&self) -> (Option<Vec<String>>, bool) {
+        let mut order: Vec<&Episode> = self.episodes.iter().collect();
+        order.sort_by_key(|episode| episode.number);
+        let mut layout: Option<Vec<String>> = None;
+        let mut enabled = true;
+        for episode in order {
+            let current: Vec<String> = episode
+                .subtitles
+                .iter()
+                .filter(|track| self.is_pgs_track(episode, track) || !track.bitmap)
+                .map(|track| track.language.to_ascii_lowercase())
+                .collect();
+            if current.is_empty() {
+                if layout.is_some() {
+                    enabled = false;
+                }
+                continue;
+            }
+            match &layout {
+                None => layout = Some(current),
+                Some(existing) if existing != &current => enabled = false,
+                Some(_) => {}
+            }
+        }
+        (layout, enabled)
+    }
+
     pub fn is_pgs_track(&self, episode: &Episode, track: &SubtitleTrack) -> bool {
         self.subtitle_codec(episode, track) == Some("hdmv_pgs_subtitle")
     }
@@ -1947,6 +1978,38 @@ mod tests {
             bitmap: true,
             style: SubtitleStyle::default(),
         }
+    }
+
+    #[test]
+    fn subtitles_on_only_some_episodes_do_not_match_the_layout() {
+        let mut project = minimal_project();
+        let mut second = project.episodes[0].clone();
+        second.id = EpisodeId::from_u128(41);
+        second.number = 2;
+        project.episodes.push(second);
+        let text = SubtitleTrack {
+            source_stream: 0,
+            source_path: Some("ep.es.srt".into()),
+            language: "spa".into(),
+            label: "es".into(),
+            delay_ms: 0,
+            is_forced: false,
+            is_default: false,
+            bitmap: false,
+            style: SubtitleStyle::default(),
+        };
+        assert_eq!(project.avchd_subtitle_layout(), (None, true));
+        // Only episode 1 has subtitles (QA 1.1.3: dropped without warning).
+        project.episodes[0].subtitles = vec![text.clone()];
+        assert_eq!(
+            project.avchd_subtitle_layout(),
+            (Some(vec!["spa".into()]), false)
+        );
+        project.episodes[1].subtitles = vec![text];
+        assert_eq!(
+            project.avchd_subtitle_layout(),
+            (Some(vec!["spa".into()]), true)
+        );
     }
 
     #[test]

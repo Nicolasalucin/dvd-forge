@@ -143,6 +143,39 @@ function canvasForProject(project: Project_Serialize) {
   return canvasFor(project.disc.standard, project.disc.aspect);
 }
 
+/** Slice of the whole-job progress bar each production stage fills (%). */
+const STAGE_SPAN: Record<JobStage, [number, number]> = {
+  probe: [0, 3],
+  plan: [3, 5],
+  encodeIntro: [5, 8],
+  encodeEpisodes: [8, 84],
+  encodeMenus: [84, 88],
+  author: [88, 94],
+  iso: [94, 99],
+  verify: [99, 100],
+  burn: [0, 100],
+};
+
+/**
+ * Disc volume label for a project name, as the backend makes it for a new
+ * project: ASCII capitals and digits, accents reduced to the base letter,
+ * other runs of characters as one "_", at most 32 characters.
+ */
+export function volumeLabelFor(name: string): string {
+  const base = name
+    .replace(/ß/g, "ss")
+    .replace(/[æÆ]/g, "ae")
+    .replace(/[œŒ]/g, "oe")
+    .replace(/[øØ]/g, "o")
+    .replace(/[łŁ]/g, "l")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return (base || "KINODISC").slice(0, 32).replace(/_+$/, "");
+}
+
 /** Rate that chapter and trim frames are counted in: the disc's own rate. */
 function discFps(project: Project_Serialize): number {
   const video = project.disc.video;
@@ -665,7 +698,7 @@ class ProjectStore {
     if (!plan.feasible) return t("No cabe");
     if (plan.mode === "avchd") {
       return plan.avchd
-        ? `${plan.avchd.resolution.toUpperCase()} ${t("HD")}`
+        ? `${plan.avchd.resolution}${plan.avchd.resolution.startsWith("1080") || plan.avchd.resolution === "720p" ? ` ${t("HD")}` : ""}`
         : t("Alta definición");
     }
     if (plan.profile === "halfD1") return t("Extendida Half-D1");
@@ -795,7 +828,12 @@ class ProjectStore {
 
   renameProject(name: string): void {
     if (!this.project) return;
+    // The disc label follows the name unless the user set their own.
+    const followsName =
+      this.project.disc.volumeLabel === volumeLabelFor(this.project.name) ||
+      this.project.disc.volumeLabel === "KINODISC";
     this.project.name = name;
+    if (followsName) this.project.disc.volumeLabel = volumeLabelFor(name);
     this.touch();
   }
 
@@ -3033,7 +3071,9 @@ class ProjectStore {
       case "stageStarted": {
         const label = localizeJobStage(kind.label);
         this.renderStage = label;
-        this.renderPercent = 0;
+        // One bar for the whole job: each stage owns a slice of it, so the
+        // bar never restarts at 0 or sits at 100 % while work remains.
+        this.renderPercent = Math.max(this.renderPercent, STAGE_SPAN[kind.stage][0]);
         this.stageKey = kind.stage;
         this.stageFractions = {};
         this.renderLogs = [...this.renderLogs, `▸ ${label}`].slice(-300);
@@ -3051,16 +3091,19 @@ class ProjectStore {
           this.stageKey === "encodeEpisodes" && menus !== undefined
             ? 0.85 * (episodes ?? 0) + 0.15 * menus
             : (this.stageFractions[this.stageKey ?? kind.stage] ?? fraction);
-        this.renderPercent = Math.max(this.renderPercent, current * 100);
+        // A finished stage stops just short of its slice's end: the next
+        // stage (or "completed") moves the bar on.
+        const [start, end] = STAGE_SPAN[this.stageKey ?? kind.stage];
+        this.renderPercent = Math.max(this.renderPercent, start + Math.min(current, 0.97) * (end - start));
         break;
       }
-      case "warning":
-        this.renderLogs = [
-          ...this.renderLogs,
-          // The code stays out of the text (it is in the job history).
-          `⚠ ${localizeMessage(kind.code, kind.message)}`,
-        ].slice(-300);
+      case "warning": {
+        // The code stays out of the text. Several notes of one kind (one per
+        // audio track, say) read the same once translated: shown once.
+        const line = `⚠ ${localizeMessage(kind.code, kind.message)}`;
+        if (!this.renderLogs.includes(line)) this.renderLogs = [...this.renderLogs, line].slice(-300);
         break;
+      }
       case "log":
         this.renderLogs = [...this.renderLogs, localizeLogLine(kind.message)].slice(-300);
         break;

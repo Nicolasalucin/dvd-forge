@@ -46,6 +46,9 @@
   );
 
   const chartWidth = 820;
+  // The SVG scales with the panel; labels keep about 11 screen pixels.
+  let chartPixelWidth = $state(820);
+  const labelSize = $derived(Math.max(8, (11 * chartWidth) / Math.max(1, chartPixelWidth)));
   const chartHeight = 250;
   const padLeft = 46;
   const padRight = 14;
@@ -177,12 +180,19 @@
           </h2>
           <div class="flex items-center gap-3 text-[11px] text-slate-500">
             <span class="flex items-center gap-1"><span class="h-0.5 w-4 bg-cyan-400"></span> {t("objetivo")}</span>
-            <span class="flex items-center gap-1"><span class="h-0.5 w-4 bg-amber-300"></span> {t("corte de capa")}</span>
+            {#if layerBreakX !== null}
+              <span class="flex items-center gap-1"><span class="h-0.5 w-4 bg-amber-300"></span> {t("corte de capa")}</span>
+            {/if}
           </div>
         </div>
 
         {#if plan && segments.length > 0}
-          <svg class="mt-2 w-full" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+          <svg
+            class="mt-2 w-full"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            preserveAspectRatio="none"
+            bind:clientWidth={chartPixelWidth}
+          >
             <defs>
               <linearGradient id="vbr-area" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stop-color="var(--color-cyan-400)" stop-opacity="0.35" />
@@ -204,8 +214,8 @@
                 y={yForKbps(tick) + 3}
                 text-anchor="end"
                 fill="var(--color-slate-500)"
-                font-size="12"
-                font-family="monospace">{Math.round(tick / 1000)}M</text>
+                font-size={labelSize}
+                font-family="monospace">{tick === 0 ? "0" : `${Math.round(tick / 1000)}M`}</text>
             {/each}
 
             <path d={areaPath} fill="url(#vbr-area)" />
@@ -231,7 +241,7 @@
                 stroke-width="1.5"
                 stroke-dasharray="4 4"
               />
-              <text x={layerBreakX + 4} y={padTop + 12} fill="var(--color-amber-200)" font-size="12">{t("corte de capa")}</text>
+              <text x={layerBreakX + 4} y={padTop + 12} fill="var(--color-amber-200)" font-size={labelSize}>{t("corte de capa")}</text>
             {/if}
 
             {#each timeTicks as tick}
@@ -247,7 +257,7 @@
                 y={chartHeight - 8}
                 text-anchor="middle"
                 fill="var(--color-slate-500)"
-                font-size="12"
+                font-size={labelSize}
                 font-family="monospace">{formatDuration(tick)}</text>
             {/each}
           </svg>

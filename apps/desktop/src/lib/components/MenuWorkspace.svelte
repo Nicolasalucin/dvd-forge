@@ -268,7 +268,7 @@
       </button>
 
       <div class="ml-auto flex items-center gap-1.5">
-        <div class="ui-seg" role="group" aria-label={t("Estado de los botones")}>
+        <div class="ui-seg [&>button]:whitespace-nowrap" role="group" aria-label={t("Estado de los botones")}>
           {#each previewStates as state}
             <button type="button" aria-pressed={projectStore.previewState === state.id} onclick={() => (projectStore.previewState = state.id)}>
               {t(state.label)}

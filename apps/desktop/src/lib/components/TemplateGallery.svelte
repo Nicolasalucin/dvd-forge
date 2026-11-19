@@ -37,13 +37,19 @@
     applying = null;
   }
 
+  // Scene menus need an episode with at least two chapters (every episode
+  // has its "Start" one).
   const hasChapters = $derived(
-    (projectStore.project?.episodes ?? []).some((episode) => episode.chapters.length > 0),
+    (projectStore.project?.episodes ?? []).some((episode) => episode.chapters.length >= 2),
   );
 
   async function makeScenes() {
-    applying = "scenes";
     error = null;
+    if (!hasChapters) {
+      error = t("Para crear menús de escenas, un episodio necesita al menos dos capítulos (por ejemplo con «Cada 5 min» o «Por escenas» en Vídeos).");
+      return;
+    }
+    applying = "scenes";
     const ok = await projectStore.applyChapterMenus();
     if (!ok) error = projectStore.error;
     else onapplied?.();
@@ -61,7 +67,7 @@
       <p class="ui-title">{t("Plantillas de menú")}</p>
       <p class="ui-hint">{t("Aplicación no destructiva con paginación automática.")}</p>
     </div>
-    {#if hasChapters}
+    {#if projectStore.project?.episodes.length}
       <button
         type="button"
         class="ui-btn ui-btn-sm"

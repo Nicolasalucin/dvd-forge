@@ -260,13 +260,13 @@
   <!-- Notices float under the header instead of pushing the page down; the
        success notice fades by itself, errors stay until closed. -->
   {#if ui.notice && !projectStore.error}
-    <div class="absolute inset-x-0 top-full flex items-center justify-between gap-3 border-y border-emerald-500/25 bg-slate-900 bg-[linear-gradient(rgb(16_185_129/0.12),rgb(16_185_129/0.12))] px-3 py-1.5 text-[12px] text-emerald-200 shadow-md" role="status">
+    <div class="absolute left-1/2 top-full mt-2 flex w-max max-w-[min(680px,90vw)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border border-emerald-500/25 bg-slate-900 bg-[linear-gradient(rgb(16_185_129/0.12),rgb(16_185_129/0.12))] px-3 py-1.5 text-[12px] text-emerald-200 shadow-md" role="status">
       <span class="truncate">{ui.notice}</span>
       <button type="button" onclick={() => (ui.notice = null)} aria-label={t("Cerrar")}><Icon name="close" size={14} /></button>
     </div>
   {/if}
   {#if projectStore.error}
-    <div class="absolute inset-x-0 top-full flex items-center justify-between gap-3 border-y border-rose-500/25 bg-slate-900 bg-[linear-gradient(rgb(244_63_94/0.12),rgb(244_63_94/0.12))] px-3 py-1.5 text-[12px] text-rose-200 shadow-md" role="alert">
+    <div class="absolute left-1/2 top-full mt-2 flex w-max max-w-[min(680px,90vw)] -translate-x-1/2 items-center justify-between gap-3 rounded-md border border-rose-500/25 bg-slate-900 bg-[linear-gradient(rgb(244_63_94/0.12),rgb(244_63_94/0.12))] px-3 py-1.5 text-[12px] text-rose-200 shadow-md" role="alert">
       <span class="truncate" title={localizeError(projectStore.error)}>{localizeError(projectStore.error)}</span>
       <button type="button" onclick={() => (projectStore.error = null)} aria-label={t("Cerrar")}><Icon name="close" size={14} /></button>
     </div>

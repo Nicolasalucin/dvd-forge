@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { t } from "../i18n/index.svelte";
+  import { i18n, t } from "../i18n/index.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { AudioFormat, VideoScaleMode } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { ui } from "../ui/state.svelte";
   import LanguageSelect from "./LanguageSelect.svelte";
-  import { normalizeLanguageCode } from "../i18n/languages";
+  import { languageEntry, normalizeLanguageCode } from "../i18n/languages";
   import { basename, formatDuration } from "../utils/format";
 
   const episode = $derived(projectStore.selectedEpisode);
@@ -88,11 +88,13 @@
     if (!episode) return;
     const track = episode.audio[index];
     if (!track || track.default) return;
+    // Named by its language: generated names ("Track 2") are renumbered.
+    const entry = languageEntry(track.language);
+    const names = { es: entry.nameEs, en: entry.nameEn, pt: entry.namePt, fr: entry.nameFr, de: entry.nameDe, it: entry.nameIt, ja: entry.nameJa };
+    const label = track.language === "und" ? track.label : names[i18n.locale as keyof typeof names] ?? entry.nameEn;
     projectStore.setDefaultEpisodeAudio(episode.id, index);
     // The list reorders under the cursor: say where the track went.
-    ui.notice = t("«{label}» es ahora la pista 1: es la que suena al empezar.", {
-      label: projectStore.selectedEpisode?.audio[0]?.label ?? track.label,
-    });
+    ui.notice = t("«{label}» es ahora la pista 1: es la que suena al empezar.", { label });
   }
 
   function toggleDefaultSubtitle(index: number) {
