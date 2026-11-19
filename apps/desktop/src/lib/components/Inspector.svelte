@@ -3,7 +3,7 @@
   import ColorField from "../ui/ColorField.svelte";
   import FontPicker from "../ui/FontPicker.svelte";
   import SizeField from "../ui/SizeField.svelte";
-  import { i18n, t } from "../i18n/index.svelte";
+  import { i18n, t, formatPercent } from "../i18n/index.svelte";
   import type {
     ButtonAction,
     ButtonStyleKind,
@@ -1083,7 +1083,7 @@
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Plan")}</dt>
               <dd class={projectStore.plan ? (projectStore.plan.feasible ? "text-emerald-300" : "text-rose-300") : "text-slate-500"}>
-                {projectStore.plan ? `${projectStore.planPercent.toFixed(1)}%` : t("sin calcular")}
+                {projectStore.plan ? formatPercent(projectStore.planPercent) : t("sin calcular")}
               </dd>
             </div>
             <div class="flex justify-between gap-2">
@@ -1221,7 +1221,7 @@
                 </div>
                 <div class="flex justify-between gap-2">
                   <dt class="text-slate-500">{t("Llenado")}</dt>
-                  <dd class="font-mono text-slate-300">{projectStore.planPercent.toFixed(1)}%</dd>
+                  <dd class="font-mono text-slate-300">{formatPercent(projectStore.planPercent)}</dd>
                 </div>
                 <div class="flex justify-between gap-2">
                   <dt class="text-slate-500">{t("Viable")}</dt>
@@ -1289,7 +1289,7 @@
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Plan")}</dt>
               <dd class={projectStore.plan ? (projectStore.plan.feasible ? "text-emerald-300" : "text-rose-300") : "text-slate-500"}>
-                {projectStore.plan ? `${projectStore.planPercent.toFixed(1)}%` : t("sin calcular")}
+                {projectStore.plan ? formatPercent(projectStore.planPercent) : t("sin calcular")}
               </dd>
             </div>
             <div class="flex justify-between gap-2">

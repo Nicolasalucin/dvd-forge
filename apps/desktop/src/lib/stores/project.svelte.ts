@@ -186,7 +186,7 @@ const TEMPLATE_MENU_NAMES = new Set([
 ]);
 
 function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
-  if (i18n.locale === "es") return;
+  // Spanish too: the first templates have English names in the engine.
   const defaults: Record<string, string> = {
     "Menú principal": t("Menú principal"),
     "‹ Anterior": t("‹ Anterior"),
@@ -957,13 +957,21 @@ class ProjectStore {
           void this.ensureVideoThumbnail(assetId);
         }
       } catch (cause) {
-        failures.push(`${path.split(/[\\/]/).pop() ?? path}: ${messageOf(cause)}`);
+        // A plain sentence for people; the tool's own message goes to the log.
+        const name = path.split(/[\\/]/).pop() ?? path;
+        console.warn(`import ${name}: ${messageOf(cause)}`);
+        failures.push(
+          t("«{name}» no se puede leer: no es un vídeo, una imagen o un audio válido, o está dañado.", { name }),
+        );
       }
     }
     this.busy = false;
     if (this.project !== project) return imported;
     if (failures.length > 0) {
-      this.error = t("No se pudieron importar {count} archivo(s): {detail}", { count: failures.length, detail: failures[0] });
+      this.error =
+        failures.length === 1
+          ? failures[0]
+          : t("No se pudieron importar {count} archivo(s): {detail}", { count: failures.length, detail: failures[0] });
     }
     this.touch();
     return imported;
@@ -1173,7 +1181,7 @@ class ProjectStore {
     const relink = (target: MediaAsset_Serialize, path: string, targetProbe: MediaProbe_Serialize) => {
       target.source = { kind: "external", absolutePath: path };
       target.relativePath = null;
-      target.displayName = path.split(/[\/]/).pop() ?? path;
+      target.displayName = path.split(/[\\/]/).pop() ?? path;
       target.probe = targetProbe;
       target.bytes = targetProbe.sizeBytes ?? target.bytes;
       delete this.previewUrls[target.id];
@@ -1746,9 +1754,14 @@ class ProjectStore {
     }
   }
 
-  autoChapters(episodeId: string, mode: "5min" | "10min" | "quarters"): void {
+  /**
+   * Chapters every 5/10 minutes or in four parts. Returns how many chapters
+   * the episode has afterwards; a video shorter than the step keeps its
+   * chapters (returns 0) instead of losing them.
+   */
+  autoChapters(episodeId: string, mode: "5min" | "10min" | "quarters"): number {
     const episode = this.project?.episodes.find((item) => item.id === episodeId);
-    if (!episode) return;
+    if (!episode) return 0;
     const duration = this.episodeEffectiveDuration(episode);
     const offsets: number[] = [0];
     if (mode === "quarters") {
@@ -1757,6 +1770,7 @@ class ProjectStore {
       const step = (mode === "5min" ? 5 : 10) * 60_000;
       for (let offset = step; offset < duration - 500; offset += step) offsets.push(offset);
     }
+    if (offsets.length < 2) return 0;
     episode.chapters = offsets.map((offset, index) => ({
       id: crypto.randomUUID(),
       title: index === 0 ? t("Inicio") : t("Capítulo {number}", { number: index + 1 }),
@@ -1765,6 +1779,7 @@ class ProjectStore {
     }));
     this.clampChapterActions(episodeId, episode);
     this.touch();
+    return episode.chapters.length;
   }
 
   /**
@@ -2962,7 +2977,9 @@ class ProjectStore {
         break;
       }
       case "progress":
-        this.renderPercent = kind.permille / 10;
+        // Episodes encode in parallel and report on their own; within a
+        // stage the bar only moves forward (a new stage starts it at 0).
+        this.renderPercent = Math.max(this.renderPercent, kind.permille / 10);
         break;
       case "warning":
         this.renderLogs = [

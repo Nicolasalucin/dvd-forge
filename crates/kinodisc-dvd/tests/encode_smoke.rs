@@ -43,6 +43,7 @@ async fn encodes_a_short_episode_end_to_end() {
             gain_db: 0.0,
             delay_ms: 0,
             duration_ms: 0,
+            silent: false,
         }],
         trim: Some(FrameRange { start: 0, end: 30 }),
         trim_start_ms: None,

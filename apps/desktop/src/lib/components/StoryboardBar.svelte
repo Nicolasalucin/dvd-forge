@@ -1,9 +1,11 @@
 <script lang="ts">
-  import { t } from "../i18n/index.svelte";
+  import { t, formatPercent } from "../i18n/index.svelte";
   import type { Episode_Serialize, Menu_Serialize } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { formatDuration } from "../utils/format";
   import Icon from "../ui/Icon.svelte";
+  import * as actions from "../actions";
+  import { ui } from "../ui/state.svelte";
 
   let dragFrom = $state<number | null>(null);
   let dropAt = $state<number | null>(null);
@@ -41,10 +43,19 @@
     projectStore.removeEpisode(episode.id);
   }
 
+  /** Adds the library's videos that are not episodes yet, or imports new ones. */
   function addEpisode() {
-    projectStore.mediaTab = "media";
-    projectStore.leftCollapsed = false;
-    projectStore.studioMode = "trim";
+    const project = projectStore.project;
+    const unused = (project?.assets ?? []).filter(
+      (asset) =>
+        asset.kind === "video" && !project?.episodes.some((episode) => episode.video === asset.id),
+    );
+    if (unused.length === 0) {
+      void actions.importMedia();
+      return;
+    }
+    for (const asset of unused) projectStore.addEpisodeFromAsset(asset.id);
+    ui.notice = t("{count} vídeo(s) añadidos como episodios.", { count: unused.length });
   }
 
   function menuRole(menu: Menu_Serialize): string {
@@ -143,7 +154,7 @@
       <span class="text-[12px] text-slate-500">
         {episodes.length} · {formatDuration(totalDuration)}
         {#if projectStore.plan}
-          · <span class={projectStore.plan.feasible ? "text-slate-400" : "text-rose-300"}>{projectStore.planPercent.toFixed(1)}% {t("del disco")}</span>
+          · <span class={projectStore.plan.feasible ? "text-slate-400" : "text-rose-300"}>{formatPercent(projectStore.planPercent)} {t("del disco")}</span>
         {/if}
       </span>
       {#if episodes.length > 1}<span class="ui-hint ml-auto hidden lg:inline">{t("Arrastra para cambiar el orden")}</span>{/if}

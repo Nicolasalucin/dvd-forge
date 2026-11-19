@@ -2876,7 +2876,38 @@ fn audio_encode_config(
         gain_db: audio.gain_db,
         delay_ms: audio.delay_ms,
         duration_ms,
+        silent: false,
     }
+}
+
+/// Silent AC-3 tracks for a DVD title whose video has no usable sound: one
+/// per declared track (at least one), so the title carries every audio
+/// stream the title set announces.
+fn silent_dvd_audio(episode: &Episode, duration_ms: u64) -> Vec<AudioEncodeConfig> {
+    let declared: Vec<(u16, u8)> = episode
+        .audio
+        .iter()
+        .map(|audio| (audio.ac3_kbps, audio.format.channels()))
+        .collect();
+    let declared = if declared.is_empty() {
+        vec![(192, 2)]
+    } else {
+        declared
+    };
+    declared
+        .into_iter()
+        .map(|(bitrate_kbps, channels)| AudioEncodeConfig {
+            source_stream: 0,
+            bitrate_kbps,
+            channels,
+            sample_rate: 48_000,
+            pre_filter: None,
+            gain_db: 0.0,
+            delay_ms: 0,
+            duration_ms,
+            silent: true,
+        })
+        .collect()
 }
 
 struct SubtitleMuxContext<'a> {
@@ -3180,10 +3211,14 @@ async fn encode_episodes(
         for diagnostic in audio_warnings {
             warn(events, &diagnostic.code, diagnostic.message.clone()).await;
         }
-        let audio_tracks: Vec<AudioEncodeConfig> = reconciled_audio
+        let mut audio_tracks: Vec<AudioEncodeConfig> = reconciled_audio
             .iter()
             .map(|audio| audio_encode_config(audio, duration))
             .collect();
+        let silent = audio_tracks.is_empty();
+        if silent {
+            audio_tracks = silent_dvd_audio(episode, duration);
+        }
         let audio_kbps: u32 = audio_tracks
             .iter()
             .map(|audio| audio.bitrate_kbps as u32)
@@ -3252,8 +3287,12 @@ async fn encode_episodes(
                 source_fingerprint: source_fp,
                 inputs_hash,
                 target_profile: format!(
-                    "dvd:{:?}:{:?}:{:?}:{:?}",
-                    plan.profile, project.disc.standard, project.disc.aspect, episode.scale_mode
+                    "dvd:{:?}:{:?}:{:?}:{:?}{}",
+                    plan.profile,
+                    project.disc.standard,
+                    project.disc.aspect,
+                    episode.scale_mode,
+                    if silent { ":silent" } else { "" }
                 ),
                 target_bitrate: video_kbps,
                 audio_params_hash: audio_hash,
@@ -3469,15 +3508,25 @@ async fn encode_episodes(
             path,
             chapters: episode.chapters.clone(),
             fps,
-            audio: episode
-                .audio
-                .iter()
-                .map(|track| AuthoredAudioTrack {
-                    language: track.language.clone(),
+            // A video without sound still gets its silent AC-3 stream (see
+            // `silent_dvd_audio`), so the title declares one track.
+            audio: if episode.audio.is_empty() {
+                vec![AuthoredAudioTrack {
+                    language: "und".to_string(),
                     format: "ac3".to_string(),
-                    channels: track.format.channels(),
-                })
-                .collect(),
+                    channels: 2,
+                }]
+            } else {
+                episode
+                    .audio
+                    .iter()
+                    .map(|track| AuthoredAudioTrack {
+                        language: track.language.clone(),
+                        format: "ac3".to_string(),
+                        channels: track.format.channels(),
+                    })
+                    .collect()
+            },
             subtitles,
         });
         progress(

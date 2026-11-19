@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { commands, type Episode_Serialize, type QualitySample } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
-  import { t } from "../i18n/index.svelte";
+  import { t, i18n } from "../i18n/index.svelte";
   import { projectStore } from "../stores/project.svelte";
 
   interface Props {
@@ -71,7 +71,7 @@
       <div>
         <h2 id="quality-title" class="ui-title">{t("Probar calidad")} · {episode.title}</h2>
         <p class="ui-hint mt-0.5">
-          {t("10 segundos codificados exactamente como en el disco, a {kbps} kbps.", { kbps: kbps.toLocaleString() })}
+          {t("10 segundos codificados exactamente como en el disco, a {kbps} kbps.", { kbps: kbps.toLocaleString(i18n.locale) })}
         </p>
       </div>
     </header>

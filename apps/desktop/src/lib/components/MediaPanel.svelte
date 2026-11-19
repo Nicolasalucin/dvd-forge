@@ -290,7 +290,7 @@
     }
     if (asset.probe.audio.length > 0) {
       const audio = asset.probe.audio[0];
-      return `${audio.codec} · ${audio.channels} ${t("canales")} · ${formatDuration(asset.probe.durationMs)}`;
+      return `${audio.codec} · ${audio.channels} ${t(audio.channels === 1 ? "canal" : "canales")} · ${formatDuration(asset.probe.durationMs)}`;
     }
     return `${asset.probe.formatName} · ${formatBytes(asset.probe.sizeBytes)}`;
   }

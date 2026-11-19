@@ -10,6 +10,7 @@ import { localizeDiagnostic, localizeError } from "./i18n/diagnostics";
 import { t } from "./i18n/index.svelte";
 import { projectStore } from "./stores/project.svelte";
 import { ui } from "./ui/state.svelte";
+import { nativePath } from "./utils/format";
 
 function fail(cause: unknown): void {
   projectStore.error = localizeError(messageOf(cause));
@@ -46,7 +47,9 @@ export async function openPath(picked: string): Promise<void> {
       });
       if (typeof folder !== "string") return;
       const base = picked.replace(/^.*[\\/]/, "").replace(/\.(kinodisc|dvdforge-bundle)$/i, "");
-      const destination = `${folder.replace(/[\\/]+$/, "")}/${base}`;
+      // One separator style for the whole path (it is shown and kept in the
+      // recent projects).
+      const destination = nativePath(`${folder.replace(/[\\/]+$/, "")}/${base}`);
       const projectPath = await unwrap(commands.bundleImport(picked, destination));
       await projectStore.openProject(projectPath);
       ui.notice = t("Paquete descomprimido en {folder}.", { folder: destination });
@@ -132,8 +135,20 @@ export async function importMedia(paths?: string[]): Promise<void> {
     if (!selected) return;
     list = Array.isArray(selected) ? selected : [selected];
   }
+  const before = new Set(projectStore.project.assets.map((asset) => asset.id));
   const count = await projectStore.importMedia(list);
-  if (count > 0) {
+  // Each imported video becomes an episode, as the guide and the empty
+  // project promise; images and audio stay in the library for menus.
+  const project = projectStore.project;
+  let episodes = 0;
+  for (const asset of project?.assets ?? []) {
+    if (before.has(asset.id) || asset.kind !== "video") continue;
+    if (project?.episodes.some((episode) => episode.video === asset.id)) continue;
+    if (projectStore.addEpisodeFromAsset(asset.id)) episodes += 1;
+  }
+  if (episodes > 0) {
+    ui.notice = t("{count} vídeo(s) añadidos como episodios.", { count: episodes });
+  } else if (count > 0) {
     ui.notice = t("{count} archivo(s) importados.", { count });
     projectStore.mediaTab = "media";
   }

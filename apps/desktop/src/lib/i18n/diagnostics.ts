@@ -131,6 +131,7 @@ const JOB_STAGES = new Set([
   "Calculando bitrate",
   "Codificando intro",
   "Codificando episodios",
+  "Codificando episodios y compilando menús",
   "Compilando menús con spumux",
   "Compilando DVD con dvdauthor",
   "Construyendo ISO",

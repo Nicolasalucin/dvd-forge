@@ -539,8 +539,10 @@ fn calculate_avchd_plan(
         (encode_budget_bytes as u128 * 8 / encoded_duration_ms as u128) as u64
     };
     let video_kbps = raw_video_kbps.min(max_video_kbps as u64).max(1) as u32;
-    if raw_video_kbps > max_video_kbps as u64 {
-        warnings.push(Diagnostic::warning(
+    // Reported after the fill check, like DVD: on short content
+    // W_AVCHD_UNDERFILL explains it and the raw figure only alarms.
+    let capped_warning = (raw_video_kbps > max_video_kbps as u64).then(|| {
+        Diagnostic::warning(
             "W_AVCHD_BITRATE_CAPPED",
             format!(
                 "El bitrate calculado {} kbps supera el máximo de {} kbps para {}; el disco quedará por debajo del objetivo de llenado.",
@@ -548,8 +550,8 @@ fn calculate_avchd_plan(
                 max_video_kbps,
                 capacity.label()
             ),
-        ));
-    }
+        )
+    });
     if total_duration_ms > 5 * 3_600_000
         && !matches!(
             config.resolution,
@@ -599,6 +601,9 @@ fn calculate_avchd_plan(
     let fill_ppm = (estimated_total as u128 * 1_000_000)
         .checked_div((capacity_base - header_margin) as u128)
         .unwrap_or(0) as u32;
+    if let Some(warning) = capped_warning.filter(|_| fill_ppm >= 950_000) {
+        warnings.push(warning);
+    }
     if fill_ppm < 950_000 {
         warnings.push(Diagnostic::warning(
             "W_AVCHD_UNDERFILL",

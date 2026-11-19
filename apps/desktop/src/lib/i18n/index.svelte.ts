@@ -119,3 +119,20 @@ class I18n {
 export const i18n = new I18n();
 export const t = (key: string, values?: Record<string, string | number>): string =>
   i18n.t(key, values);
+
+/** A number with fixed decimals in the interface language ("4.7" / "4,7"). */
+export function formatDecimal(value: number, digits = 1): string {
+  return new Intl.NumberFormat(i18n.locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+/** A percentage (0–100) in the interface language ("1.8%" / "1,8 %"). */
+export function formatPercent(value: number, digits = 1): string {
+  return new Intl.NumberFormat(i18n.locale, {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value / 100);
+}

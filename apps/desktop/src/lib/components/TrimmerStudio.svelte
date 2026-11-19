@@ -284,9 +284,14 @@
 
   function autoChapters(mode: "5min" | "10min" | "quarters") {
     if (!episode) return;
-    projectStore.autoChapters(episode.id, mode);
-    notice = t("Capítulos generados.");
+    const count = projectStore.autoChapters(episode.id, mode);
     localError = null;
+    notice =
+      count > 0
+        ? t("{count} capítulos generados.", { count })
+        : t("El vídeo dura menos de {minutes} min: los capítulos no cambiaron.", {
+            minutes: mode === "10min" ? 10 : 5,
+          });
   }
 
   let detectingScenes = $state(false);
@@ -297,7 +302,8 @@
     localError = null;
     try {
       const count = await projectStore.sceneChapters(episode.id);
-      if (count !== null) notice = t("{count} capítulos en los cambios de escena.", { count });
+      if (count !== null && count <= 1) notice = t("No se encontraron cambios de escena claros; prueba «Cada 5 min» o añádelos a mano.");
+      else if (count !== null) notice = t("{count} capítulos en los cambios de escena.", { count });
       else if (projectStore.error) showStoreError();
     } finally {
       detectingScenes = false;

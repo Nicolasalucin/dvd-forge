@@ -65,6 +65,9 @@ pub struct AudioEncodeConfig {
     /// Effective program duration for padding a negative delay. Zero keeps the
     /// legacy trim-only behavior.
     pub duration_ms: u64,
+    /// Silence of `duration_ms` instead of a source stream: a title whose
+    /// video has no sound still carries the AC-3 stream the disc declares.
+    pub silent: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -641,6 +644,32 @@ pub fn build_audio_args(request: &EncodeRequest, index: usize) -> Vec<String> {
     let Some(audio) = request.audio_tracks.get(index) else {
         return Vec::new();
     };
+    if audio.silent {
+        return vec![
+            "-hide_banner".to_string(),
+            "-y".to_string(),
+            "-f".to_string(),
+            "lavfi".to_string(),
+            "-t".to_string(),
+            format_millis(audio.duration_ms.max(1)),
+            "-i".to_string(),
+            format!("anullsrc=r={}:cl=stereo", audio.sample_rate),
+            "-map".to_string(),
+            "0:a:0".to_string(),
+            "-c:a".to_string(),
+            "ac3".to_string(),
+            "-b:a".to_string(),
+            format!("{}k", audio.bitrate_kbps),
+            "-ac".to_string(),
+            audio.channels.to_string(),
+            "-progress".to_string(),
+            "pipe:1".to_string(),
+            "-nostats".to_string(),
+            "-f".to_string(),
+            "ac3".to_string(),
+            request.audio_ac3(index).display().to_string(),
+        ];
+    }
     let mut args = input_args(request);
     args.extend([
         "-map".to_string(),
@@ -1238,6 +1267,7 @@ mod tests {
                 gain_db: 0.0,
                 delay_ms: 0,
                 duration_ms: 0,
+                silent: false,
             }],
             trim: None,
             trim_start_ms: None,
@@ -1366,6 +1396,24 @@ mod tests {
     }
 
     #[test]
+    fn silent_tracks_are_generated_instead_of_read_from_the_video() {
+        let mut req = request();
+        req.audio_tracks[0].silent = true;
+        req.audio_tracks[0].duration_ms = 15_000;
+        let args = build_audio_args(&req, 0);
+        // QA 1.1.2: a video without sound produced a title with no audio
+        // stream although the title set declared one.
+        assert!(has_pair(&args, "-f", "lavfi"));
+        assert!(has_pair(&args, "-i", "anullsrc=r=48000:cl=stereo"));
+        assert!(has_pair(&args, "-t", "15.000"));
+        assert!(has_pair(&args, "-map", "0:a:0"));
+        assert!(has_pair(&args, "-c:a", "ac3"));
+        assert!(!args
+            .iter()
+            .any(|arg| arg.ends_with(".mp4") || arg.ends_with(".mkv")));
+    }
+
+    #[test]
     fn mux_args_use_dvd_program_stream_and_all_audio_tracks() {
         let mut req = request();
         req.audio_tracks.push(AudioEncodeConfig {
@@ -1377,6 +1425,7 @@ mod tests {
             gain_db: 0.0,
             delay_ms: 0,
             duration_ms: 0,
+            silent: false,
         });
         let args = build_mux_args(&req);
         assert!(has_pair(&args, "-map", "0:v:0"));

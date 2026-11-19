@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { i18n, t } from "../i18n/index.svelte";
+  import { i18n, t, formatPercent } from "../i18n/index.svelte";
   import { localizeDiagnostic } from "../i18n/diagnostics";
   import type { EncodingPriority } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
@@ -23,12 +23,12 @@
   );
   const discLabel = $derived(
     project?.disc.capacity === "bd25"
-      ? "BD-25 · 25 GB"
+      ? t("BD-25 · 25 GB")
       : project?.disc.capacity === "bd50"
-        ? "BD-50 · 50 GB"
+        ? t("BD-50 · 50 GB")
         : project?.disc.capacity === "dvd9"
-          ? "DVD-9 · 8,5 GB"
-          : "DVD-5 · 4,7 GB",
+          ? t("DVD-9 · 8,5 GB")
+          : t("DVD-5 · 4,7 GB"),
   );
   const layerBreakPercent = $derived(
     plan?.layerBreakSector !== undefined && plan?.layerBreakSector !== null
@@ -305,9 +305,11 @@
         <h2 class="ui-section-title">{t("Diagnósticos")}</h2>
         <div class="mt-2 space-y-1.5">
           {#each planWarnings as warning (warning.code + warning.message)}
-            <div class={`rounded-lg border px-2 py-1.5 text-[12px] leading-5 ${warningClass(warning.severity)}`}>
-              <span class="font-mono text-[11px] opacity-70">{warning.code}</span>
-              <span class="ml-1">{localizeDiagnostic(warning)}</span>
+            <div
+              class={`rounded-lg border px-2 py-1.5 text-[12px] leading-5 ${warningClass(warning.severity)}`}
+              title={warning.code}
+            >
+              {localizeDiagnostic(warning)}
             </div>
           {/each}
           {#if planWarnings.length === 0}
@@ -343,11 +345,11 @@
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Llenado")}</dt>
             <dd class={`font-mono ${plan && !plan.feasible ? "text-rose-300" : "text-emerald-300"}`}>
-              {plan ? `${(plan.fillPpm / 10_000).toFixed(1)}%` : "—"}
+              {plan ? formatPercent(plan.fillPpm / 10_000) : "—"}
             </dd>
           </div>
           <div class="flex justify-between gap-2">
-            <dt class="text-slate-500">{t("Vídeo")}</dt>
+            <dt class="text-slate-500">{t("Espacio para vídeo")}</dt>
             <dd class="font-mono text-slate-300">{plan ? formatBytes(plan.videoBudgetBytes) : "—"}</dd>
           </div>
           <div class="flex justify-between gap-2">
@@ -361,6 +363,7 @@
         </dl>
       </div>
 
+      {#if !isAvchd}
       <div class="rounded-lg border border-slate-800 p-3">
         <h2 class="ui-section-title">{t("Corte de capa")}</h2>
         {#if plan?.layerBreakSector !== null && plan?.layerBreakSector !== undefined}
@@ -371,7 +374,7 @@
             </div>
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Posición")}</dt>
-              <dd class="font-mono text-slate-300">{layerBreakPercent?.toFixed(1)}%</dd>
+              <dd class="font-mono text-slate-300">{layerBreakPercent == null ? "—" : formatPercent(layerBreakPercent)}</dd>
             </div>
             <div class="flex justify-between gap-2">
               <dt class="text-slate-500">{t("Modo")}</dt>
@@ -391,6 +394,7 @@
           </p>
         {/if}
       </div>
+      {/if}
 
       <div class="rounded-lg border border-slate-800 p-3">
         <h2 class="ui-section-title">{t("Codificación")}</h2>

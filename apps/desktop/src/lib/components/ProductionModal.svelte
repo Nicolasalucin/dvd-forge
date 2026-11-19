@@ -5,7 +5,7 @@
   import Icon from "../ui/Icon.svelte";
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
-  import { t } from "../i18n/index.svelte";
+  import { t, formatPercent } from "../i18n/index.svelte";
   import { localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
@@ -83,8 +83,22 @@
     Math.min(100, Math.max(0, projectStore.burnProgress?.percent ?? 0)),
   );
   const needsBurn = $derived(mode === "isoBurn" || mode === "existing");
+  // What stops this mode from working at all, said before the user starts.
+  const missingTools = $derived(projectStore.toolsReport?.missingRequired ?? []);
+  const blocker = $derived(
+    busy
+      ? null
+      : needsBurn && !effectiveDevice
+        ? t("No hay ninguna grabadora conectada. Conecta una y pulsa «Actualizar», o elige «Solo ISO».")
+        : mode !== "existing" && missingTools.length > 0
+          ? t("Faltan herramientas para generar el disco ({tools}). Instálalas desde «Disco › Herramientas de disco…».", {
+              tools: missingTools.join(", "),
+            })
+          : null,
+  );
   const canStart = $derived(
     !busy &&
+      !blocker &&
       (mode === "existing"
         ? existingIso.trim().length > 0
         : Boolean(project && project.episodes.length > 0 && outputDir.trim())),
@@ -532,8 +546,8 @@
               </span>
               <span class="font-mono text-[12px] text-slate-300">
                 {projectStore.burning
-                  ? `${burnPercent.toFixed(1)}%`
-                  : `${renderPercent.toFixed(1)}%`}
+                  ? formatPercent(burnPercent)
+                  : formatPercent(renderPercent)}
               </span>
             </div>
             <div class="ui-meter mt-2">
@@ -681,7 +695,7 @@
               <div class="mt-1.5 flex items-center justify-between text-[11px]">
                 <span class="text-slate-500">{t("Ocupación")}</span>
                 <span class={projectStore.plan.feasible ? "font-mono text-emerald-300" : "font-mono text-rose-300"}>
-                  {projectStore.planPercent.toFixed(1)}%
+                  {formatPercent(projectStore.planPercent)}
                 </span>
               </div>
               <div class="mt-1 flex items-center justify-between text-[11px]">
@@ -712,6 +726,11 @@
       </div>
     </div>
 
+    {#if blocker}
+      <p class="border-t border-amber-500/30 bg-amber-500/10 px-5 py-2 text-[12px] text-amber-300" role="status">
+        {blocker}
+      </p>
+    {/if}
     <footer class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-5 py-3">
       <div class="flex items-center gap-2">
         {#if busy}

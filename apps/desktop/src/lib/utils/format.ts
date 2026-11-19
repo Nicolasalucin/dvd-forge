@@ -1,3 +1,5 @@
+import { formatDecimal } from "../i18n/index.svelte";
+
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -7,7 +9,7 @@ export function formatBytes(bytes: number | null | undefined): string {
     value /= 1000;
     index += 1;
   }
-  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+  return `${formatDecimal(value, index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 export function formatDuration(ms: number | null | undefined): string {

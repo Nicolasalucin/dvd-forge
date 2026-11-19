@@ -47,7 +47,7 @@
       {#if tooFull}<span class="shrink-0 text-rose-300">{t("No cabe: reduce la calidad o usa varios discos")}</span>{/if}
     </div>
     <span class="shrink-0">
-      {t("{count} vídeos", { count: project.episodes.length })} · {t("{count} menús", { count: project.menus.length })}{plan ? ` · ${formatDuration(plan.totalDurationMs)}` : ""}
+      {t(project.episodes.length === 1 ? "{count} vídeo" : "{count} vídeos", { count: project.episodes.length })} · {t(project.menus.length === 1 ? "{count} menú" : "{count} menús", { count: project.menus.length })}{plan ? ` · ${formatDuration(plan.totalDurationMs)}` : ""}
     </span>
   {:else}
     <span class="flex-1">{t("Sin proyecto abierto")}</span>
