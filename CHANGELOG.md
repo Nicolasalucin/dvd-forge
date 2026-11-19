@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.1.3 — 2026-11-19
+
+Fixes from a full test of the app by an independent QA pass (three
+people's tasks: phone videos to a DVD, a series with two languages and
+subtitles, a camcorder to Blu-ray).
+
+### Fixed
+
+- **Choosing BD-25/BD-50 keeps your HD format**: a 1080i 25 fps project
+  used to become 1080p 23.976 NTSC with a menu squeezed to 480 lines.
+  The resolution, frame rate and menus now stay; chapters and trims keep
+  their times whenever the disc frame rate changes (PAL/NTSC, DVD/HD).
+- **Every episode can be chosen on the disc**: each video added to a menu
+  you have not designed yet gets its own button (only the first one did).
+  The production dialog warns when no button, Play All or "next episode"
+  can start an episode.
+- **Default audio and subtitles**: the Default controls always show the
+  real state, a subtitle default can be turned off, and the default
+  subtitle is now switched on when the DVD title starts.
+- **Only the image is left in the output folder**: the work files
+  (encoded episodes, menus, the disc tree) go to a temporary folder that is
+  removed when the production ends, fails or is cancelled. The ISO is named
+  after the project instead of `disc.iso`, and the output folder is
+  remembered instead of going back to Videos.
+- **One disc per episode works**: disc 2 and later no longer fail when only
+  the first episode had a button, and disc names follow the app language.
+- **Job history** shows past jobs when opened (it always looked empty).
+- **Old results and errors no longer stay on screen** after opening another
+  project or trying again.
+- **Preview**: portrait videos are framed as on the disc (whole, with the
+  blurred sides if chosen) instead of zoomed, and the remote works right
+  after "Root menu", "Title" or "Back".
+- **Closing the window while a disc is being made or burned asks first**
+  and stops the production cleanly. The unsaved-changes question offers
+  Save.
+- **English discs no longer show Spanish scene menus** ("Escenas · …").
+- **Subtitles "+ Track"** only adds subtitle streams the video really has
+  (it added the video stream).
+- **A video without sound gets a silent audio track** on the DVD, as the
+  disc declares one.
+- **Imported videos become episodes**, as the guide says; a file that
+  cannot be read is named in a plain sentence.
+- **Numbers follow the app language** ("4.7 GB" and "1.8%" in English).
+- **Smaller fixes**:
+  - "Every 5 min" on a short video keeps its chapters.
+  - Scene detection says when it finds nothing.
+  - Burning without a drive, or producing with a tool missing, is explained
+    before you start.
+  - The progress bar no longer goes backwards.
+  - Blu-ray no longer shows a "computed bitrate" alarm on short content or
+    DVD-9 hints.
+  - Join, Cover and Inspect are in the Disc menu, where the guide says.
+  - Relinked files keep their name.
+  - Disc-folder mode describes a folder.
+  - Production errors and stages are translated.
+  - The Japanese interface uses a proper font and its tabs no longer wrap.
+  - "1 menu" instead of "1 menus".
+
 ## 1.1.2 — 2026-11-18
 
 Fixes reported while recording the promo videos.

@@ -260,7 +260,10 @@
           count: part.count,
         }));
         for (const diagnostic of split.diagnostics) {
-          projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${diagnostic.message}`].slice(-300);
+          projectStore.renderLogs = [
+            ...projectStore.renderLogs,
+            `${diagnostic.severity === "info" ? "ℹ" : "⚠"} ${localizeDiagnostic(diagnostic)}`,
+          ].slice(-300);
         }
       }
       const outputs: string[] = [];
