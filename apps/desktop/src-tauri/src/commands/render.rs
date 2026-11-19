@@ -3,7 +3,7 @@ use kinodisc_domain::{JobId, Project};
 use kinodisc_jobs::{JobEvent, JobEventKind};
 use kinodisc_render::{render_project_with_options, RenderError, RenderOptions, RenderOutcome};
 use kinodisc_store::{NewJobHistory, Store};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -136,32 +136,62 @@ pub async fn render_export_folder(
     })
 }
 
-/// Moves the `disc.iso` of one part of a multi-disc render next to its work
-/// folder under a friendly name (`<parent>/<file_name>`). Only `disc.iso`
-/// files and single-component `.iso` names are accepted.
-#[tauri::command]
-#[specta::specta]
-pub fn render_name_part(iso_path: String, file_name: String) -> Result<String, String> {
-    let iso = PathBuf::from(&iso_path);
-    let valid_source = iso
-        .file_name()
-        .is_some_and(|name| name.eq_ignore_ascii_case("disc.iso"))
-        && iso.is_file();
-    let name = kinodisc_verify::extract::safe_relative_path(file_name.trim())
+/// Work files of one render (encoded episodes, menus, authoring XML, the
+/// disc tree) live in `<output>/.kinodisc-work/<job>`, on the same drive as
+/// the result, and are removed when the render ends. Only the finished image
+/// is left in the folder the user chose.
+const WORK_DIR: &str = ".kinodisc-work";
+
+/// Work folders older than this are leftovers of a crash or a killed app.
+const STALE_WORK: Duration = Duration::from_secs(6 * 3600);
+
+fn remove_work_dir(output: &Path, work: &Path) {
+    let _ = std::fs::remove_dir_all(work);
+    // Only removed when empty (another job may still use it).
+    let _ = std::fs::remove_dir(output.join(WORK_DIR));
+}
+
+fn remove_stale_work(output: &Path) {
+    let Ok(entries) = std::fs::read_dir(output.join(WORK_DIR)) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let stale = entry
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .ok()
+            .and_then(|modified| modified.elapsed().ok())
+            .is_some_and(|age| age > STALE_WORK);
+        let ours = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.parse::<JobId>().is_ok());
+        if stale && ours && entry.path().is_dir() {
+            let _ = std::fs::remove_dir_all(entry.path());
+        }
+    }
+}
+
+/// The finished image's file name: one component ending in `.iso`.
+fn final_iso_name(name: Option<&str>) -> PathBuf {
+    name.and_then(|name| kinodisc_verify::extract::safe_relative_path(name.trim()))
         .filter(|path| path.components().count() == 1)
         .filter(|path| {
             path.extension()
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
-        });
-    let (true, Some(name)) = (valid_source, name) else {
-        return Err("Nombre de imagen no válido.".to_string());
-    };
-    let work_dir = iso.parent().ok_or("Ruta no válida.")?;
-    let target = work_dir.parent().unwrap_or(work_dir).join(name);
-    let _ = std::fs::remove_file(&target);
-    std::fs::rename(&iso, &target)
-        .map_err(|error| format!("No se pudo mover la imagen: {error}"))?;
-    Ok(target.display().to_string())
+        })
+        .unwrap_or_else(|| PathBuf::from("disc.iso"))
+}
+
+/// Moves the image out of the work folder, replacing an earlier image with
+/// the same name (producing the project again).
+fn publish_iso(work_iso: &Path, output: &Path, name: &Path) -> std::io::Result<PathBuf> {
+    let target = output.join(name);
+    if target.is_file() {
+        std::fs::remove_file(&target)?;
+    }
+    std::fs::rename(work_iso, &target)?;
+    Ok(target)
 }
 
 #[tauri::command]
@@ -170,13 +200,18 @@ pub async fn render_start(
     project: Project,
     output_dir: String,
     hardware_encoding: kinodisc_toolchain::EncoderPreference,
+    iso_name: Option<String>,
     channel: Channel<JobEvent>,
 ) -> Result<RenderOutcome, String> {
     let job_id = JobId::new();
     let project_dir = crate::context::project_dir()
         .or_else(|| std::env::current_dir().ok())
         .ok_or_else(|| "No se pudo determinar el directorio del proyecto.".to_string())?;
-    let output = PathBuf::from(&output_dir);
+    let output_root = PathBuf::from(&output_dir);
+    let iso_name = final_iso_name(iso_name.as_deref());
+    remove_stale_work(&output_root);
+    let work = output_root.join(WORK_DIR).join(job_id.to_string());
+    let output = work.clone();
     let composited_backgrounds =
         crate::commands::menu::composited_background_dir(&project.id.to_string());
     let cancel = Arc::new(AtomicBool::new(false));
@@ -259,6 +294,20 @@ pub async fn render_start(
     guard.disarm();
     drop(guard);
     let elapsed_seconds = started.elapsed().as_secs_f64();
+    // Finished or not, the work folder goes; a finished image moves out first.
+    let result = match result {
+        Ok(Ok(mut outcome)) => {
+            match publish_iso(Path::new(&outcome.iso_path), &output_root, &iso_name) {
+                Ok(path) => {
+                    outcome.iso_path = path.display().to_string();
+                    Ok(Ok(outcome))
+                }
+                Err(error) => Ok(Err(RenderError::Io(error))),
+            }
+        }
+        other => other,
+    };
+    remove_work_dir(&output_root, &work);
     match result {
         Ok(Ok(outcome)) => {
             record_job(
@@ -392,6 +441,47 @@ fn record_job(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_names_are_single_iso_file_names() {
+        assert_eq!(
+            final_iso_name(Some("Boda de Ana.iso")),
+            PathBuf::from("Boda de Ana.iso")
+        );
+        assert_eq!(
+            final_iso_name(Some("運動会 2026.iso")),
+            PathBuf::from("運動会 2026.iso")
+        );
+        for bad in ["../x.iso", "a/b.iso", "x.exe", "", r"C:\x.iso"] {
+            assert_eq!(
+                final_iso_name(Some(bad)),
+                PathBuf::from("disc.iso"),
+                "{bad}"
+            );
+        }
+        assert_eq!(final_iso_name(None), PathBuf::from("disc.iso"));
+    }
+
+    #[test]
+    fn only_the_image_is_left_in_the_output_folder() {
+        let output = std::env::temp_dir().join(format!("kd-publish-{}", JobId::new()));
+        let job = JobId::new();
+        let work = output.join(WORK_DIR).join(job.to_string());
+        std::fs::create_dir_all(work.join("episodes")).unwrap();
+        std::fs::write(work.join("episodes").join("e1.mpg"), b"x").unwrap();
+        std::fs::write(work.join("disc.iso"), b"iso").unwrap();
+        std::fs::write(output.join("Mi DVD.iso"), b"old").unwrap();
+        let published =
+            publish_iso(&work.join("disc.iso"), &output, Path::new("Mi DVD.iso")).unwrap();
+        remove_work_dir(&output, &work);
+        assert_eq!(std::fs::read(&published).unwrap(), b"iso");
+        let left: Vec<_> = std::fs::read_dir(&output)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(left, vec![std::ffi::OsString::from("Mi DVD.iso")]);
+        std::fs::remove_dir_all(&output).unwrap();
+    }
 
     #[test]
     fn render_start_payload_tolerates_empty_ids() {

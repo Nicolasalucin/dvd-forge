@@ -325,6 +325,14 @@ Smart Render Cache v2:
   absolute system paths.
 - `cargo test` must never touch the user's data folder: tests that call
   commands set `XDG_DATA_HOME` to a temporary folder.
+- **Production output** (`render_start`): the render works in
+  `<output>/.kinodisc-work/<job>` and removes it when it ends (finished,
+  failed or cancelled); only the image, named by the caller (`iso_name`,
+  one `.iso` file name), is left in the chosen folder. Stale work folders
+  older than 6 h are removed on the next render there.
+- **QA walkthroughs** run with their own `XDG_DATA_HOME`,
+  `KINODISC_CACHE_DIR` and `WEBVIEW2_USER_DATA_FOLDER`, so they never touch
+  the user's projects, caches or browser storage.
 
 ### 13. Localization
 

@@ -159,6 +159,31 @@ export function localizeError(message: string): string {
   return `${localized} (${match[2]})`;
 }
 
+/** Prefixes the render engine puts in front of its errors (RenderError). */
+const RENDER_ERROR_PREFIXES: Array<[string, string]> = [
+  ["error de E/S: ", "Error de lectura o escritura: {detail}"],
+  ["no se pudo sondear los medios: ", "No se pudieron analizar los vídeos: {detail}"],
+  ["el plan de bitrate no es viable: ", "El contenido no entra en el disco: {detail}"],
+  ["error de codificación: ", "Error al codificar el vídeo: {detail}"],
+  ["error de menú: ", "Error en los menús: {detail}"],
+  ["error de authoring: ", "Error al crear la estructura del disco: {detail}"],
+  ["error de ISO: ", "Error al crear la imagen ISO: {detail}"],
+  ["error de imagen: ", "Error en una imagen: {detail}"],
+];
+
+/** A production error in the interface language (the engine writes Spanish). */
+export function localizeRenderError(message: string): string {
+  const text = message.trim();
+  for (const [prefix, key] of RENDER_ERROR_PREFIXES) {
+    if (text.startsWith(prefix)) {
+      const detail = text.slice(prefix.length);
+      return t(key, { detail: i18n.has(detail) ? t(detail) : localizeError(detail) });
+    }
+  }
+  if (text === "render cancelado") return t("Generación cancelada.");
+  return i18n.has(text) ? t(text) : localizeError(text);
+}
+
 /**
  * Localizes the one-line result of a production job: the backend's
  * "ISO generado: …" summary, and the outcome kept in the job history.
@@ -176,5 +201,5 @@ export function localizeJobSummary(summary: string): string {
     });
   }
   if (i18n.has(summary)) return t(summary);
-  return localizeError(summary);
+  return localizeRenderError(summary);
 }

@@ -5,8 +5,14 @@
   import { projectStore } from "../stores/project.svelte";
   import { formatBytes } from "../utils/format";
   import { localizeJobSummary } from "../i18n/diagnostics";
+  import { onMount } from "svelte";
 
   let localError = $state<string | null>(null);
+
+  // The list is read from the database every time the history is opened.
+  onMount(() => {
+    void projectStore.refreshJobHistory();
+  });
 
   function formatDate(value: string): string {
     const date = new Date(value);

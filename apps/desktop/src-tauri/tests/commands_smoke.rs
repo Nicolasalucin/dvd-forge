@@ -141,12 +141,19 @@ async fn render_start_forwards_job_events_and_produces_iso() {
         project,
         output.display().to_string(),
         kinodisc_toolchain::EncoderPreference::CpuOnly,
+        Some("Smoke disc.iso".to_string()),
         channel,
     )
     .await
     .expect("render_start");
     assert!(Path::new(&outcome.iso_path).is_file());
-    assert!(outcome.iso_path.ends_with("disc.iso"));
+    assert!(outcome.iso_path.ends_with("Smoke disc.iso"));
+    // Only the image is left in the output folder: the work files are gone.
+    let left: Vec<_> = std::fs::read_dir(&output)
+        .expect("output")
+        .map(|entry| entry.expect("entry").file_name())
+        .collect();
+    assert_eq!(left, vec![std::ffi::OsString::from("Smoke disc.iso")]);
 
     let events = events.lock().expect("events lock");
     assert!(

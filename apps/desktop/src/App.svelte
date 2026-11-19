@@ -3,7 +3,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { commands, type AutosaveEntry } from "./lib/api/bindings";
-  import { messageOf } from "./lib/api/client";
+  import { messageOf, unwrap } from "./lib/api/client";
   import * as actions from "./lib/actions";
   import { i18n, t } from "./lib/i18n/index.svelte";
   import Inspector from "./lib/components/Inspector.svelte";
@@ -107,9 +107,35 @@
       .then((unlisten) => cleanups.push(unlisten))
       .catch(() => undefined);
 
-    // Closing the window with unsaved changes asks first.
+    // Closing the window while a disc is being made, or with unsaved
+    // changes, asks first.
     void getCurrentWindow()
       .onCloseRequested(async (event) => {
+        if (projectStore.rendering || projectStore.burning) {
+          event.preventDefault();
+          const { ask } = await import("@tauri-apps/plugin-dialog");
+          const stop = await ask(
+            projectStore.burning
+              ? t("Se está grabando un disco. Si cierras ahora, el disco puede quedar inservible.")
+              : t("Se está generando un disco. Si cierras, se detiene y se borran los archivos a medio hacer."),
+            { title: "Kinodisc", kind: "warning", okLabel: t("Detener y cerrar"), cancelLabel: t("Seguir trabajando") },
+          );
+          if (!stop) return;
+          if (projectStore.rendering) {
+            try {
+              await unwrap(commands.renderCancel());
+            } catch {
+              // Already finished.
+            }
+            // Give the render a moment to stop and remove its work files.
+            for (let waited = 0; waited < 100 && projectStore.rendering; waited += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+          }
+          if (!(await projectStore.confirmLoseChanges())) return;
+          await getCurrentWindow().destroy();
+          return;
+        }
         if (!(await projectStore.confirmLoseChanges())) event.preventDefault();
       })
       .then((unlisten) => cleanups.push(unlisten))

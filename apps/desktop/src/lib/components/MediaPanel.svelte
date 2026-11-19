@@ -16,6 +16,21 @@
   let busy = $state(false);
   let notice = $state<string | null>(null);
   let localError = $state<string | null>(null);
+  // Notices belong to the project they were made in, and fade after a while.
+  let noticeProject: string | null = null;
+  $effect(() => {
+    const id = projectStore.project?.id ?? null;
+    if (id !== noticeProject) {
+      noticeProject = id;
+      notice = null;
+      localError = null;
+    }
+  });
+  $effect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => (notice = null), 5000);
+    return () => clearTimeout(timer);
+  });
 
   const project = $derived(projectStore.project);
   const isAvchd = $derived(project?.disc.mode === "avchd");

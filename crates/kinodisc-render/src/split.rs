@@ -152,8 +152,57 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
         }
         _ => false,
     };
+    // Episodes of this disc that only had a button on another disc's slot
+    // (one button for the first episode, say) take over the freed buttons,
+    // so every episode on the disc can still be chosen.
+    let mut waiting: Vec<(EpisodeId, String, AssetId)> = {
+        let reachable: HashSet<EpisodeId> = part
+            .menus
+            .iter()
+            .flat_map(|menu| menu.buttons.iter())
+            .filter_map(|button| match button.action {
+                ButtonAction::PlayEpisode { episode }
+                | ButtonAction::JumpTitleChapter { episode, .. }
+                    if keep_set.contains(&episode) =>
+                {
+                    Some(episode)
+                }
+                _ => None,
+            })
+            .collect();
+        part.episodes
+            .iter()
+            .filter(|episode| !reachable.contains(&episode.id))
+            .map(|episode| (episode.id, episode.title.clone(), episode.video))
+            .rev()
+            .collect()
+    };
+    let root_first: Vec<usize> = {
+        let mut order: Vec<usize> = (0..part.menus.len()).collect();
+        order.sort_by_key(|&index| part.menus[index].id != part.root_menu);
+        order
+    };
     let mut emptied: HashSet<kinodisc_domain::MenuId> = HashSet::new();
-    for menu in &mut part.menus {
+    for index in root_first {
+        let menu = &mut part.menus[index];
+        for button in &mut menu.buttons {
+            if !matches!(button.action, ButtonAction::PlayEpisode { episode } if !keep_set.contains(&episode))
+            {
+                continue;
+            }
+            let Some((episode, title, video)) = waiting.pop() else {
+                break;
+            };
+            button.action = ButtonAction::PlayEpisode { episode };
+            button.name = title.clone();
+            if let Some(label) = button.label.as_mut() {
+                label.text = title;
+            }
+            if let Some(thumbnail) = button.thumbnail.as_mut() {
+                thumbnail.asset = video;
+                thumbnail.in_frame = 0;
+            }
+        }
         let removed: HashSet<ButtonId> = menu
             .buttons
             .iter()
@@ -382,6 +431,14 @@ mod tests {
         let disc2 = &result.parts[1].project;
         assert_eq!(disc2.episodes[0].id, second.id);
         assert!(disc2.menus.iter().all(|menu| !menu.buttons.is_empty()));
+        // The button freed by episode 1 now opens disc 2's own episode (QA
+        // 1.1.2: disc 2 had no way to start it and failed to author).
+        assert!(disc2
+            .menus
+            .iter()
+            .flat_map(|menu| menu.buttons.iter())
+            .any(|button| matches!(button.action, ButtonAction::PlayEpisode { episode } if episode == second.id)));
+        assert_eq!(disc2.unreachable_episodes().len(), 0);
         let root = disc2.menu(disc2.root_menu).unwrap();
         assert!(root.items.iter().any(
             |item| matches!(item, kinodisc_domain::MenuItem::Text(text) if text.text == "2 / 2")

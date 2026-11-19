@@ -36,6 +36,18 @@ export function isAbsolutePath(path: string): boolean {
  * Windows paths typed with `/` (`C:/Discs`) use `\` throughout, so messages
  * never show `C:/Discs\disc.iso`. Unix paths are returned unchanged.
  */
+/**
+ * A project name as a file or folder name: characters Windows forbids become
+ * "_" (accents, emoji and other scripts are kept), trailing dots go.
+ */
+export function safeFileName(name: string, fallback = "Disc"): string {
+  const cleaned = name
+    .replace(/[\u0000-\u001f<>:"\/\\|?*]/g, "_")
+    .trim()
+    .replace(/[. ]+$/, "");
+  return cleaned || fallback;
+}
+
 export function nativePath(path: string): string {
   return /^([A-Za-z]:|[\\/]{2}[^\\/])/.test(path) ? path.replace(/\//g, "\\") : path;
 }

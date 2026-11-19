@@ -110,7 +110,7 @@ export const commands = {
 	 */
 	projectSplit: (project: Project_Deserialize, strategy: SplitStrategy) => typedError<SplitResult_Serialize, string>(__TAURI_INVOKE("project_split", { project, strategy })),
 	burnListDevices: () => typedError<OpticalDevice[], string>(__TAURI_INVOKE("burn_list_devices")),
-	renderStart: (project: Project_Deserialize, outputDir: string, hardwareEncoding: EncoderPreference, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, hardwareEncoding, channel })),
+	renderStart: (project: Project_Deserialize, outputDir: string, hardwareEncoding: EncoderPreference, isoName: string | null, channel: Channel<JobEvent_Deserialize>) => typedError<RenderOutcome_Serialize, string>(__TAURI_INVOKE("render_start", { project, outputDir, hardwareEncoding, isoName, channel })),
 	/**
 	 *  Cancela la generación activa. Los procesos FFmpeg/herramientas se crean con
 	 *  `kill_on_drop` y la bandera compartida detiene la escritura UDF, por lo que
@@ -123,12 +123,6 @@ export const commands = {
 	 *  `remove_iso` is set, deletes the image afterwards.
 	 */
 	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso })),
-	/**
-	 *  Moves the `disc.iso` of one part of a multi-disc render next to its work
-	 *  folder under a friendly name (`<parent>/<file_name>`). Only `disc.iso`
-	 *  files and single-component `.iso` names are accepted.
-	 */
-	renderNamePart: (isoPath: string, fileName: string) => typedError<string, string>(__TAURI_INVOKE("render_name_part", { isoPath, fileName })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),

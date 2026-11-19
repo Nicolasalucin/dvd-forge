@@ -6,7 +6,7 @@
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
   import { t } from "../i18n/index.svelte";
-  import { localizeDiagnostic } from "../i18n/diagnostics";
+  import { localizeDiagnostic, localizeRenderError } from "../i18n/diagnostics";
   import { Channel } from "@tauri-apps/api/core";
   import { videoDir } from "@tauri-apps/api/path";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -19,7 +19,24 @@
   import { messageOf, unwrap } from "../api/client";
   import { compositeProjectMenus } from "../production";
   import { projectStore } from "../stores/project.svelte";
-  import { basename, formatBytes } from "../utils/format";
+  import { basename, formatBytes, safeFileName } from "../utils/format";
+
+  // The output folder is remembered between productions (on this computer).
+  const OUTPUT_KEY = "kinodisc_output_dir";
+  function rememberedOutput(): string {
+    try {
+      return localStorage.getItem(OUTPUT_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  }
+  function rememberOutput(path: string) {
+    try {
+      localStorage.setItem(OUTPUT_KEY, path);
+    } catch {
+      // Storage can be unavailable; the default folder is used next time.
+    }
+  }
 
   // Episodes no menu button can start: shown before producing the disc.
   const unreachable = $derived(
@@ -98,10 +115,16 @@
   ];
 
   onMount(() => {
+    // An error from an earlier attempt is not shown again on reopening.
+    if (!projectStore.rendering) {
+      projectStore.renderError = null;
+      projectStore.burnError = null;
+    }
     void prepareDefaults();
   });
 
   async function prepareDefaults() {
+    if (!outputDir) outputDir = rememberedOutput();
     if (!outputDir) {
       try {
         outputDir = await videoDir();
@@ -172,6 +195,7 @@
     projectStore.resetRender();
     projectStore.rendering = true;
     const root = nativePath(outputDir.trim()).replace(/[\\/]+$/, "");
+    rememberOutput(root);
     try {
       // One project, or one per disc when splitting.
       let parts: Array<{ project: typeof current; fileName: string; index: number; count: number }> = [
@@ -180,7 +204,14 @@
       if (discSplit !== "single" && mode !== "isoBurn") {
         const split = await unwrap(commands.projectSplit(current, discSplit));
         parts = split.parts.map((part) => ({
-          project: part.project as typeof current,
+          // The engine names parts "… - Disco N"; use the interface language.
+          project: {
+            ...(part.project as typeof current),
+            name:
+              part.count > 1
+                ? `${current.name} - ${t("Disco {index}", { index: part.index })}`
+                : part.project.name,
+          },
           fileName: part.fileName,
           index: part.index,
           count: part.count,
@@ -206,7 +237,12 @@
           projectStore.renderLogs = [...projectStore.renderLogs, `⚠ ${warning}`].slice(-300);
         }
         if (cancelRequested) break;
-        const workDir = multi ? nativePath(`${root}/${part.fileName.replace(/\.iso$/i, "")}`) : root;
+        // The image is named after the project ("Boda.iso", "Serie - Disc 2.iso");
+        // the render keeps its work files in a folder it removes at the end.
+        const baseName = safeFileName(current.name, t("Disco"));
+        const partName = multi
+          ? `${baseName} - ${t("Disco {index}", { index: part.index })}`
+          : baseName;
         const channel = new Channel<JobEvent_Deserialize>();
         channel.onmessage = (event) => {
           projectStore.applyJobEvent(event);
@@ -214,21 +250,16 @@
             projectStore.renderStage = prefix + projectStore.renderStage;
           }
         };
-        const outcome = await unwrap(commands.renderStart(part.project, workDir, hardwareEncoding, channel));
+        const outcome = await unwrap(
+          commands.renderStart(part.project, root, hardwareEncoding, `${partName}.iso`, channel),
+        );
         elapsedMs += outcome.elapsedMs;
         projectStore.renderVerification = outcome.verification ?? null;
         let produced = outcome.isoPath;
         if (mode === "folder") {
           projectStore.renderStage = prefix + t("Creando la carpeta del disco");
-          const label = (part.project.disc.volumeLabel || part.project.name || "DISC")
-            .replace(/[^A-Za-z0-9 _-]/g, "_")
-            .trim();
-          const exported = await unwrap(
-            commands.renderExportFolder(outcome.isoPath, multi ? root : nativePath(outputDir.trim()), label || "DISC", true),
-          );
+          const exported = await unwrap(commands.renderExportFolder(outcome.isoPath, root, partName, true));
           produced = exported.folder;
-        } else if (multi) {
-          produced = await unwrap(commands.renderNamePart(outcome.isoPath, part.fileName));
         }
         outputs.push(produced);
         projectStore.lastIso = produced;
@@ -262,7 +293,11 @@
         projectStore.renderStage = t("Cancelado");
         projectStore.renderSummary = t("Generación cancelada.");
       } else {
-        projectStore.renderError = messageOf(cause);
+        // The error is the result: no "ISO created" or verification left
+        // over from an earlier disc of the same run.
+        projectStore.renderSummary = null;
+        projectStore.renderVerification = null;
+        projectStore.renderError = localizeRenderError(messageOf(cause));
       }
     } finally {
       projectStore.rendering = false;

@@ -668,6 +668,11 @@ class ProjectStore {
       }
     }
     this.project = project;
+    // Results, errors and notices of another project do not carry over.
+    if (!this.rendering) {
+      this.resetRender();
+      this.lastIso = null;
+    }
     this.syncPlayAll();
     this.history.reset(project);
     this.planSequence += 1;
@@ -3051,13 +3056,26 @@ class ProjectStore {
   async confirmLoseChanges(): Promise<boolean> {
     this.history.flush();
     if (!this.project || !this.dirty) return true;
-    const { ask } = await import("@tauri-apps/plugin-dialog");
-    const discard = await ask(
-      t("«{name}» tiene cambios sin guardar. Si continúas, se perderán.", { name: this.project.name }),
-      { title: "Kinodisc", kind: "warning", okLabel: t("Descartar cambios"), cancelLabel: t("Cancelar") },
+    const { message } = await import("@tauri-apps/plugin-dialog");
+    const save = t("Guardar");
+    const discard = t("Descartar cambios");
+    const choice = await message(
+      t("«{name}» tiene cambios sin guardar. ¿Quieres guardarlos antes de continuar?", {
+        name: this.project.name,
+      }),
+      { title: "Kinodisc", kind: "warning", buttons: { yes: save, no: discard, cancel: t("Cancelar") } },
     );
-    if (discard) await this.discardAutosave();
-    return discard;
+    if (choice === save || choice === "Yes") {
+      const actions = await import("../actions");
+      await actions.saveProject();
+      // Saving can be cancelled (no file chosen) or fail: then stay.
+      return !this.dirty;
+    }
+    if (choice === discard || choice === "No") {
+      await this.discardAutosave();
+      return true;
+    }
+    return false;
   }
 
   /** Opens a crash-recovery copy; it stays "unsaved" until the user saves. */

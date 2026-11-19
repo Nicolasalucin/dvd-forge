@@ -5,10 +5,11 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { commands, type JobEvent_Deserialize } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
-  import { localizeError } from "../i18n/diagnostics";
+  import { localizeRenderError } from "../i18n/diagnostics";
   import { t } from "../i18n/index.svelte";
   import { compositeProjectMenus } from "../production";
   import { projectStore } from "../stores/project.svelte";
+  import { nativePath, safeFileName } from "../utils/format";
 
   interface Props {
     onClose: () => void;
@@ -116,14 +117,16 @@
           });
           const channel = new Channel<JobEvent_Deserialize>();
           channel.onmessage = (event) => projectStore.applyJobEvent(event);
-          const output = `${folder(items[index].path)}/kinodisc-${items[index].name}`;
-          const outcome = await unwrap(commands.renderStart(project, output, "auto", channel));
+          // The image goes next to the project file, named after the project.
+          const output = nativePath(folder(items[index].path));
+          const isoName = `${safeFileName(project.name || items[index].name)}.iso`;
+          const outcome = await unwrap(commands.renderStart(project, output, "auto", isoName, channel));
           items[index] = { ...items[index], status: "done", iso: outcome.isoPath };
         } catch (cause) {
           items[index] = {
             ...items[index],
             status: stopRequested ? "cancelled" : "failed",
-            error: localizeError(messageOf(cause)),
+            error: localizeRenderError(messageOf(cause)),
           };
         } finally {
           projectStore.rendering = false;
