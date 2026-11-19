@@ -143,13 +143,14 @@ button:not(:disabled):active {
   .ui-btn-danger {
     @apply text-rose-300 hover:border-rose-500/60 hover:bg-rose-500/10 hover:text-rose-200;
   }
-  /* Labels wrap to a second line instead of being cut off (long German or
-     Spanish words, narrow windows). */
+  /* Each segment is at least as wide as its label (no word spills into the
+     next one: "Centro", "ハイライト"); when the row is too narrow the
+     segments wrap instead of being cut. */
   .ui-seg {
-    @apply flex min-h-8 overflow-hidden rounded-md border border-slate-700 bg-slate-950;
+    @apply flex min-h-8 flex-wrap overflow-hidden rounded-md border border-slate-700 bg-slate-950;
   }
   .ui-seg > button {
-    @apply min-w-0 flex-1 px-2 py-1 text-[12px] leading-tight text-slate-400 hover:text-slate-100;
+    @apply min-w-max flex-auto whitespace-nowrap px-2 py-1 text-[12px] leading-tight text-slate-400 hover:text-slate-100;
   }
   .ui-seg > button + button {
     @apply border-l border-slate-700;

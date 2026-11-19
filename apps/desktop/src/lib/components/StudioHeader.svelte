@@ -248,6 +248,18 @@
             <option value="bluRayPlayer">{t("Reproductor Blu-ray de salón")}</option>
             <option value="dvdPlayer">{t("Reproductor DVD antiguo")}</option>
           </select>
+          <span class="ui-label mb-0">{t("Etiqueta del disco")}</span>
+          <input
+            class="ui-input font-mono uppercase"
+            value={project.disc.volumeLabel}
+            maxlength="32"
+            aria-label={t("Etiqueta del disco")}
+            title={t("Nombre que muestra la computadora al insertar el disco (letras sin acentos, números y _).")}
+            onchange={(event) => {
+              projectStore.setVolumeLabel(event.currentTarget.value);
+              event.currentTarget.value = projectStore.project?.disc.volumeLabel ?? "";
+            }}
+          />
         {/if}
             </div>
             <p class="ui-hint">{t("Los cambios recalculan el espacio y la calidad automáticamente.")}</p>

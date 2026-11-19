@@ -40,7 +40,7 @@
 
   // Episodes no menu button can start: shown before producing the disc.
   // and Blu-ray subtitles that would be left out.
-  const PREFLIGHT = new Set(["W_EPISODE_NO_BUTTON", "W_PGS_LAYOUT_MISMATCH"]);
+  const PREFLIGHT = new Set(["W_EPISODE_NO_BUTTON", "W_PGS_LAYOUT_MISMATCH", "W_AVCHD_AUDIO_LAYOUT"]);
   const unreachable = $derived(
     projectStore.plan?.warnings.filter((warning) => PREFLIGHT.has(warning.code)) ?? [],
   );
@@ -60,7 +60,25 @@
   let defaultsReady = $state(false);
   let cancelRequested = $state(false);
   let hardwareEncoding = $state<"auto" | "cpuOnly">("auto");
-  let discSplit = $state<"single" | "fitToDisc" | "perEpisode">("single");
+  // "One disc per episode" and the like are remembered per project.
+  type DiscSplit = "single" | "fitToDisc" | "perEpisode";
+  const splitKey = `kinodisc_split_${projectStore.project?.id ?? ""}`;
+  function rememberedSplit(): DiscSplit {
+    try {
+      const value = localStorage.getItem(splitKey);
+      return value === "fitToDisc" || value === "perEpisode" ? value : "single";
+    } catch {
+      return "single";
+    }
+  }
+  let discSplit = $state<DiscSplit>(rememberedSplit());
+  $effect(() => {
+    try {
+      localStorage.setItem(splitKey, discSplit);
+    } catch {
+      // Not remembered this time.
+    }
+  });
 
   const project = $derived(projectStore.project);
   const devices = $derived(projectStore.devices);
@@ -160,13 +178,43 @@
   $effect(() => {
     const current = mode;
     if (shownMode !== null && shownMode !== current && !busy) {
-      projectStore.renderSummary = null;
-      projectStore.renderVerification = null;
-      projectStore.renderError = null;
+      // Bar, log, result and errors all start over.
+      projectStore.resetRender();
       projectStore.lastIso = null;
       producedList = [];
+      partIndex = 1;
+      partCount = 1;
     }
     shownMode = current;
+  });
+
+  // Some steps (menus, subtitles) report no progress of their own: the
+  // bar pulses and the elapsed time keeps moving, so it never looks frozen.
+  let now = $state(Date.now());
+  let startedAt = 0;
+  let lastPercent = -1;
+  let lastChange = 0;
+  $effect(() => {
+    if (!busy) {
+      startedAt = 0;
+      return;
+    }
+    startedAt ||= Date.now();
+    const timer = setInterval(() => (now = Date.now()), 1000);
+    return () => clearInterval(timer);
+  });
+  $effect(() => {
+    const percent = projectStore.burning ? burnPercent : renderPercent;
+    if (percent !== lastPercent) {
+      lastPercent = percent;
+      lastChange = Date.now();
+    }
+  });
+  const stalled = $derived(busy && now - lastChange > 4000);
+  const elapsedLabel = $derived.by(() => {
+    if (!busy || !startedAt) return "";
+    const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   });
 
   // A folder typed or chosen is remembered even if nothing is produced.
@@ -622,6 +670,7 @@
                 {projectStore.burning
                   ? formatPercent(burnPercent)
                   : formatPercent(renderPercent)}
+                {#if busy && elapsedLabel}<span class="ml-1 text-slate-500">· {elapsedLabel}</span>{/if}
               </span>
             </div>
             <div class="ui-meter mt-2">
@@ -630,7 +679,7 @@
                   projectStore.renderError || projectStore.burnError
                     ? "bg-rose-500"
                     : "bg-cyan-500"
-                }`}
+                } ${stalled ? "animate-pulse" : ""}`}
                 style={`width: ${projectStore.burning ? burnPercent : renderPercent}%`}
               ></div>
             </div>

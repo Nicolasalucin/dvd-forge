@@ -1,4 +1,10 @@
-import { i18n, t } from "./index.svelte";
+import { formatDecimal, i18n, t } from "./index.svelte";
+
+/** "2.0" from the engine, written the interface's way ("2,0" in Spanish). */
+function fillNumber(value: string): string {
+  const number = Number(value.replace(",", "."));
+  return Number.isFinite(number) ? formatDecimal(number, 1) : value;
+}
 import { DIAGNOSTIC_EN } from "./diagnosticCodes";
 import { formatBytes } from "../utils/format";
 export interface DiagnosticLike {
@@ -63,7 +69,7 @@ const PATTERNS: PatternRule[] = [
   {
     key: "El plan solo llena el {percent}% de la capacidad efectiva; el contenido es demasiado corto para alcanzar el 99% sin superar el bitrate máximo.",
     pattern: /El plan solo llena el ([\d.,]+)% de la capacidad efectiva/,
-    values: (match) => ({ percent: match[1] }),
+    values: (match) => ({ percent: fillNumber(match[1]) }),
   },
   {
     key: "El episodio {episode} tiene varias pistas de audio; AVCHD usará la primera.",
@@ -78,7 +84,7 @@ const PATTERNS: PatternRule[] = [
   {
     key: "El plan llena el {percent}% de la capacidad efectiva de {capacity}; el contenido es demasiado corto para aprovecharla.",
     pattern: /El plan llena el ([\d.,]+)% de la capacidad efectiva de (.+?);/,
-    values: (match) => ({ percent: match[1], capacity: match[2] }),
+    values: (match) => ({ percent: fillNumber(match[1]), capacity: match[2] }),
   },
 ];
 
@@ -139,6 +145,10 @@ const JOB_STAGES = new Set([
   "Codificando episodios AVCHD",
   "Multiplexando AVCHD con tsMuxeR",
   "Multiplexando AVCHD",
+  "Codificando episodios HD",
+  "Multiplexando el disco HD",
+  "Calculando bitrate HD",
+  "Validando ISO HD",
   "Multiplexando BDMV con menús HDMV IG",
   "Validando ISO AVCHD",
 ]);

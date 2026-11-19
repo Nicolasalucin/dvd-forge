@@ -1534,7 +1534,7 @@ async fn render_avchd_project(
     let mut probe_warnings = probe_report.warnings;
     progress(&events, JobStage::Probe, 1000).await;
 
-    stage(&events, JobStage::Plan, "Calculando bitrate AVCHD").await;
+    stage(&events, JobStage::Plan, "Calculando bitrate HD").await;
     let plan = calculate_bitrate_plan(&project, &probes)
         .map_err(|error| RenderError::Plan(error.to_string()))?;
     probe_warnings.extend(plan.warnings.clone());
@@ -1606,10 +1606,12 @@ async fn render_avchd_project(
     let mut episode_start_ms: HashMap<EpisodeId, u64> = HashMap::new();
     let mut episode_fps: HashMap<EpisodeId, FrameRate> = HashMap::new();
     let mut timeline_ms = 0u64;
-    // The disc's audio layout comes from the first episode that has sound,
-    // so a soundless first video does not decide it.
-    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> =
-        order.iter().find_map(|episode| {
+    // The disc's audio layout comes from the episode with the most tracks
+    // (the first one on a tie), so neither a soundless video nor one with a
+    // single track decides it and drops the other languages.
+    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> = order
+        .iter()
+        .filter_map(|episode| {
             let asset = project.asset(episode.video)?;
             let probe = probes.get(&asset.id).unwrap_or(&asset.probe);
             let (reconciled, _) = reconcile_episode_audio(episode, probe);
@@ -1619,6 +1621,10 @@ async fn render_avchd_project(
             };
             let (_, layout) = avchd_audio_configs(&reconciled_episode, &project, probe, 1);
             (!layout.is_empty()).then_some(layout)
+        })
+        .fold(None, |best: Option<Vec<_>>, layout| match best {
+            Some(best) if best.len() >= layout.len() => Some(best),
+            _ => Some(layout),
         });
     let cache = match Store::open_default() {
         Ok(store) => Some(store),
@@ -1636,7 +1642,8 @@ async fn render_avchd_project(
     stage(
         &events,
         JobStage::EncodeEpisodes,
-        "Codificando episodios AVCHD",
+        // Blu-ray and AVCHD share this path: "HD" fits both.
+        "Codificando episodios HD",
     )
     .await;
     let mut reused_episodes = 0usize;
@@ -1980,7 +1987,7 @@ async fn render_avchd_project(
 
     ensure_not_cancelled(&cancel)?;
     // The backend (tsMuxeR or the built-in one) is chosen inside this stage.
-    stage(&events, JobStage::Author, "Multiplexando AVCHD").await;
+    stage(&events, JobStage::Author, "Multiplexando el disco HD").await;
     let combined_mkv = episodes_dir.join("combined.mkv");
     concat_mkv(&encoder.ffmpeg, &stream_inputs, &combined_mkv)
         .await
@@ -2415,7 +2422,7 @@ async fn render_avchd_project(
     };
     progress(&events, JobStage::Author, 1000).await;
 
-    stage(&events, JobStage::Iso, "Validando ISO AVCHD").await;
+    stage(&events, JobStage::Iso, "Validando ISO HD").await;
     let _ = events
         .send(JobEventKind::Artifact {
             kind: ArtifactKind::Iso,

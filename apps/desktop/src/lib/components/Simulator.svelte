@@ -630,7 +630,9 @@
         </span>
       </div>
       <p class="mt-1.5 text-[11px] text-slate-500">
-        {t("Reproduciendo solo el rango recortado")} · {formatDuration(currentTimeMs - playerStartMs)} {t("transcurridos")}
+        {currentEpisode && (currentEpisode.trimStartMs || currentEpisode.trimEndMs !== null)
+          ? t("Reproduciendo solo el rango recortado")
+          : t("Reproduciendo")} · {formatDuration(currentTimeMs - playerStartMs)} {t("transcurridos")}
       </p>
     </div>
   </div>

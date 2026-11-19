@@ -420,8 +420,10 @@ impl<'a> Composer<'a> {
         let Some(font) = self.font(&button.font_family, weight) else {
             return;
         };
+        // Thumbnail cards: as large as asked, up to what fits the label strip
+        // (a fixed 18 px cap ignored the Size control and was tiny on HD).
         let size = if button.style_kind == ButtonStyleKind::ThumbnailCard {
-            f32::from(button.font_size.min(18))
+            f32::from(button.font_size).min((label.h * 0.8).round().max(12.0))
         } else {
             f32::from(button.font_size)
         };

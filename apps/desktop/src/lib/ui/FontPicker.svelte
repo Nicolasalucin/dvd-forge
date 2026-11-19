@@ -80,7 +80,11 @@
   $effect(() => {
     // Keep the highlighted row in view while moving with the keyboard.
     void active;
-    root?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
+    const row = root?.querySelector<HTMLElement>(`[data-index="${active}"]`);
+    // The first row of a group brings its header into view too.
+    const header = row?.previousElementSibling?.getAttribute("role") === "presentation" ? row.previousElementSibling : null;
+    (header ?? row)?.scrollIntoView({ block: "nearest" });
+    if (header) row?.scrollIntoView({ block: "nearest" });
   });
 </script>
 

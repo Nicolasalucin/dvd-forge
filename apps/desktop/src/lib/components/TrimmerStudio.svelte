@@ -713,10 +713,14 @@
             <select
               class="ui-input w-full"
               value={episode.audio[0]?.sourceStream ?? 0}
+              disabled={episode.audio.length === 0}
               onchange={(event) => setAudio(Number((event.currentTarget as HTMLSelectElement).value))}
             >
               {#each episode.audio as audio}
                 <option value={audio.sourceStream}>{audio.label} · {audio.language}</option>
+              {:else}
+                <!-- A video without sound: the disc gets a silent track. -->
+                <option value={0}>{t("Sin sonido (el disco lleva silencio)")}</option>
               {/each}
             </select>
           </label>

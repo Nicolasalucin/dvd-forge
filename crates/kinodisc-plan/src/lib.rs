@@ -9,7 +9,7 @@ use kinodisc_domain::{
     DvdProfile, EncodingPriority, Episode, EpisodeId, FrameRate, LayerBreakMode, MediaAsset,
     MediaProbe, Project, VideoConfig,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub mod stream_copy;
 pub use stream_copy::{avchd_copy_decision, CopyDecision};
@@ -97,6 +97,28 @@ pub fn calculate_bitrate_plan(
             .into_iter()
             .filter(|diagnostic| diagnostic.code == "W_EPISODE_NO_BUTTON"),
     );
+    // Blu-ray/AVCHD titles share one audio layout: episodes whose tracks
+    // differ get them relabelled, repeated or dropped. Said before producing.
+    if matches!(project.disc.mode, kinodisc_domain::AuthoringMode::Avchd) {
+        let layouts: HashSet<Vec<String>> = project
+            .episodes
+            .iter()
+            .filter(|episode| !episode.audio.is_empty())
+            .map(|episode| {
+                episode
+                    .audio
+                    .iter()
+                    .map(|track| track.language.to_ascii_lowercase())
+                    .collect()
+            })
+            .collect();
+        if layouts.len() > 1 {
+            plan.warnings.push(Diagnostic::warning(
+                "W_AVCHD_AUDIO_LAYOUT",
+                "Los episodios tienen distintas pistas de audio; en Blu-ray y AVCHD todos los títulos usan las mismas, así que algunas se renombran, se repiten o se quitan.",
+            ));
+        }
+    }
     // Blu-ray/AVCHD subtitles that would be left out: said before producing.
     if matches!(project.disc.mode, kinodisc_domain::AuthoringMode::Avchd) {
         let (layout, enabled) = project.avchd_subtitle_layout();

@@ -326,7 +326,7 @@ function drawButtonLabel(
     context.restore();
   }
   const textAlign = layout.align === "left" ? "left" : "center";
-  context.font = cssFont(button);
+  context.font = cssFont(button, thumbnailLabelCap(layout.label.h));
   context.fillStyle = button.textColor;
   context.textAlign = textAlign;
   context.textBaseline = "middle";
@@ -670,14 +670,19 @@ function validateGaps(buttons: CompiledButton[]) {
   }
 }
 
-function cssFont(button: MenuButton_Serialize): string {
+/** Largest label size a thumbnail card's label strip of `height` holds. */
+function thumbnailLabelCap(height: number): number {
+  return Math.max(12, Math.round(height * 0.8));
+}
+
+function cssFont(button: MenuButton_Serialize, thumbnailCap = 18): string {
   const family = /\s/.test(button.fontFamily)
     ? `"${button.fontFamily.replaceAll('"', "")}"`
     : button.fontFamily;
   const weight = button.fontWeight === "bold" ? "700" : "400";
   const size =
     button.styleKind === "thumbnailCard"
-      ? Math.min(button.fontSize, 18)
+      ? Math.min(button.fontSize, thumbnailCap)
       : button.fontSize;
   // Fallback keeps labels sans-serif when the chosen family is not installed
   // (otherwise the browser default is a serif face, also on the final disc).
@@ -699,11 +704,13 @@ let labelScratch: CanvasRenderingContext2D | null = null;
 export function fittedButtonLabel(
   button: MenuButton_Serialize,
   width: number,
+  height: number,
 ): { text: string; fontSize: number } {
-  const base = button.styleKind === "thumbnailCard" ? Math.min(button.fontSize, 18) : button.fontSize;
+  const cap = thumbnailLabelCap(height);
+  const base = button.styleKind === "thumbnailCard" ? Math.min(button.fontSize, cap) : button.fontSize;
   labelScratch ??= document.createElement("canvas").getContext("2d");
   if (!labelScratch) return { text: button.name, fontSize: base };
-  labelScratch.font = cssFont(button);
+  labelScratch.font = cssFont(button, cap);
   const text = fitLabel(labelScratch, button.name, Math.max(20, width - 4));
   const size = /(\d+(?:\.\d+)?)px/.exec(labelScratch.font);
   return { text, fontSize: size ? Number(size[1]) : base };

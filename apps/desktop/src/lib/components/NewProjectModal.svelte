@@ -246,9 +246,15 @@
                 bind:value={standard}
                 disabled={busy}
               >
-                <option value="ntsc">{t("NTSC · 720×480 (América, Japón)")}</option>
-                <option value="pal">{t("PAL · 720×576 (Europa, Argentina, Australia…)")}</option>
+                <option value="ntsc">{t("NTSC · 720×480")}</option>
+                <option value="pal">{t("PAL · 720×576")}</option>
               </select>
+              <!-- The regions go under the field: in the option they were cut. -->
+              <span class="ui-hint mt-1 block">
+                {standard === "pal"
+                  ? t("Europa, Argentina, Uruguay, Paraguay, Australia, gran parte de Asia y África.")
+                  : t("América (salvo Argentina, Uruguay y Paraguay), Japón y Corea.")}
+              </span>
             </label>
             <label class="ui-label">
               <span class="mb-1 block">{t("Aspecto")}</span>

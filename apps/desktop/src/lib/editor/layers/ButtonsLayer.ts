@@ -239,7 +239,7 @@ export class ButtonsLayer {
       }
 
       // Same text and size as the disc export (shrink, then "…").
-      const fitted = fittedButtonLabel(button, layout.label.w);
+      const fitted = fittedButtonLabel(button, layout.label.w, layout.label.h);
       const label = new Konva.Text({
         name: "button-label",
         x: layout.label.x,

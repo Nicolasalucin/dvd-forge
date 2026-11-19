@@ -420,7 +420,15 @@
         <dl class="mt-2 space-y-1 text-[11px]">
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("Perfil")}</dt>
-            <dd class="text-slate-300">{isAvchd ? "H.264/AVC" : (plan?.profile ?? "—")}</dd>
+            <dd class="text-slate-300">
+              {isAvchd
+                ? "H.264/AVC"
+                : plan?.profile === "d1"
+                  ? t("MPEG-2 · resolución completa (D1)")
+                  : plan?.profile === "halfD1"
+                    ? t("MPEG-2 · media resolución (Half-D1)")
+                    : (plan?.profile ?? "—")}
+            </dd>
           </div>
           <div class="flex justify-between gap-2">
             <dt class="text-slate-500">{t("2 pasadas")}</dt>

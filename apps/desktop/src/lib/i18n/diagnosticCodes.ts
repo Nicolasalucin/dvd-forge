@@ -130,6 +130,7 @@ export const DIAGNOSTIC_EN: Record<string, string> = {
   W_PGS_DELAY_IGNORED: "Delay is ignored for Blu-ray bitmap (PGS) subtitles.",
   W_PGS_LAYOUT_MISMATCH: "Not every episode has the same subtitles (languages and order), so the Blu-ray subtitles are left out. Give every episode the same subtitle tracks.",
   W_PLAY_ALL_EMPTY: "Play All is active but has no episodes.",
+  W_AVCHD_AUDIO_LAYOUT: "The episodes have different audio tracks. On Blu-ray and AVCHD every title gets the same ones, so some are renamed, repeated or removed. Give every episode the same audio languages to keep them as they are.",
   W_EPISODE_NO_BUTTON: "No menu button opens this episode; it can't be chosen on the disc.",
   W_PROBE_FALLBACK: "A media file could not be analysed again; saved information is used.",
   W_PROBE_FILE_MISSING: "A media file is missing; saved information is used.",

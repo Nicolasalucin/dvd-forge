@@ -826,6 +826,13 @@ class ProjectStore {
     this.plan = null;
   }
 
+  /** A label typed by the user (made safe: ASCII capitals, digits, "_"). */
+  setVolumeLabel(label: string): void {
+    if (!this.project) return;
+    this.project.disc.volumeLabel = volumeLabelFor(label.trim() ? label : this.project.name);
+    this.touch();
+  }
+
   renameProject(name: string): void {
     if (!this.project) return;
     // The disc label follows the name unless the user set their own.
