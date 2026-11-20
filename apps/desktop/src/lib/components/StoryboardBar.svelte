@@ -3,6 +3,7 @@
   import type { Episode_Serialize, Menu_Serialize } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { formatDuration } from "../utils/format";
+  import { confirmDelete } from "../utils/confirm";
   import Icon from "../ui/Icon.svelte";
   import * as actions from "../actions";
   import { ui } from "../ui/state.svelte";
@@ -37,9 +38,9 @@
     projectStore.moveEpisode(episode.id, delta);
   }
 
-  function remove(episode: Episode_Serialize, event: MouseEvent) {
+  async function remove(episode: Episode_Serialize, event: MouseEvent) {
     event.stopPropagation();
-    if (!window.confirm(t("¿Eliminar el episodio «{episode}» del proyecto?", { episode: episode.title }))) return;
+    if (!(await confirmDelete(t("¿Eliminar el episodio «{episode}» del proyecto?", { episode: episode.title })))) return;
     projectStore.removeEpisode(episode.id);
   }
 
@@ -89,9 +90,9 @@
     if (name !== null) projectStore.renameMenu(menu.id, name);
   }
 
-  function removeMenu(menu: Menu_Serialize, event: MouseEvent) {
+  async function removeMenu(menu: Menu_Serialize, event: MouseEvent) {
     event.stopPropagation();
-    if (!window.confirm(t("¿Eliminar la pantalla de menú «{menu}»? Los botones que la abrían volverán al menú principal.", { menu: menu.name }))) return;
+    if (!(await confirmDelete(t("¿Eliminar la pantalla de menú «{menu}»? Los botones que la abrían volverán al menú principal.", { menu: menu.name })))) return;
     projectStore.removeMenu(menu.id);
   }
 

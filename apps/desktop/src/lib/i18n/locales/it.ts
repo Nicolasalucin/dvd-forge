@@ -964,6 +964,8 @@ export const it: Dictionary = {
   "Carpeta donde copiar los títulos": "Cartella in cui copiare i titoli",
   "Cifrado: se puede ver, pero no importar.": "Cifrato: si può vedere, ma non importare.",
   "Disco de datos": "Disco dati",
+  "Se creará una imagen .iso lista para grabar con cualquier herramienta del sistema.": "Verrà creata un’immagine .iso pronta da masterizzare con qualsiasi strumento di sistema.",
+  "Reproducción automática": "Riproduzione automatica",
   "Disco de datos cancelado.": "Disco dati annullato.",
   "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba.": "Scegli un’altra cartella di uscita: l’immagine non può essere salvata nella cartella da masterizzare.",
   "Elegir subtítulos": "Scegli i sottotitoli",

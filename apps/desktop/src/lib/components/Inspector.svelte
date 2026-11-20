@@ -12,6 +12,7 @@
     VideoScaleMode,
   } from "../api/bindings";
   import { normalizeRect } from "../editor/exportMenu";
+  import { confirmDelete } from "../utils/confirm";
   import { commands } from "../api/bindings";
   import { projectStore } from "../stores/project.svelte";
   import { basename, formatBytes, formatDuration, parseDecimal } from "../utils/format";
@@ -290,10 +291,11 @@
     projectStore.updateEpisode(episode.id, { thumbnailTimeMs: ms });
   }
 
-  function removeEpisode() {
+  async function removeEpisode() {
     if (!episode) return;
-    if (!window.confirm(t("¿Eliminar el episodio «{episode}»?", { episode: episode.title }))) return;
-    projectStore.removeEpisode(episode.id);
+    const target = episode;
+    if (!(await confirmDelete(t("¿Eliminar el episodio «{episode}»?", { episode: target.title })))) return;
+    projectStore.removeEpisode(target.id);
   }
 
   function chapterTime(chapter: Episode_Serialize["chapters"][number]): number {

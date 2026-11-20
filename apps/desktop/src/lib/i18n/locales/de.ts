@@ -964,6 +964,8 @@ export const de: Dictionary = {
   "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
   "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
   "Disco de datos": "Datendisc",
+  "Se creará una imagen .iso lista para grabar con cualquier herramienta del sistema.": "Es wird ein .iso-Abbild erstellt, das sich mit jedem Systemprogramm brennen lässt.",
+  "Reproducción automática": "Automatisch abspielen",
   "Disco de datos cancelado.": "Datendisc abgebrochen.",
   "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba.": "Wähle einen anderen Ausgabeordner: Das Abbild kann nicht in dem Ordner gespeichert werden, der gebrannt wird.",
   "Elegir subtítulos": "Untertitel wählen",

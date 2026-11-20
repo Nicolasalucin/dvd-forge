@@ -964,6 +964,8 @@ export const ja: Dictionary = {
   "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
   "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
   "Disco de datos": "データディスク",
+  "Se creará una imagen .iso lista para grabar con cualquier herramienta del sistema.": ".iso イメージを作成します。システムの任意のツールで書き込めます。",
+  "Reproducción automática": "自動再生",
   "Disco de datos cancelado.": "データディスクをキャンセルしました。",
   "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba.": "別の出力フォルダーを選択してください。イメージは書き込むフォルダーの中には保存できません。",
   "Elegir subtítulos": "字幕を選ぶ",

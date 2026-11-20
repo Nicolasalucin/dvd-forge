@@ -286,7 +286,7 @@
                 seconds: Math.round((projectStore.activeMenu?.timing.durationMs ?? 30_000) / 1000),
               })}
         >
-          <Icon name="play" size={14} /><span class="hidden 2xl:inline">{t("Reproducir solo")}</span>
+          <Icon name="play" size={14} /><span class="hidden 2xl:inline">{t("Reproducción automática")}</span>
         </button>
       {/if}
 

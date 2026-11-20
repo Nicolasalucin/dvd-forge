@@ -75,6 +75,10 @@ New disc features, plus the fixes from several complete tests of the app by an i
   - A dialog that is working (queue, join, slideshow, data disc) is not closed by opening another from the menu.
   - A Blu-ray that mixes a soundless video with pass-through DTS or LPCM audio no longer fails.
   - The preview shows a rotated and mirrored video the way the disc does.
+- **From the QA of this release:**
+  - Deleting an episode or a menu screen waits for your answer: before, it was already gone while the question was on screen, and Cancel did not bring it back.
+  - Deleting an episode also removes its menu buttons, instead of leaving a button that played another episode.
+  - The Settings link on the main menu takes the current language when the audio and subtitles menu is made again.
 
 ## 1.1.2 — 2026-11-18
 

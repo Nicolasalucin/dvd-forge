@@ -7,6 +7,7 @@ import {
   type BitratePlan_Serialize,
   type BurnProgress,
   type BurnReport,
+  type ButtonAction,
   type AudioFormat,
   type ButtonShapeMask,
   type ButtonStyleKind,
@@ -301,6 +302,23 @@ function nameSetupButtonsByLanguage(menus: Menu_Serialize[], episodes: Episode_S
   };
   // Bitmap subtitles the render skips would shift the on-disc numbering.
   const plainSubtitles = source.subtitles.every((track) => !track.bitmap);
+  // The link to the setup page keeps an earlier name on re-run ("Settings"
+  // after switching to Spanish): name it in the current language.
+  const setupIds = new Set(
+    menus
+      .filter((menu) => menu.buttons.some((button) => button.action.kind === "setAudioTrack" || button.action.kind === "setSubtitleTrack"))
+      .map((menu) => menu.id),
+  );
+  for (const menu of menus) {
+    if (setupIds.has(menu.id)) continue;
+    for (const button of menu.buttons) {
+      if (button.action.kind !== "gotoMenu" || !setupIds.has(button.action.menu)) continue;
+      const name = t("Ajustes");
+      if (button.name === name || menu.buttons.some((other) => other !== button && other.name === name)) continue;
+      if (button.label && button.label.text === button.name) button.label.text = name;
+      button.name = name;
+    }
+  }
   for (const menu of menus) {
     const used = new Set(menu.buttons.map((button) => button.name));
     for (const button of menu.buttons) {
@@ -2046,7 +2064,26 @@ class ProjectStore {
     const fallback = project.episodes[0] ?? null;
     const chapterFallback =
       project.episodes.find((episode) => episode.chapters.length > 0) ?? null;
+    const pointsAtDeleted = (action: ButtonAction) =>
+      (action.kind === "playEpisode" || action.kind === "jumpTitleChapter") &&
+      action.episode === episodeId;
     for (const menu of project.menus) {
+      // The episode's own buttons go with it (QA 1.2: a "clip" button stayed
+      // and silently played episode 1). Only a menu's last button is
+      // retargeted below, so no menu is left empty.
+      const removed = new Set(
+        menu.buttons.filter((button) => pointsAtDeleted(button.action)).map((button) => button.id),
+      );
+      if (removed.size > 0 && removed.size < menu.buttons.length) {
+        menu.buttons = menu.buttons
+          .filter((button) => !removed.has(button.id))
+          .map((button) => {
+            const nav = button.navOverride;
+            const keep = (id: string | null) => (id !== null && removed.has(id) ? null : id);
+            return { ...button, navOverride: { up: keep(nav.up), down: keep(nav.down), left: keep(nav.left), right: keep(nav.right) } };
+          });
+        if (this.selectedButtonId && removed.has(this.selectedButtonId)) this.selectedButtonId = null;
+      }
       for (const button of menu.buttons) {
         if (
           button.action.kind === "playEpisode" &&

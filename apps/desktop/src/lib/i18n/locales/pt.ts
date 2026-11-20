@@ -897,6 +897,8 @@ export const pt: Dictionary = {
   "Carpeta donde copiar los títulos": "Pasta para copiar os títulos",
   "Cifrado: se puede ver, pero no importar.": "Criptografado: pode ser visto, mas não importado.",
   "Disco de datos": "Disco de dados",
+  "Se creará una imagen .iso lista para grabar con cualquier herramienta del sistema.": "Será criada uma imagem .iso pronta para gravar com qualquer ferramenta do sistema.",
+  "Reproducción automática": "Reprodução automática",
   "Disco de datos cancelado.": "Disco de dados cancelado.",
   "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba.": "Escolha outra pasta de saída: a imagem não pode ser salva dentro da pasta que será gravada.",
   "Elegir subtítulos": "Escolher legendas",

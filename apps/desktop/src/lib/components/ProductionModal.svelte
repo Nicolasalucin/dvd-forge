@@ -945,7 +945,7 @@
                 {#if mode === "folder"}
                   {t("Se creará una carpeta con VIDEO_TS (DVD) o BDMV (Blu-ray), lista para copiarla a un USB, un reproductor multimedia o Kodi.")}
                 {:else}
-                  {t("Se generará un archivo")} <span class="font-mono text-slate-300">{t(".iso")}</span> {t("listo para grabarlo con cualquier herramienta del sistema.")}
+                  {t("Se creará una imagen .iso lista para grabar con cualquier herramienta del sistema.")}
                 {/if}
               </p>
             </div>
