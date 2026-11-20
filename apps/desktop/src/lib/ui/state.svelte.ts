@@ -24,6 +24,7 @@ const DIALOGS = [
   "cover",
   "history",
   "recent",
+  "dataDisc",
 ] as const;
 export type DialogName = (typeof DIALOGS)[number];
 
@@ -38,6 +39,9 @@ class UiState {
   cover = $state(false);
   history = $state(false);
   recent = $state(false);
+  dataDisc = $state(false);
+  /** An image to burn, handed to the production dialog (data discs). */
+  burnIso = $state<string | null>(null);
   notice = $state<string | null>(null);
   /** "Shut down when done" for the current production or queue (never kept). */
   shutdownWhenDone = $state(false);

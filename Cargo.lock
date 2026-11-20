@@ -1866,6 +1866,7 @@ dependencies = [
  "fontdb",
  "kinodisc-burn",
  "kinodisc-domain",
+ "kinodisc-iso",
  "kinodisc-jobs",
  "kinodisc-media",
  "kinodisc-menu",

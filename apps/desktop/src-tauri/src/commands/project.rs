@@ -300,7 +300,7 @@ fn avchd_standard(resolution: AvchdResolution, frame_rate: FrameRate) -> TvStand
 /// (the ISO 9660/UDF safe set). Accented Latin letters keep their base
 /// letter ("Serie Ñandú" → "SERIE_NANDU"; it used to be "SERIE__AND"), and
 /// any other run of characters becomes one "_".
-fn sanitize_volume_label(name: &str) -> String {
+pub(crate) fn sanitize_volume_label(name: &str) -> String {
     let mut label = String::new();
     for character in name.chars() {
         let plain = ascii_letter(character);

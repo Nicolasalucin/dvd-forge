@@ -131,6 +131,13 @@ export const commands = {
 	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean, jobId: string | null) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso, jobId })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
+	dataFolderSize: (folder: string) => typedError<FolderSize, string>(__TAURI_INVOKE("data_folder_size", { folder })),
+	/**
+	 *  Writes `<output_dir>/<LABEL>.iso` with the contents of `folder`. The label
+	 *  is made disc-safe (ASCII capitals, digits and `_`).
+	 */
+	dataIsoCreate: (folder: string, outputDir: string, label: string) => typedError<DataIsoOutcome, string>(__TAURI_INVOKE("data_iso_create", { folder, outputDir, label })),
+	dataIsoCancel: () => typedError<null, string>(__TAURI_INVOKE("data_iso_cancel")),
 	openFolder: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_folder", { path })),
 	/**
 	 *  Shuts the computer down ("Shut down when done" after a long production;
@@ -508,6 +515,11 @@ export type CropMargins = {
 	bottom: number,
 };
 
+export type DataIsoOutcome = {
+	isoPath: string,
+	bytes: number | null,
+};
+
 export type Deinterlace = 
 /**  Only when an interlaced source goes to a progressive disc. */
 "auto" | 
@@ -813,6 +825,11 @@ export type FirstPlay_Serialize = {
 
 export type FolderExport = {
 	folder: string,
+	files: number,
+	bytes: number | null,
+};
+
+export type FolderSize = {
 	files: number,
 	bytes: number | null,
 };

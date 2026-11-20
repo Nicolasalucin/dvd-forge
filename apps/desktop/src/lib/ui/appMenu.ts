@@ -153,6 +153,7 @@ async function build(): Promise<void> {
       await item("history", t("Historial de trabajos…"), () => ui.open("history")),
       await separator(),
       // Where the guide and the tour point people to.
+      await item("data-disc", t("Disco de datos…"), () => ui.open("dataDisc")),
       await item("join", t("Unir vídeos…"), () => ui.open("join"), undefined, hasProject),
       await item("cover", t("Carátula y etiqueta…"), () => ui.open("cover"), undefined, hasProject),
       await item("inspect", t("Inspeccionar disco…"), () => ui.open("inspector"), undefined, hasProject),

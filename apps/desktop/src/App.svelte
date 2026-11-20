@@ -35,6 +35,7 @@
     about: () => import("./lib/components/AboutDialog.svelte"),
     slideshow: () => import("./lib/components/SlideshowDialog.svelte"),
     join: () => import("./lib/components/JoinDialog.svelte"),
+    dataDisc: () => import("./lib/components/DataDiscDialog.svelte"),
     cover: () => import("./lib/components/CoverDialog.svelte"),
     inspector: () => import("./lib/components/DiscInspector.svelte"),
   };
@@ -293,6 +294,19 @@
     <Lazy loader={screens.cover} props={{ onclose: () => (ui.cover = false) }} />
   {/if}
 
+  {#if ui.dataDisc}
+    <Lazy
+      loader={screens.dataDisc}
+      props={{
+        onclose: () => (ui.dataDisc = false),
+        onburn: (isoPath: string) => {
+          ui.dataDisc = false;
+          ui.burnIso = isoPath;
+          projectStore.productionOpen = true;
+        },
+      }}
+    />
+  {/if}
   {#if ui.join}
     <Lazy loader={screens.join} props={{ onclose: () => (ui.join = false) }} />
   {/if}

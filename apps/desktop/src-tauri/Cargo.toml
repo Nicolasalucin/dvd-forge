@@ -35,6 +35,7 @@ kinodisc-project = { path = "../../../crates/kinodisc-project" }
 kinodisc-render = { path = "../../../crates/kinodisc-render" }
 kinodisc-store = { path = "../../../crates/kinodisc-store" }
 kinodisc-toolchain = { path = "../../../crates/kinodisc-toolchain" }
+kinodisc-iso = { path = "../../../crates/kinodisc-iso" }
 kinodisc-verify = { path = "../../../crates/kinodisc-verify" }
 fontdb.workspace = true
 serde.workspace = true

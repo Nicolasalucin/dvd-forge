@@ -251,6 +251,12 @@
     // Always recomputed: menus may have changed since the last plan (a
     // deleted button, say).
     if (projectStore.project?.episodes.length && !projectStore.rendering) void projectStore.calculatePlan();
+    // A ready image handed over (data disc): straight to "Existing ISO".
+    if (ui.burnIso) {
+      mode = "existing";
+      existingIso = ui.burnIso;
+      ui.burnIso = null;
+    }
     // The dialog opens clean: an earlier result or error is in the job
     // history (Disc › Job history…), not shown again here.
     if (!projectStore.rendering && !projectStore.burning) {

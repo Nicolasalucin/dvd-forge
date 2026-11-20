@@ -410,6 +410,92 @@ impl BdmvIsoBuilder {
     }
 }
 
+/// Result of [`build_data_iso`].
+#[derive(Debug, Clone)]
+pub struct DataIsoReport {
+    pub iso_path: PathBuf,
+    pub size_bytes: u64,
+}
+
+/// Builds a plain data image (UDF 1.02, read by Windows, macOS and Linux)
+/// with the contents of `source_dir` at the root of the disc. Used for
+/// "Data disc": photos, documents or any folder, not a video disc.
+///
+/// The image must not be written inside `source_dir` (it would include
+/// itself). Symbolic links are not followed out of the folder by the tree
+/// source; nothing is executed.
+pub async fn build_data_iso(
+    source_dir: &Path,
+    iso_path: &Path,
+    label: &str,
+    cancel: Option<Arc<AtomicBool>>,
+) -> Result<DataIsoReport, IsoError> {
+    if !source_dir.is_dir() {
+        return Err(IsoError::MissingSource(source_dir.display().to_string()));
+    }
+    if label.trim().is_empty() || !label.is_ascii() {
+        return Err(IsoError::InvalidLabel(label.to_string()));
+    }
+    let directory = iso_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    std::fs::create_dir_all(&directory)?;
+    let inside = match (
+        std::fs::canonicalize(source_dir),
+        std::fs::canonicalize(&directory),
+    ) {
+        (Ok(source), Ok(output)) => output.starts_with(source),
+        _ => false,
+    };
+    if inside {
+        return Err(IsoError::MissingSource(format!(
+            "la imagen no puede guardarse dentro de la carpeta que se graba: {}",
+            directory.display()
+        )));
+    }
+    // UDF dstring<32>: at most 30 characters (see BdmvIsoBuilder).
+    let label: String = label.chars().take(30).collect();
+    let source = source_dir.to_path_buf();
+    let staged = tokio::task::spawn_blocking(move || {
+        let options = libmkiso::UdfOptions {
+            label,
+            compute_digest: false,
+            ..libmkiso::UdfOptions::default()
+        };
+        let checkpoint = move || {
+            if cancel
+                .as_ref()
+                .is_some_and(|flag| flag.load(Ordering::Relaxed))
+            {
+                Err(anyhow::anyhow!("creación del disco de datos cancelada"))
+            } else {
+                Ok(())
+            }
+        };
+        let tree = libmkiso::tree_source::HostTreeSource::new(&source)?;
+        let max_bytes = usize::try_from(options.max_metadata_bytes).unwrap_or(usize::MAX);
+        libmkiso::UdfImage::from_tree_source(&tree, options.max_entries, max_bytes)
+            .and_then(|image| image.stage_with_cancel(&directory, &options, checkpoint))
+            .map(|(path, _digest)| path)
+            .map_err(|error| IsoError::BdmvAuthoring(error.to_string()))
+    })
+    .await
+    .map_err(|error| IsoError::BdmvAuthoring(format!("tarea UDF abortada: {error}")))??;
+    let size_bytes = std::fs::metadata(&staged)?.len();
+    if size_bytes == 0 {
+        return Err(IsoError::EmptyIso);
+    }
+    staged
+        .persist(iso_path)
+        .map_err(|error| IsoError::Io(error.error))?;
+    Ok(DataIsoReport {
+        iso_path: iso_path.to_path_buf(),
+        size_bytes,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -424,6 +510,44 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         root
+    }
+
+    #[tokio::test]
+    async fn data_iso_holds_the_folder_and_refuses_to_include_itself() {
+        let root = test_root("data");
+        let source = root.join("fotos");
+        std::fs::create_dir_all(source.join("2026/verano")).unwrap();
+        std::fs::write(source.join("leeme.txt"), b"hola").unwrap();
+        std::fs::write(source.join("2026/verano/IMG_0001.jpg"), vec![7u8; 5000]).unwrap();
+        let iso = root.join("out/FOTOS.iso");
+        let report = build_data_iso(&source, &iso, "FOTOS", None).await.unwrap();
+        assert!(iso.is_file());
+        assert_eq!(report.size_bytes, std::fs::metadata(&iso).unwrap().len());
+        // Read it back with the independent reader.
+        let image = std::fs::read(&iso).unwrap();
+        let reader = libmkiso::UdfReader::open(&image, libmkiso::UdfLimits::default()).unwrap();
+        let names: Vec<String> = reader
+            .entries()
+            .iter()
+            .map(|entry| entry.name.clone())
+            .collect();
+        assert!(
+            names.iter().any(|name| name.ends_with("leeme.txt")),
+            "{names:?}"
+        );
+        assert!(
+            names.iter().any(|name| name.ends_with("IMG_0001.jpg")),
+            "{names:?}"
+        );
+        // An image inside the folder it burns would contain itself.
+        let inside = source.join("copia.iso");
+        assert!(build_data_iso(&source, &inside, "FOTOS", None)
+            .await
+            .is_err());
+        assert!(build_data_iso(&root.join("no-existe"), &iso, "X", None)
+            .await
+            .is_err());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     fn part_files(root: &Path) -> Vec<PathBuf> {
