@@ -32,13 +32,19 @@ se desactiva en **Ayuda › Buscar actualizaciones al iniciar**.
 
 Después, el **botón del disco** a la derecha de las pestañas (por ejemplo
 `DVD-5 · PAL · 16:9`) abre los ajustes: formato, capacidad (DVD-5/9,
-BD-25/50), sistema de TV, pantalla, región y reproductor de destino.
+BD-25/50), sistema de TV, pantalla, región, reproductor de destino y
+**Etiqueta del disco** (el nombre que muestra la computadora al insertar el
+disco: letras sin acentos, números y `_`). La etiqueta sigue al nombre del
+proyecto cuando lo cambias.
 
 ## 3. Añadir vídeos
 
 **Importar vídeos…** en el proyecto vacío, **Importar** en la barra (Ctrl+I) o
-arrastra los archivos a la ventana. Cada vídeo es un episodio en la tira
-**Episodios** de abajo; arrastra los fotogramas para cambiar el orden.
+arrastra los archivos a la ventana. Cada vídeo se convierte solo en un
+episodio en la tira **Episodios** de abajo; arrastra los fotogramas para
+cambiar el orden. Los archivos de subtítulos guardados junto a un vídeo (por
+ejemplo `nombre.es.srt`) se le añaden con su idioma. Elegir otra vez el mismo
+archivo no lo duplica.
 
 En **Medios** (izquierda) cada archivo tiene **Añadir**; el botón **⋯** ofrece
 los demás usos (miniatura de botón, fondo del menú, fondo animado, música).
@@ -90,8 +96,8 @@ como episodio.
 
 ### Importar un disco existente
 
-**Disco** en la barra abre el inspector: abre un ISO o una carpeta
-VIDEO_TS/BDMV para ver títulos, capítulos y pistas, e **Importar como
+**Disco** en la barra (o **Disco › Inspeccionar disco…**) abre el inspector:
+abre un ISO o una carpeta VIDEO_TS/BDMV para ver títulos, capítulos y pistas, e **Importar como
 episodios** si no está cifrado. Los discos cifrados (comerciales) se pueden
 ver pero no importar.
 
@@ -115,12 +121,23 @@ En **Menú**:
   (a qué botón lleva cada flecha).
 - **Fondo** y **Música** en la barra del menú; *Normal / Resaltado /
   Selección* muestran cómo se ven los botones al moverse con el mando.
+- **Reproducir solo** en la barra del menú (menú principal de un DVD-Video):
+  si nadie elige nada cuando el menú termina, el disco empieza a reproducir
+  todo. Sin esta opción el menú espera. En Blu-ray y AVCHD el menú siempre
+  espera hasta que elijas.
 
 ## 5. Audio y subtítulos
 
 En **Audio y subtítulos** elige el idioma, formato y bitrate de cada pista,
 marca la pista por defecto y corrige desfases (±10 s). Añade subtítulos desde
 archivos `.srt`, `.ass`, `.vtt` o `.sup`; el estilo se ajusta por pista.
+
+**Volumen parejo en todo el disco** (una casilla) iguala el volumen de todos
+los episodios, para no subir y bajar el control entre un vídeo y el siguiente.
+
+El disco también puede llevar un **menú de audio y subtítulos**: una página de
+Ajustes generada donde quien mira elige el idioma del audio y los subtítulos
+con el mando.
 
 ## 6. Probar el disco
 
@@ -136,6 +153,13 @@ Menú, Título y Volver funcionan como en un reproductor real, incluidos
   Kodi), **ISO + grabar** o **ISO existente**.
 - **Discos:** un solo disco, varios discos (llenando cada uno) o uno por
   episodio. Los discos divididos muestran `1 / 3`, `2 / 3`… en el menú.
+- **Copias** (al grabar): elige cuántas copias quieres. Después de cada una
+  Kinodisc pide el siguiente disco virgen; insértalo y pulsa **Continuar**.
+
+En la carpeta de salida queda solo la imagen, con el nombre del proyecto
+(`Boda.iso`, `Serie - Disc 2.iso`). Los archivos de trabajo van a una carpeta
+temporal que se borra cuando la producción termina, falla o se cancela.
+Kinodisc recuerda la carpeta de salida para la próxima vez.
 
 El verificador estructural revisa cada imagen antes de permitir grabarla.
 
@@ -149,6 +173,15 @@ Kinodisc suena y parpadea en la barra de tareas al terminar.
 Blu-ray 262×148 mm, con lomo) y la etiqueta redonda del disco (118 mm, centro
 en blanco) con los colores, la letra y las miniaturas del menú. Edita los
 textos y pulsa **Guardar PNG** (300 ppp; imprímelo al 100 %) o **Imprimir**.
+
+### Disco de datos
+
+**Disco › Disco de datos…** graba cualquier carpeta (fotos, documentos, los
+archivos originales) en un CD, DVD o Blu-ray que se abre en la computadora. No
+es un disco de vídeo para la tele. Elige la carpeta: Kinodisc muestra cuántos
+archivos tiene, su tamaño y en qué disco entra. Escribe la etiqueta del disco,
+elige la carpeta de salida y pulsa **Crear imagen del disco**; después
+**Grabar en un disco…** graba la imagen.
 
 ### Si la producción se corta a la mitad
 

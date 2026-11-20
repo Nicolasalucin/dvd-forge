@@ -32,13 +32,19 @@ off in **Help › Check for updates at start-up**.
 
 After creating it, the **disc button** at the right of the tabs (for example
 `DVD-5 · PAL · 16:9`) opens the disc settings: format, capacity (DVD-5/9,
-BD-25/50), TV system, screen, region and target player.
+BD-25/50), TV system, screen, region, target player and **Disc label** (the
+name a computer shows when the disc is inserted: letters without accents,
+digits and `_`). The label follows the project name when you rename the
+project.
 
 ## 3. Add videos
 
 **Import videos…** in the empty project, **Import** in the toolbar (Ctrl+I),
-or drag the files onto the window. Each video becomes an episode in the
-**Episodes** strip at the bottom; drag the frames to change the order.
+or drag the files onto the window. Each video becomes an episode
+automatically in the **Episodes** strip at the bottom; drag the frames to
+change the order. Subtitle files saved next to a video (for example
+`name.es.srt`) are added to it with their language. Picking the same file
+again does not add a duplicate.
 
 In **Media** (left) each file has **Add**; the **⋯** button offers the other
 uses (button thumbnail, menu background, animated background, menu music).
@@ -88,7 +94,8 @@ added as an episode.
 
 ### Import an existing disc
 
-**Disc** in the toolbar opens the inspector: open an ISO or a VIDEO_TS/BDMV
+**Disc** in the toolbar (or **Disc › Inspect disc…**) opens the inspector:
+open an ISO or a VIDEO_TS/BDMV
 folder to see its titles, chapters and tracks, and **Import as episodes** if it
 is not encrypted. Encrypted (commercial) discs can be viewed but not imported.
 
@@ -112,12 +119,23 @@ In **Menu**:
   reaches).
 - **Background** and **Music** in the menu toolbar; *Normal / Highlight /
   Selection* show how buttons look when the remote moves over them.
+- **Auto-play** in the menu toolbar (main menu of a DVD-Video): when nobody
+  chooses anything by the time the menu ends, the disc starts playing
+  everything. Without it the menu waits. On Blu-ray and AVCHD the menu always
+  waits until you choose.
 
 ## 5. Audio and subtitles
 
 In **Audio and subtitles** choose each track's language, format and bitrate,
 mark the default track and fix delays (±10 s). Add subtitles from `.srt`,
 `.ass`, `.vtt` or `.sup` files; their style is set per track.
+
+**Even volume across the disc** (one checkbox) levels the volume of every
+episode, so you don't reach for the remote between one video and the next.
+
+The disc can also carry an **audio and subtitles menu**: a generated Settings
+page where the viewer picks the audio language and the subtitles with the
+remote.
 
 ## 6. Try the disc
 
@@ -132,6 +150,13 @@ Title and Back behave as on a real player, including Play All and chapters.
   Kodi), **ISO + burn**, or **Existing ISO**.
 - **Discs:** a single disc, several discs (each filled up) or one disc per
   episode. Split discs show `1 / 3`, `2 / 3`… on their menu.
+- **Copies** (when burning): choose how many copies you want. After each one
+  Kinodisc asks for the next blank disc; insert it and press **Continue**.
+
+The output folder ends up with only the image, named after the project
+(`Boda.iso`, `Serie - Disc 2.iso`). The work files go to a temporary folder
+that is removed when the production ends, fails or is cancelled. Kinodisc
+remembers the output folder for the next time.
 
 Every image is checked by the structural verifier before it can be burned.
 
@@ -145,6 +170,14 @@ and flashes in the taskbar when it finishes.
 262×148 mm, with spine) and the round disc label (118 mm, blank centre) with
 your menu's colours, font and thumbnails. Edit the texts, then **Save PNG**
 (300 dpi; print at 100 %) or **Print**.
+
+### Data disc
+
+**Disc › Data disc…** burns any folder (photos, documents, the original
+files) to a CD, DVD or Blu-ray that opens on a computer. It is not a video
+disc for the TV. Choose the folder: Kinodisc shows how many files it has, its
+size and which disc it fits. Type a disc label, choose the output folder and
+press **Create disc image**; then **Burn to a disc…** burns the image.
 
 ### If production stops halfway
 

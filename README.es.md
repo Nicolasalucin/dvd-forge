@@ -31,6 +31,23 @@ discos que se reproducen en el reproductor del living: menús con miniaturas,
 capítulos, varias pistas de audio y subtítulos, «reproducir todo», menús de
 escenas… el disco completo, revisado antes de grabarlo.
 
+## Novedades de la 1.2
+
+- **Reproducir solo**: un botón en el menú principal del DVD hace que el disco
+  empiece a reproducir todo si nadie elige nada cuando el menú termina.
+- **Volumen parejo en todo el disco**: una casilla en Audio y subtítulos
+  iguala el volumen de todos los episodios.
+- **Disco de datos**: **Disco › Disco de datos…** graba cualquier carpeta
+  (fotos, documentos, los archivos originales) en un CD, DVD o Blu-ray que se
+  abre en la computadora, y te dice en qué disco entra.
+- **Varias copias seguidas**: elige cuántas copias grabar; después de cada una
+  la app pide el siguiente disco virgen.
+- **Menú de audio y subtítulos en el disco**: una página de Ajustes generada
+  permite elegir el idioma del audio y los subtítulos con el mando.
+- Campo **Etiqueta del disco** en los ajustes del disco.
+- **Una larga lista de arreglos** encontrados en pruebas completas de la app
+  hechas por QA independiente (ver el [registro de cambios](CHANGELOG.md)).
+
 ## Novedades de la 1.1
 
 - **Arreglar el vídeo**: girar y espejar vídeos del celular, recortar bordes

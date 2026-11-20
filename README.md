@@ -31,6 +31,23 @@ discs that play on a living-room player: menus with thumbnails, chapters,
 several audio and subtitle tracks, play all, scene selection — the whole disc,
 checked before it is burned.
 
+## What's new in 1.2
+
+- **Auto-play**: a toggle on the DVD main menu starts playing everything when
+  nobody chooses anything by the time the menu ends.
+- **Even volume across the disc**: one checkbox in Audio and subtitles levels
+  the volume of every episode.
+- **Data disc**: **Disc › Data disc…** burns any folder (photos, documents,
+  the original files) to a CD, DVD or Blu-ray that opens on a computer, and
+  tells you which disc the folder fits.
+- **Several copies in a row**: choose how many copies to burn; after each one
+  the app asks for the next blank disc.
+- **Audio and subtitles menu on the disc**: a generated Settings page lets the
+  viewer pick the audio language and the subtitles with the remote.
+- **Disc label** field in the disc settings.
+- **A long list of fixes** found by independent QA passes over the whole app
+  (see the [changelog](CHANGELOG.md)).
+
 ## What's new in 1.1
 
 - **Fix the video**: rotate and mirror phone videos, crop black borders

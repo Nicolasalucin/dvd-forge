@@ -334,6 +334,29 @@ Smart Render Cache v2:
   `KINODISC_CACHE_DIR` and `WEBVIEW2_USER_DATA_FOLDER`, so they never touch
   the user's projects, caches or browser storage.
 
+### 18. Kinodisc 1.2 additions
+
+- **Auto-play** (`MenuTiming.auto_play`, serde default): root menu only,
+  DVD-Video only. The root VMGM PGC `<post>` becomes the Play All command.
+- **Even volume** is `AudioMastering.loudness` on every track
+  (`projectStore.setEvenVolume`); a levelled track is never passed through.
+- **Data disc**: `kinodisc-iso::build_data_iso` writes UDF 1.02 from a host
+  tree and refuses an output inside the source. Commands:
+  `data_folder_size`, `data_iso_create`, `data_iso_cancel`. Nothing in the
+  folder is ever executed.
+- **AVCHD/Blu-ray audio layout** comes from the episode with the most tracks;
+  soundless episodes get silent tracks (`AvchdAudioConfig.silent`;
+  `AudioEncodeConfig.silent` on DVD). `Project::avchd_subtitle_layout` is the
+  single rule for HD subtitles and is part of the episode cache profile
+  (`"pgs"`/`"nopgs"`).
+- **Interlaced and PsF HD** never use a hardware encoder.
+- **Production output**: `render_start` works in
+  `<output>/.kinodisc-work/<job>` and publishes only the named image (see
+  section 17).
+- **QA before every release** uses the isolated launch (see section 17).
+- `ButtonAction::SetSubtitleTrack { track: Option<u8> }` and the generated
+  "Ajustes" setup menu (`kinodisc-menu`) are being added in this version.
+
 ### 13. Localization
 
 - Spanish is the source language; English must stay complete. Run
