@@ -59,6 +59,16 @@
   let refreshing = $state(false);
   let defaultsReady = $state(false);
   let cancelRequested = $state(false);
+  // Several copies in a row: the same image is burned again once the user
+  // has swapped the disc. `waitingIso` is set while the dialog waits for that.
+  const MAX_COPIES = 20;
+  let copies = $state(1);
+  let seriesTotal = $state(1);
+  let seriesDone = $state(0);
+  let waitingIso = $state<string | null>(null);
+  function clampCopies(value: number): number {
+    return Number.isFinite(value) ? Math.min(MAX_COPIES, Math.max(1, Math.round(value))) : 1;
+  }
   let hardwareEncoding = $state<"auto" | "cpuOnly">("auto");
   // "One disc per episode" and the like are remembered per project.
   type DiscSplit = "single" | "fitToDisc" | "perEpisode";
@@ -74,7 +84,9 @@
   let discSplit = $state<DiscSplit>(rememberedSplit());
   $effect(() => {
     try {
-      localStorage.setItem(splitKey, discSplit);
+      // Only non-default choices are kept (no key per project forever).
+      if (discSplit === "single") localStorage.removeItem(splitKey);
+      else localStorage.setItem(splitKey, discSplit);
     } catch {
       // Not remembered this time.
     }
@@ -137,6 +149,8 @@
   );
   const canStart = $derived(
     !busy &&
+      // Between copies only «Continuar» / «Detener» move things on.
+      !waitingIso &&
       !blocker &&
       (mode === "existing"
         ? existingIso.trim().length > 0
@@ -186,6 +200,9 @@
       producedList = [];
       partIndex = 1;
       partCount = 1;
+      seriesTotal = 1;
+      seriesDone = 0;
+      waitingIso = null;
     }
     shownMode = current;
   });
@@ -311,7 +328,14 @@
 
   /** Runs the production, then announces the end (sound, taskbar, shutdown). */
   async function start() {
+    if (busy || waitingIso) return;
     await run();
+    // Between copies nothing has ended yet: no chime, no shutdown.
+    if (waitingIso) return;
+    await announceEnd();
+  }
+
+  async function announceEnd() {
     const failed =
       cancelRequested || Boolean(projectStore.renderError || projectStore.burnError || localError);
     await announceFinished(!failed);
@@ -320,6 +344,9 @@
   async function run() {
     localError = null;
     cancelRequested = false;
+    seriesTotal = 1;
+    seriesDone = 0;
+    waitingIso = null;
     if (mode === "existing") {
       await burnIso(existingIso.trim());
       return;
@@ -465,15 +492,60 @@
     }
   }
 
+  /** Burns the first copy; the others wait for the user to swap the disc. */
   async function burnIso(isoPath: string) {
+    seriesTotal = clampCopies(copies);
+    seriesDone = 0;
+    waitingIso = null;
+    await burnCopy(isoPath);
+  }
+
+  /** Burns the next copy of the series and, if more remain, waits. */
+  async function burnCopy(isoPath: string) {
+    const last = seriesDone + 1 >= seriesTotal;
+    // The disc comes out between copies even with "eject" off: the next
+    // blank one has to go in.
+    if (!(await burnOnce(isoPath, eject || !last))) return;
+    seriesDone += 1;
+    if (seriesDone < seriesTotal) waitingIso = isoPath;
+  }
+
+  /** «Continuar»: the new disc is in; burn the same image again. */
+  async function continueSeries() {
+    const isoPath = waitingIso;
+    if (!isoPath || busy || refreshing) return;
+    localError = null;
+    cancelRequested = false;
+    // The drive is asked again so the new disc is seen.
+    await refreshDevices();
+    if (waitingIso !== isoPath) return;
+    if (!effectiveDevice) {
+      // Still waiting: the user can reconnect the drive and try again.
+      localError = t("No se detectó ninguna unidad grabable. Conecta una unidad y pulsa «Actualizar».");
+      return;
+    }
+    waitingIso = null;
+    await burnCopy(isoPath);
+    if (!waitingIso) await announceEnd();
+  }
+
+  /** «Detener»: the copies already burned are the result. */
+  function stopSeries() {
+    if (busy) return;
+    waitingIso = null;
+    localError = null;
+  }
+
+  /** Burns one disc; true when it was written. */
+  async function burnOnce(isoPath: string, ejectAfter: boolean): Promise<boolean> {
     localError = null;
     if (!isoPath) {
       localError = t("Elige un archivo ISO.");
-      return;
+      return false;
     }
     if (!effectiveDevice) {
       localError = t("No se detectó ninguna unidad grabable. Conecta una unidad y pulsa «Actualizar».");
-      return;
+      return false;
     }
     projectStore.burnError = null;
     projectStore.burnReport = null;
@@ -483,10 +555,11 @@
     channel.onmessage = (event) => projectStore.applyBurnProgress(event);
     try {
       const report = await unwrap(
-        commands.burnStart(isoPath, effectiveDevice, effectiveSpeed, verify, eject, channel),
+        commands.burnStart(isoPath, effectiveDevice, effectiveSpeed, verify, ejectAfter, channel),
       );
       projectStore.burnReport = report;
       projectStore.lastIso = isoPath;
+      return true;
     } catch (cause) {
       if (cancelRequested) {
         projectStore.burnError = null;
@@ -494,6 +567,7 @@
       } else {
         projectStore.burnError = messageOf(cause);
       }
+      return false;
     } finally {
       projectStore.burning = false;
     }
@@ -589,7 +663,7 @@
           <button
             type="button"
             onclick={() => (mode = item.id)}
-            disabled={busy}
+            disabled={busy || Boolean(waitingIso)}
             aria-pressed={mode === item.id}
             class={`rounded-md border p-3 text-left disabled:opacity-50 ${
               mode === item.id ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700 hover:border-slate-500"
@@ -716,7 +790,7 @@
               {#if projectStore.rendering}
                 {projectStore.renderStage || t("Generando…")}
               {:else if projectStore.burning}
-                {t("Grabando en")} {effectiveDevice || t("la unidad")} · {formatBytes(projectStore.burnProgress?.writtenBytes ?? 0)} {t("de")} {formatBytes(projectStore.burnProgress?.totalBytes ?? 0)}
+                {#if seriesTotal > 1}{t("Copia {index} de {count}", { index: seriesDone + 1, count: seriesTotal })} · {/if}{t("Grabando en")} {effectiveDevice || t("la unidad")} · {formatBytes(projectStore.burnProgress?.writtenBytes ?? 0)} {t("de")} {formatBytes(projectStore.burnProgress?.totalBytes ?? 0)}
               {:else if projectStore.renderSummary}
                 {projectStore.renderSummary}
               {:else}
@@ -727,6 +801,12 @@
               <p class="mt-1 text-[11px] text-emerald-300">
                 {t("Grabación completada")} · {projectStore.burnReport.backend} · {formatDecimal(projectStore.burnReport.elapsedMs / 1000, 1)} s
                 {#if projectStore.burnReport.verified}· {t("verificada")}{/if}
+              </p>
+            {/if}
+            {#if seriesTotal > 1 && !busy && !waitingIso}
+              <!-- The series ended (all copies, «Detener» or an error). -->
+              <p class={`mt-1 text-[11px] ${seriesDone === seriesTotal ? "text-emerald-300" : "text-amber-300"}`}>
+                {t("Copias grabadas: {done} de {total}", { done: seriesDone, total: seriesTotal })}
               </p>
             {/if}
             {#if projectStore.renderVerification}
@@ -830,6 +910,22 @@
                   {/each}
                 </select>
               </label>
+              <label class="ui-label mt-2">
+                <span class="ui-section-title mb-1 block">{t("Copias")}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={MAX_COPIES}
+                  step="1"
+                  class="ui-input w-full tabular-nums"
+                  value={copies}
+                  onchange={(event) => {
+                    copies = clampCopies(event.currentTarget.valueAsNumber);
+                    event.currentTarget.value = String(copies);
+                  }}
+                  disabled={busy || Boolean(waitingIso)}
+                />
+              </label>
               <label class="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
                 <input type="checkbox" bind:checked={verify} disabled={busy} class="ui-check accent-cyan-500" />
                 {t("Verificar por lectura SHA-256")}
@@ -893,6 +989,28 @@
       <p class="border-t border-amber-500/30 bg-amber-500/10 px-5 py-2 text-[12px] text-amber-300" role="status">
         {blocker}
       </p>
+    {/if}
+    {#if waitingIso && !busy}
+      <!-- Between copies: the dialog is idle until the disc is swapped. -->
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 border-t border-cyan-500/30 bg-cyan-500/10 px-5 py-2.5"
+        role="status"
+      >
+        <p class="min-w-0 flex-1 text-[12px] leading-5 text-cyan-200">
+          {t("La copia {done} de {total} está lista. Inserta otro disco virgen y pulsa «Continuar».", {
+            done: seriesDone,
+            total: seriesTotal,
+          })}
+        </p>
+        <div class="flex shrink-0 items-center gap-2">
+          <button type="button" onclick={stopSeries} disabled={refreshing} class="ui-btn ui-btn-sm">
+            {t("Detener")}
+          </button>
+          <button type="button" onclick={continueSeries} disabled={refreshing} class="ui-btn ui-btn-sm ui-btn-primary">
+            {t("Continuar")}
+          </button>
+        </div>
+      </div>
     {/if}
     <footer class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-5 py-3">
       <div class="flex items-center gap-2">

@@ -1,8 +1,17 @@
 # Changelog
 
-## 1.1.3 — 2026-11-19
+## 1.2.0 — 2026-11-19
 
-Fixes from two complete tests of the app by an independent QA pass. The tasks covered phone videos to a DVD, a series with two languages and subtitles, and a camcorder to Blu-ray.
+New disc features, plus the fixes from several complete tests of the app by an independent QA pass. (1.1.3 was never released: its fixes are in this version.)
+
+### Added
+
+- **Auto-play.** A toggle on the main menu makes the DVD start playing everything when nobody chooses anything by the time the menu ends. Before, the menu waited forever.
+- **Even volume across the disc.** One checkbox in Audio and subtitles levels the volume of every episode, so you don't reach for the remote between videos.
+- **Data disc.** Disc › Data disc… burns any folder (photos, documents, the original files) to a CD, DVD or Blu-ray that opens on a computer. It tells you which disc the folder fits.
+- **Several copies in a row.** Choose how many copies to burn; after each one the app asks for the next blank disc.
+- **Audio and subtitles menu on the disc.** A generated Settings page lets the viewer pick the audio language and the subtitles with the remote, as on retail discs.
+- **Disc label field** in the disc settings.
 
 ### Fixed
 
