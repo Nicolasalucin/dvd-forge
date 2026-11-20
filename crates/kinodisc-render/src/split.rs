@@ -219,19 +219,18 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
     // A menu that lost its buttons to other discs and now only leads back
     // (another disc's scene menu keeps just "Back") shows nothing: drop it
     // (never the root) with the buttons that open it, and repeat while that
-    // empties more menus (a scenes index, say).
+    // empties more menus (a scenes index, say). Pages that only link to each
+    // other (Prev/Next) or back to their index are just as dead, so what
+    // counts is whether a menu still leads to something that plays. Menus
+    // the split did not touch are kept as the user made them.
     let root = part.root_menu;
     loop {
+        let useful = useful_menus(&part.menus, root);
         let dead: HashSet<kinodisc_domain::MenuId> = part
             .menus
             .iter()
             .filter(|menu| menu.id != root && emptied.contains(&menu.id))
-            .filter(|menu| {
-                !menu
-                    .buttons
-                    .iter()
-                    .any(|button| leads_somewhere(&button.action, menu.id, root))
-            })
+            .filter(|menu| !useful.contains(&menu.id))
             .map(|menu| menu.id)
             .collect();
         if dead.is_empty() {
@@ -302,18 +301,77 @@ fn subset(project: &Project, keep: &[EpisodeId], index: u16, count: u16) -> Disc
     }
 }
 
-/// True when a button plays something or opens another page (not just the
-/// way back to the root or to its own menu).
-fn leads_somewhere(
-    action: &ButtonAction,
-    own: kinodisc_domain::MenuId,
-    root: kinodisc_domain::MenuId,
-) -> bool {
+/// True when a button does something by itself (plays, jumps or changes a
+/// track) instead of opening another page.
+fn plays(action: &ButtonAction) -> bool {
     match action {
-        ButtonAction::GotoMenu { menu } => *menu != root && *menu != own,
-        ButtonAction::Noop => false,
-        _ => true,
+        ButtonAction::PlayEpisode { .. }
+        | ButtonAction::JumpTitleChapter { .. }
+        | ButtonAction::PlayAll
+        | ButtonAction::SetAudioTrack { .. }
+        | ButtonAction::SetSubtitleTrack { .. }
+        | ButtonAction::PlayFirstPlay
+        | ButtonAction::Resume => true,
+        ButtonAction::GotoMenu { .. } | ButtonAction::Noop => false,
     }
+}
+
+/// Non-root menus worth keeping: those with a button that plays, and those
+/// that open such a menu. Computed as a fixpoint, so pages that only link to
+/// each other never count. The way back does not count either: a link to a
+/// menu nearer the root (a scene page's "Back" to its index) is not content,
+/// or every page under a useful index would be useful through it.
+fn useful_menus(
+    menus: &[kinodisc_domain::Menu],
+    root: kinodisc_domain::MenuId,
+) -> HashSet<kinodisc_domain::MenuId> {
+    use std::collections::hash_map::Entry;
+    // Steps from the root following menu links (absent: not reachable).
+    let mut depth: HashMap<kinodisc_domain::MenuId, usize> = HashMap::from([(root, 0)]);
+    let mut queue = std::collections::VecDeque::from([root]);
+    while let Some(id) = queue.pop_front() {
+        let next = depth[&id] + 1;
+        let Some(menu) = menus.iter().find(|menu| menu.id == id) else {
+            continue;
+        };
+        for button in &menu.buttons {
+            if let ButtonAction::GotoMenu { menu: target } = button.action {
+                if let Entry::Vacant(slot) = depth.entry(target) {
+                    slot.insert(next);
+                    queue.push_back(target);
+                }
+            }
+        }
+    }
+    let depth_of = |id: kinodisc_domain::MenuId| depth.get(&id).copied().unwrap_or(usize::MAX);
+
+    let mut useful: HashSet<kinodisc_domain::MenuId> = menus
+        .iter()
+        .filter(|menu| menu.id != root)
+        .filter(|menu| menu.buttons.iter().any(|button| plays(&button.action)))
+        .map(|menu| menu.id)
+        .collect();
+    loop {
+        let grown: Vec<kinodisc_domain::MenuId> = menus
+            .iter()
+            .filter(|menu| menu.id != root && !useful.contains(&menu.id))
+            .filter(|menu| {
+                menu.buttons.iter().any(|button| {
+                    matches!(button.action, ButtonAction::GotoMenu { menu: target }
+                        if target != menu.id
+                            && target != root
+                            && useful.contains(&target)
+                            && depth_of(target) >= depth_of(menu.id))
+                })
+            })
+            .map(|menu| menu.id)
+            .collect();
+        if grown.is_empty() {
+            break;
+        }
+        useful.extend(grown);
+    }
+    useful
 }
 
 /// Remote-control links that pointed at removed buttons fall back to the
@@ -507,6 +565,92 @@ mod tests {
                     if let ButtonAction::GotoMenu { menu } = button.action {
                         assert!(ids.contains(&menu));
                     }
+                }
+            }
+            assert_eq!(disc.unreachable_episodes().len(), 0);
+        }
+    }
+
+    #[test]
+    fn scene_pages_of_other_episodes_are_dropped_from_each_disc() {
+        use kinodisc_domain::{MenuId, MenuRole};
+        let mut project: Project =
+            serde_json::from_str(include_str!("../../../fixtures/projects/minimal.json")).unwrap();
+        for number in 2..=3u16 {
+            let mut episode = project.episodes[0].clone();
+            episode.id = EpisodeId::new();
+            episode.number = number;
+            episode.title = format!("Ep {number}");
+            project.episodes.push(episode);
+        }
+        for episode in &mut project.episodes {
+            episode.chapters = (0..4)
+                .map(|index| kinodisc_domain::Chapter {
+                    id: kinodisc_domain::ChapterId::new(),
+                    title: String::new(),
+                    at_frame: index * 1_000,
+                    thumbnail: None,
+                })
+                .collect();
+        }
+        let applied = kinodisc_menu::chapters::apply_chapter_menus(&project).unwrap();
+        project.menus = applied.menus;
+        // The episode each scene page belongs to (menu ids survive the split).
+        let owner: HashMap<MenuId, EpisodeId> = project
+            .menus
+            .iter()
+            .filter(|menu| menu.role == MenuRole::ChapterSelect)
+            .filter_map(|menu| {
+                menu.buttons.iter().find_map(|button| match button.action {
+                    ButtonAction::JumpTitleChapter { episode, .. }
+                    | ButtonAction::PlayEpisode { episode } => Some((menu.id, episode)),
+                    _ => None,
+                })
+            })
+            .collect();
+        assert!(owner.len() >= 3);
+
+        let result = split_project(&project, &HashMap::new(), SplitStrategy::PerEpisode).unwrap();
+        assert_eq!(result.parts.len(), 3);
+        for part in &result.parts {
+            let disc = &part.project;
+            let kept = disc.episodes[0].id;
+            let own_pages: HashSet<MenuId> = owner
+                .iter()
+                .filter(|(_, episode)| **episode == kept)
+                .map(|(menu, _)| *menu)
+                .collect();
+            let scene_pages: HashSet<MenuId> = disc
+                .menus
+                .iter()
+                .filter(|menu| menu.role == MenuRole::ChapterSelect)
+                .map(|menu| menu.id)
+                .collect();
+            // QA 1.2: disc 1 kept "Escenas · Ep 2/3" pages with only "Volver"
+            // and the index still opened them.
+            assert_eq!(scene_pages, own_pages, "disc {}", part.index);
+            let ids: HashSet<MenuId> = disc.menus.iter().map(|menu| menu.id).collect();
+            for menu in &disc.menus {
+                assert!(!menu.buttons.is_empty(), "disc {}", part.index);
+                let targets: Vec<MenuId> = menu
+                    .buttons
+                    .iter()
+                    .filter_map(|button| match button.action {
+                        ButtonAction::GotoMenu { menu } => Some(menu),
+                        _ => None,
+                    })
+                    .collect();
+                assert!(targets.iter().all(|target| ids.contains(target)));
+                // Only the scenes index may consist of links alone, and then
+                // it opens this disc's scene pages; no scene page does.
+                if targets.len() == menu.buttons.len() {
+                    assert_ne!(menu.role, MenuRole::ChapterSelect);
+                    assert!(
+                        targets.iter().any(|target| own_pages.contains(target)),
+                        "disc {}: «{}» only leads back",
+                        part.index,
+                        menu.name
+                    );
                 }
             }
             assert_eq!(disc.unreachable_episodes().len(), 0);

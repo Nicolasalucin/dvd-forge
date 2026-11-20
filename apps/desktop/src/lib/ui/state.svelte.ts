@@ -40,6 +40,8 @@ class UiState {
   history = $state(false);
   recent = $state(false);
   dataDisc = $state(false);
+  /** A dialog is working (queue, data disc, join, slideshow): `open` does nothing. */
+  locked = $state(false);
   /** An image to burn, handed to the production dialog (data discs). */
   burnIso = $state<string | null>(null);
   notice = $state<string | null>(null);
@@ -60,6 +62,8 @@ class UiState {
    * is never hidden behind one that was already open.
    */
   open(dialog: DialogName): void {
+    // Closing a dialog that is working would hide a job that keeps running.
+    if (this.locked) return;
     if (!this.anyDialog) {
       const active = document.activeElement;
       this.opener = active instanceof HTMLElement && active !== document.body ? active : null;

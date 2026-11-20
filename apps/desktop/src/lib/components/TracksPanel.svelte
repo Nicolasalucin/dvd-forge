@@ -27,6 +27,10 @@
   );
   const defaultAudio = $derived(episode?.audio.find((track) => track.default) ?? episode?.audio[0]);
   const defaultSubtitle = $derived(episode?.subtitles.find((track) => track.isDefault) ?? null);
+  // "Even volume" is a property of the audio tracks: with none it cannot be on.
+  const hasAudioTracks = $derived(
+    (projectStore.project?.episodes ?? []).some((episode) => episode.audio.length > 0),
+  );
   let audioToAdd = $state("");
 
   const scaleModes: Array<{ id: VideoScaleMode; label: string; hint: string }> = [
@@ -269,7 +273,12 @@
               type="checkbox"
               class="ui-check mt-0.5 accent-cyan-500"
               checked={projectStore.evenVolume}
-              onchange={(event) => projectStore.setEvenVolume(event.currentTarget.checked)}
+              disabled={!hasAudioTracks}
+              onchange={(event) => {
+                projectStore.setEvenVolume(event.currentTarget.checked);
+                // The box shows what the disc really has, not the last click.
+                event.currentTarget.checked = projectStore.evenVolume;
+              }}
             />
             <span>
               {t("Volumen parejo en todo el disco")}

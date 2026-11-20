@@ -71,6 +71,21 @@ pub fn data_folder_size(folder: String) -> Result<FolderSize, String> {
     measure(&folder)
 }
 
+/// What the user reads when the data image could not be made. `cancelled`
+/// is the state of the cancel flag when the build ended.
+fn data_iso_error(error: &kinodisc_iso::IsoError, cancelled: bool) -> String {
+    if cancelled {
+        return "Disco de datos cancelado.".to_string();
+    }
+    match error {
+        kinodisc_iso::IsoError::OutputInsideSource => {
+            "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba."
+                .to_string()
+        }
+        other => format!("No se pudo crear el disco de datos: {other}"),
+    }
+}
+
 /// Writes `<output_dir>/<LABEL>.iso` with the contents of `folder`. The label
 /// is made disc-safe (ASCII capitals, digits and `_`).
 #[tauri::command]
@@ -108,11 +123,12 @@ pub async fn data_iso_create(
         }
         *slot = Some(Arc::clone(&cancel));
     }
-    let result = kinodisc_iso::build_data_iso(&source, &iso_path, &label, Some(cancel)).await;
+    let result =
+        kinodisc_iso::build_data_iso(&source, &iso_path, &label, Some(Arc::clone(&cancel))).await;
     if let Ok(mut slot) = cancel_slot().lock() {
         *slot = None;
     }
-    let report = result.map_err(|error| format!("No se pudo crear el disco de datos: {error}"))?;
+    let report = result.map_err(|error| data_iso_error(&error, cancel.load(Ordering::SeqCst)))?;
     Ok(DataIsoOutcome {
         iso_path: report.iso_path.display().to_string(),
         bytes: report.size_bytes as f64,
@@ -144,5 +160,25 @@ mod tests {
         let size = measure(&root).unwrap();
         assert_eq!((size.files, size.bytes as u64), (2, 105));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn data_iso_errors_read_as_whole_sentences() {
+        use kinodisc_iso::IsoError;
+        assert_eq!(
+            data_iso_error(&IsoError::OutputInsideSource, false),
+            "Elige otra carpeta de salida: la imagen no puede guardarse dentro de la carpeta que se graba."
+        );
+        // A cancelled run says so, whatever the builder reported.
+        for error in [
+            IsoError::BdmvAuthoring("creación del disco de datos cancelada".to_string()),
+            IsoError::OutputInsideSource,
+        ] {
+            assert_eq!(data_iso_error(&error, true), "Disco de datos cancelado.");
+        }
+        assert_eq!(
+            data_iso_error(&IsoError::EmptyIso, false),
+            "No se pudo crear el disco de datos: el ISO está vacío"
+        );
     }
 }

@@ -157,6 +157,17 @@
               await new Promise((resolve) => setTimeout(resolve, 100));
             }
           }
+          if (projectStore.burning) {
+            try {
+              await unwrap(commands.burnCancel());
+            } catch {
+              // Already finished.
+            }
+            // Give the burner a moment to stop and release the drive.
+            for (let waited = 0; waited < 100 && projectStore.burning; waited += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+          }
           if (!(await projectStore.confirmLoseChanges())) return;
           await getCurrentWindow().destroy();
           return;

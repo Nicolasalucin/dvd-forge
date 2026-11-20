@@ -4,9 +4,10 @@
   import { onMount } from "svelte";
   import { commands } from "../api/bindings";
   import { messageOf, unwrap } from "../api/client";
-  import { t } from "../i18n/index.svelte";
+  import { i18n, t } from "../i18n/index.svelte";
   import { volumeLabelFor } from "../stores/project.svelte";
   import Icon from "../ui/Icon.svelte";
+  import { ui } from "../ui/state.svelte";
   import { basename, formatBytes, nativePath } from "../utils/format";
 
   let { onclose, onburn }: { onclose: () => void; onburn: (isoPath: string) => void } = $props();
@@ -20,14 +21,24 @@
     ["BD-50", 50_000_000_000],
   ];
   const OUTPUT_KEY = "kinodisc_output_dir";
+  // What the backend answers when the user stops the image: not a failure.
+  const CANCELLED = "Disco de datos cancelado.";
 
   let folder = $state("");
   let label = $state("");
+  // True while the label is the one made from the folder name: a new folder
+  // replaces it. A label the user typed is kept.
+  let labelAuto = $state(true);
   let outputDir = $state("");
   let size = $state<{ files: number; bytes: number } | null>(null);
   let working = $state(false);
+  // Backend messages are kept as received (Spanish) and translated on screen.
   let error = $state<string | null>(null);
+  let cancelled = $state(false);
   let created = $state<{ isoPath: string; bytes: number } | null>(null);
+
+  /** A backend sentence in the interface language, when there is a translation. */
+  const shown = (message: string) => (i18n.has(message) ? t(message) : message);
 
   // Room for the file system itself: about 1 % plus 2 MB.
   const needed = $derived(size ? size.bytes * 1.01 + 2_000_000 : 0);
@@ -55,14 +66,27 @@
     folder = picked;
     created = null;
     error = null;
+    cancelled = false;
     size = null;
-    if (!label.trim()) label = volumeLabelFor(basename(picked));
+    if (labelAuto || !label.trim()) {
+      label = volumeLabelFor(basename(picked));
+      labelAuto = true;
+    }
     try {
       const measured = await unwrap(commands.dataFolderSize(picked));
+      // Another folder was picked while this one was being measured.
+      if (folder !== picked) return;
       size = { files: measured.files, bytes: measured.bytes ?? 0 };
     } catch (cause) {
+      if (folder !== picked) return;
       error = messageOf(cause);
     }
+  }
+
+  function labelChanged() {
+    // An emptied label goes back to the one made from the folder name.
+    labelAuto = !label.trim();
+    label = volumeLabelFor(label || basename(folder));
   }
 
   async function pickOutput() {
@@ -73,7 +97,9 @@
   async function create() {
     if (!canCreate) return;
     working = true;
+    ui.locked = true;
     error = null;
+    cancelled = false;
     created = null;
     try {
       const target = nativePath(outputDir.trim());
@@ -85,9 +111,12 @@
         // Not remembered this time.
       }
     } catch (cause) {
-      error = messageOf(cause);
+      const message = messageOf(cause);
+      if (message === CANCELLED) cancelled = true;
+      else error = message;
     } finally {
       working = false;
+      ui.locked = false;
     }
   }
 
@@ -101,7 +130,7 @@
 </script>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-  <button type="button" class="ui-backdrop" onclick={cancel} aria-label={t("Cerrar")}></button>
+  <button type="button" class="ui-backdrop" onclick={() => !working && onclose()} aria-label={t("Cerrar")}></button>
   <div class="ui-dialog max-w-xl" role="dialog" aria-modal="true" aria-labelledby="data-disc-title">
     <header class="flex items-start gap-3 border-b border-slate-800 px-5 py-4">
       <Icon name="folder" size={20} class="mt-0.5 text-cyan-400" />
@@ -135,7 +164,7 @@
           class="ui-input w-full font-mono uppercase"
           maxlength="30"
           bind:value={label}
-          onchange={() => (label = volumeLabelFor(label || basename(folder)))}
+          onchange={labelChanged}
           disabled={working}
         />
       </label>
@@ -167,8 +196,11 @@
           </div>
         </div>
       {/if}
+      {#if cancelled}
+        <p class="rounded-md bg-slate-800 px-3 py-2 text-[12px] text-slate-300" role="status">{t("Disco de datos cancelado.")}</p>
+      {/if}
       {#if error}
-        <p class="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200" role="alert">{error}</p>
+        <p class="rounded-md bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200" role="alert">{shown(error)}</p>
       {/if}
     </div>
 

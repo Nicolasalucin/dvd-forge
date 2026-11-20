@@ -432,8 +432,11 @@
             projectStore.renderStage = prefix + projectStore.renderStage;
           }
         };
+        // A disc folder only needs the image for a moment: it gets a temporary
+        // name, so an "<name>.iso" made earlier is neither replaced nor removed.
+        const isoName = mode === "folder" ? `${partName}.kinodisc-tmp.iso` : `${partName}.iso`;
         const outcome = await unwrap(
-          commands.renderStart(part.project, root, hardwareEncoding, `${partName}.iso`, channel),
+          commands.renderStart(part.project, root, hardwareEncoding, isoName, channel),
         );
         elapsedMs += outcome.elapsedMs;
         projectStore.renderVerification = outcome.verification ?? null;
@@ -757,7 +760,7 @@
                   ? t("Preparando carpeta predeterminada…")
                   : mode === "folder"
                     ? t("La carpeta del disco se creará aquí con el nombre del proyecto.")
-                    : discSplit !== "single"
+                    : discSplit !== "single" && mode === "iso"
                       ? t("Los ISO se escribirán aquí con el nombre del proyecto y el número de disco.")
                       : t("El ISO se escribirá aquí con el nombre del proyecto.")}
               </p>

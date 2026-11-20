@@ -25,6 +25,10 @@ pub enum IsoError {
     InvalidLabel(String),
     #[error("no existe {0}")]
     MissingSource(String),
+    /// A data image whose output folder is the burned folder or one inside
+    /// it (the image would contain itself).
+    #[error("la imagen no puede guardarse dentro de la carpeta que se graba")]
+    OutputInsideSource,
     #[error("el generador de ISO falló con código {code}: {stderr}")]
     XorrisoFailed { code: i32, stderr: String },
     #[error("el ISO no contiene {0}")]
@@ -450,10 +454,7 @@ pub async fn build_data_iso(
         _ => false,
     };
     if inside {
-        return Err(IsoError::MissingSource(format!(
-            "la imagen no puede guardarse dentro de la carpeta que se graba: {}",
-            directory.display()
-        )));
+        return Err(IsoError::OutputInsideSource);
     }
     // UDF dstring<32>: at most 30 characters (see BdmvIsoBuilder).
     let label: String = label.chars().take(30).collect();
@@ -541,12 +542,24 @@ mod tests {
         );
         // An image inside the folder it burns would contain itself.
         let inside = source.join("copia.iso");
-        assert!(build_data_iso(&source, &inside, "FOTOS", None)
+        let error = build_data_iso(&source, &inside, "FOTOS", None)
             .await
-            .is_err());
-        assert!(build_data_iso(&root.join("no-existe"), &iso, "X", None)
-            .await
-            .is_err());
+            .unwrap_err();
+        assert!(matches!(error, IsoError::OutputInsideSource), "{error}");
+        assert_eq!(
+            error.to_string(),
+            "la imagen no puede guardarse dentro de la carpeta que se graba"
+        );
+        assert!(!inside.exists());
+        let deeper = source.join("2026/copia.iso");
+        assert!(matches!(
+            build_data_iso(&source, &deeper, "FOTOS", None).await,
+            Err(IsoError::OutputInsideSource)
+        ));
+        assert!(matches!(
+            build_data_iso(&root.join("no-existe"), &iso, "X", None).await,
+            Err(IsoError::MissingSource(_))
+        ));
         let _ = std::fs::remove_dir_all(&root);
     }
 

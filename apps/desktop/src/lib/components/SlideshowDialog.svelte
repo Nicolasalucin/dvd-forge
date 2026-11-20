@@ -2,6 +2,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { t } from "../i18n/index.svelte";
   import { projectStore } from "../stores/project.svelte";
+  import { ui } from "../ui/state.svelte";
   import { basename, parseDecimal } from "../utils/format";
 
   let { onclose }: { onclose: () => void } = $props();
@@ -61,15 +62,21 @@
 
   async function create() {
     working = true;
+    ui.locked = true;
     error = null;
-    const ok = await projectStore.createSlideshow({
-      images,
-      secondsPerImage: seconds,
-      crossfadeSeconds: fade,
-      music,
-      title: title.trim() || t("Presentación de fotos"),
-    });
-    working = false;
+    let ok = false;
+    try {
+      ok = await projectStore.createSlideshow({
+        images,
+        secondsPerImage: seconds,
+        crossfadeSeconds: fade,
+        music,
+        title: title.trim() || t("Presentación de fotos"),
+      });
+    } finally {
+      working = false;
+      ui.locked = false;
+    }
     if (ok) onclose();
     else error = projectStore.error;
   }

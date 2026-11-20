@@ -122,7 +122,9 @@ pub async fn render_export_folder(
     let destination = PathBuf::from(&output_dir).join(name);
     let target = destination.clone();
     let report = tokio::task::spawn_blocking(move || {
+        remove_disc_folders(&target).map_err(|error| error.to_string())?;
         kinodisc_verify::extract::extract_iso(&iso, &target, &|| false)
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| error.to_string())?
@@ -146,6 +148,21 @@ pub async fn render_export_folder(
     })
 }
 
+/// Removes the disc trees of an earlier export from `destination`, so files
+/// of another disc (more titles, the other format) do not stay next to the
+/// new ones. Only `VIDEO_TS` and `BDMV`, and only real directories: a file
+/// or a link with one of those names, and everything else, is left alone.
+fn remove_disc_folders(destination: &Path) -> std::io::Result<()> {
+    for name in ["VIDEO_TS", "BDMV"] {
+        let folder = destination.join(name);
+        let is_dir = std::fs::symlink_metadata(&folder).is_ok_and(|metadata| metadata.is_dir());
+        if is_dir {
+            std::fs::remove_dir_all(&folder)?;
+        }
+    }
+    Ok(())
+}
+
 /// Work files of one render (encoded episodes, menus, authoring XML, the
 /// disc tree) live in `<output>/.kinodisc-work/<job>`, on the same drive as
 /// the result, and are removed when the render ends. Only the finished image
@@ -161,7 +178,13 @@ fn remove_work_dir(output: &Path, work: &Path) {
     let _ = std::fs::remove_dir(output.join(WORK_DIR));
 }
 
-fn remove_stale_work(output: &Path) {
+/// Removes leftover work folders of earlier jobs; never the one of `current`
+/// (the render that is starting).
+fn remove_stale_work(output: &Path, current: JobId) {
+    remove_work_older_than(output, current, STALE_WORK);
+}
+
+fn remove_work_older_than(output: &Path, current: JobId, limit: Duration) {
     let Ok(entries) = std::fs::read_dir(output.join(WORK_DIR)) else {
         return;
     };
@@ -171,11 +194,12 @@ fn remove_stale_work(output: &Path) {
             .and_then(|metadata| metadata.modified())
             .ok()
             .and_then(|modified| modified.elapsed().ok())
-            .is_some_and(|age| age > STALE_WORK);
+            .is_some_and(|age| age > limit);
         let ours = entry
             .file_name()
             .to_str()
-            .is_some_and(|name| name.parse::<JobId>().is_ok());
+            .and_then(|name| name.parse::<JobId>().ok())
+            .is_some_and(|job| job != current);
         if stale && ours && entry.path().is_dir() {
             let _ = std::fs::remove_dir_all(entry.path());
         }
@@ -194,14 +218,37 @@ fn final_iso_name(name: Option<&str>) -> PathBuf {
 }
 
 /// Moves the image out of the work folder, replacing an earlier image with
-/// the same name (producing the project again).
+/// the same name (producing the project again). When that image cannot be
+/// replaced (open in a player, mounted), the new one is kept under the first
+/// free name `<stem> (2).iso` … `<stem> (9).iso` instead of being lost with
+/// the work folder; the returned path is where it ended up.
 fn publish_iso(work_iso: &Path, output: &Path, name: &Path) -> std::io::Result<PathBuf> {
-    let target = output.join(name);
-    if target.is_file() {
-        std::fs::remove_file(&target)?;
+    let replace = |target: PathBuf| -> std::io::Result<PathBuf> {
+        if target.is_file() {
+            std::fs::remove_file(&target)?;
+        }
+        std::fs::rename(work_iso, &target)?;
+        Ok(target)
+    };
+    let error = match replace(output.join(name)) {
+        Ok(path) => return Ok(path),
+        Err(error) => error,
+    };
+    let stem = name
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("disc");
+    for number in 2..=9 {
+        let target = output.join(format!("{stem} ({number}).iso"));
+        // Free names only: never replace an image the user did not name.
+        if target.exists() {
+            continue;
+        }
+        if std::fs::rename(work_iso, &target).is_ok() {
+            return Ok(target);
+        }
     }
-    std::fs::rename(work_iso, &target)?;
-    Ok(target)
+    Err(error)
 }
 
 #[tauri::command]
@@ -219,7 +266,6 @@ pub async fn render_start(
         .ok_or_else(|| "No se pudo determinar el directorio del proyecto.".to_string())?;
     let output_root = PathBuf::from(&output_dir);
     let iso_name = final_iso_name(iso_name.as_deref());
-    remove_stale_work(&output_root);
     let work = output_root.join(WORK_DIR).join(job_id.to_string());
     let output = work.clone();
     let composited_backgrounds =
@@ -241,6 +287,9 @@ pub async fn render_start(
         });
     }
     let mut guard = RenderGuard::new(job_id, Arc::clone(&cancel));
+    // Only once the slot is ours: a call refused above must not touch the
+    // folder of the render that is running.
+    remove_stale_work(&output_root, job_id);
     let started = Instant::now();
     let job_name = project.name.clone();
     let disc_kind = project.disc.capacity.label().to_string();
@@ -490,6 +539,75 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(left, vec![std::ffi::OsString::from("Mi DVD.iso")]);
+
+        // The earlier image cannot be replaced (a folder stands in for an
+        // image that is open or mounted): the new one is kept under the
+        // first free name instead of being removed with the work folder.
+        let work = output.join(WORK_DIR).join(JobId::new().to_string());
+        std::fs::create_dir_all(&work).unwrap();
+        std::fs::write(work.join("disc.iso"), b"new").unwrap();
+        std::fs::create_dir(output.join("Ocupado.iso")).unwrap();
+        std::fs::write(output.join("Ocupado (2).iso"), b"other").unwrap();
+        let published =
+            publish_iso(&work.join("disc.iso"), &output, Path::new("Ocupado.iso")).unwrap();
+        assert_eq!(published, output.join("Ocupado (3).iso"));
+        assert_eq!(std::fs::read(&published).unwrap(), b"new");
+        assert_eq!(
+            std::fs::read(output.join("Ocupado (2).iso")).unwrap(),
+            b"other"
+        );
+        // Nothing left to publish: the first error comes back.
+        assert!(publish_iso(&work.join("disc.iso"), &output, Path::new("Ocupado.iso")).is_err());
+        remove_work_dir(&output, &work);
+        assert!(published.is_file());
+        assert!(!output.join(WORK_DIR).exists());
+        std::fs::remove_dir_all(&output).unwrap();
+    }
+
+    #[test]
+    fn folder_export_clears_only_earlier_disc_trees() {
+        let root = std::env::temp_dir().join(format!("kd-export-{}", JobId::new()));
+        let first = root.join("DISC");
+        std::fs::create_dir_all(first.join("VIDEO_TS")).unwrap();
+        std::fs::create_dir_all(first.join("BDMV").join("STREAM")).unwrap();
+        std::fs::create_dir_all(first.join("Fotos")).unwrap();
+        std::fs::write(first.join("VIDEO_TS").join("VTS_09_1.VOB"), b"old").unwrap();
+        std::fs::write(first.join("BDMV").join("STREAM").join("00009.m2ts"), b"old").unwrap();
+        std::fs::write(first.join("Fotos").join("a.jpg"), b"keep").unwrap();
+        std::fs::write(first.join("notas.txt"), b"keep").unwrap();
+        remove_disc_folders(&first).unwrap();
+        assert!(!first.join("VIDEO_TS").exists());
+        assert!(!first.join("BDMV").exists());
+        assert!(first.join("Fotos").join("a.jpg").is_file());
+        assert!(first.join("notas.txt").is_file());
+        // A file with one of the names is not a disc tree; a new folder is fine.
+        let second = root.join("OTRO");
+        std::fs::create_dir_all(&second).unwrap();
+        std::fs::write(second.join("BDMV"), b"file").unwrap();
+        remove_disc_folders(&second).unwrap();
+        assert!(second.join("BDMV").is_file());
+        remove_disc_folders(&root.join("NUEVO")).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn stale_work_cleanup_never_removes_the_current_job() {
+        let output = std::env::temp_dir().join(format!("kd-stale-{}", JobId::new()));
+        let current = JobId::new();
+        let other = JobId::new();
+        let root = output.join(WORK_DIR);
+        for name in [current.to_string(), other.to_string(), "mine".to_string()] {
+            std::fs::create_dir_all(root.join(name)).unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(50));
+        // Fresh folders stay (another render may be using them).
+        remove_stale_work(&output, current);
+        assert!(root.join(other.to_string()).is_dir());
+        // Old ones go, except the current job's and anything not a job id.
+        remove_work_older_than(&output, current, Duration::ZERO);
+        assert!(root.join(current.to_string()).is_dir());
+        assert!(!root.join(other.to_string()).exists());
+        assert!(root.join("mine").is_dir());
         std::fs::remove_dir_all(&output).unwrap();
     }
 

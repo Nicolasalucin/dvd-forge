@@ -4,6 +4,7 @@
   import { projectStore } from "../stores/project.svelte";
   import { MEDIA_EXTENSIONS } from "../actions";
   import Icon from "../ui/Icon.svelte";
+  import { ui } from "../ui/state.svelte";
   import { basename } from "../utils/format";
 
   let { onclose }: { onclose: () => void } = $props();
@@ -40,9 +41,15 @@
 
   async function join() {
     working = true;
+    ui.locked = true;
     error = null;
-    const ok = await projectStore.createJoin(clips, title.trim() || t("Vídeos unidos"));
-    working = false;
+    let ok = false;
+    try {
+      ok = await projectStore.createJoin(clips, title.trim() || t("Vídeos unidos"));
+    } finally {
+      working = false;
+      ui.locked = false;
+    }
     if (ok) onclose();
     else error = projectStore.error;
   }

@@ -96,6 +96,7 @@
 
   async function runQueue() {
     running = true;
+    ui.locked = true;
     stopRequested = false;
     error = null;
     try {
@@ -117,9 +118,10 @@
           });
           const channel = new Channel<JobEvent_Deserialize>();
           channel.onmessage = (event) => projectStore.applyJobEvent(event);
-          // The image goes next to the project file, named after the project.
+          // The image goes next to the project file, named after that file:
+          // two projects with the same title in one folder keep their own image.
           const output = nativePath(folder(items[index].path));
-          const isoName = `${safeFileName(project.name || items[index].name)}.iso`;
+          const isoName = `${safeFileName(items[index].name)}.iso`;
           const outcome = await unwrap(commands.renderStart(project, output, "auto", isoName, channel));
           items[index] = { ...items[index], status: "done", iso: outcome.isoPath };
         } catch (cause) {
@@ -134,6 +136,7 @@
       }
     } finally {
       running = false;
+      ui.locked = false;
     }
     const failed = stopRequested || items.some((item) => item.status === "failed");
     await announceFinished(!failed);
