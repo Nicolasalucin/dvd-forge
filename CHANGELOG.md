@@ -66,6 +66,15 @@ New disc features, plus the fixes from several complete tests of the app by an i
   - Project errors (overlapping buttons, for example) are explained before you produce.
   - Steps that report no progress of their own show a pulsing bar and the elapsed time.
   - The text Size of thumbnail buttons follows its control.
+- **From a review of the code before this release:**
+  - Split discs no longer keep scene pages of episodes that are on another disc.
+  - A finished image is never lost when the earlier one with the same name is open: it is saved as "name (2).iso".
+  - Disc folder mode no longer replaces an ISO you made earlier, and clears the old disc files in the folder first.
+  - Two queued projects with the same name no longer overwrite each other.
+  - Closing the window during a burn stops the burner first.
+  - A dialog that is working (queue, join, slideshow, data disc) is not closed by opening another from the menu.
+  - A Blu-ray that mixes a soundless video with pass-through DTS or LPCM audio no longer fails.
+  - The preview shows a rotated and mirrored video the way the disc does.
 
 ## 1.1.2 — 2026-11-18
 

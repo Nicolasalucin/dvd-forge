@@ -137,7 +137,9 @@ los episodios, para no subir y bajar el control entre un vídeo y el siguiente.
 
 El disco también puede llevar un **menú de audio y subtítulos**: una página de
 Ajustes generada donde quien mira elige el idioma del audio y los subtítulos
-con el mando.
+con el mando. Se crea en la pestaña **Menú**, con **Plantillas › Audio y
+subtítulos**; hace falta un vídeo con más de un idioma de audio o con
+subtítulos. Si cambias las pistas, vuelve a pulsarlo para actualizar la página.
 
 ## 6. Probar el disco
 

@@ -354,8 +354,20 @@ Smart Render Cache v2:
   `<output>/.kinodisc-work/<job>` and publishes only the named image (see
   section 17).
 - **QA before every release** uses the isolated launch (see section 17).
-- `ButtonAction::SetSubtitleTrack { track: Option<u8> }` and the generated
-  "Ajustes" setup menu (`kinodisc-menu`) are being added in this version.
+- `ButtonAction::SetSubtitleTrack { track: Option<u8> }` (`None` = off): DVD
+  `subtitle=N+64` / `subtitle=0`, HDMV `SetStream`. `kinodisc-menu::setup`
+  generates the "Ajustes" page and its root link; it is recognised on re-run
+  by structure (a non-root submenu whose buttons are only SetAudioTrack /
+  SetSubtitleTrack / GotoMenu root), like the scene menus.
+- With a subtitle menu on a DVD, the per-title default subtitle `<pre>` is
+  guarded by a choice register (g2, or g3 when Play All uses g2) that the
+  menu sets, so "Sin subtítulos" is not undone at each title.
+- `publish_iso` never deletes a finished image: when the named image cannot
+  be replaced it publishes "<name> (2).iso" … "(9).iso". Folder mode renders
+  to `<name>.kinodisc-tmp.iso`; the export clears only `VIDEO_TS` / `BDMV`.
+- A soundless episode makes the whole AVCHD/Blu-ray audio layout AC-3 (no
+  pass-through), so the silent tracks can match it.
+- Dialogs doing work set `ui.locked`; `ui.open()` does nothing while it is set.
 
 ### 13. Localization
 

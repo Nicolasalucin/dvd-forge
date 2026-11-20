@@ -135,7 +135,9 @@ episode, so you don't reach for the remote between one video and the next.
 
 The disc can also carry an **audio and subtitles menu**: a generated Settings
 page where the viewer picks the audio language and the subtitles with the
-remote.
+remote. Create it in the **Menu** tab with **Templates › Audio and
+subtitles**; it needs a video with more than one audio language, or with
+subtitles. If you change the tracks, press it again to refresh the page.
 
 ## 6. Try the disc
 
