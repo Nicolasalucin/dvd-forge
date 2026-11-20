@@ -25,6 +25,16 @@ pub const OP_PLAY_PLAYLIST_PM: u32 = 0x4282_0000;
 pub const OP_SET_STREAM: u32 = 0x5180_0001;
 /// `SetGPR`: set/set with `MOVE` and an immediate source.
 pub const OP_SET_GPR: u32 = 0x5040_0001;
+/// `Move(register, register)`: set/set with `MOVE`, both operands registers.
+pub const OP_MOVE_REG: u32 = 0x5000_0001;
+/// Compare a register with an immediate (`LT` = option 7, `GE` = option 4,
+/// unsigned). When the comparison is false the next command is skipped.
+pub const OP_CMP_LT_IMM: u32 = 0x4840_0700;
+pub const OP_CMP_GE_IMM: u32 = 0x4840_0400;
+/// Register operand that names a player status register instead of a GPR.
+pub const PSR_OPERAND: u32 = 0x8000_0000;
+/// Scratch GPR for the audio buttons (0 and 1 carry the play marks).
+pub const SUBTITLE_SCRATCH_GPR: u16 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HdmvCommand {
@@ -97,6 +107,24 @@ pub const fn disable_subtitle_stream() -> HdmvCommand {
     HdmvCommand::new(OP_SET_STREAM, 0, 0)
 }
 
+/// Changes the primary audio stream and leaves subtitle display as it is.
+///
+/// `SetStream` rewrites the subtitle display flag (PSR2 bit 31) on every
+/// call, so a plain audio change would switch the subtitles off. This reads
+/// PSR2 into `scratch` and issues the audio change with the display flag the
+/// player already has (a compare skips the command that does not apply).
+pub const fn set_audio_stream_keeping_subtitles(track: u8, scratch: u16) -> [HdmvCommand; 5] {
+    let audio = 0x8000_0000 | ((track as u32 + 1) << 16);
+    let register = scratch as u32;
+    [
+        HdmvCommand::new(OP_MOVE_REG, register, PSR_OPERAND | 2),
+        HdmvCommand::new(OP_CMP_LT_IMM, register, 0x8000_0000),
+        HdmvCommand::new(OP_SET_STREAM, audio, 0),
+        HdmvCommand::new(OP_CMP_GE_IMM, register, 0x8000_0000),
+        HdmvCommand::new(OP_SET_STREAM, audio | 0x0000_4000, 0),
+    ]
+}
+
 /// `SetGPR(register, value)`: register `0..4095`, immediate value.
 pub const fn set_gpr(register: u16, value: u32) -> HdmvCommand {
     HdmvCommand::new(OP_SET_GPR, register as u32, value)
@@ -129,6 +157,18 @@ mod tests {
         assert_eq!(audio.dst, 0x8004_0000);
         let subtitle = set_subtitle_stream(2);
         assert_eq!(subtitle.dst, 0x0000_C003);
+        // Audio that keeps subtitles: PSR2 -> scratch, then one of two
+        // SetStream commands (display flag off / on), never the stream flag.
+        let keep = set_audio_stream_keeping_subtitles(3, SUBTITLE_SCRATCH_GPR);
+        assert_eq!(
+            keep[0].to_bytes(),
+            [0x50, 0, 0, 1, 0, 0, 0, 2, 0x80, 0, 0, 2]
+        );
+        assert_eq!(keep[1].to_bytes()[..4], [0x48, 0x40, 0x07, 0x00]);
+        assert_eq!(keep[2], audio);
+        assert_eq!(keep[3].to_bytes()[..4], [0x48, 0x40, 0x04, 0x00]);
+        assert_eq!(keep[4].dst, 0x8004_4000);
+        assert_eq!(keep[1].src, 0x8000_0000);
         // Off: neither the stream flag (bit 15) nor the display flag (bit 14).
         let off = disable_subtitle_stream();
         assert_eq!(off.opcode(), OP_SET_STREAM);

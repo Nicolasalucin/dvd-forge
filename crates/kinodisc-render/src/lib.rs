@@ -30,9 +30,8 @@ use kinodisc_dvd::{
 use kinodisc_hdmv::{
     append_menu_movie_object, compile_ig_pes_packets, disable_subtitle_stream, dummy_pgs_for_slots,
     frame_rate_code, jump_object, jump_title, m2ts_from_pes_packets, movie_object_count,
-    patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count, set_audio_stream, set_gpr,
-    set_index_menu_object, set_subtitle_stream, HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu,
-    RgbaBitmap,
+    patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count, set_gpr, set_index_menu_object,
+    set_subtitle_stream, HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu, RgbaBitmap,
 };
 use kinodisc_iso::{BdmvIsoBuilder, Xorriso};
 use kinodisc_jobs::{ArtifactKind, JobEventKind, JobStage};
@@ -1464,7 +1463,12 @@ fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<Hdmv
                     .map(play_episode_at)
                     .unwrap_or_else(|| vec![set_gpr(0, 0), jump_title(1)])
             }),
-        ButtonAction::SetAudioTrack { track } => vec![set_audio_stream(*track)],
+        // SetStream rewrites the subtitle display flag: keep what the viewer has.
+        ButtonAction::SetAudioTrack { track } => kinodisc_hdmv::set_audio_stream_keeping_subtitles(
+            *track,
+            kinodisc_hdmv::SUBTITLE_SCRATCH_GPR,
+        )
+        .to_vec(),
         ButtonAction::SetSubtitleTrack { track: Some(track) } => {
             vec![set_subtitle_stream(*track)]
         }
@@ -5548,7 +5552,14 @@ mod tests {
             episode_objects: &episode_objects,
         };
         let audio = hdmv_commands(&ButtonAction::SetAudioTrack { track: 1 }, &context);
-        assert_eq!(audio, vec![set_audio_stream(1)]);
+        // Five commands: read PSR2, then the audio change with the subtitle
+        // display flag off or on (a compare skips the other).
+        assert_eq!(audio.len(), 5);
+        assert_eq!(audio[2], kinodisc_hdmv::set_audio_stream(1));
+        assert_eq!(
+            audio[4].dst,
+            kinodisc_hdmv::set_audio_stream(1).dst | 0x4000
+        );
         // Stream numbers are one-based on disc; bits 15/14 select and show.
         let on = hdmv_commands(&ButtonAction::SetSubtitleTrack { track: Some(1) }, &context);
         assert_eq!(on.len(), 1);
