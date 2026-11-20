@@ -964,6 +964,8 @@ export const de: Dictionary = {
   "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
   "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
   "Disco de datos": "Datendisc",
+  "Volumen parejo en todo el disco": "Gleiche Lautstärke auf der ganzen Disc",
+  "Iguala el volumen de todos los episodios, para no subir y bajar el control entre uno y otro.": "Gleicht die Lautstärke aller Folgen an, damit du zwischen ihnen nicht zur Fernbedienung greifen musst.",
   "Reproducir solo": "Automatisch abspielen",
   "Solo en DVD-Video: en Blu-ray y AVCHD el menú espera hasta que elijas.": "Nur bei DVD-Video: Auf Blu-ray und AVCHD wartet das Menü auf deine Auswahl.",
   "Si nadie elige nada, el disco empieza a reproducir todo cuando el menú termina ({seconds} s).": "Wenn niemand etwas auswählt, spielt die Disc alles ab, sobald das Menü endet ({seconds} s).",

@@ -3705,6 +3705,14 @@ async fn render_menus(
         }
     };
     for (index, menu) in project.menus.iter().enumerate() {
+        // One step per menu: scene menus take a while each and report no
+        // encoder progress of their own, so the bar would sit still.
+        progress(
+            events,
+            JobStage::EncodeMenus,
+            (index * 1000 / project.menus.len().max(1)) as u16,
+        )
+        .await;
         let menu_dir = output.join("menus").join(menu.id.to_string());
         let composited = composited_backgrounds
             .map(|directory| directory.join(format!("{}.png", menu.id)))

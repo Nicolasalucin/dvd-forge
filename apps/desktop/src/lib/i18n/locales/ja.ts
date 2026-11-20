@@ -964,6 +964,8 @@ export const ja: Dictionary = {
   "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
   "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
   "Disco de datos": "データディスク",
+  "Volumen parejo en todo el disco": "ディスク全体の音量をそろえる",
+  "Iguala el volumen de todos los episodios, para no subir y bajar el control entre uno y otro.": "すべてのエピソードの音量をそろえ、途中でリモコンを操作しなくて済むようにします。",
   "Reproducir solo": "自動再生",
   "Solo en DVD-Video: en Blu-ray y AVCHD el menú espera hasta que elijas.": "DVD-Video のみ: Blu-ray と AVCHD ではメニューは選択を待ちます。",
   "Si nadie elige nada, el disco empieza a reproducir todo cuando el menú termina ({seconds} s).": "何も選ばれない場合、メニューの終了時（{seconds} 秒）にすべてを再生します。",

@@ -264,6 +264,18 @@
             </div>
           </div>
 
+          <label class="mt-2 flex items-start gap-2 rounded-md border border-slate-800 px-2.5 py-2 text-[12px] text-slate-300">
+            <input
+              type="checkbox"
+              class="ui-check mt-0.5 accent-cyan-500"
+              checked={projectStore.evenVolume}
+              onchange={(event) => projectStore.setEvenVolume(event.currentTarget.checked)}
+            />
+            <span>
+              {t("Volumen parejo en todo el disco")}
+              <span class="ui-hint block">{t("Iguala el volumen de todos los episodios, para no subir y bajar el control entre uno y otro.")}</span>
+            </span>
+          </label>
           <div class="mt-2 space-y-2">
             {#each episode.audio as track, index (index)}
               <div class="rounded-lg border border-slate-800 p-2">

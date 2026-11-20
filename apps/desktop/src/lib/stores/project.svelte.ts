@@ -143,6 +143,9 @@ function canvasForProject(project: Project_Serialize) {
   return canvasFor(project.disc.standard, project.disc.aspect);
 }
 
+/** Loudness every track is levelled to by "even volume" (kinodisc-domain default). */
+const EVEN_VOLUME = { targetLufs: -16, truePeakDb: -1.5, lra: 11 };
+
 /** Slice of the whole-job progress bar each production stage fills (%). */
 const STAGE_SPAN: Record<JobStage, [number, number]> = {
   probe: [0, 3],
@@ -1457,7 +1460,7 @@ class ProjectStore {
         // the source flags only decide the subtitle default.
         default: index === 0,
         commentary: stream.commentary,
-        mastering: { loudness: null, channelMode: "source", codec: null, passthrough: false },
+        mastering: { loudness: this.evenVolume ? { ...EVEN_VOLUME } : null, channelMode: "source", codec: null, passthrough: false },
       })),
       subtitles: (asset.probe.subtitleTracks ?? []).map((stream, index, streams) => ({
         sourceStream: stream.index,
@@ -1662,7 +1665,7 @@ class ProjectStore {
         format: (stream?.channels ?? 2) >= 6 ? "ac3Surround51" : "ac3Stereo",
         default: episode.audio.length === 0,
         commentary: stream?.commentary ?? false,
-        mastering: { loudness: null, channelMode: "source", codec: null, passthrough: false },
+        mastering: { loudness: this.evenVolume ? { ...EVEN_VOLUME } : null, channelMode: "source", codec: null, passthrough: false },
       },
     ];
     this.touch();
@@ -2065,6 +2068,34 @@ class ProjectStore {
     const menu = this.activeMenu;
     if (!menu?.transition) return;
     menu.transition = { ...menu.transition, ...patch };
+    this.touch();
+  }
+
+  /** True when every audio track of the disc is levelled to the same loudness. */
+  get evenVolume(): boolean {
+    const tracks = (this.project?.episodes ?? []).flatMap((episode) => episode.audio);
+    return tracks.length > 0 && tracks.every((track) => track.mastering.loudness !== null);
+  }
+
+  /**
+   * Same loudness for every episode (EBU R 128 style, -16 LUFS), so the
+   * viewer does not reach for the remote between videos. Levelled tracks
+   * are re-encoded; turning it off restores the source levels.
+   */
+  setEvenVolume(enabled: boolean): void {
+    const project = this.project;
+    if (!project) return;
+    for (const episode of project.episodes) {
+      episode.audio = episode.audio.map((track) => ({
+        ...track,
+        mastering: {
+          ...track.mastering,
+          loudness: enabled ? { ...EVEN_VOLUME } : null,
+          passthrough: enabled ? false : track.mastering.passthrough,
+        },
+      }));
+    }
+    this.plan = null;
     this.touch();
   }
 
@@ -3105,9 +3136,12 @@ class ProjectStore {
         this.stageFractions[kind.stage] = Math.max(this.stageFractions[kind.stage] ?? 0, fraction);
         const episodes = this.stageFractions.encodeEpisodes;
         const menus = this.stageFractions.encodeMenus;
+        // DVD encodes menus during this stage too: they count from the
+        // start, so cached episodes do not fill the bar before the menus.
+        const dvd = this.project?.disc.mode === "dvdVideo";
         const current =
-          this.stageKey === "encodeEpisodes" && menus !== undefined
-            ? 0.85 * (episodes ?? 0) + 0.15 * menus
+          this.stageKey === "encodeEpisodes" && (dvd || menus !== undefined)
+            ? 0.75 * (episodes ?? 0) + 0.25 * (menus ?? 0)
             : (this.stageFractions[this.stageKey ?? kind.stage] ?? fraction);
         // A finished stage stops just short of its slice's end: the next
         // stage (or "completed") moves the bar on.
