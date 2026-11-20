@@ -28,10 +28,11 @@ use kinodisc_dvd::{
     RenderedMenu, VideoEncodeConfig,
 };
 use kinodisc_hdmv::{
-    append_menu_movie_object, compile_ig_pes_packets, dummy_pgs_for_slots, frame_rate_code,
-    jump_object, jump_title, m2ts_from_pes_packets, movie_object_count, patch_menu_clpi,
-    patch_menu_mpls, pes_transport_packet_count, set_audio_stream, set_gpr, set_index_menu_object,
-    HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu, RgbaBitmap,
+    append_menu_movie_object, compile_ig_pes_packets, disable_subtitle_stream, dummy_pgs_for_slots,
+    frame_rate_code, jump_object, jump_title, m2ts_from_pes_packets, movie_object_count,
+    patch_menu_clpi, patch_menu_mpls, pes_transport_packet_count, set_audio_stream, set_gpr,
+    set_index_menu_object, set_subtitle_stream, HdmvButton, HdmvButtonState, HdmvCommand, HdmvMenu,
+    RgbaBitmap,
 };
 use kinodisc_iso::{BdmvIsoBuilder, Xorriso};
 use kinodisc_jobs::{ArtifactKind, JobEventKind, JobStage};
@@ -1464,6 +1465,10 @@ fn hdmv_commands(action: &ButtonAction, context: &HdMenuContext<'_>) -> Vec<Hdmv
                     .unwrap_or_else(|| vec![set_gpr(0, 0), jump_title(1)])
             }),
         ButtonAction::SetAudioTrack { track } => vec![set_audio_stream(*track)],
+        ButtonAction::SetSubtitleTrack { track: Some(track) } => {
+            vec![set_subtitle_stream(*track)]
+        }
+        ButtonAction::SetSubtitleTrack { track: None } => vec![disable_subtitle_stream()],
         ButtonAction::Resume | ButtonAction::Noop => {
             vec![HdmvCommand::new(kinodisc_hdmv::OP_NOP, 0, 0)]
         }
@@ -1613,9 +1618,8 @@ async fn render_avchd_project(
     // The disc's audio layout comes from the episode with the most tracks
     // (the first one on a tie), so neither a soundless video nor one with a
     // single track decides it and drops the other languages.
-    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> = order
-        .iter()
-        .filter_map(|episode| {
+    let mut audio_layout: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> =
+        canonical_avchd_layout(order.iter().filter_map(|episode| {
             let asset = project.asset(episode.video)?;
             let probe = probes.get(&asset.id).unwrap_or(&asset.probe);
             let (reconciled, _) = reconcile_episode_audio(episode, probe);
@@ -1624,12 +1628,8 @@ async fn render_avchd_project(
                 ..(*episode).clone()
             };
             let (_, layout) = avchd_audio_configs(&reconciled_episode, &project, probe, 1);
-            (!layout.is_empty()).then_some(layout)
-        })
-        .fold(None, |best: Option<Vec<_>>, layout| match best {
-            Some(best) if best.len() >= layout.len() => Some(best),
-            _ => Some(layout),
-        });
+            Some(layout)
+        }));
     let cache = match Store::open_default() {
         Ok(store) => Some(store),
         Err(error) => {
@@ -2803,6 +2803,32 @@ fn reconcile_episode_audio(
 /// Bitrate of the silent AC-3 tracks a soundless video gets on HD discs.
 const AVCHD_SILENT_KBPS: u16 = 192;
 
+/// The HD disc's audio layout, from the layouts of its episodes (empty for
+/// a soundless one): the one with the most tracks, the first on a tie. When
+/// an episode has no sound its silent tracks are AC-3, so every track of the
+/// disc is AC-3 too: a pass-through DTS or LPCM track is re-encoded by
+/// `harmonize_avchd_audio` instead of leaving two layouts that cannot be
+/// concatenated.
+fn canonical_avchd_layout(
+    layouts: impl Iterator<Item = Vec<(String, kinodisc_avchd::AvchdAudioCodec)>>,
+) -> Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> {
+    let mut soundless = false;
+    let mut best: Option<Vec<(String, kinodisc_avchd::AvchdAudioCodec)>> = None;
+    for layout in layouts {
+        if layout.is_empty() {
+            soundless = true;
+        } else if best.as_ref().is_none_or(|best| best.len() < layout.len()) {
+            best = Some(layout);
+        }
+    }
+    if soundless {
+        for (_, codec) in best.iter_mut().flatten() {
+            *codec = kinodisc_avchd::AvchdAudioCodec::Ac3;
+        }
+    }
+    best
+}
+
 fn harmonize_avchd_audio(
     episode_title: &str,
     canonical: &[(String, kinodisc_avchd::AvchdAudioCodec)],
@@ -2947,6 +2973,17 @@ fn silent_dvd_audio(episode: &Episode, duration_ms: u64) -> Vec<AudioEncodeConfi
             silent: true,
         })
         .collect()
+}
+
+/// Cache-profile suffix of a DVD title authored with silence. The reconciled
+/// track list is empty there, so the audio hash says nothing: the declared
+/// tracks (how many, their bitrate and channels) decide what is encoded.
+fn silent_dvd_profile(tracks: &[AudioEncodeConfig]) -> String {
+    let declared: Vec<String> = tracks
+        .iter()
+        .map(|track| format!("{}k{}ch", track.bitrate_kbps, track.channels))
+        .collect();
+    format!(":silent:{}:{}", declared.len(), declared.join("+"))
 }
 
 struct SubtitleMuxContext<'a> {
@@ -3331,7 +3368,11 @@ async fn encode_episodes(
                     project.disc.standard,
                     project.disc.aspect,
                     episode.scale_mode,
-                    if silent { ":silent" } else { "" }
+                    if silent {
+                        silent_dvd_profile(&audio_tracks)
+                    } else {
+                        String::new()
+                    }
                 ),
                 target_bitrate: video_kbps,
                 audio_params_hash: audio_hash,
@@ -5497,6 +5538,29 @@ mod tests {
     }
 
     #[test]
+    fn stream_buttons_compile_to_set_stream_commands() {
+        let (episode_marks, chapter_marks) = (HashMap::new(), HashMap::new());
+        let (menu_objects, episode_objects) = (HashMap::new(), HashMap::new());
+        let context = HdMenuContext {
+            episode_marks: &episode_marks,
+            chapter_marks: &chapter_marks,
+            menu_objects: &menu_objects,
+            episode_objects: &episode_objects,
+        };
+        let audio = hdmv_commands(&ButtonAction::SetAudioTrack { track: 1 }, &context);
+        assert_eq!(audio, vec![set_audio_stream(1)]);
+        // Stream numbers are one-based on disc; bits 15/14 select and show.
+        let on = hdmv_commands(&ButtonAction::SetSubtitleTrack { track: Some(1) }, &context);
+        assert_eq!(on.len(), 1);
+        assert_eq!(on[0].opcode(), kinodisc_hdmv::OP_SET_STREAM);
+        assert_eq!(on[0].dst, 0x0000_C002);
+        let off = hdmv_commands(&ButtonAction::SetSubtitleTrack { track: None }, &context);
+        assert_eq!(off.len(), 1);
+        assert_eq!(off[0].opcode(), kinodisc_hdmv::OP_SET_STREAM);
+        assert_eq!(off[0].dst & 0x0000_C000, 0);
+    }
+
+    #[test]
     fn episode_buttons_use_their_own_episode_object_when_available() {
         let episode = EpisodeId::from_u128(7);
         let mut episode_marks = HashMap::new();
@@ -5819,6 +5883,76 @@ mod tests {
         assert!(silent[0].default && !silent[1].default);
         assert_eq!(silent[0].duration_ms, 15_000);
         assert!(warnings.iter().all(|w| w.code == "W_AUDIO_LAYOUT_ADAPTED"));
+    }
+
+    #[test]
+    fn a_soundless_episode_makes_the_whole_hd_layout_ac3() {
+        use kinodisc_avchd::AvchdAudioCodec::{Ac3, Dts, Lpcm};
+        let passthrough = vec![("spa".to_string(), Dts), ("eng".to_string(), Lpcm)];
+        let single = vec![("spa".to_string(), Ac3)];
+        // Every episode has sound: pass-through codecs stay, most tracks win.
+        assert_eq!(
+            canonical_avchd_layout([single.clone(), passthrough.clone()].into_iter()),
+            Some(passthrough.clone())
+        );
+        assert_eq!(canonical_avchd_layout(std::iter::empty()), None);
+        assert_eq!(canonical_avchd_layout([Vec::new()].into_iter()), None);
+        // One soundless episode (anywhere in the order): AC-3 throughout.
+        let canonical =
+            canonical_avchd_layout([passthrough.clone(), Vec::new(), single].into_iter()).unwrap();
+        assert_eq!(
+            canonical,
+            vec![("spa".to_string(), Ac3), ("eng".to_string(), Ac3)]
+        );
+        // The soundless episode and the pass-through one end with one layout
+        // (it used to abort: "AVCHD no puede concatenar layouts distintos").
+        let layout = |configs: &[AvchdAudioConfig]| -> Vec<_> {
+            configs
+                .iter()
+                .map(|config| (config.language.clone(), config.codec))
+                .collect()
+        };
+        let (silent, _) = harmonize_avchd_audio("Sin audio", &canonical, Vec::new(), 1_000);
+        assert_eq!(layout(&silent), canonical);
+        let copied = |stream: u32, language: &str, codec| AvchdAudioConfig {
+            copy: true,
+            codec,
+            ..avchd_audio(stream, language)
+        };
+        let (adapted, warnings) = harmonize_avchd_audio(
+            "Ep 1",
+            &canonical,
+            vec![copied(1, "spa", Dts), copied(2, "eng", Lpcm)],
+            1_000,
+        );
+        assert_eq!(layout(&adapted), canonical);
+        assert!(adapted.iter().all(|config| !config.copy && !config.silent));
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn silent_dvd_titles_key_the_cache_by_their_declared_tracks() {
+        let (mut episode, _) = fixture_episode();
+        episode.audio = vec![audio_track(1, "spa")];
+        let one = silent_dvd_profile(&silent_dvd_audio(&episode, 1_000));
+        episode.audio.push(audio_track(2, "eng"));
+        let two = silent_dvd_profile(&silent_dvd_audio(&episode, 1_000));
+        assert_ne!(one, two);
+        episode.audio[1].ac3_kbps += 64;
+        let louder = silent_dvd_profile(&silent_dvd_audio(&episode, 1_000));
+        assert_ne!(two, louder);
+        episode.audio[1].format = match episode.audio[1].format {
+            kinodisc_domain::AudioFormat::Ac3Stereo => kinodisc_domain::AudioFormat::Ac3Surround51,
+            kinodisc_domain::AudioFormat::Ac3Surround51 => kinodisc_domain::AudioFormat::Ac3Stereo,
+        };
+        let channels = silent_dvd_profile(&silent_dvd_audio(&episode, 1_000));
+        assert_ne!(louder, channels);
+        assert!(one.starts_with(":silent:1:"));
+        // Same declaration, same key (the duration is hashed elsewhere).
+        assert_eq!(
+            channels,
+            silent_dvd_profile(&silent_dvd_audio(&episode, 9_000))
+        );
     }
 
     #[test]

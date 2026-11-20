@@ -90,6 +90,13 @@ pub const fn set_subtitle_stream(stream: u8) -> HdmvCommand {
     HdmvCommand::new(OP_SET_STREAM, 0x0000_C000 | (stream as u32 + 1), 0)
 }
 
+/// Turns subtitle display off: no stream flag is set, so the selected
+/// presentation-graphics stream stays as it is and only the display flag
+/// (bit 14 of the destination operand) is cleared.
+pub const fn disable_subtitle_stream() -> HdmvCommand {
+    HdmvCommand::new(OP_SET_STREAM, 0, 0)
+}
+
 /// `SetGPR(register, value)`: register `0..4095`, immediate value.
 pub const fn set_gpr(register: u16, value: u32) -> HdmvCommand {
     HdmvCommand::new(OP_SET_GPR, register as u32, value)
@@ -122,6 +129,11 @@ mod tests {
         assert_eq!(audio.dst, 0x8004_0000);
         let subtitle = set_subtitle_stream(2);
         assert_eq!(subtitle.dst, 0x0000_C003);
+        // Off: neither the stream flag (bit 15) nor the display flag (bit 14).
+        let off = disable_subtitle_stream();
+        assert_eq!(off.opcode(), OP_SET_STREAM);
+        assert_eq!(off.dst & 0x0000_C000, 0);
+        assert_eq!(off.dst & 0x8000_0000, 0);
     }
 
     #[test]
@@ -151,6 +163,7 @@ mod tests {
             play_playlist_mark(6, 7),
             set_audio_stream(1),
             set_subtitle_stream(2),
+            disable_subtitle_stream(),
             set_gpr(15, 0xDEAD_BEEF),
         ] {
             assert_eq!(decode_command(&command.to_bytes()), command);

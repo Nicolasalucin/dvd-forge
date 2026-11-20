@@ -1841,6 +1841,9 @@ fn validate_action(
                 );
             }
         }
+        // SPRM2/PSR2 are player-wide; the track index is checked on disc
+        // (a missing stream leaves subtitles as they were).
+        ButtonAction::SetSubtitleTrack { .. } => {}
         ButtonAction::Resume | ButtonAction::Noop => {}
     }
 }

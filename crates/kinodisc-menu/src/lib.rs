@@ -2,6 +2,7 @@
 //! spumux XML construction.
 
 pub mod chapters;
+pub mod setup;
 pub mod templates;
 
 use image::{imageops::FilterType, GrayImage, Luma, Rgba, RgbaImage};

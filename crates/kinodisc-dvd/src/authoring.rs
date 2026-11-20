@@ -423,7 +423,19 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
             // stream number is its position in the title set's list (+64 =
             // display on).
             if let Some(position) = episode.subtitles.iter().position(|track| track.default) {
-                xml.push_str(&format!("        <pre>subtitle={};</pre>\n", position + 64));
+                // With an on-disc subtitle menu the default only applies until
+                // the viewer chooses (the menu sets the choice register), so
+                // "No subtitles" is not undone at the start of every title.
+                let command = if has_subtitle_menu(request) {
+                    format!(
+                        "if (g{} == 0) {{ subtitle={}; }}",
+                        subtitle_choice_gprm(mode_gprm),
+                        position + 64
+                    )
+                } else {
+                    format!("subtitle={};", position + 64)
+                };
+                xml.push_str(&format!("        <pre>{}</pre>\n", xml_escape(&command)));
             }
             let chapters = chapter_attribute(episode, request.project.disc.standard.frame_rate());
             if chapters.is_empty() {
@@ -621,8 +633,40 @@ fn button_command(
         ButtonAction::SetAudioTrack { track } => {
             format!("audio={track}; jump menu {current_menu_index};")
         }
+        // SPRM2: stream number in bits 0..5 (0..=31), bit 6 = display on.
+        ButtonAction::SetSubtitleTrack { track: Some(track) } => {
+            format!(
+                "g{}=1; subtitle={}; jump menu {current_menu_index};",
+                subtitle_choice_gprm(mode_gprm),
+                u16::from((*track).min(31)) + 64
+            )
+        }
+        ButtonAction::SetSubtitleTrack { track: None } => {
+            format!(
+                "g{}=1; subtitle=0; jump menu {current_menu_index};",
+                subtitle_choice_gprm(mode_gprm)
+            )
+        }
         ButtonAction::Resume => "resume;".to_string(),
         ButtonAction::Noop => format!("jump menu {current_menu_index};"),
+    })
+}
+
+/// Register that records "the viewer chose subtitles on the menu" (1), so
+/// the per-title default stops applying. Never the Play All mode register.
+fn subtitle_choice_gprm(mode_gprm: u8) -> u8 {
+    if mode_gprm == 2 {
+        3
+    } else {
+        2
+    }
+}
+
+fn has_subtitle_menu(request: &AuthoringRequest<'_>) -> bool {
+    request.menus.iter().any(|menu| {
+        menu.buttons
+            .iter()
+            .any(|button| matches!(button.action, ButtonAction::SetSubtitleTrack { .. }))
     })
 }
 
@@ -959,6 +1003,14 @@ mod tests {
                 name: "audio".to_string(),
                 action: ButtonAction::SetAudioTrack { track: 2 },
             },
+            AuthoredButton {
+                name: "subtitle".to_string(),
+                action: ButtonAction::SetSubtitleTrack { track: Some(1) },
+            },
+            AuthoredButton {
+                name: "no subtitle".to_string(),
+                action: ButtonAction::SetSubtitleTrack { track: None },
+            },
         ];
         let episodes = episode_files(&project);
         let xml = build_dvdauthor_xml(&AuthoringRequest {
@@ -970,6 +1022,9 @@ mod tests {
         .expect("xml");
         assert!(xml.contains("g1=0; jump titleset 1 title 1 chapter 1;"));
         assert!(xml.contains("audio=2; jump menu 1;"));
+        // Subtitle on = stream + 64 (display flag); off = 0. Both stay on the menu.
+        assert!(xml.contains("g2=1; subtitle=65; jump menu 1;"));
+        assert!(xml.contains("g2=1; subtitle=0; jump menu 1;"));
     }
 
     #[test]

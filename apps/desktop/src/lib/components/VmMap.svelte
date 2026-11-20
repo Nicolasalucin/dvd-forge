@@ -60,6 +60,8 @@
         return t("intro");
       case "setAudioTrack":
         return t("pista de audio");
+      case "setSubtitleTrack":
+        return t("subtítulos");
       case "resume":
         return t("reanudar");
       default:

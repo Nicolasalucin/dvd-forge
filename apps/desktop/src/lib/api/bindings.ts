@@ -108,6 +108,8 @@ export const commands = {
 	menuTemplates: () => __TAURI_INVOKE<MenuTemplateInfo[]>("menu_templates"),
 	/**  Builds (or rebuilds) the automatic scene-selection menus. */
 	menuApplyChapterMenus: (project: Project_Deserialize) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_chapter_menus", { project })),
+	/**  Builds (or rebuilds) the on-disc audio and subtitle setup menu. */
+	menuApplySetupMenu: (project: Project_Deserialize) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_setup_menu", { project })),
 	menuApplyTemplate: (project: Project_Deserialize, template: MenuTemplateId) => typedError<TemplateApplyResult_Serialize, string>(__TAURI_INVOKE("menu_apply_template", { project, template })),
 	planCalculate: (project: Project_Deserialize) => typedError<BitratePlan_Serialize, string>(__TAURI_INVOKE("plan_calculate", { project })),
 	/**
@@ -456,7 +458,21 @@ export type BurnReport_Serialize = {
 	verified: boolean,
 };
 
-export type ButtonAction = { kind: "playEpisode"; episode: EpisodeId } | { kind: "playAll" } | { kind: "gotoMenu"; menu: MenuId } | { kind: "playFirstPlay" } | { kind: "jumpTitleChapter"; episode: EpisodeId; chapter: number } | { kind: "setAudioTrack"; track: number } | { kind: "resume" } | { kind: "noop" };
+export type ButtonAction = ButtonAction_Serialize | ButtonAction_Deserialize;
+
+export type ButtonAction_Deserialize = { kind: "playEpisode"; episode: EpisodeId } | { kind: "playAll" } | { kind: "gotoMenu"; menu: MenuId } | { kind: "playFirstPlay" } | { kind: "jumpTitleChapter"; episode: EpisodeId; chapter: number } | { kind: "setAudioTrack"; track: number } | 
+/**
+ *  Selects a subtitle track (0-based) and shows it; `None` turns
+ *  subtitles off.
+ */
+{ kind: "setSubtitleTrack"; track?: number | null } | { kind: "resume" } | { kind: "noop" };
+
+export type ButtonAction_Serialize = { kind: "playEpisode"; episode: EpisodeId } | { kind: "playAll" } | { kind: "gotoMenu"; menu: MenuId } | { kind: "playFirstPlay" } | { kind: "jumpTitleChapter"; episode: EpisodeId; chapter: number } | { kind: "setAudioTrack"; track: number } | 
+/**
+ *  Selects a subtitle track (0-based) and shows it; `None` turns
+ *  subtitles off.
+ */
+{ kind: "setSubtitleTrack"; track: number | null } | { kind: "resume" } | { kind: "noop" };
 
 export type ButtonId = string;
 
@@ -1091,7 +1107,7 @@ export type MenuButton_Deserialize = {
 	name: string,
 	rect: LogicalRect,
 	z?: number,
-	action: ButtonAction,
+	action: ButtonAction_Deserialize,
 	thumbnail?: ThumbnailSpec_Deserialize | null,
 	label?: TextItem_Deserialize | null,
 	styleKind?: ButtonStyleKind,
@@ -1112,7 +1128,7 @@ export type MenuButton_Serialize = {
 	name: string,
 	rect: LogicalRect,
 	z: number,
-	action: ButtonAction,
+	action: ButtonAction_Serialize,
 	thumbnail: ThumbnailSpec_Serialize | null,
 	label: TextItem_Serialize | null,
 	styleKind: ButtonStyleKind,
@@ -1288,10 +1304,19 @@ export type NavEdge = {
 	source: EdgeSource,
 };
 
-export type NavNode = {
+export type NavNode = NavNode_Serialize | NavNode_Deserialize;
+
+export type NavNode_Deserialize = {
 	button: ButtonId,
 	rect: PixelRect,
-	action: ButtonAction,
+	action: ButtonAction_Deserialize,
+	center: Point,
+};
+
+export type NavNode_Serialize = {
+	button: ButtonId,
+	rect: PixelRect,
+	action: ButtonAction_Serialize,
 	center: Point,
 };
 
@@ -1328,7 +1353,7 @@ export type NavigationGraph = NavigationGraph_Serialize | NavigationGraph_Deseri
 
 export type NavigationGraph_Deserialize = {
 	menuId: MenuId,
-	nodes: NavNode[],
+	nodes: NavNode_Deserialize[],
 	edges: NavEdge[],
 	defaultFocus?: ButtonId | null,
 	policy: NavPolicy,
@@ -1338,7 +1363,7 @@ export type NavigationGraph_Deserialize = {
 
 export type NavigationGraph_Serialize = {
 	menuId: MenuId,
-	nodes: NavNode[],
+	nodes: NavNode_Serialize[],
 	edges: NavEdge[],
 	defaultFocus: ButtonId | null,
 	policy: NavPolicy,

@@ -656,6 +656,9 @@ pub fn apply_template(
     // Links to the generated scene menus are re-created, never moved to Extras.
     let scene_menus = crate::chapters::generated_menu_ids(&project.menus, root_id);
     let scenes_link = crate::chapters::scenes_link(root, &scene_menus);
+    // Same for the link to the generated audio/subtitle setup menu.
+    let setup_menus = crate::setup::setup_menu_ids(&project.menus, root_id);
+    let setup_link = crate::setup::setup_link(root, &setup_menus);
     let mut custom_buttons: Vec<MenuButton> = Vec::new();
     for menu in std::iter::once(root)
         .chain(old_pages.iter())
@@ -665,6 +668,8 @@ pub fn apply_template(
             if selected_ids.contains(&button.id)
                 || is_generated_nav(button)
                 || matches!(button.action, ButtonAction::GotoMenu { menu } if scene_menus.contains(&menu))
+                || (setup_link.is_some()
+                    && matches!(button.action, ButtonAction::GotoMenu { menu } if setup_menus.contains(&menu)))
                 || matches!(button.action, ButtonAction::PlayEpisode { .. })
             {
                 continue;
@@ -804,6 +809,9 @@ pub fn apply_template(
         }
         if index == 0 {
             if let Some((name, target)) = &scenes_link {
+                add_corner_link(&mut menu, &template, name, *target);
+            }
+            if let Some((name, target)) = &setup_link {
                 add_corner_link(&mut menu, &template, name, *target);
             }
         }

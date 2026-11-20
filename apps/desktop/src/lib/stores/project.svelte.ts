@@ -238,12 +238,19 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
     "Siguiente ›": t("Siguiente ›"),
     "Volver": t("Volver"),
     "Escenas": t("Escenas"),
+    "Ajustes": t("Ajustes"),
+    "Sin subtítulos": t("Sin subtítulos"),
     "Inicio": t("Inicio"),
   };
   const localize = (name: string): string => {
     if (defaults[name]) return defaults[name];
     // Generated scene pages and buttons: "Escenas · <episode>", "Escena 3".
     if (name.startsWith("Escenas · ")) return t("Escenas") + name.slice("Escenas".length);
+    // Setup page buttons: "Audio: Español", "Subtítulos: Español".
+    const audio = /^Audio: (.+)$/.exec(name);
+    if (audio) return `${t("Audio")}: ${audio[1]}`;
+    const subtitle = /^Subtítulos: (.+)$/.exec(name);
+    if (subtitle) return `${t("Subtítulos")}: ${subtitle[1]}`;
     const scene = /^Escena (\d+)$/.exec(name);
     if (scene) return t("Escena {n}", { n: scene[1] });
     // Template pages ("Elegante · 2"). The engine finds its pages by their
@@ -2669,6 +2676,32 @@ class ProjectStore {
       void this.ensureVideoThumbnail(episode.video);
     }
     return true;
+  }
+
+  /**
+   * Creates or refreshes the on-disc "Audio and subtitles" page, where the
+   * viewer picks the language with the remote. False when there is nothing
+   * to choose (one audio track and no subtitles).
+   */
+  async applySetupMenu(): Promise<boolean> {
+    const project = this.project;
+    if (!project) return false;
+    this.busy = true;
+    this.error = null;
+    try {
+      const before = project.menus.length;
+      const result = await unwrap(commands.menuApplySetupMenu(project));
+      localizeGeneratedMenus(result.menus);
+      project.menus = result.menus;
+      this.plan = null;
+      this.touch();
+      return result.menus.length > before || result.menus.some((menu) => menu.name === t("Ajustes"));
+    } catch (cause) {
+      this.error = messageOf(cause);
+      return false;
+    } finally {
+      this.busy = false;
+    }
   }
 
   /** Creates or refreshes the scene-selection menus from the chapters. */

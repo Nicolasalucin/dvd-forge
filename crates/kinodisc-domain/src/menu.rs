@@ -441,6 +441,11 @@ pub enum ButtonAction {
     SetAudioTrack {
         track: u8,
     },
+    /// Selects a subtitle track (0-based) and shows it; `None` turns
+    /// subtitles off.
+    SetSubtitleTrack {
+        track: Option<u8>,
+    },
     Resume,
     #[default]
     Noop,
@@ -527,5 +532,32 @@ impl Default for MenuTiming {
             loop_playback: true,
             auto_play: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn subtitle_action_round_trips_and_old_actions_still_load() {
+        let on = ButtonAction::SetSubtitleTrack { track: Some(2) };
+        let json = serde_json::to_string(&on).unwrap();
+        assert_eq!(json, r#"{"kind":"setSubtitleTrack","track":2}"#);
+        assert!(matches!(
+            serde_json::from_str::<ButtonAction>(&json).unwrap(),
+            ButtonAction::SetSubtitleTrack { track: Some(2) }
+        ));
+        let off = serde_json::to_string(&ButtonAction::SetSubtitleTrack { track: None }).unwrap();
+        assert_eq!(off, r#"{"kind":"setSubtitleTrack","track":null}"#);
+        assert!(matches!(
+            serde_json::from_str::<ButtonAction>(&off).unwrap(),
+            ButtonAction::SetSubtitleTrack { track: None }
+        ));
+        // Projects saved before this action existed.
+        assert!(matches!(
+            serde_json::from_str::<ButtonAction>(r#"{"kind":"setAudioTrack","track":1}"#).unwrap(),
+            ButtonAction::SetAudioTrack { track: 1 }
+        ));
     }
 }

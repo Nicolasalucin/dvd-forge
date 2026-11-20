@@ -263,7 +263,7 @@ pub fn apply_chapter_menus(project: &Project) -> Result<TemplateApplyResult, Tem
     })
 }
 
-fn title_item(root: &Menu, template: &templates::MenuTemplate, text: &str) -> MenuItem {
+pub(crate) fn title_item(root: &Menu, template: &templates::MenuTemplate, text: &str) -> MenuItem {
     MenuItem::Text(TextItem {
         id: "tpl:title".to_string(),
         text: text.to_string(),

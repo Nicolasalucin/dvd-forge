@@ -11,6 +11,7 @@ use kinodisc_render::RenderOutcome;
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
 
+use commands::menu_apply_setup_menu;
 use commands::{
     autosave_discard, autosave_list, autosave_write, bundle_export, bundle_import, burn_cancel,
     burn_list_devices, burn_start, data_folder_size, data_iso_cancel, data_iso_create, disc_import,
@@ -59,6 +60,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             menu_navigation,
             menu_templates,
             menu_apply_chapter_menus,
+            menu_apply_setup_menu,
             menu_apply_template,
             plan_calculate,
             project_split,

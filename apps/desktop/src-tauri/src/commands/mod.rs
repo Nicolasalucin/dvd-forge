@@ -17,6 +17,7 @@ pub use media::{
     media_prepare_preview, media_preview_url, media_probe_file, media_sidecar_subtitles,
     read_image_data_url, render_quality_sample, slideshow_create, PlaybackSupport,
 };
+pub use menu::menu_apply_setup_menu;
 pub use menu::{
     image_save_png, menu_apply_chapter_menus, menu_apply_template, menu_navigation,
     menu_save_background, menu_save_labels, menu_templates,

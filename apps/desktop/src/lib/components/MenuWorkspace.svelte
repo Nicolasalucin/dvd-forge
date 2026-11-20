@@ -159,6 +159,8 @@
         return t("Reproducir inicio");
       case "setAudioTrack":
         return t("Cambiar pista de audio");
+      case "setSubtitleTrack":
+        return t("Elegir subtítulos");
       case "resume":
         return t("Reanudar");
       default:

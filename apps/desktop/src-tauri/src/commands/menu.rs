@@ -50,6 +50,13 @@ pub fn menu_apply_chapter_menus(project: Project) -> Result<TemplateApplyResult,
     kinodisc_menu::chapters::apply_chapter_menus(&project).map_err(|error| error.to_string())
 }
 
+/// Builds (or rebuilds) the on-disc audio and subtitle setup menu.
+#[tauri::command]
+#[specta::specta]
+pub fn menu_apply_setup_menu(project: Project) -> Result<TemplateApplyResult, String> {
+    kinodisc_menu::setup::apply_setup_menu(&project).map_err(|error| error.to_string())
+}
+
 #[tauri::command(async)]
 #[specta::specta]
 pub fn menu_save_background(

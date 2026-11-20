@@ -265,6 +265,8 @@
         return t("Reproducir inicio");
       case "setAudioTrack":
         return t("Cambiar pista de audio");
+      case "setSubtitleTrack":
+        return t("Elegir subtítulos");
       case "resume":
         return t("Reanudar");
       default:
@@ -318,6 +320,12 @@
       }
       case "setAudioTrack":
         notice = t("El reproductor usará la pista {track}.", { track: action.track + 1 });
+        break;
+      case "setSubtitleTrack":
+        notice =
+          action.track === null
+            ? t("El reproductor apagará los subtítulos.")
+            : t("El reproductor mostrará el subtítulo {track}.", { track: action.track + 1 });
         break;
       case "resume":
         notice = t("Resume no tiene estado previo en el simulador.");
@@ -543,10 +551,13 @@
     const quarter = filters?.rotate === "clockwise" || filters?.rotate === "counterClockwise";
     const parts: string[] = [];
     if (quarter) parts.push("translate(-50%, -50%)");
+    // The disc turns the picture first and mirrors it after. CSS applies the
+    // list right to left, so with a quarter turn the mirror goes before it.
+    if (quarter && filters?.flipHorizontal) parts.push("scaleX(-1)");
     if (filters?.rotate === "clockwise") parts.push("rotate(90deg)");
     if (filters?.rotate === "counterClockwise") parts.push("rotate(-90deg)");
     if (filters?.rotate === "half") parts.push("rotate(180deg)");
-    if (filters?.flipHorizontal) parts.push("scaleX(-1)");
+    if (!quarter && filters?.flipHorizontal) parts.push("scaleX(-1)");
     const transform = parts.length > 0 ? `transform: ${parts.join(" ")};` : "";
     // A quarter turn swaps the box: the video is laid out tall, then turned.
     return quarter

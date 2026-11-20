@@ -8,6 +8,7 @@
     ButtonAction,
     ButtonStyleKind,
     Episode_Serialize,
+    MenuButton_Serialize,
     VideoScaleMode,
   } from "../api/bindings";
   import { normalizeRect } from "../editor/exportMenu";
@@ -94,6 +95,7 @@
     { id: "jumpTitleChapter", label: "Ir a capítulo" },
     { id: "playFirstPlay", label: "Inicio" },
     { id: "setAudioTrack", label: "Pista de audio" },
+    { id: "setSubtitleTrack", label: "Subtítulos" },
     { id: "resume", label: "Reanudar" },
     { id: "noop", label: "Sin acción" },
   ];
@@ -145,7 +147,7 @@
       localError = t("El proyecto no tiene ningún menú de destino.");
       return;
     }
-    let action: ButtonAction;
+    let action: MenuButton_Serialize["action"];
     switch (kind) {
       case "playEpisode":
         action = { kind, episode: fallbackEpisode!.id };
@@ -159,6 +161,9 @@
       case "setAudioTrack":
         action = { kind, track: 0 };
         break;
+      case "setSubtitleTrack":
+        action = { kind, track: 0 };
+        break;
       default:
         action = { kind };
         break;
@@ -166,7 +171,7 @@
     projectStore.updateButtonAction(button.id, action);
   }
 
-  function patchAction(patch: Record<string, string | number>) {
+  function patchAction(patch: Record<string, string | number | null>) {
     if (!button) return;
     if (
       (button.action.kind === "playEpisode" || button.action.kind === "jumpTitleChapter") &&
@@ -189,7 +194,7 @@
     projectStore.updateButtonAction(button.id, {
       ...button.action,
       ...patch,
-    } as ButtonAction);
+    } as MenuButton_Serialize["action"]);
   }
 
   function setEnabled(enabled: boolean) {
@@ -601,6 +606,21 @@
                 <span class="ui-label">{t("Pista de audio")}</span>
                 <input type="number" min="1" max="8" class="ui-input tabular-nums" value={button.action.track + 1}
                   onchange={(event) => patchAction({ track: Math.max(0, Number(event.currentTarget.value) - 1) })} />
+              </label>
+            {:else if button.action.kind === "setSubtitleTrack"}
+              <label class="block">
+                <span class="ui-label">{t("Subtítulos")}</span>
+                <select
+                  class="ui-input"
+                  value={button.action.track === null ? "off" : String(button.action.track)}
+                  onchange={(event) =>
+                    patchAction({ track: event.currentTarget.value === "off" ? null : Number(event.currentTarget.value) })}
+                >
+                  <option value="off">{t("Sin subtítulos")}</option>
+                  {#each Array.from({ length: 8 }, (_, index) => index) as index}
+                    <option value={String(index)}>{t("Subtítulo {number}", { number: index + 1 })}</option>
+                  {/each}
+                </select>
               </label>
             {:else}
               <p class="ui-hint">

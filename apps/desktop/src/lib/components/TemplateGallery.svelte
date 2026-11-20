@@ -56,6 +56,26 @@
     applying = null;
   }
 
+  // The disc can only offer a choice when there is one to make.
+  const hasLanguages = $derived(
+    (projectStore.project?.episodes ?? []).some(
+      (episode) => episode.audio.length > 1 || episode.subtitles.length > 0,
+    ),
+  );
+
+  async function makeSetup() {
+    error = null;
+    if (!hasLanguages) {
+      error = t("El menú de audio y subtítulos necesita un vídeo con más de un idioma de audio o con subtítulos.");
+      return;
+    }
+    applying = "setup";
+    const ok = await projectStore.applySetupMenu();
+    if (!ok) error = projectStore.error ?? t("No hay idiomas ni subtítulos entre los que elegir.");
+    else onapplied?.();
+    applying = null;
+  }
+
   function swatch(rgb: [number, number, number]) {
     return "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
   }
@@ -75,6 +95,13 @@
         disabled={applying !== null || !projectStore.project}
         title={t("Crea un menú con un botón por capítulo para cada episodio")}
       ><Icon name="layers" size={14} />{t("Menús de escenas")}</button>
+      <button
+        type="button"
+        class="ui-btn ui-btn-sm"
+        onclick={makeSetup}
+        disabled={applying !== null || !projectStore.project}
+        title={t("Crea una página donde se eligen el idioma del audio y los subtítulos con el control remoto")}
+      ><Icon name="tracks" size={14} />{t("Audio y subtítulos")}</button>
     {/if}
   </div>
   {#if error}<p class="mx-3 mb-2 rounded-md bg-rose-500/10 px-2.5 py-1.5 text-[12px] text-rose-200" role="alert">{error}</p>{/if}
