@@ -1808,7 +1808,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-avchd"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-domain",
  "kinodisc-hdmv",
@@ -1821,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-burn"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -1840,7 +1840,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-cli"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-burn",
  "kinodisc-domain",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-desktop"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-domain"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "hex",
  "serde",
@@ -1903,7 +1903,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-dvd"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-domain",
  "kinodisc-project",
@@ -1914,14 +1914,14 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-hdmv"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "kinodisc-iso"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "kinodisc-toolchain",
@@ -1932,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-jobs"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-domain",
  "serde",
@@ -1941,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-media"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-domain",
  "kinodisc-toolchain",
@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-menu"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "image",
  "kinodisc-domain",
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-plan"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "kinodisc-avchd",
  "kinodisc-domain",
@@ -1979,7 +1979,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-project"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "hex",
  "kinodisc-domain",
@@ -1994,7 +1994,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-render"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "ab_glyph",
  "hex",
@@ -2023,7 +2023,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-store"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "chrono",
  "hex",
@@ -2038,7 +2038,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-subtitle"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "ab_glyph",
  "fontdb",
@@ -2049,11 +2049,11 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-testkit"
-version = "1.1.3"
+version = "1.2.0"
 
 [[package]]
 name = "kinodisc-toolchain"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "hex",
  "serde",
@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "kinodisc-verify"
-version = "1.1.3"
+version = "1.2.0"
 dependencies = [
  "hex",
  "kinodisc-domain",

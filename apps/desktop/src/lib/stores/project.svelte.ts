@@ -50,7 +50,7 @@ import {
   localizeRenderError,
 } from "../i18n/diagnostics";
 import { i18n, t } from "../i18n/index.svelte";
-import { normalizeLanguageCode } from "../i18n/languages";
+import { languageEntry, normalizeLanguageCode } from "../i18n/languages";
 import { hexToRgb, rgbToHex } from "../utils/color";
 import { isPlaceholderAsset } from "../utils/assets";
 import { thumbnailKey, thumbnailTimeMs } from "../editor/thumbnailKey";
@@ -271,6 +271,56 @@ function localizeGeneratedMenus(menus: Menu_Serialize[]): void {
     // into the menu, so they follow the interface language too.
     for (const item of menu.items) {
       if (item.kind === "text" && item.id.startsWith("tpl:")) item.text = localize(item.text);
+    }
+  }
+}
+
+/**
+ * Setup-page buttons read "Audio: English" / "Subtitles: Spanish" (the
+ * language in the interface language) instead of "Audio: Track 2" or a file
+ * name, when the track's language is known.
+ */
+function nameSetupButtonsByLanguage(menus: Menu_Serialize[], episodes: Episode_Serialize[]): void {
+  const source = [...episodes]
+    .sort((a, b) => a.number - b.number)
+    .find((episode) => episode.audio.length > 1 || episode.subtitles.length > 0);
+  if (!source) return;
+  const languageName = (code: string): string | null => {
+    if (!code || code === "und") return null;
+    const entry = languageEntry(code);
+    const names: Record<string, string> = {
+      es: entry.nameEs,
+      en: entry.nameEn,
+      pt: entry.namePt,
+      fr: entry.nameFr,
+      de: entry.nameDe,
+      it: entry.nameIt,
+      ja: entry.nameJa,
+    };
+    return names[i18n.locale] ?? entry.nameEn;
+  };
+  // Bitmap subtitles the render skips would shift the on-disc numbering.
+  const plainSubtitles = source.subtitles.every((track) => !track.bitmap);
+  for (const menu of menus) {
+    const used = new Set(menu.buttons.map((button) => button.name));
+    for (const button of menu.buttons) {
+      const action = button.action;
+      let name: string | null = null;
+      if (action.kind === "setAudioTrack") {
+        const language = languageName(source.audio[action.track]?.language ?? "");
+        if (language) name = `${t("Audio")}: ${language}`;
+      } else if (action.kind === "setSubtitleTrack" && action.track !== null && plainSubtitles) {
+        const language = languageName(source.subtitles[action.track]?.language ?? "");
+        if (language) name = `${t("Subtítulos")}: ${language}`;
+      }
+      if (!name || name === button.name) continue;
+      // Names must stay unique within a menu.
+      let unique = name;
+      for (let n = 2; used.has(unique); n += 1) unique = `${name} ${n}`;
+      used.delete(button.name);
+      used.add(unique);
+      if (button.label && button.label.text === button.name) button.label.text = unique;
+      button.name = unique;
     }
   }
 }
@@ -2692,6 +2742,7 @@ class ProjectStore {
       const before = project.menus.length;
       const result = await unwrap(commands.menuApplySetupMenu(project));
       localizeGeneratedMenus(result.menus);
+      nameSetupButtonsByLanguage(result.menus, project.episodes);
       project.menus = result.menus;
       this.plan = null;
       this.touch();
