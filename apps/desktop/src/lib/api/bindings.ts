@@ -1168,9 +1168,26 @@ export type MenuTemplatePage = {
 	episodeCapacity: number,
 };
 
-export type MenuTiming = {
+export type MenuTiming = MenuTiming_Serialize | MenuTiming_Deserialize;
+
+export type MenuTiming_Deserialize = {
 	durationMs: number,
 	loopPlayback: boolean,
+	/**
+	 *  Root menu only: when nobody chooses anything for `duration_ms`, the
+	 *  disc starts Play All instead of showing the menu again (DVD-Video).
+	 */
+	autoPlay?: boolean,
+};
+
+export type MenuTiming_Serialize = {
+	durationMs: number,
+	loopPlayback: boolean,
+	/**
+	 *  Root menu only: when nobody chooses anything for `duration_ms`, the
+	 *  disc starts Play All instead of showing the menu again (DVD-Video).
+	 */
+	autoPlay: boolean,
 };
 
 export type MenuTransition = MenuTransition_Serialize | MenuTransition_Deserialize;
@@ -1202,7 +1219,7 @@ export type Menu_Deserialize = {
 	items?: MenuItem_Deserialize[],
 	buttons?: MenuButton_Deserialize[],
 	subpicture?: SubpictureSpec_Deserialize,
-	timing?: MenuTiming,
+	timing?: MenuTiming_Deserialize,
 	template?: MenuTemplatePage | null,
 	transition?: MenuTransition_Deserialize | null,
 };
@@ -1222,7 +1239,7 @@ export type Menu_Serialize = {
 	items: MenuItem_Serialize[],
 	buttons: MenuButton_Serialize[],
 	subpicture: SubpictureSpec_Serialize,
-	timing: MenuTiming,
+	timing: MenuTiming_Serialize,
 	template: MenuTemplatePage | null,
 	transition: MenuTransition_Serialize | null,
 };

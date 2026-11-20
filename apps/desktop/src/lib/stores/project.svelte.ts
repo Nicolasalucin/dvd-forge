@@ -2068,6 +2068,15 @@ class ProjectStore {
     this.touch();
   }
 
+  /** Root menu: start Play All when nobody chooses anything (DVD-Video). */
+  setMenuAutoPlay(enabled: boolean): void {
+    const project = this.project;
+    const root = project?.menus.find((menu) => menu.id === project.rootMenu);
+    if (!root) return;
+    root.timing = { ...root.timing, autoPlay: enabled };
+    this.touch();
+  }
+
   setMenuAudio(assetId: string | null): void {
     const menu = this.activeMenu;
     if (!menu) return;
@@ -3026,7 +3035,7 @@ class ProjectStore {
         highlightOpacity: 15,
         selectOpacity: 15,
       },
-      timing: { durationMs: 30_000, loopPlayback: true },
+      timing: { durationMs: 30_000, loopPlayback: true, autoPlay: false },
       template: null,
       transition: null,
     };

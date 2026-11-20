@@ -54,6 +54,9 @@
 
   const project = $derived(projectStore.project);
   const menu = $derived(projectStore.activeMenu);
+  const isRootMenu = $derived(Boolean(menu && menu.id === projectStore.project?.rootMenu));
+  const autoPlay = $derived(menu?.timing.autoPlay ?? false);
+  const autoPlayHd = $derived(projectStore.project?.disc.mode === "avchd");
   const menus = $derived(project?.menus ?? []);
   const selected = $derived(projectStore.selectedButton);
 
@@ -266,6 +269,24 @@
       <button type="button" class="ui-btn ui-btn-sm" onclick={pickMusic} disabled={busy} title={t("Música del menú")}>
         <Icon name="music" size={14} /><span class="hidden 2xl:inline">{t("Música")}</span>
       </button>
+      {#if isRootMenu}
+        <!-- Auto-play: Play All when nobody chooses anything. -->
+        <button
+          type="button"
+          class="ui-btn ui-btn-sm"
+          aria-pressed={autoPlay}
+          class:ui-btn-primary={autoPlay}
+          disabled={busy || autoPlayHd}
+          onclick={() => projectStore.setMenuAutoPlay(!autoPlay)}
+          title={autoPlayHd
+            ? t("Solo en DVD-Video: en Blu-ray y AVCHD el menú espera hasta que elijas.")
+            : t("Si nadie elige nada, el disco empieza a reproducir todo cuando el menú termina ({seconds} s).", {
+                seconds: Math.round((projectStore.activeMenu?.timing.durationMs ?? 30_000) / 1000),
+              })}
+        >
+          <Icon name="play" size={14} /><span class="hidden 2xl:inline">{t("Reproducir solo")}</span>
+        </button>
+      {/if}
 
       <div class="ml-auto flex items-center gap-1.5">
         <div class="ui-seg [&>button]:whitespace-nowrap" role="group" aria-label={t("Estado de los botones")}>

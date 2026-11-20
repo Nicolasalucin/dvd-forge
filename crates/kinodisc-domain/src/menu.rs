@@ -514,6 +514,10 @@ impl SubpictureColor {
 pub struct MenuTiming {
     pub duration_ms: u64,
     pub loop_playback: bool,
+    /// Root menu only: when nobody chooses anything for `duration_ms`, the
+    /// disc starts Play All instead of showing the menu again (DVD-Video).
+    #[serde(default)]
+    pub auto_play: bool,
 }
 
 impl Default for MenuTiming {
@@ -521,6 +525,7 @@ impl Default for MenuTiming {
         Self {
             duration_ms: 30_000,
             loop_playback: true,
+            auto_play: false,
         }
     }
 }

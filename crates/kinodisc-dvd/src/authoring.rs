@@ -311,7 +311,24 @@ pub fn build_dvdauthor_xml(request: &AuthoringRequest<'_>) -> Result<String, Aut
                 xml_escape(&command)
             ));
         }
-        let post = if is_root {
+        // Auto-play: after the menu has been shown once with no choice, the
+        // disc plays everything (same command as a Play All button).
+        let auto_play = is_root
+            && !request.episodes.is_empty()
+            && request
+                .project
+                .menu(menu.menu_id)
+                .is_some_and(|menu| menu.timing.auto_play);
+        let post = if auto_play {
+            button_command(
+                &ButtonAction::PlayAll,
+                request,
+                menu,
+                index + 1 + usize::from(request.intro.is_some()),
+                &title_index,
+                mode_gprm,
+            )?
+        } else if is_root {
             format!("jump menu {root_index};")
         } else {
             format!("jump vmgm menu {root_index};")
@@ -986,6 +1003,40 @@ mod tests {
         })
         .expect("xml");
         assert!(xml.contains("g1=0; jump title 2;"));
+    }
+
+    #[test]
+    fn auto_play_starts_play_all_when_the_root_menu_ends() {
+        let mut project = fixture_project();
+        let menus = rendered_menus(&project);
+        let episodes = episode_files(&project);
+        let xml = |project: &Project| {
+            build_dvdauthor_xml(&AuthoringRequest {
+                project,
+                intro: None,
+                menus: &menus,
+                episodes: &episodes,
+            })
+            .expect("xml")
+        };
+        // Default: the root menu loops.
+        assert!(xml(&project).contains("<post>jump menu 1;</post>"));
+        let root = project.root_menu;
+        project
+            .menus
+            .iter_mut()
+            .find(|menu| menu.id == root)
+            .unwrap()
+            .timing
+            .auto_play = true;
+        let authored = xml(&project);
+        assert!(
+            authored.contains("<post>g1=1; jump title 1;</post>"),
+            "{authored}"
+        );
+        // Only the root menu changes (the episode menu keeps its own loop).
+        let vmgm = &authored[..authored.find("</vmgm>").unwrap()];
+        assert!(!vmgm.contains("<post>jump menu 1;</post>"), "{authored}");
     }
 
     #[test]
