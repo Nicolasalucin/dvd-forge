@@ -220,3 +220,12 @@ Thanks to these community members for finding bugs and suggesting improvements:
 
 GPL-3.0-or-later. See [LICENSE](LICENSE). FFmpeg, DVDAuthor and tsMuxeR are
 separate programs under their own licences.
+
+## Disclaimer
+
+Kinodisc is provided "as is", without any warranty (see sections 15 and 16 of
+the [LICENSE](LICENSE)). The author is not responsible for discs that are
+damaged, burned incorrectly or that do not play, for wasted blank media, or for
+any loss of data. Burning depends on your drive, the discs and the player.
+Check the image or the disc folder before you burn it, and keep your original
+files.

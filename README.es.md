@@ -225,3 +225,12 @@ mejoras: **OhItsStefan**, **Infinite_Silver483**, **Narrow-Chard4152**,
 
 GPL-3.0-or-later. Ver [LICENSE](LICENSE). FFmpeg, DVDAuthor y tsMuxeR son
 programas aparte con sus propias licencias.
+
+## Aviso
+
+Kinodisc se ofrece "tal cual", sin ninguna garantía (ver las secciones 15 y 16
+de la [LICENSE](LICENSE)). El autor no se hace responsable de discos dañados,
+grabados mal o que no se reproducen, de discos vírgenes desperdiciados ni de
+pérdidas de datos. La grabación depende de tu grabadora, de los discos y del
+reproductor. Revisa la imagen o la carpeta del disco antes de grabar y guarda
+siempre tus archivos originales.
