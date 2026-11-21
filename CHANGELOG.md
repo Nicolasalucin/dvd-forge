@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 — 2026-11-21
+
+### Added
+
+- **`kinodisc-cli template`** applies a menu template from the command line, with the same engine as Menu › Templates in the app: `kinodisc-cli template project.json multi-page-tv-grid`. `kinodisc-cli template --list` lists the 15 templates. A whole disc (template, scene menus, render, verify) can now be made without opening the app, for example by a script or an AI assistant. The project is checked before it is saved; a broken one is never written.
+
 ## 1.2.1 — 2026-11-21
 
 ### Added

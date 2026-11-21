@@ -8,6 +8,7 @@ mod scenes_cmd;
 mod slideshow_cmd;
 mod split_cmd;
 mod support;
+mod template_cmd;
 mod toolchain_cmd;
 
 use kinodisc_burn::{platform_burner, BurnRequest, CancellationToken, DeviceId};
@@ -46,6 +47,7 @@ async fn main() -> ExitCode {
         "toolchain" => toolchain_cmd::run(&args[1..]),
         "split" => split_cmd::run(&args[1..]),
         "scenes" => scenes_cmd::run(&args[1..]),
+        "template" => template_cmd::run(&args[1..]),
         "chapters" => chapters_cmd::run(&args[1..]).await,
         "join" => join_cmd::run(&args[1..]).await,
         "inspect" => inspect_cmd::run(&args[1..]),
@@ -701,6 +703,9 @@ fn print_help() {
     println!("  kinodisc-cli probe <archivo|/dev/srX> [--json]");
     println!(
         "  kinodisc-cli scenes <project.json> [-o <salida.json>]   (menús de escenas por capítulo)"
+    );
+    println!(
+        "  kinodisc-cli template <project.json> <plantilla> [-o <salida.json>]   (plantilla de menú; --list las muestra)"
     );
     println!(
         "  kinodisc-cli join <vídeo> <vídeo> [...] -o <unido.mp4> [--4x3] [--fps N]   (une vídeos en uno)"

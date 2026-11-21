@@ -385,6 +385,10 @@ Smart Render Cache v2:
   shows reason + advice; keep both tables in sync.
 - **Diagnostics are local**: "Copy details" builds the report in the page;
   there is no telemetry upload (see section 17, Network).
+- `kinodisc-cli template <project> <name>` uses
+  `kinodisc-menu::templates::apply_template` (kebab-case names from
+  `MenuTemplateId`, `--list`), validates before saving, never writes an
+  invalid project.
 - `burn_start` lets an image without VIDEO_TS/BDMV through
   (`PROFILE-UNKNOWN` is not blocking): it is a data disc; any other failed
   check still blocks the burn.

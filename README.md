@@ -182,6 +182,7 @@ kinodisc-cli toolchain install all                   # verified downloads (Windo
 kinodisc-cli render project.json -o out --folder     # ISO + VIDEO_TS/BDMV folder
 kinodisc-cli split project.json --per-episode        # one project per disc
 kinodisc-cli scenes project.json                     # add scene menus from chapters
+kinodisc-cli template project.json multi-page-tv-grid  # apply a menu template (--list)
 kinodisc-cli chapters project.json --scenes          # chapters at scene changes
 kinodisc-cli join part1.mp4 part2.mp4 -o joined.mp4  # several clips into one video
 kinodisc-cli slideshow photos/*.jpg --music song.mp3 -o out
