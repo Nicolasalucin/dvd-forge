@@ -964,6 +964,8 @@ export const ja: Dictionary = {
   "Carpeta donde copiar los títulos": "タイトルのコピー先フォルダー",
   "Cifrado: se puede ver, pero no importar.": "暗号化されています。表示はできますが、取り込めません。",
   "Disco de datos": "データディスク",
+  "Elige una velocidad menor.": "より低い速度を選んでください。",
+  "Ya existe una imagen con esa etiqueta en la carpeta de salida. Cambia la etiqueta o elige otra carpeta.": "出力フォルダーに同じラベルのイメージがすでにあります。ラベルを変えるか、別のフォルダーを選んでください。",
   "Detalles técnicos": "技術的な詳細",
   "Copiado": "コピーしました",
   "Copiar detalles": "詳細をコピー",

@@ -9,7 +9,9 @@
 
 ### Fixed
 
-- **Data discs can be burned.** The check before burning refused every image without VIDEO_TS or BDMV, so the data discs made with Disc › Data disc… could only be saved, not burned.
+- **Data discs can be burned**, from the app and with `kinodisc-cli burn`. The check before burning refused every image without VIDEO_TS or BDMV, so the data discs made with Disc › Data disc… could only be saved, not burned. `kinodisc-cli verify` now says when an image is a data disc.
+- **A data disc never replaces an existing file**: if the output folder already has an image with that label, Kinodisc asks for another label or folder.
+- **Escape closes the dialog on top** (Erase disc over Produce disc), and the Data disc and Erase disc dialogs take the keyboard focus.
 
 ## 1.2.0 — 2026-11-19
 

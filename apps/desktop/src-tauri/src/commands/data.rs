@@ -71,6 +71,10 @@ pub fn data_folder_size(folder: String) -> Result<FolderSize, String> {
     measure(&folder)
 }
 
+/// The output folder already has an image with this label.
+const EXISTS_MESSAGE: &str =
+    "Ya existe una imagen con esa etiqueta en la carpeta de salida. Cambia la etiqueta o elige otra carpeta.";
+
 /// What the user reads when the data image could not be made. `cancelled`
 /// is the state of the cancel flag when the build ended.
 fn data_iso_error(error: &kinodisc_iso::IsoError, cancelled: bool) -> String {
@@ -113,6 +117,11 @@ pub async fn data_iso_create(
         &label
     });
     let iso_path = output.join(format!("{label}.iso"));
+    // Never replace a file that is already there (QA 1.2.1: an existing
+    // "<LABEL>.iso" was overwritten without a word).
+    if iso_path.exists() {
+        return Err(EXISTS_MESSAGE.to_string());
+    }
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut slot = cancel_slot()

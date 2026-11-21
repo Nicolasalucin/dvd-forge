@@ -965,6 +965,8 @@ export const fr: Dictionary = {
   "Carpeta donde copiar los títulos": "Dossier où copier les titres",
   "Cifrado: se puede ver, pero no importar.": "Chiffré : consultable, mais non importable.",
   "Disco de datos": "Disque de données",
+  "Elige una velocidad menor.": "Choisissez une vitesse plus basse.",
+  "Ya existe una imagen con esa etiqueta en la carpeta de salida. Cambia la etiqueta o elige otra carpeta.": "Le dossier de sortie contient déjà une image avec ce nom. Changez le nom ou choisissez un autre dossier.",
   "Detalles técnicos": "Détails techniques",
   "Copiado": "Copié",
   "Copiar detalles": "Copier les détails",

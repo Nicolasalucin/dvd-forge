@@ -381,6 +381,11 @@ async fn verify_command(args: &[String]) -> ExitCode {
             };
             println!("[{status}] {:<18} {}", check.id, check.message);
         }
+        if report.is_data_image() {
+            println!(
+                "Es un disco de datos, no un disco de vídeo: su sistema de archivos es correcto y se puede grabar."
+            );
+        }
     }
 
     let failed = report
@@ -451,14 +456,16 @@ async fn burn_command(args: &[String]) -> ExitCode {
         let path = args.iso.clone();
         match tokio::task::spawn_blocking(move || kinodisc_verify::verify_iso(&path, false)).await {
             Ok(Ok(report)) => {
-                if report.verdict == kinodisc_verify::report::VerifyVerdict::Fail {
+                let blockers = report.burn_blockers();
+                if !blockers.is_empty() {
                     eprintln!("La verificación estructural falló; no se graba el ISO.");
-                    for check in &report.checks {
-                        if matches!(check.status, kinodisc_verify::report::CheckStatus::Fail) {
-                            eprintln!("  [{}] {}", check.id, check.message);
-                        }
+                    for check in blockers {
+                        eprintln!("  [{}] {}", check.id, check.message);
                     }
                     return ExitCode::FAILURE;
+                }
+                if report.is_data_image() {
+                    eprintln!("Disco de datos: el sistema de archivos es correcto.");
                 }
                 if report.verdict == kinodisc_verify::report::VerifyVerdict::Warn {
                     eprintln!("Verificación estructural con avisos; se continúa.");

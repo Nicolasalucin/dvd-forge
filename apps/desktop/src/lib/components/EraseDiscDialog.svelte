@@ -61,11 +61,18 @@
       ui.locked = false;
     }
   }
+
+  /** Moves keyboard focus into the dialog when it opens. */
+  function focusOnOpen(node: HTMLElement) {
+    queueMicrotask(() => node.focus());
+  }
 </script>
+
+<svelte:window onkeydown={(event) => event.key === "Escape" && !working && onclose()} />
 
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
   <button type="button" class="ui-backdrop" onclick={() => !working && onclose()} aria-label={t("Cerrar")}></button>
-  <div class="ui-dialog max-w-lg" role="dialog" aria-modal="true" aria-labelledby="erase-disc-title">
+  <div class="ui-dialog max-w-lg" role="dialog" aria-modal="true" tabindex="-1" use:focusOnOpen aria-labelledby="erase-disc-title">
     <header class="flex items-start gap-3 border-b border-slate-800 px-5 py-4">
       <Icon name="disc" size={20} class="mt-0.5 text-cyan-400" />
       <div>

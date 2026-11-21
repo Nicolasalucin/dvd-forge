@@ -964,6 +964,8 @@ export const de: Dictionary = {
   "Carpeta donde copiar los títulos": "Ordner für die kopierten Titel",
   "Cifrado: se puede ver, pero no importar.": "Verschlüsselt: ansehen ja, importieren nein.",
   "Disco de datos": "Datendisc",
+  "Elige una velocidad menor.": "Wähle eine niedrigere Geschwindigkeit.",
+  "Ya existe una imagen con esa etiqueta en la carpeta de salida. Cambia la etiqueta o elige otra carpeta.": "Im Ausgabeordner gibt es bereits ein Abbild mit dieser Bezeichnung. Ändere die Bezeichnung oder wähle einen anderen Ordner.",
   "Detalles técnicos": "Technische Details",
   "Copiado": "Kopiert",
   "Copiar detalles": "Details kopieren",

@@ -57,6 +57,26 @@ pub struct VerifyReport {
 }
 
 impl VerifyReport {
+    /// Failed checks that must stop a burn. An image with no VIDEO_TS or
+    /// BDMV is a data disc, not a broken video disc: its file system is
+    /// still checked, but "unknown profile" alone does not stop it. The app
+    /// and the CLI both use this rule.
+    pub fn burn_blockers(&self) -> Vec<&VerifyCheck> {
+        self.checks
+            .iter()
+            .filter(|check| matches!(check.status, CheckStatus::Fail))
+            .filter(|check| check.id != "PROFILE-UNKNOWN")
+            .collect()
+    }
+
+    /// Only the file system was checked: the image is not a video disc.
+    pub fn is_data_image(&self) -> bool {
+        self.checks
+            .iter()
+            .any(|check| check.id == "PROFILE-UNKNOWN" && matches!(check.status, CheckStatus::Fail))
+            && self.burn_blockers().is_empty()
+    }
+
     pub fn from_checks(
         iso_path: String,
         size_bytes: u64,

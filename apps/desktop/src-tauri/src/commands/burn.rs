@@ -115,19 +115,6 @@ fn not_rewritable_message() -> &'static str {
     "Este disco no es regrabable: solo se pueden borrar DVD-RW, DVD+RW y BD-RE. Un DVD-R o DVD+R grabado no se puede volver a usar."
 }
 
-/// Failed checks that stop a burn. An image with no VIDEO_TS or BDMV is a
-/// data disc (Disc > Data disc…), not a broken video disc: its file system
-/// is checked, but "unknown profile" alone does not stop it (1.2.0 refused
-/// every data disc).
-fn blocking_failures(checks: &[kinodisc_verify::report::VerifyCheck]) -> Vec<String> {
-    checks
-        .iter()
-        .filter(|check| matches!(check.status, kinodisc_verify::report::CheckStatus::Fail))
-        .filter(|check| check.id != "PROFILE-UNKNOWN")
-        .map(|check| format!("{}: {}", check.id, check.message))
-        .collect()
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn burn_start(
@@ -161,9 +148,12 @@ pub async fn burn_start(
                 format!("La verificación estructural terminó inesperadamente: {error}")
             })?
             .map_err(|error| format!("No se pudo verificar la ISO antes de grabar: {error}"))?;
-    let failures = blocking_failures(&verification.checks);
-    if verification.verdict == kinodisc_verify::report::VerifyVerdict::Fail && !failures.is_empty()
-    {
+    let failures: Vec<String> = verification
+        .burn_blockers()
+        .iter()
+        .map(|check| format!("{}: {}", check.id, check.message))
+        .collect();
+    if !failures.is_empty() {
         return Err(format!(
             "La ISO no pasó la verificación estructural: {}",
             failures.join("; ")
@@ -238,8 +228,6 @@ pub async fn burn_start(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn a_data_disc_image_is_not_refused_but_a_broken_one_is() {
         let image = std::env::temp_dir().join(format!("kd-burn-data-{}", std::process::id()));
@@ -259,16 +247,14 @@ mod tests {
                 .any(|check| check.id == "PROFILE-UNKNOWN"),
             "the verifier still says it is not a video disc"
         );
-        assert!(
-            blocking_failures(&report.checks).is_empty(),
-            "{:?}",
-            report.checks
-        );
+        assert!(report.burn_blockers().is_empty(), "{:?}", report.checks);
+        assert!(report.is_data_image());
         // A file that is not a disc image at all is still refused.
         let junk = image.join("out/basura.iso");
         std::fs::write(&junk, vec![0u8; 64 * 2048]).unwrap();
         let report = kinodisc_verify::verify_iso(&junk, false).unwrap();
-        assert!(!blocking_failures(&report.checks).is_empty());
+        assert!(!report.burn_blockers().is_empty());
+        assert!(!report.is_data_image());
         let _ = std::fs::remove_dir_all(&image);
     }
 }

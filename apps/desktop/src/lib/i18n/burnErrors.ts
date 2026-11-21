@@ -53,7 +53,7 @@ const IMAPI: Record<string, Entry> = {
     "La grabadora dejó de responder.",
     "Revisa el cable USB y su alimentación (en grabadoras externas, conecta los dos conectores o usa un hub con fuente).",
   ],
-  C0AA020F: ["La velocidad elegida no sirve para este disco.", "Elige una velocidad menor o «Automática»."],
+  C0AA020F: ["La velocidad elegida no sirve para este disco.", "Elige una velocidad menor."],
   C0AA0210: ["Otro programa tiene bloqueada la grabadora.", "Cierra otros programas de grabación y vuelve a intentarlo."],
   C0AA02FF: STRANGE,
   C0AA0301: STRANGE,

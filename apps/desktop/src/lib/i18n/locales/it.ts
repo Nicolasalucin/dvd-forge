@@ -964,6 +964,8 @@ export const it: Dictionary = {
   "Carpeta donde copiar los títulos": "Cartella in cui copiare i titoli",
   "Cifrado: se puede ver, pero no importar.": "Cifrato: si può vedere, ma non importare.",
   "Disco de datos": "Disco dati",
+  "Elige una velocidad menor.": "Scegli una velocità più bassa.",
+  "Ya existe una imagen con esa etiqueta en la carpeta de salida. Cambia la etiqueta o elige otra carpeta.": "Nella cartella di uscita esiste già un’immagine con questa etichetta. Cambia l’etichetta o scegli un’altra cartella.",
   "Detalles técnicos": "Dettagli tecnici",
   "Copiado": "Copiato",
   "Copiar detalles": "Copia dettagli",
