@@ -244,6 +244,29 @@ impl DiscBurner for LinuxBurner {
         })
     }
 
+    async fn erase(&self, device: &DeviceId, full: bool) -> Result<crate::EraseReport, BurnError> {
+        self.ensure_detected_device(device).await?;
+        let started = Instant::now();
+        let args = crate::linux::build_xorriso_blank_args(device.as_str(), full);
+        let output = Command::new(&self.xorriso)
+            .args(&args)
+            .output()
+            .await
+            .map_err(|error| map_command_error(&self.xorriso, error))?;
+        if !output.status.success() {
+            return Err(BurnError::ProcessFailed {
+                tool: self.xorriso.display().to_string(),
+                code: output.status.code().unwrap_or(-1),
+                stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            });
+        }
+        Ok(crate::EraseReport {
+            backend: BurnBackend::Xorriso,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            full,
+        })
+    }
+
     async fn eject(&self, device: &DeviceId) -> Result<(), BurnError> {
         let output = Command::new(&self.eject)
             .arg(device.as_str())
@@ -656,6 +679,18 @@ pub fn build_growisofs_args_for_media(
     args
 }
 
+/// `xorriso` arguments that erase a rewritable disc: `fast` clears the
+/// file system (DVD-RW minimal blank, DVD+RW/BD-RE invalidated), `all`
+/// rewrites the whole surface.
+pub fn build_xorriso_blank_args(device: &str, full: bool) -> Vec<String> {
+    vec![
+        "-outdev".to_string(),
+        device.trim().to_string(),
+        "-blank".to_string(),
+        if full { "all" } else { "fast" }.to_string(),
+    ]
+}
+
 pub fn build_xorriso_args(request: &BurnRequest) -> Vec<String> {
     let mut args = vec![
         "-as".to_string(),
@@ -833,6 +868,15 @@ fn hash_file(path: &Path) -> Result<String, BurnError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn xorriso_erase_arguments() {
+        assert_eq!(
+            build_xorriso_blank_args(" /dev/sr0 ", false),
+            ["-outdev", "/dev/sr0", "-blank", "fast"]
+        );
+        assert_eq!(build_xorriso_blank_args("/dev/sr0", true)[3], "all");
+    }
     use crate::{BurnRequest, BD_1X_BYTES_PER_SECOND};
 
     const LSBLK: &str = r#"

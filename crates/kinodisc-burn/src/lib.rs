@@ -390,6 +390,16 @@ pub struct VerifyReport {
     pub sha256_disc: String,
 }
 
+/// Result of erasing a rewritable disc.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EraseReport {
+    pub backend: BurnBackend,
+    pub elapsed_ms: u64,
+    /// Whole surface (`true`) or only the file system (quick erase).
+    pub full: bool,
+}
+
 pub type ProgressSink = mpsc::Sender<BurnProgress>;
 
 #[async_trait::async_trait]
@@ -415,6 +425,17 @@ pub trait DiscBurner: Send + Sync {
     ) -> Result<VerifyReport, BurnError>;
 
     async fn eject(&self, device: &DeviceId) -> Result<(), BurnError>;
+
+    /// Erases a rewritable disc (DVD-RW, DVD+RW, BD-RE) so it can be used
+    /// again. A quick erase clears the file system; a full one rewrites the
+    /// whole surface and takes much longer. Callers check that the disc is
+    /// rewritable first; backends that cannot erase say so.
+    async fn erase(&self, device: &DeviceId, full: bool) -> Result<EraseReport, BurnError> {
+        let _ = (device, full);
+        Err(BurnError::UnsupportedMedia(
+            "este sistema no permite borrar discos desde Kinodisc".to_string(),
+        ))
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -290,6 +290,25 @@ impl DiscBurner for MacOsBurner {
         })
     }
 
+    async fn erase(&self, device: &DeviceId, full: bool) -> Result<crate::EraseReport, BurnError> {
+        let started = Instant::now();
+        let selector = self.resolve_selector(device).await;
+        let args = build_drutil_erase_args(&selector, full);
+        let output = command_output(&self.drutil, &args).await?;
+        if !output.status.success() {
+            return Err(BurnError::ProcessFailed {
+                tool: self.drutil.display().to_string(),
+                code: output.status.code().unwrap_or(-1),
+                stderr: combined_output(&output),
+            });
+        }
+        Ok(crate::EraseReport {
+            backend: BurnBackend::Drutil,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            full,
+        })
+    }
+
     async fn eject(&self, device: &DeviceId) -> Result<(), BurnError> {
         let selector = self.resolve_selector(device).await;
         let args = build_drutil_eject_args(&selector);
@@ -793,6 +812,16 @@ pub fn build_hdiutil_burn_args(request: &BurnRequest) -> Vec<String> {
     args
 }
 
+/// `drutil` arguments that erase a rewritable disc (`quick` or `full`).
+pub fn build_drutil_erase_args(selector: &str, full: bool) -> Vec<String> {
+    vec![
+        "-drive".to_string(),
+        selector.to_string(),
+        "erase".to_string(),
+        if full { "full" } else { "quick" }.to_string(),
+    ]
+}
+
 pub fn build_drutil_eject_args(selector: &str) -> Vec<String> {
     vec![
         "-drive".to_string(),
@@ -999,6 +1028,15 @@ fn hash_file(path: &Path) -> Result<String, BurnError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drutil_erase_arguments() {
+        assert_eq!(
+            build_drutil_erase_args("1", false),
+            ["-drive", "1", "erase", "quick"]
+        );
+        assert_eq!(build_drutil_erase_args("1", true)[3], "full");
+    }
 
     const LIST: &str = "\
  Vendor   Product           Rev   BSD Name  Dr

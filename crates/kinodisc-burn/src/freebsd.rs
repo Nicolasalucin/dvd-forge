@@ -246,6 +246,29 @@ impl DiscBurner for FreeBsdBurner {
         })
     }
 
+    async fn erase(&self, device: &DeviceId, full: bool) -> Result<crate::EraseReport, BurnError> {
+        self.ensure_detected_device(device).await?;
+        let started = Instant::now();
+        let args = crate::linux::build_xorriso_blank_args(device.as_str(), full);
+        let output = Command::new(&self.xorriso)
+            .args(&args)
+            .output()
+            .await
+            .map_err(|error| map_command_error(&self.xorriso, error))?;
+        if !output.status.success() {
+            return Err(BurnError::ProcessFailed {
+                tool: self.xorriso.display().to_string(),
+                code: output.status.code().unwrap_or(-1),
+                stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            });
+        }
+        Ok(crate::EraseReport {
+            backend: BurnBackend::Xorriso,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            full,
+        })
+    }
+
     async fn eject(&self, device: &DeviceId) -> Result<(), BurnError> {
         let name = device
             .as_str()

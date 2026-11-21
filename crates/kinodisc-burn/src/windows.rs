@@ -15,6 +15,37 @@ pub const IMAPI_WRITE_PROTECTED_STATE: i32 = 8_192;
 pub const IMAPI_FINALIZED_STATE: i32 = 16_384;
 pub const IMAPI_UNSUPPORTED_MEDIA_STATE: i32 = 32_768;
 
+/// What an IMAPI2 error code means, in plain words. IMAPI errors carry no
+/// system message, so without this the user only saw an empty "error
+/// COM/IMAPI2". Values from `imapi2error.h`, as the `windows` crate 0.62
+/// defines them (`Win32::System::AddressBook::E_IMAPI_*`, a feature this
+/// crate does not otherwise need).
+pub fn imapi_reason(code: u32) -> Option<&'static str> {
+    Some(match code {
+        0xC0AA_0002 => "la operación se canceló",
+        0xC0AA_0007 => "el disco grabado no coincide con la imagen",
+        0xC0AA_0202 => "no hay ningún disco en la grabadora",
+        0xC0AA_0203 | 0xC0AA_0406 => "la grabadora no puede grabar este tipo de disco",
+        0xC0AA_0204 => "el disco está puesto al revés",
+        0xC0AA_0205 => "la grabadora todavía está leyendo el disco",
+        0xC0AA_0206 => "el disco se está formateando",
+        0xC0AA_0207 => "la grabadora está ocupada",
+        0xC0AA_0209 => "el disco está protegido contra escritura o ya está cerrado",
+        0xC0AA_020D => "la grabadora dejó de responder",
+        0xC0AA_020F => "la velocidad elegida no sirve para este disco",
+        0xC0AA_0210 => "otro programa tiene bloqueada la grabadora",
+        0xC0AA_0212 => "el disco regrabable no está formateado",
+        0xC0AA_02FF | 0xC0AA_0301 => "la grabadora respondió de forma inesperada",
+        0xC0AA_0300 => "los datos no llegaron a tiempo a la grabadora",
+        0xC0AA_0402 => "el disco no está en un estado en el que se pueda grabar",
+        0xC0AA_0404 => "la imagen no entra en este disco",
+        0xC0AA_0405 => "el disco no está vacío",
+        0xC0AA_0407 | 0xC0AA_090A => "esta grabadora no admite la operación",
+        0xC0AA_0909 => "este disco no se puede borrar",
+        _ => return None,
+    })
+}
+
 /// Converts a Windows drive identifier (`D:`, `D`, `\\.\D:`) to the raw volume
 /// path used for sector verification.
 pub fn raw_volume_path(device: &str) -> Result<String, BurnError> {
@@ -186,8 +217,8 @@ impl StreamProgressTracker {
 mod platform {
     use super::*;
     use crate::{
-        BurnBackend, BurnReport, BurnRequest, DeviceId, DiscBurner, MediaInfo, OpticalDevice,
-        ProgressSink, VerifyReport,
+        BurnBackend, BurnReport, BurnRequest, DeviceId, DiscBurner, EraseReport, MediaInfo,
+        OpticalDevice, ProgressSink, VerifyReport,
     };
     use sha2::{Digest, Sha256};
     use std::io::{Read, Seek};
@@ -199,8 +230,8 @@ mod platform {
         E_ABORT, E_FAIL, E_NOTIMPL, E_POINTER, VARIANT_FALSE, VARIANT_TRUE,
     };
     use windows::Win32::Storage::Imapi::{
-        IDiscFormat2Data, IDiscMaster2, IDiscRecorder2, MsftDiscFormat2Data, MsftDiscMaster2,
-        MsftDiscRecorder2,
+        IDiscFormat2Data, IDiscFormat2Erase, IDiscMaster2, IDiscRecorder2, MsftDiscFormat2Data,
+        MsftDiscFormat2Erase, MsftDiscMaster2, MsftDiscRecorder2,
     };
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, ISequentialStream_Impl, IStream,
@@ -241,8 +272,13 @@ mod platform {
         }
     }
 
+    /// Keeps the IMAPI code (the frontend explains it) and a reason in words.
     fn map_com(error: windows::core::Error) -> BurnError {
-        BurnError::Imapi(error.message())
+        let code = error.code().0 as u32;
+        let reason = crate::windows::imapi_reason(code)
+            .map(str::to_string)
+            .unwrap_or_else(|| error.message().trim().to_string());
+        BurnError::Imapi(format!("{reason} (código 0x{code:08X})"))
     }
 
     fn map_join(error: tokio::task::JoinError) -> BurnError {
@@ -681,6 +717,33 @@ mod platform {
         unsafe { recorder.EjectMedia() }.map_err(map_com)
     }
 
+    /// Erases a rewritable disc with IMAPI2. Windows itself says whether the
+    /// disc in the drive can be erased (DVD-RW and, depending on the drive,
+    /// DVD+RW and BD-RE); erasing cannot be cancelled once started.
+    fn erase_sync(device: &DeviceId, full: bool) -> Result<(), BurnError> {
+        let (recorder, _) = find_recorder(device.as_str())?;
+        let erase: IDiscFormat2Erase = unsafe {
+            CoCreateInstance(
+                &MsftDiscFormat2Erase,
+                None::<&windows::core::IUnknown>,
+                CLSCTX_INPROC_SERVER,
+            )
+        }
+        .map_err(map_com)?;
+        let supported = unsafe { erase.IsCurrentMediaSupported(&recorder) }.map_err(map_com)?;
+        if supported.0 == 0 {
+            return Err(BurnError::UnsupportedMedia(
+                "Windows no puede borrar el disco que está en la grabadora (solo se borran DVD-RW, DVD+RW o BD-RE)"
+                    .to_string(),
+            ));
+        }
+        unsafe { erase.SetRecorder(&recorder) }.map_err(map_com)?;
+        let _ = unsafe { erase.SetClientName(&BSTR::from("Kinodisc")) };
+        let mode = if full { VARIANT_TRUE } else { VARIANT_FALSE };
+        unsafe { erase.SetFullErase(mode) }.map_err(map_com)?;
+        unsafe { erase.EraseMedia() }.map_err(map_com)
+    }
+
     fn map_io(error: std::io::Error) -> BurnError {
         if error.kind() == std::io::ErrorKind::PermissionDenied {
             BurnError::PermissionDenied(error.to_string())
@@ -801,6 +864,22 @@ mod platform {
             .await
             .map_err(map_join)?
         }
+
+        async fn erase(&self, device: &DeviceId, full: bool) -> Result<EraseReport, BurnError> {
+            let started = Instant::now();
+            let device = device.clone();
+            tokio::task::spawn_blocking(move || {
+                let _com = ComApartment::new()?;
+                erase_sync(&device, full)
+            })
+            .await
+            .map_err(map_join)??;
+            Ok(EraseReport {
+                backend: BurnBackend::Imapi2,
+                elapsed_ms: started.elapsed().as_millis() as u64,
+                full,
+            })
+        }
     }
 }
 
@@ -810,6 +889,19 @@ pub use platform::WindowsBurner;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn imapi_codes_read_as_reasons() {
+        assert_eq!(
+            imapi_reason(0xC0AA_0202),
+            Some("no hay ningún disco en la grabadora")
+        );
+        assert_eq!(
+            imapi_reason(0xC0AA_0909),
+            Some("este disco no se puede borrar")
+        );
+        assert_eq!(imapi_reason(0x8000_4005), None);
+    }
 
     #[test]
     fn converts_dvd_speeds() {
