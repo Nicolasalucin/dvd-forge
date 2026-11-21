@@ -6,6 +6,10 @@
 
 - **`kinodisc-cli template`** applies a menu template from the command line, with the same engine as Menu › Templates in the app: `kinodisc-cli template project.json multi-page-tv-grid`. `kinodisc-cli template --list` lists the 15 templates. A whole disc (template, scene menus, render, verify) can now be made without opening the app, for example by a script or an AI assistant. The project is checked before it is saved; a broken one is never written.
 
+### Fixed
+
+- **The Scenes, Settings and Extras links never cover an episode button.** When every corner of the menu was taken (Retro CRT with 3 episodes, for example), a link was placed on top of a card and the disc could not be made. Now it looks for any free place in the safe area, smaller if needed. This applies in the app too.
+
 ## 1.2.1 — 2026-11-21
 
 ### Added

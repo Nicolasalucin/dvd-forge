@@ -64,7 +64,18 @@ pub fn run(args: &[String]) -> ExitCode {
             "--list" | "-l" => return list(),
             "-o" | "--output" => {
                 index += 1;
-                output = args.get(index).cloned();
+                // `-o` with no path (or another option after it) must not
+                // fall back to writing over the input (QA 1.2.2).
+                match args.get(index) {
+                    Some(path) if !path.is_empty() && !path.starts_with('-') => {
+                        output = Some(path.clone())
+                    }
+                    _ => {
+                        eprintln!("Falta la ruta después de -o.");
+                        eprintln!("{USAGE}");
+                        return ExitCode::FAILURE;
+                    }
+                }
             }
             value if !value.starts_with('-') && input.is_none() => input = Some(value.to_string()),
             value if !value.starts_with('-') && name.is_none() => name = Some(value.to_string()),

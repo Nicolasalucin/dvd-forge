@@ -320,17 +320,30 @@ mod tests {
     fn scenes_link_never_overlaps_template_buttons() {
         // QA 1.1.3: Cinema Dark with 3 episodes, then scene menus: the link
         // landed on the third card and the disc failed (E_BUTTON_OVERLAP).
-        for template in [
-            kinodisc_domain::MenuTemplateId::CinemaDark,
-            kinodisc_domain::MenuTemplateId::MultiPageTvGrid,
-            kinodisc_domain::MenuTemplateId::Wedding,
-            kinodisc_domain::MenuTemplateId::Minimalist,
-        ] {
-            let mut project = project_with_chapters(&[4, 4, 4]);
+        // QA 1.2.2: Retro CRT with 3 episodes has all four corners taken.
+        // Every template, with 1 to 5 episodes, then the scenes link, and the
+        // template applied again over it (as the CLI does).
+        let cases = crate::templates::all_templates()
+            .into_iter()
+            .flat_map(|info| [1usize, 2, 3, 5].map(move |count| (info.id, count)));
+        for (template, count) in cases {
+            let mut project = project_with_chapters(&vec![4; count]);
             let applied = crate::templates::apply_template(&project, template).unwrap();
             project.menus = applied.menus;
             project.root_menu = applied.root_menu;
-            let project = apply(&project);
+            let mut project = apply(&project);
+            let again = crate::templates::apply_template(&project, template).unwrap();
+            project.menus = again.menus;
+            project.root_menu = again.root_menu;
+            let errors: Vec<_> = project
+                .validate()
+                .into_iter()
+                .filter(|diagnostic| diagnostic.severity == kinodisc_domain::Severity::Error)
+                .filter(|diagnostic| {
+                    diagnostic.code.starts_with("E_BUTTON") || diagnostic.code.starts_with("E_RECT")
+                })
+                .collect();
+            assert!(errors.is_empty(), "{template:?} x{count}: {errors:?}");
             let root = project.menu(project.root_menu).unwrap();
             let link = root
                 .buttons
@@ -339,7 +352,10 @@ mod tests {
                 .expect("scenes link");
             let (w, h) = (f64::from(root.canvas.width), f64::from(root.canvas.height));
             let r = link.rect;
-            assert!(r.x >= w * 0.05 && r.y >= h * 0.05, "{template:?}: {r:?}");
+            assert!(
+                r.x >= w * 0.05 && r.y >= h * 0.05,
+                "{template:?} x{count}: {r:?}"
+            );
             assert!(
                 r.x + r.w <= w * 0.95 && r.y + r.h <= h * 0.95,
                 "{template:?}: {r:?}"

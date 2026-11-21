@@ -947,15 +947,12 @@ pub(crate) fn add_center_link(
 
 /// Text link in the bottom-left footer corner (free on the first page,
 /// which has no Previous button).
-pub(crate) fn add_corner_link(
-    menu: &mut Menu,
-    template: &MenuTemplate,
-    name: &str,
-    target: MenuId,
-) {
+/// A place for a link button that touches no other button or title: the
+/// preferred spot when it is free, then the corners of the action-safe
+/// area, then anywhere in it (from the bottom up), shrinking if needed.
+fn free_spot(menu: &Menu, base_w: f64, base_h: f64, preferred: Option<LogicalRect>) -> LogicalRect {
     let height = menu.canvas.height as f64;
     let width = menu.canvas.width as f64;
-    let k = (height / 480.0).max(1.0);
     // Inside the action-safe area (5 % on each side), in the first corner
     // that does not touch another button or the title (QA 1.1.3: it landed
     // on a 2x2 card and the disc failed with E_BUTTON_OVERLAP).
@@ -976,24 +973,62 @@ pub(crate) fn add_corner_link(
                 || other.y + other.h + 6.0 <= rect.y
         })
     };
-    let spot = [1.0, 0.8, 0.65]
-        .iter()
-        .flat_map(|scale| {
-            let (w, h) = ((200.0 * k * scale).round(), (40.0 * k * scale).round());
-            let (left, right) = ((width * 0.06).round(), (width * 0.94 - w).round());
-            let (top, bottom) = ((height * 0.06).round(), (height * 0.94 - h).round());
-            [(left, bottom), (right, bottom), (right, top), (left, top)]
-                .map(|(x, y)| LogicalRect::new(x, y, w, h))
-        })
-        .find(free)
+    let even = |value: f64| (value / 2.0).round() * 2.0;
+    let sizes =
+        [1.0, 0.8, 0.65, 0.5, 0.4].map(|scale| (even(base_w * scale), even(base_h * scale)));
+    let (safe_left, safe_top) = (even(width * 0.06), even(height * 0.06));
+    // Corners first (where people look for it); if all four are taken (a
+    // centred third card, QA 1.2.2), any free place in the safe area, from
+    // the bottom up, before giving up.
+    let corners = sizes.iter().flat_map(|&(w, h)| {
+        let (right, bottom) = (even(width * 0.94 - w), even(height * 0.94 - h));
+        [
+            (safe_left, bottom),
+            (right, bottom),
+            (right, safe_top),
+            (safe_left, safe_top),
+        ]
+        .map(|(x, y)| LogicalRect::new(x, y, w, h))
+    });
+    let anywhere = sizes.iter().flat_map(|&(w, h)| {
+        let (right, bottom) = (even(width * 0.94 - w), even(height * 0.94 - h));
+        // Every 4 px, plus the exact edges (a fixed step missed the gap
+        // right next to the last card).
+        let steps = |from: f64, to: f64| {
+            let count = ((to - from) / 4.0).max(0.0) as usize;
+            (0..=count)
+                .map(move |step| from + step as f64 * 4.0)
+                .chain(std::iter::once(to))
+        };
+        steps(safe_top, bottom)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .flat_map(move |y| steps(safe_left, right).map(move |x| LogicalRect::new(x, y, w, h)))
+    });
+    preferred
+        .into_iter()
+        .chain(corners)
+        .chain(anywhere)
+        .find(|rect| free(rect))
         .unwrap_or_else(|| {
             LogicalRect::new(
                 (width * 0.06).round(),
-                (height * 0.94 - 40.0 * k).round(),
-                200.0 * k,
-                40.0 * k,
+                (height * 0.94 - base_h).round(),
+                base_w,
+                base_h,
             )
-        });
+        })
+}
+
+pub(crate) fn add_corner_link(
+    menu: &mut Menu,
+    template: &MenuTemplate,
+    name: &str,
+    target: MenuId,
+) {
+    let k = (menu.canvas.height as f64 / 480.0).max(1.0);
+    let spot = free_spot(menu, 200.0 * k, 40.0 * k, None);
     let mut link = nav_button(
         name,
         spot,
@@ -1404,14 +1439,18 @@ fn add_extras_link(menu: &mut Menu, template: &MenuTemplate, extras: MenuId) {
     let width = menu.canvas.width as f64;
     let height = menu.canvas.height as f64;
     let k = (height / 480.0).max(1.0);
+    // Bottom centre when free; it landed on a centred third card before
+    // (QA 1.2.2), so otherwise the first free place.
+    let centre = LogicalRect::new(
+        ((width - 140.0 * k) / 4.0).round() * 2.0,
+        ((height - 54.0 * k) / 2.0).round() * 2.0,
+        (140.0 * k / 2.0).round() * 2.0,
+        (34.0 * k / 2.0).round() * 2.0,
+    );
+    let spot = free_spot(menu, centre.w, centre.h, Some(centre));
     menu.buttons.push(nav_button(
         "Extras",
-        LogicalRect::new(
-            (width - 140.0 * k) / 2.0,
-            height - 54.0 * k,
-            140.0 * k,
-            34.0 * k,
-        ),
+        spot,
         template,
         ButtonAction::GotoMenu { menu: extras },
     ));
