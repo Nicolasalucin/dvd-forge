@@ -368,6 +368,26 @@ Smart Render Cache v2:
 - A soundless episode makes the whole AVCHD/Blu-ray audio layout AC-3 (no
   pass-through), so the silent tracks can match it.
 - Dialogs doing work set `ui.locked`; `ui.open()` does nothing while it is set.
+- Deleting asks with the awaited native confirm (`utils/confirm.ts`);
+  `window.confirm` does not block in the webview.
+
+### 19. Kinodisc 1.2.1 additions
+
+- **Erase**: `DiscBurner::erase(device, full)` (default: unsupported).
+  Windows `IDiscFormat2Erase` after `IsCurrentMediaSupported`; Linux and
+  FreeBSD `xorriso -outdev <dev> -blank fast|all`; macOS
+  `drutil -drive <sel> erase quick|full`. The `burn_erase` command takes
+  the burn slot and refuses media that `probe_media` does not report as
+  rewritable.
+- **IMAPI errors** keep their HRESULT: `map_com` writes
+  `"<reason> (código 0xC0AA….)"` with `windows::imapi_reason`. The frontend
+  (`i18n/burnErrors.ts`) matches the code first, then engine phrases, and
+  shows reason + advice; keep both tables in sync.
+- **Diagnostics are local**: "Copy details" builds the report in the page;
+  there is no telemetry upload (see section 17, Network).
+- `burn_start` lets an image without VIDEO_TS/BDMV through
+  (`PROFILE-UNKNOWN` is not blocking): it is a data disc; any other failed
+  check still blocks the burn.
 
 ### 13. Localization
 

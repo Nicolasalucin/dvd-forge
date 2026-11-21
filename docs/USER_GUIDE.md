@@ -181,6 +181,22 @@ disc for the TV. Choose the folder: Kinodisc shows how many files it has, its
 size and which disc it fits. Type a disc label, choose the output folder and
 press **Create disc image**; then **Burn to a disc…** burns the image.
 
+### Erase a rewritable disc
+
+**Disc › Erase rewritable disc…** makes a DVD-RW, DVD+RW or BD-RE ready to
+burn again. **Quick** takes a few minutes and is enough to burn the disc
+again; **Full** rewrites the whole disc and is for discs that give errors.
+DVD-R and DVD+R discs cannot be erased. Do not remove the disc while it is
+being erased.
+
+### When burning fails
+
+The dialog says why in plain words (no disc, the disc is upside down, it is
+not empty, the speed is too high, the cable…) and what to try. When a
+rewritable disc is not empty it offers **Erase disc…**. **Copy details**
+copies a short technical report you can paste when asking for help; Kinodisc
+never sends it anywhere.
+
 ### If production stops halfway
 
 Press **Produce disc** again: episodes that were already encoded are reused.

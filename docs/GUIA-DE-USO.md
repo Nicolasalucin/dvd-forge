@@ -185,6 +185,22 @@ archivos tiene, su tamaño y en qué disco entra. Escribe la etiqueta del disco,
 elige la carpeta de salida y pulsa **Crear imagen del disco**; después
 **Grabar en un disco…** graba la imagen.
 
+### Borrar un disco regrabable
+
+**Disco › Borrar disco regrabable…** deja un DVD-RW, DVD+RW o BD-RE listo
+para volver a grabarlo. **Rápido** tarda unos minutos y alcanza para volver a
+grabar el disco; **Completo** reescribe todo el disco y sirve para discos que
+dan errores. Los DVD-R y DVD+R no se pueden borrar. No saques el disco
+mientras se borra.
+
+### Si la grabación falla
+
+La ventana explica el motivo en palabras simples (no hay disco, el disco está
+al revés, no está vacío, la velocidad es muy alta, el cable…) y qué probar.
+Si un disco regrabable no está vacío, ofrece **Borrar disco…**. **Copiar
+detalles** copia un informe técnico corto para pegarlo al pedir ayuda;
+Kinodisc nunca lo envía a ningún lado.
+
 ### Si la producción se corta a la mitad
 
 Pulsa **Producir disco** otra vez: los episodios ya codificados se reutilizan.

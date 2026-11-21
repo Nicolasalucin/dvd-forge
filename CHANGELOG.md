@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1 — 2026-11-21
+
+### Added
+
+- **Erase rewritable discs.** Disc › Erase rewritable disc… makes a DVD-RW, DVD+RW or BD-RE ready to burn again, quick or full. It checks that the disc is rewritable before touching the drive.
+- **Burn errors explain why.** A failed burn or erase says what went wrong in plain words (no disc, disc upside down, not empty, speed, drive locked, USB power…) and what to try. A used rewritable disc offers to erase it. **Copy details** copies a short technical report for asking for help; nothing is sent anywhere.
+
+### Fixed
+
+- **Data discs can be burned.** The check before burning refused every image without VIDEO_TS or BDMV, so the data discs made with Disc › Data disc… could only be saved, not burned.
+
 ## 1.2.0 — 2026-11-19
 
 New disc features, plus the fixes from several complete tests of the app by an independent QA pass. (1.1.3 was never released: its fixes are in this version.)
