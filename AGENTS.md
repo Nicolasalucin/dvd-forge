@@ -57,7 +57,8 @@ apps/desktop/src/lib/api/bindings.ts
 ```
 
 Do not edit that file manually. Regenerate it with `npm run bindings` (or
-`cargo run -p kinodisc-desktop --bin export-bindings`).
+`cargo run -p kinodisc-desktop --example export-bindings`; it is an example so the
+installer never ships it).
 
 ## Critical invariants — do not break
 

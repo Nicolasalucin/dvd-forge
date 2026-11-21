@@ -22,10 +22,11 @@ npm run tauri dev  # ventana nativa con Vite
 `src/lib/api/bindings.ts` se genera con `tauri-specta` a partir de los comandos
 y tipos registrados en `src-tauri/src/lib.rs`. No editar a mano.
 
-El binario `export-bindings` permite regenerarlo sin abrir la ventana:
+El ejemplo `export-bindings` permite regenerarlo sin abrir la ventana (es un
+ejemplo de Cargo, no un binario, para que el instalador no lo incluya):
 
 ```bash
-cargo run -q -p kinodisc-desktop --bin export-bindings
+cargo run -q -p kinodisc-desktop --example export-bindings
 ```
 
 ## Comandos IPC

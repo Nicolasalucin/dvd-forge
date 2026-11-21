@@ -15,9 +15,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "kinodisc-desktop"
 path = "src/main.rs"
 
-[[bin]]
+# A Cargo example, not a [[bin]]: the installer bundles every binary of the
+# package, and this developer tool shipped next to the app in 1.2.1.
+[[example]]
 name = "export-bindings"
-path = "src/bin/export_bindings.rs"
+path = "examples/export_bindings.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }

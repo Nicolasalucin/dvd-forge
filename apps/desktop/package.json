@@ -9,7 +9,7 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "i18n:check": "node scripts/i18n-check.mjs --strict",
-    "bindings": "cargo run -q -p kinodisc-desktop --bin export-bindings",
+    "bindings": "cargo run -q -p kinodisc-desktop --example export-bindings",
     "tauri": "tauri"
   },
   "dependencies": {
