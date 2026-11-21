@@ -1,6 +1,6 @@
 use kinodisc_burn::{
     platform_burner, BurnProgress, BurnReport, BurnRequest, CancellationToken, DeviceId,
-    OpticalDevice,
+    EraseReport, OpticalDevice,
 };
 use kinodisc_domain::JobId;
 use std::sync::{Mutex, OnceLock};
@@ -72,6 +72,47 @@ pub async fn burn_list_devices() -> Result<Vec<OpticalDevice>, String> {
         .list_devices()
         .await
         .map_err(|error| error.to_string())
+}
+
+/// Erases the rewritable disc in `device` (DVD-RW, DVD+RW, BD-RE) so it can
+/// be burned again. It takes the burn slot (no burn or erase can run at the
+/// same time) and refuses discs that are not rewritable before touching the
+/// drive. An erase cannot be cancelled once started.
+#[tauri::command]
+#[specta::specta]
+pub async fn burn_erase(device: String, full: bool) -> Result<EraseReport, String> {
+    let device = DeviceId::new(device);
+    let job_id = JobId::new();
+    {
+        let mut slot = job_slot()
+            .lock()
+            .map_err(|_| "No se pudo acceder al estado de la grabación.".to_string())?;
+        if slot.is_some() {
+            return Err("Ya hay una grabación en curso.".to_string());
+        }
+        *slot = Some(BurnJob {
+            id: job_id,
+            cancel: CancellationToken::new(),
+        });
+    }
+    let _slot_guard = BurnSlotGuard { id: job_id };
+    let burner = platform_burner();
+    let media = burner
+        .probe_media(&device)
+        .await
+        .map_err(|error| error.to_string())?;
+    if !media.rewritable {
+        return Err(not_rewritable_message().to_string());
+    }
+    burner
+        .erase(&device, full)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// What a user reads when the disc in the drive cannot be erased.
+fn not_rewritable_message() -> &'static str {
+    "Este disco no es regrabable: solo se pueden borrar DVD-RW, DVD+RW y BD-RE. Un DVD-R o DVD+R grabado no se puede volver a usar."
 }
 
 /// Failed checks that stop a burn. An image with no VIDEO_TS or BDMV is a

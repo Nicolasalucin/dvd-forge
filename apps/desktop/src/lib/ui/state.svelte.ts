@@ -25,6 +25,7 @@ const DIALOGS = [
   "history",
   "recent",
   "dataDisc",
+  "eraseDisc",
 ] as const;
 export type DialogName = (typeof DIALOGS)[number];
 
@@ -40,6 +41,7 @@ class UiState {
   history = $state(false);
   recent = $state(false);
   dataDisc = $state(false);
+  eraseDisc = $state(false);
   /** A dialog is working (queue, data disc, join, slideshow): `open` does nothing. */
   locked = $state(false);
   /** An image to burn, handed to the production dialog (data discs). */

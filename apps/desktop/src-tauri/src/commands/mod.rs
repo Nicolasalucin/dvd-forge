@@ -9,7 +9,7 @@ pub mod store;
 pub mod system;
 pub mod verify;
 
-pub use burn::{burn_cancel, burn_list_devices, burn_start};
+pub use burn::{burn_cancel, burn_erase, burn_list_devices, burn_start};
 pub use data::{data_folder_size, data_iso_cancel, data_iso_create};
 pub use media::{
     disc_import, disc_inspect, join_create, media_detect_crop, media_detect_scenes,

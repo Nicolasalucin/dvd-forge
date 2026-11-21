@@ -36,6 +36,7 @@
     slideshow: () => import("./lib/components/SlideshowDialog.svelte"),
     join: () => import("./lib/components/JoinDialog.svelte"),
     dataDisc: () => import("./lib/components/DataDiscDialog.svelte"),
+    eraseDisc: () => import("./lib/components/EraseDiscDialog.svelte"),
     cover: () => import("./lib/components/CoverDialog.svelte"),
     inspector: () => import("./lib/components/DiscInspector.svelte"),
   };
@@ -317,6 +318,9 @@
         },
       }}
     />
+  {/if}
+  {#if ui.eraseDisc}
+    <Lazy loader={screens.eraseDisc} props={{ onclose: () => (ui.eraseDisc = false) }} />
   {/if}
   {#if ui.join}
     <Lazy loader={screens.join} props={{ onclose: () => (ui.join = false) }} />

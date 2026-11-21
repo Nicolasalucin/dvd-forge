@@ -132,6 +132,13 @@ export const commands = {
 	 */
 	renderExportFolder: (isoPath: string, outputDir: string, folderName: string, removeIso: boolean, jobId: string | null) => typedError<FolderExport, string>(__TAURI_INVOKE("render_export_folder", { isoPath, outputDir, folderName, removeIso, jobId })),
 	burnStart: (isoPath: string, device: string, speed: number, verify: boolean, eject: boolean, channel: Channel<BurnProgress_Deserialize>) => typedError<BurnReport_Serialize, string>(__TAURI_INVOKE("burn_start", { isoPath, device, speed, verify, eject, channel })),
+	/**
+	 *  Erases the rewritable disc in `device` (DVD-RW, DVD+RW, BD-RE) so it can
+	 *  be burned again. It takes the burn slot (no burn or erase can run at the
+	 *  same time) and refuses discs that are not rewritable before touching the
+	 *  drive. An erase cannot be cancelled once started.
+	 */
+	burnErase: (device: string, full: boolean) => typedError<EraseReport, string>(__TAURI_INVOKE("burn_erase", { device, full })),
 	burnCancel: () => typedError<null, string>(__TAURI_INVOKE("burn_cancel")),
 	dataFolderSize: (folder: string) => typedError<FolderSize, string>(__TAURI_INVOKE("data_folder_size", { folder })),
 	/**
@@ -812,6 +819,14 @@ export type Episode_Serialize = {
 	videoMode: VideoEncodeMode,
 	/**  Picture fixes (rotate, crop, colour, denoise…); neutral by default. */
 	filters: VideoFilters_Serialize,
+};
+
+/**  Result of erasing a rewritable disc. */
+export type EraseReport = {
+	backend: BurnBackend,
+	elapsedMs: number,
+	/**  Whole surface (`true`) or only the file system (quick erase). */
+	full: boolean,
 };
 
 export type FileHash = {

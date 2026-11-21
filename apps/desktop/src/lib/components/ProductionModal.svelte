@@ -3,6 +3,7 @@
   import { announceFinished } from "../ui/finish";
   import { ui } from "../ui/state.svelte";
   import Icon from "../ui/Icon.svelte";
+  import BurnErrorBox from "./BurnErrorBox.svelte";
   import type { IconName } from "../ui/icons";
   const modeIcons: Record<string, IconName> = { iso: "disc", folder: "folder", isoBurn: "burn", existing: "open" };
   import { i18n, t, formatDecimal, formatPercent } from "../i18n/index.svelte";
@@ -650,7 +651,17 @@
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-      {#if localError || projectStore.renderError || projectStore.burnError}
+      {#if projectStore.burnError && !localError && !projectStore.renderError}
+        <div class="mb-4">
+          <BurnErrorBox
+            message={projectStore.burnError}
+            action={t("Grabar")}
+            device={effectiveDevice}
+            image={mode === "existing" ? existingIso : projectStore.lastIso}
+            onerase={() => ui.open("eraseDisc")}
+          />
+        </div>
+      {:else if localError || projectStore.renderError || projectStore.burnError}
         <div class="mb-4 rounded-md bg-rose-500/10 px-3 py-2 text-[12px] leading-5 text-rose-200" role="alert">
           {localError ?? projectStore.renderError ?? projectStore.burnError}
           {#if projectStore.renderError}

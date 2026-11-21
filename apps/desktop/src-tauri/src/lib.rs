@@ -14,8 +14,8 @@ use tauri_specta::{collect_commands, Builder};
 use commands::menu_apply_setup_menu;
 use commands::{
     autosave_discard, autosave_list, autosave_write, bundle_export, bundle_import, burn_cancel,
-    burn_list_devices, burn_start, data_folder_size, data_iso_cancel, data_iso_create, disc_import,
-    disc_inspect, image_save_png, job_history_list, join_create, media_detect_crop,
+    burn_erase, burn_list_devices, burn_start, data_folder_size, data_iso_cancel, data_iso_create,
+    disc_import, disc_inspect, image_save_png, job_history_list, join_create, media_detect_crop,
     media_detect_scenes, media_extract_frame, media_filter_preview, media_missing,
     media_playback_support, media_prepare_preview, media_preview_url, media_probe_file,
     media_sidecar_subtitles, menu_apply_chapter_menus, menu_apply_template, menu_navigation,
@@ -69,6 +69,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             render_cancel,
             render_export_folder,
             burn_start,
+            burn_erase,
             burn_cancel,
             data_folder_size,
             data_iso_create,
@@ -106,6 +107,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .typ::<RenderOutcome>()
         .typ::<BurnProgress>()
         .typ::<BurnReport>()
+        .typ::<kinodisc_burn::EraseReport>()
         .typ::<kinodisc_store::RecentProject>()
         .typ::<kinodisc_store::JobHistoryEntry>()
         .typ::<kinodisc_toolchain::ToolchainReport>()
