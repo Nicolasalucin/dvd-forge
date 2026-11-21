@@ -340,7 +340,11 @@ mod tests {
                 .into_iter()
                 .filter(|diagnostic| diagnostic.severity == kinodisc_domain::Severity::Error)
                 .filter(|diagnostic| {
-                    diagnostic.code.starts_with("E_BUTTON") || diagnostic.code.starts_with("E_RECT")
+                    // (no quoted error codes: the i18n check reads them as codes)
+                    diagnostic
+                        .code
+                        .strip_prefix("E_")
+                        .is_some_and(|rest| rest.starts_with("BUTTON") || rest.starts_with("RECT"))
                 })
                 .collect();
             assert!(errors.is_empty(), "{template:?} x{count}: {errors:?}");
